@@ -40,10 +40,11 @@ class TensorValue : public TensorIRValue, public SymbolInterface<TensorValue> {
   Tensor tensor_;
 };
 
-static inline std::vector<TensorValue::ptr_t> wrapTensors2TensorIR(IRContext* ctx, const std::vector<Tensor>& tensors) {
+static inline std::vector<TensorValue::ptr_t> wrapTensors2TensorIR(IRContext* ctx, const std::vector<Tensor>& tensors,
+                                                                   bool no_memory_side_effect = false) {
   std::vector<TensorValue::ptr_t> tensor_ir_values;
   for (auto& t : tensors) {
-    if (ctx->isCacheInputOutputTensor(t.uuid())) {
+    if (!no_memory_side_effect && ctx->isCacheInputOutputTensor(t.uuid())) {
       tensor_ir_values.emplace_back(ctx->getCacheInputOutputTensor(t.uuid())->cast_<ir::tensor::TensorValue>());
     } else {
       auto ret = ctx->create<TensorValue>(t);

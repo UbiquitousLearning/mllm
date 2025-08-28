@@ -16,7 +16,7 @@ void ViewOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 void ViewOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto ir_ctx = (ir::IRContext*)trace_context;
   auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
-  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs, true);  // no_memory_side_effect=True
   ir_ctx->create<ir::linalg::ViewOp>(shared_from_this(), i_irs, o_irs);
 }
 

@@ -473,8 +473,8 @@
     graph.CallGraphOp @visual (%580:tensor<[680, 1176], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1266:tensor<[170, 1536], Float32, CPU>)
     graph.SubGraphOp @visual <CPU> {
         (%580:tensor<[680, 1176], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1266:tensor<[170, 1536], Float32, CPU>) {
-            graph.CallGraphOp @visual.patch_embed (%580:tensor<[680, 1176], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)
-            graph.CallGraphOp @visual.blocks.0 (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%611:tensor<[680, 1280], Float32, CPU>)
+            graph.CallGraphOp @visual.patch_embed (%580:tensor<[680, 1176], Float32, CPU>) -> (%590:tensor<[680, 1280], Float32, CPU>)
+            graph.CallGraphOp @visual.blocks.0 (%590:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%611:tensor<[680, 1280], Float32, CPU>)
             graph.CallGraphOp @visual.blocks.1 (%611:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%632:tensor<[680, 1280], Float32, CPU>)
             graph.CallGraphOp @visual.blocks.2 (%632:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%653:tensor<[680, 1280], Float32, CPU>)
             graph.CallGraphOp @visual.blocks.3 (%653:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%674:tensor<[680, 1280], Float32, CPU>)
@@ -511,18 +511,18 @@
         }
     }
     graph.SubGraphOp @visual.patch_embed <CPU> {
-        (%580:tensor<[680, 1176], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) {
-            linalg.CPU.ViewOp(%580:tensor<[680, 1176], Float32, CPU>) -> (%580:tensor<[680, 1176], Float32, CPU>)
-            linalg.CPU.Conv3DOp(%580:tensor<[680, 1176], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)
-            linalg.CPU.ViewOp(%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)
-            cf.ReturnOp (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) -> ()
+        (%580:tensor<[680, 1176], Float32, CPU>) -> (%590:tensor<[680, 1280], Float32, CPU>) {
+            linalg.CPU.ViewOp(%580:tensor<[680, 1176], Float32, CPU>) -> (%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>)
+            linalg.CPU.Conv3DOp(%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)
+            linalg.CPU.ViewOp(%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) -> (%590:tensor<[680, 1280], Float32, CPU>)
+            cf.ReturnOp (%590:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
     graph.SubGraphOp @visual.blocks.0 <CPU> {
-        (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%611:tensor<[680, 1280], Float32, CPU>) {
-            linalg.CPU.LayerNormOp(%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) -> (%591:tensor<[680, 1280], Float32, CPU>)
+        (%590:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%611:tensor<[680, 1280], Float32, CPU>) {
+            linalg.CPU.LayerNormOp(%590:tensor<[680, 1280], Float32, CPU>) -> (%591:tensor<[680, 1280], Float32, CPU>)
             graph.CallGraphOp @visual.blocks.0.attn (%591:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%605:tensor<[680, 1280], Float32, CPU>)
-            linalg.CPU.AddOp(%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>, %605:tensor<[680, 1280], Float32, CPU>) -> (%606:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.AddOp(%590:tensor<[680, 1280], Float32, CPU>, %605:tensor<[680, 1280], Float32, CPU>) -> (%606:tensor<[680, 1280], Float32, CPU>)
             linalg.CPU.LayerNormOp(%606:tensor<[680, 1280], Float32, CPU>) -> (%607:tensor<[680, 1280], Float32, CPU>)
             graph.CallGraphOp @visual.blocks.0.mlp (%607:tensor<[680, 1280], Float32, CPU>) -> (%610:tensor<[680, 1280], Float32, CPU>)
             linalg.CPU.AddOp(%606:tensor<[680, 1280], Float32, CPU>, %610:tensor<[680, 1280], Float32, CPU>) -> (%611:tensor<[680, 1280], Float32, CPU>)
@@ -532,8 +532,8 @@
     graph.SubGraphOp @visual.blocks.0.attn <CPU> {
         (%591:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%605:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%591:tensor<[680, 1280], Float32, CPU>) -> (%592:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%592:tensor<[680, 3840], Float32, CPU>) -> (%592:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%592:tensor<[680, 3840], Float32, CPU>) -> (%593:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%592:tensor<[680, 3840], Float32, CPU>) -> (%592:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%592:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%593:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%593:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%593:tensor<[3, 680, 16, 80], Float32, CPU>, %593:tensor<[3, 680, 16, 80], Float32, CPU>, %593:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%593:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%594:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%593:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%595:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -545,8 +545,8 @@
             linalg.CPU.SoftmaxOp(%601:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%602:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%602:tensor<[1, 16, 680, 680], Float32, CPU>, %598:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%603:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%603:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%604:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%604:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%604:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%604:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%605:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%604:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%604:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%604:tensor<[680, 1280], Float32, CPU>) -> (%605:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%605:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -572,8 +572,8 @@
     graph.SubGraphOp @visual.blocks.1.attn <CPU> {
         (%612:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%626:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%612:tensor<[680, 1280], Float32, CPU>) -> (%613:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%613:tensor<[680, 3840], Float32, CPU>) -> (%613:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%613:tensor<[680, 3840], Float32, CPU>) -> (%614:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%613:tensor<[680, 3840], Float32, CPU>) -> (%613:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%613:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%614:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%614:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%614:tensor<[3, 680, 16, 80], Float32, CPU>, %614:tensor<[3, 680, 16, 80], Float32, CPU>, %614:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%614:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%615:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%614:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%616:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -585,8 +585,8 @@
             linalg.CPU.SoftmaxOp(%622:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%623:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%623:tensor<[1, 16, 680, 680], Float32, CPU>, %619:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%624:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%624:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%625:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%625:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%625:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%625:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%626:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%625:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%625:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%625:tensor<[680, 1280], Float32, CPU>) -> (%626:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%626:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -612,8 +612,8 @@
     graph.SubGraphOp @visual.blocks.2.attn <CPU> {
         (%633:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%647:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%633:tensor<[680, 1280], Float32, CPU>) -> (%634:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%634:tensor<[680, 3840], Float32, CPU>) -> (%634:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%634:tensor<[680, 3840], Float32, CPU>) -> (%635:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%634:tensor<[680, 3840], Float32, CPU>) -> (%634:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%634:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%635:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%635:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%635:tensor<[3, 680, 16, 80], Float32, CPU>, %635:tensor<[3, 680, 16, 80], Float32, CPU>, %635:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%635:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%636:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%635:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%637:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -625,8 +625,8 @@
             linalg.CPU.SoftmaxOp(%643:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%644:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%644:tensor<[1, 16, 680, 680], Float32, CPU>, %640:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%645:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%645:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%646:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%646:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%646:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%646:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%647:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%646:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%646:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%646:tensor<[680, 1280], Float32, CPU>) -> (%647:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%647:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -652,8 +652,8 @@
     graph.SubGraphOp @visual.blocks.3.attn <CPU> {
         (%654:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%668:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%654:tensor<[680, 1280], Float32, CPU>) -> (%655:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%655:tensor<[680, 3840], Float32, CPU>) -> (%655:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%655:tensor<[680, 3840], Float32, CPU>) -> (%656:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%655:tensor<[680, 3840], Float32, CPU>) -> (%655:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%655:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%656:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%656:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%656:tensor<[3, 680, 16, 80], Float32, CPU>, %656:tensor<[3, 680, 16, 80], Float32, CPU>, %656:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%656:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%657:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%656:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%658:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -665,8 +665,8 @@
             linalg.CPU.SoftmaxOp(%664:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%665:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%665:tensor<[1, 16, 680, 680], Float32, CPU>, %661:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%666:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%666:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%667:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%667:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%667:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%667:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%668:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%667:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%667:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%667:tensor<[680, 1280], Float32, CPU>) -> (%668:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%668:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -692,8 +692,8 @@
     graph.SubGraphOp @visual.blocks.4.attn <CPU> {
         (%675:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%689:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%675:tensor<[680, 1280], Float32, CPU>) -> (%676:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%676:tensor<[680, 3840], Float32, CPU>) -> (%676:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%676:tensor<[680, 3840], Float32, CPU>) -> (%677:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%676:tensor<[680, 3840], Float32, CPU>) -> (%676:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%676:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%677:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%677:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%677:tensor<[3, 680, 16, 80], Float32, CPU>, %677:tensor<[3, 680, 16, 80], Float32, CPU>, %677:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%677:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%678:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%677:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%679:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -705,8 +705,8 @@
             linalg.CPU.SoftmaxOp(%685:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%686:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%686:tensor<[1, 16, 680, 680], Float32, CPU>, %682:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%687:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%687:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%688:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%688:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%688:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%688:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%689:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%688:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%688:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%688:tensor<[680, 1280], Float32, CPU>) -> (%689:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%689:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -732,8 +732,8 @@
     graph.SubGraphOp @visual.blocks.5.attn <CPU> {
         (%696:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%710:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%696:tensor<[680, 1280], Float32, CPU>) -> (%697:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%697:tensor<[680, 3840], Float32, CPU>) -> (%697:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%697:tensor<[680, 3840], Float32, CPU>) -> (%698:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%697:tensor<[680, 3840], Float32, CPU>) -> (%697:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%697:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%698:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%698:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%698:tensor<[3, 680, 16, 80], Float32, CPU>, %698:tensor<[3, 680, 16, 80], Float32, CPU>, %698:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%698:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%699:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%698:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%700:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -745,8 +745,8 @@
             linalg.CPU.SoftmaxOp(%706:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%707:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%707:tensor<[1, 16, 680, 680], Float32, CPU>, %703:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%708:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%708:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%709:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%709:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%709:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%709:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%710:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%709:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%709:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%709:tensor<[680, 1280], Float32, CPU>) -> (%710:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%710:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -772,8 +772,8 @@
     graph.SubGraphOp @visual.blocks.6.attn <CPU> {
         (%717:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%731:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%717:tensor<[680, 1280], Float32, CPU>) -> (%718:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%718:tensor<[680, 3840], Float32, CPU>) -> (%718:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%718:tensor<[680, 3840], Float32, CPU>) -> (%719:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%718:tensor<[680, 3840], Float32, CPU>) -> (%718:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%718:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%719:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%719:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%719:tensor<[3, 680, 16, 80], Float32, CPU>, %719:tensor<[3, 680, 16, 80], Float32, CPU>, %719:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%719:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%720:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%719:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%721:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -785,8 +785,8 @@
             linalg.CPU.SoftmaxOp(%727:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%728:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%728:tensor<[1, 16, 680, 680], Float32, CPU>, %724:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%729:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%729:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%730:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%730:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%730:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%730:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%731:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%730:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%730:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%730:tensor<[680, 1280], Float32, CPU>) -> (%731:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%731:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -812,8 +812,8 @@
     graph.SubGraphOp @visual.blocks.7.attn <CPU> {
         (%738:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%752:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%738:tensor<[680, 1280], Float32, CPU>) -> (%739:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%739:tensor<[680, 3840], Float32, CPU>) -> (%739:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%739:tensor<[680, 3840], Float32, CPU>) -> (%740:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%739:tensor<[680, 3840], Float32, CPU>) -> (%739:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%739:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%740:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%740:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%740:tensor<[3, 680, 16, 80], Float32, CPU>, %740:tensor<[3, 680, 16, 80], Float32, CPU>, %740:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%740:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%741:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%740:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%742:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -825,8 +825,8 @@
             linalg.CPU.SoftmaxOp(%748:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%749:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%749:tensor<[1, 16, 680, 680], Float32, CPU>, %745:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%750:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%750:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%751:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%751:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%751:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%751:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%752:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%751:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%751:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%751:tensor<[680, 1280], Float32, CPU>) -> (%752:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%752:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -852,8 +852,8 @@
     graph.SubGraphOp @visual.blocks.8.attn <CPU> {
         (%759:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%773:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%759:tensor<[680, 1280], Float32, CPU>) -> (%760:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%760:tensor<[680, 3840], Float32, CPU>) -> (%760:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%760:tensor<[680, 3840], Float32, CPU>) -> (%761:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%760:tensor<[680, 3840], Float32, CPU>) -> (%760:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%760:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%761:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%761:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%761:tensor<[3, 680, 16, 80], Float32, CPU>, %761:tensor<[3, 680, 16, 80], Float32, CPU>, %761:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%761:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%762:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%761:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%763:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -865,8 +865,8 @@
             linalg.CPU.SoftmaxOp(%769:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%770:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%770:tensor<[1, 16, 680, 680], Float32, CPU>, %766:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%771:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%771:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%772:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%772:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%772:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%772:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%773:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%772:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%772:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%772:tensor<[680, 1280], Float32, CPU>) -> (%773:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%773:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -892,8 +892,8 @@
     graph.SubGraphOp @visual.blocks.9.attn <CPU> {
         (%780:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%794:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%780:tensor<[680, 1280], Float32, CPU>) -> (%781:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%781:tensor<[680, 3840], Float32, CPU>) -> (%781:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%781:tensor<[680, 3840], Float32, CPU>) -> (%782:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%781:tensor<[680, 3840], Float32, CPU>) -> (%781:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%781:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%782:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%782:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%782:tensor<[3, 680, 16, 80], Float32, CPU>, %782:tensor<[3, 680, 16, 80], Float32, CPU>, %782:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%782:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%783:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%782:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%784:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -905,8 +905,8 @@
             linalg.CPU.SoftmaxOp(%790:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%791:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%791:tensor<[1, 16, 680, 680], Float32, CPU>, %787:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%792:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%792:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%793:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%793:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%793:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%793:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%794:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%793:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%793:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%793:tensor<[680, 1280], Float32, CPU>) -> (%794:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%794:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -932,8 +932,8 @@
     graph.SubGraphOp @visual.blocks.10.attn <CPU> {
         (%801:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%815:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%801:tensor<[680, 1280], Float32, CPU>) -> (%802:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%802:tensor<[680, 3840], Float32, CPU>) -> (%802:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%802:tensor<[680, 3840], Float32, CPU>) -> (%803:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%802:tensor<[680, 3840], Float32, CPU>) -> (%802:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%802:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%803:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%803:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%803:tensor<[3, 680, 16, 80], Float32, CPU>, %803:tensor<[3, 680, 16, 80], Float32, CPU>, %803:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%803:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%804:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%803:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%805:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -945,8 +945,8 @@
             linalg.CPU.SoftmaxOp(%811:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%812:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%812:tensor<[1, 16, 680, 680], Float32, CPU>, %808:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%813:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%813:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%814:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%814:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%814:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%814:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%815:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%814:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%814:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%814:tensor<[680, 1280], Float32, CPU>) -> (%815:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%815:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -972,8 +972,8 @@
     graph.SubGraphOp @visual.blocks.11.attn <CPU> {
         (%822:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%836:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%822:tensor<[680, 1280], Float32, CPU>) -> (%823:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%823:tensor<[680, 3840], Float32, CPU>) -> (%823:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%823:tensor<[680, 3840], Float32, CPU>) -> (%824:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%823:tensor<[680, 3840], Float32, CPU>) -> (%823:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%823:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%824:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%824:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%824:tensor<[3, 680, 16, 80], Float32, CPU>, %824:tensor<[3, 680, 16, 80], Float32, CPU>, %824:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%824:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%825:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%824:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%826:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -985,8 +985,8 @@
             linalg.CPU.SoftmaxOp(%832:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%833:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%833:tensor<[1, 16, 680, 680], Float32, CPU>, %829:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%834:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%834:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%835:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%835:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%835:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%835:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%836:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%835:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%835:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%835:tensor<[680, 1280], Float32, CPU>) -> (%836:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%836:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1012,8 +1012,8 @@
     graph.SubGraphOp @visual.blocks.12.attn <CPU> {
         (%843:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%857:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%843:tensor<[680, 1280], Float32, CPU>) -> (%844:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%844:tensor<[680, 3840], Float32, CPU>) -> (%844:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%844:tensor<[680, 3840], Float32, CPU>) -> (%845:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%844:tensor<[680, 3840], Float32, CPU>) -> (%844:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%844:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%845:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%845:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%845:tensor<[3, 680, 16, 80], Float32, CPU>, %845:tensor<[3, 680, 16, 80], Float32, CPU>, %845:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%845:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%846:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%845:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%847:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1025,8 +1025,8 @@
             linalg.CPU.SoftmaxOp(%853:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%854:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%854:tensor<[1, 16, 680, 680], Float32, CPU>, %850:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%855:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%855:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%856:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%856:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%856:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%856:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%857:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%856:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%856:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%856:tensor<[680, 1280], Float32, CPU>) -> (%857:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%857:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1052,8 +1052,8 @@
     graph.SubGraphOp @visual.blocks.13.attn <CPU> {
         (%864:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%878:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%864:tensor<[680, 1280], Float32, CPU>) -> (%865:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%865:tensor<[680, 3840], Float32, CPU>) -> (%865:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%865:tensor<[680, 3840], Float32, CPU>) -> (%866:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%865:tensor<[680, 3840], Float32, CPU>) -> (%865:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%865:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%866:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%866:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%866:tensor<[3, 680, 16, 80], Float32, CPU>, %866:tensor<[3, 680, 16, 80], Float32, CPU>, %866:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%866:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%867:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%866:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%868:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1065,8 +1065,8 @@
             linalg.CPU.SoftmaxOp(%874:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%875:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%875:tensor<[1, 16, 680, 680], Float32, CPU>, %871:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%876:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%876:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%877:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%877:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%877:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%877:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%878:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%877:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%877:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%877:tensor<[680, 1280], Float32, CPU>) -> (%878:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%878:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1092,8 +1092,8 @@
     graph.SubGraphOp @visual.blocks.14.attn <CPU> {
         (%885:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%899:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%885:tensor<[680, 1280], Float32, CPU>) -> (%886:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%886:tensor<[680, 3840], Float32, CPU>) -> (%886:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%886:tensor<[680, 3840], Float32, CPU>) -> (%887:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%886:tensor<[680, 3840], Float32, CPU>) -> (%886:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%886:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%887:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%887:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%887:tensor<[3, 680, 16, 80], Float32, CPU>, %887:tensor<[3, 680, 16, 80], Float32, CPU>, %887:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%887:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%888:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%887:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%889:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1105,8 +1105,8 @@
             linalg.CPU.SoftmaxOp(%895:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%896:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%896:tensor<[1, 16, 680, 680], Float32, CPU>, %892:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%897:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%897:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%898:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%898:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%898:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%898:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%899:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%898:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%898:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%898:tensor<[680, 1280], Float32, CPU>) -> (%899:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%899:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1132,8 +1132,8 @@
     graph.SubGraphOp @visual.blocks.15.attn <CPU> {
         (%906:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%920:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%906:tensor<[680, 1280], Float32, CPU>) -> (%907:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%907:tensor<[680, 3840], Float32, CPU>) -> (%907:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%907:tensor<[680, 3840], Float32, CPU>) -> (%908:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%907:tensor<[680, 3840], Float32, CPU>) -> (%907:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%907:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%908:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%908:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%908:tensor<[3, 680, 16, 80], Float32, CPU>, %908:tensor<[3, 680, 16, 80], Float32, CPU>, %908:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%908:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%909:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%908:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%910:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1145,8 +1145,8 @@
             linalg.CPU.SoftmaxOp(%916:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%917:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%917:tensor<[1, 16, 680, 680], Float32, CPU>, %913:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%918:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%918:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%919:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%919:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%919:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%919:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%920:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%919:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%919:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%919:tensor<[680, 1280], Float32, CPU>) -> (%920:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%920:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1172,8 +1172,8 @@
     graph.SubGraphOp @visual.blocks.16.attn <CPU> {
         (%927:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%941:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%927:tensor<[680, 1280], Float32, CPU>) -> (%928:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%928:tensor<[680, 3840], Float32, CPU>) -> (%928:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%928:tensor<[680, 3840], Float32, CPU>) -> (%929:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%928:tensor<[680, 3840], Float32, CPU>) -> (%928:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%928:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%929:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%929:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%929:tensor<[3, 680, 16, 80], Float32, CPU>, %929:tensor<[3, 680, 16, 80], Float32, CPU>, %929:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%929:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%930:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%929:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%931:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1185,8 +1185,8 @@
             linalg.CPU.SoftmaxOp(%937:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%938:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%938:tensor<[1, 16, 680, 680], Float32, CPU>, %934:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%939:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%939:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%940:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%940:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%940:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%940:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%941:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%940:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%940:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%940:tensor<[680, 1280], Float32, CPU>) -> (%941:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%941:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1212,8 +1212,8 @@
     graph.SubGraphOp @visual.blocks.17.attn <CPU> {
         (%948:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%962:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%948:tensor<[680, 1280], Float32, CPU>) -> (%949:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%949:tensor<[680, 3840], Float32, CPU>) -> (%949:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%949:tensor<[680, 3840], Float32, CPU>) -> (%950:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%949:tensor<[680, 3840], Float32, CPU>) -> (%949:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%949:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%950:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%950:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%950:tensor<[3, 680, 16, 80], Float32, CPU>, %950:tensor<[3, 680, 16, 80], Float32, CPU>, %950:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%950:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%951:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%950:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%952:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1225,8 +1225,8 @@
             linalg.CPU.SoftmaxOp(%958:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%959:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%959:tensor<[1, 16, 680, 680], Float32, CPU>, %955:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%960:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%960:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%961:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%961:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%961:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%961:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%962:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%961:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%961:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%961:tensor<[680, 1280], Float32, CPU>) -> (%962:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%962:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1252,8 +1252,8 @@
     graph.SubGraphOp @visual.blocks.18.attn <CPU> {
         (%969:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%983:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%969:tensor<[680, 1280], Float32, CPU>) -> (%970:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%970:tensor<[680, 3840], Float32, CPU>) -> (%970:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%970:tensor<[680, 3840], Float32, CPU>) -> (%971:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%970:tensor<[680, 3840], Float32, CPU>) -> (%970:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%970:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%971:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%971:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%971:tensor<[3, 680, 16, 80], Float32, CPU>, %971:tensor<[3, 680, 16, 80], Float32, CPU>, %971:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%971:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%972:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%971:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%973:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1265,8 +1265,8 @@
             linalg.CPU.SoftmaxOp(%979:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%980:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%980:tensor<[1, 16, 680, 680], Float32, CPU>, %976:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%981:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%981:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%982:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%982:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%982:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%982:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%983:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%982:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%982:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%982:tensor<[680, 1280], Float32, CPU>) -> (%983:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%983:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1292,8 +1292,8 @@
     graph.SubGraphOp @visual.blocks.19.attn <CPU> {
         (%990:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1004:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%990:tensor<[680, 1280], Float32, CPU>) -> (%991:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%991:tensor<[680, 3840], Float32, CPU>) -> (%991:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%991:tensor<[680, 3840], Float32, CPU>) -> (%992:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%991:tensor<[680, 3840], Float32, CPU>) -> (%991:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%991:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%992:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%992:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%992:tensor<[3, 680, 16, 80], Float32, CPU>, %992:tensor<[3, 680, 16, 80], Float32, CPU>, %992:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%992:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%993:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%992:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%994:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1305,8 +1305,8 @@
             linalg.CPU.SoftmaxOp(%1000:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1001:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1001:tensor<[1, 16, 680, 680], Float32, CPU>, %997:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1002:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1002:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1003:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1003:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1003:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1003:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1004:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1003:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1003:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1003:tensor<[680, 1280], Float32, CPU>) -> (%1004:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1004:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1332,8 +1332,8 @@
     graph.SubGraphOp @visual.blocks.20.attn <CPU> {
         (%1011:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1025:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1011:tensor<[680, 1280], Float32, CPU>) -> (%1012:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1012:tensor<[680, 3840], Float32, CPU>) -> (%1012:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1012:tensor<[680, 3840], Float32, CPU>) -> (%1013:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1012:tensor<[680, 3840], Float32, CPU>) -> (%1012:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1012:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1013:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1013:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1013:tensor<[3, 680, 16, 80], Float32, CPU>, %1013:tensor<[3, 680, 16, 80], Float32, CPU>, %1013:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1013:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1014:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1013:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1015:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1345,8 +1345,8 @@
             linalg.CPU.SoftmaxOp(%1021:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1022:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1022:tensor<[1, 16, 680, 680], Float32, CPU>, %1018:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1023:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1023:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1024:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1024:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1024:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1024:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1025:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1024:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1024:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1024:tensor<[680, 1280], Float32, CPU>) -> (%1025:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1025:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1372,8 +1372,8 @@
     graph.SubGraphOp @visual.blocks.21.attn <CPU> {
         (%1032:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1046:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1032:tensor<[680, 1280], Float32, CPU>) -> (%1033:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1033:tensor<[680, 3840], Float32, CPU>) -> (%1033:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1033:tensor<[680, 3840], Float32, CPU>) -> (%1034:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1033:tensor<[680, 3840], Float32, CPU>) -> (%1033:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1033:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1034:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1034:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1034:tensor<[3, 680, 16, 80], Float32, CPU>, %1034:tensor<[3, 680, 16, 80], Float32, CPU>, %1034:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1034:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1035:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1034:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1036:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1385,8 +1385,8 @@
             linalg.CPU.SoftmaxOp(%1042:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1043:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1043:tensor<[1, 16, 680, 680], Float32, CPU>, %1039:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1044:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1044:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1045:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1045:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1045:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1045:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1046:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1045:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1045:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1045:tensor<[680, 1280], Float32, CPU>) -> (%1046:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1046:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1412,8 +1412,8 @@
     graph.SubGraphOp @visual.blocks.22.attn <CPU> {
         (%1053:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1067:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1053:tensor<[680, 1280], Float32, CPU>) -> (%1054:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1054:tensor<[680, 3840], Float32, CPU>) -> (%1054:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1054:tensor<[680, 3840], Float32, CPU>) -> (%1055:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1054:tensor<[680, 3840], Float32, CPU>) -> (%1054:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1054:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1055:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1055:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1055:tensor<[3, 680, 16, 80], Float32, CPU>, %1055:tensor<[3, 680, 16, 80], Float32, CPU>, %1055:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1055:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1056:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1055:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1057:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1425,8 +1425,8 @@
             linalg.CPU.SoftmaxOp(%1063:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1064:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1064:tensor<[1, 16, 680, 680], Float32, CPU>, %1060:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1065:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1065:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1066:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1066:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1066:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1066:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1067:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1066:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1066:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1066:tensor<[680, 1280], Float32, CPU>) -> (%1067:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1067:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1452,8 +1452,8 @@
     graph.SubGraphOp @visual.blocks.23.attn <CPU> {
         (%1074:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1088:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1074:tensor<[680, 1280], Float32, CPU>) -> (%1075:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1075:tensor<[680, 3840], Float32, CPU>) -> (%1075:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1075:tensor<[680, 3840], Float32, CPU>) -> (%1076:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1075:tensor<[680, 3840], Float32, CPU>) -> (%1075:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1075:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1076:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1076:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1076:tensor<[3, 680, 16, 80], Float32, CPU>, %1076:tensor<[3, 680, 16, 80], Float32, CPU>, %1076:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1076:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1077:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1076:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1078:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1465,8 +1465,8 @@
             linalg.CPU.SoftmaxOp(%1084:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1085:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1085:tensor<[1, 16, 680, 680], Float32, CPU>, %1081:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1086:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1086:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1087:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1087:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1087:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1087:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1088:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1087:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1087:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1087:tensor<[680, 1280], Float32, CPU>) -> (%1088:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1088:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1492,8 +1492,8 @@
     graph.SubGraphOp @visual.blocks.24.attn <CPU> {
         (%1095:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1109:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1095:tensor<[680, 1280], Float32, CPU>) -> (%1096:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1096:tensor<[680, 3840], Float32, CPU>) -> (%1096:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1096:tensor<[680, 3840], Float32, CPU>) -> (%1097:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1096:tensor<[680, 3840], Float32, CPU>) -> (%1096:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1096:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1097:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1097:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1097:tensor<[3, 680, 16, 80], Float32, CPU>, %1097:tensor<[3, 680, 16, 80], Float32, CPU>, %1097:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1097:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1098:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1097:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1099:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1505,8 +1505,8 @@
             linalg.CPU.SoftmaxOp(%1105:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1106:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1106:tensor<[1, 16, 680, 680], Float32, CPU>, %1102:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1107:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1107:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1108:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1108:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1108:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1108:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1109:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1108:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1108:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1108:tensor<[680, 1280], Float32, CPU>) -> (%1109:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1109:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1532,8 +1532,8 @@
     graph.SubGraphOp @visual.blocks.25.attn <CPU> {
         (%1116:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1130:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1116:tensor<[680, 1280], Float32, CPU>) -> (%1117:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1117:tensor<[680, 3840], Float32, CPU>) -> (%1117:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1117:tensor<[680, 3840], Float32, CPU>) -> (%1118:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1117:tensor<[680, 3840], Float32, CPU>) -> (%1117:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1117:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1118:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1118:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1118:tensor<[3, 680, 16, 80], Float32, CPU>, %1118:tensor<[3, 680, 16, 80], Float32, CPU>, %1118:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1118:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1119:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1118:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1120:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1545,8 +1545,8 @@
             linalg.CPU.SoftmaxOp(%1126:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1127:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1127:tensor<[1, 16, 680, 680], Float32, CPU>, %1123:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1128:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1128:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1129:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1129:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1129:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1129:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1130:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1129:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1129:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1129:tensor<[680, 1280], Float32, CPU>) -> (%1130:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1130:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1572,8 +1572,8 @@
     graph.SubGraphOp @visual.blocks.26.attn <CPU> {
         (%1137:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1151:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1137:tensor<[680, 1280], Float32, CPU>) -> (%1138:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1138:tensor<[680, 3840], Float32, CPU>) -> (%1138:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1138:tensor<[680, 3840], Float32, CPU>) -> (%1139:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1138:tensor<[680, 3840], Float32, CPU>) -> (%1138:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1138:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1139:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1139:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1139:tensor<[3, 680, 16, 80], Float32, CPU>, %1139:tensor<[3, 680, 16, 80], Float32, CPU>, %1139:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1139:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1140:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1139:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1141:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1585,8 +1585,8 @@
             linalg.CPU.SoftmaxOp(%1147:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1148:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1148:tensor<[1, 16, 680, 680], Float32, CPU>, %1144:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1149:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1149:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1150:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1150:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1150:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1150:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1151:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1150:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1150:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1150:tensor<[680, 1280], Float32, CPU>) -> (%1151:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1151:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1612,8 +1612,8 @@
     graph.SubGraphOp @visual.blocks.27.attn <CPU> {
         (%1158:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1172:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1158:tensor<[680, 1280], Float32, CPU>) -> (%1159:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1159:tensor<[680, 3840], Float32, CPU>) -> (%1159:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1159:tensor<[680, 3840], Float32, CPU>) -> (%1160:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1159:tensor<[680, 3840], Float32, CPU>) -> (%1159:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1159:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1160:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1160:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1160:tensor<[3, 680, 16, 80], Float32, CPU>, %1160:tensor<[3, 680, 16, 80], Float32, CPU>, %1160:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1160:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1161:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1160:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1162:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1625,8 +1625,8 @@
             linalg.CPU.SoftmaxOp(%1168:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1169:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1169:tensor<[1, 16, 680, 680], Float32, CPU>, %1165:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1170:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1170:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1171:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1171:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1171:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1171:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1172:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1171:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1171:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1171:tensor<[680, 1280], Float32, CPU>) -> (%1172:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1172:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1652,8 +1652,8 @@
     graph.SubGraphOp @visual.blocks.28.attn <CPU> {
         (%1179:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1193:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1179:tensor<[680, 1280], Float32, CPU>) -> (%1180:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1180:tensor<[680, 3840], Float32, CPU>) -> (%1180:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1180:tensor<[680, 3840], Float32, CPU>) -> (%1181:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1180:tensor<[680, 3840], Float32, CPU>) -> (%1180:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1180:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1181:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1181:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1181:tensor<[3, 680, 16, 80], Float32, CPU>, %1181:tensor<[3, 680, 16, 80], Float32, CPU>, %1181:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1181:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1182:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1181:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1183:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1665,8 +1665,8 @@
             linalg.CPU.SoftmaxOp(%1189:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1190:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1190:tensor<[1, 16, 680, 680], Float32, CPU>, %1186:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1191:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1191:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1192:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1192:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1192:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1192:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1193:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1192:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1192:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1192:tensor<[680, 1280], Float32, CPU>) -> (%1193:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1193:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1692,8 +1692,8 @@
     graph.SubGraphOp @visual.blocks.29.attn <CPU> {
         (%1200:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1214:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1200:tensor<[680, 1280], Float32, CPU>) -> (%1201:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1201:tensor<[680, 3840], Float32, CPU>) -> (%1201:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1201:tensor<[680, 3840], Float32, CPU>) -> (%1202:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1201:tensor<[680, 3840], Float32, CPU>) -> (%1201:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1201:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1202:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1202:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1202:tensor<[3, 680, 16, 80], Float32, CPU>, %1202:tensor<[3, 680, 16, 80], Float32, CPU>, %1202:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1202:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1203:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1202:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1204:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1705,8 +1705,8 @@
             linalg.CPU.SoftmaxOp(%1210:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1211:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1211:tensor<[1, 16, 680, 680], Float32, CPU>, %1207:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1212:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1212:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1213:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1213:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1213:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1213:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1214:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1213:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1213:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1213:tensor<[680, 1280], Float32, CPU>) -> (%1214:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1214:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1732,8 +1732,8 @@
     graph.SubGraphOp @visual.blocks.30.attn <CPU> {
         (%1221:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1235:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1221:tensor<[680, 1280], Float32, CPU>) -> (%1222:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1222:tensor<[680, 3840], Float32, CPU>) -> (%1222:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1222:tensor<[680, 3840], Float32, CPU>) -> (%1223:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1222:tensor<[680, 3840], Float32, CPU>) -> (%1222:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1222:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1223:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1223:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1223:tensor<[3, 680, 16, 80], Float32, CPU>, %1223:tensor<[3, 680, 16, 80], Float32, CPU>, %1223:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1223:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1224:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1223:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1225:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1745,8 +1745,8 @@
             linalg.CPU.SoftmaxOp(%1231:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1232:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1232:tensor<[1, 16, 680, 680], Float32, CPU>, %1228:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1233:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1233:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1234:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1234:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1234:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1234:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1235:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1234:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1234:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1234:tensor<[680, 1280], Float32, CPU>) -> (%1235:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1235:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1772,8 +1772,8 @@
     graph.SubGraphOp @visual.blocks.31.attn <CPU> {
         (%1242:tensor<[680, 1280], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1256:tensor<[680, 1280], Float32, CPU>) {
             linalg.CPU.LinearOp(%1242:tensor<[680, 1280], Float32, CPU>) -> (%1243:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.ViewOp(%1243:tensor<[680, 3840], Float32, CPU>) -> (%1243:tensor<[680, 3840], Float32, CPU>)
-            linalg.CPU.PermuteOp(%1243:tensor<[680, 3840], Float32, CPU>) -> (%1244:tensor<[3, 680, 16, 80], Float32, CPU>)
+            linalg.CPU.ViewOp(%1243:tensor<[680, 3840], Float32, CPU>) -> (%1243:tensor<[680, 3, 16, 80], Float32, CPU>)
+            linalg.CPU.PermuteOp(%1243:tensor<[680, 3, 16, 80], Float32, CPU>) -> (%1244:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.SplitOp(%1244:tensor<[3, 680, 16, 80], Float32, CPU>) -> (%1244:tensor<[3, 680, 16, 80], Float32, CPU>, %1244:tensor<[3, 680, 16, 80], Float32, CPU>, %1244:tensor<[3, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1244:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1245:tensor<[1, 680, 16, 80], Float32, CPU>)
             linalg.CPU.VisionRoPEOp(%1244:tensor<[3, 680, 16, 80], Float32, CPU>, %588:tensor<[680, 40], Float32, CPU>, %589:tensor<[680, 40], Float32, CPU>) -> (%1246:tensor<[1, 680, 16, 80], Float32, CPU>)
@@ -1785,8 +1785,8 @@
             linalg.CPU.SoftmaxOp(%1252:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1253:tensor<[1, 16, 680, 680], Float32, CPU>)
             linalg.CPU.MatMulOp(%1253:tensor<[1, 16, 680, 680], Float32, CPU>, %1249:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1254:tensor<[1, 16, 680, 80], Float32, CPU>)
             linalg.CPU.TransposeOp(%1254:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1255:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.ViewOp(%1255:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1255:tensor<[1, 680, 16, 80], Float32, CPU>)
-            linalg.CPU.LinearOp(%1255:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1256:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.ViewOp(%1255:tensor<[1, 680, 16, 80], Float32, CPU>) -> (%1255:tensor<[680, 1280], Float32, CPU>)
+            linalg.CPU.LinearOp(%1255:tensor<[680, 1280], Float32, CPU>) -> (%1256:tensor<[680, 1280], Float32, CPU>)
             cf.ReturnOp (%1256:tensor<[680, 1280], Float32, CPU>) -> ()
         }
     }
@@ -1801,8 +1801,8 @@
     graph.SubGraphOp @visual.merger <CPU> {
         (%1262:tensor<[680, 1280], Float32, CPU>) -> (%1266:tensor<[170, 1536], Float32, CPU>) {
             linalg.CPU.LayerNormOp(%1262:tensor<[680, 1280], Float32, CPU>) -> (%1263:tensor<[680, 1280], Float32, CPU>)
-            linalg.CPU.ViewOp(%1263:tensor<[680, 1280], Float32, CPU>) -> (%1263:tensor<[680, 1280], Float32, CPU>)
-            linalg.CPU.LinearOp(%1263:tensor<[680, 1280], Float32, CPU>) -> (%1264:tensor<[170, 5120], Float32, CPU>)
+            linalg.CPU.ViewOp(%1263:tensor<[680, 1280], Float32, CPU>) -> (%1263:tensor<[170, 5120], Float32, CPU>)
+            linalg.CPU.LinearOp(%1263:tensor<[170, 5120], Float32, CPU>) -> (%1264:tensor<[170, 5120], Float32, CPU>)
             linalg.CPU.GELUOp(%1264:tensor<[170, 5120], Float32, CPU>) -> (%1265:tensor<[170, 5120], Float32, CPU>)
             linalg.CPU.LinearOp(%1265:tensor<[170, 5120], Float32, CPU>) -> (%1266:tensor<[170, 1536], Float32, CPU>)
             cf.ReturnOp (%1266:tensor<[170, 1536], Float32, CPU>) -> ()
@@ -1867,12 +1867,12 @@
             linalg.CPU.LinearOp(%1272:tensor<[1, 192, 1536], Float32, CPU>) -> (%1273:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1272:tensor<[1, 192, 1536], Float32, CPU>) -> (%1274:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1272:tensor<[1, 192, 1536], Float32, CPU>) -> (%1275:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1273:tensor<[1, 192, 1536], Float32, CPU>) -> (%1273:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1274:tensor<[1, 192, 256], Float32, CPU>) -> (%1274:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1275:tensor<[1, 192, 256], Float32, CPU>) -> (%1275:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1273:tensor<[1, 192, 1536], Float32, CPU>) -> (%1276:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1274:tensor<[1, 192, 256], Float32, CPU>) -> (%1277:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1275:tensor<[1, 192, 256], Float32, CPU>) -> (%1278:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1273:tensor<[1, 192, 1536], Float32, CPU>) -> (%1273:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1274:tensor<[1, 192, 256], Float32, CPU>) -> (%1274:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1275:tensor<[1, 192, 256], Float32, CPU>) -> (%1275:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1273:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1276:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1274:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1277:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1275:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1278:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1276:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1279:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1277:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1280:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1280:tensor<[1, 2, 192, 128], Float32, CPU>, %1278:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1281:tensor<[1, 2, 192, 128], Float32, CPU>, %1282:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -1882,8 +1882,8 @@
             linalg.CPU.SoftmaxOp(%1286:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1287:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1287:tensor<[1, 12, 192, 192], Float32, CPU>, %1282:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1288:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1288:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1289:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1289:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1289:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1289:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1290:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1289:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1289:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1289:tensor<[1, 192, 1536], Float32, CPU>) -> (%1290:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1290:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -1913,12 +1913,12 @@
             linalg.CPU.LinearOp(%1299:tensor<[1, 192, 1536], Float32, CPU>) -> (%1300:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1299:tensor<[1, 192, 1536], Float32, CPU>) -> (%1301:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1299:tensor<[1, 192, 1536], Float32, CPU>) -> (%1302:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1300:tensor<[1, 192, 1536], Float32, CPU>) -> (%1300:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1301:tensor<[1, 192, 256], Float32, CPU>) -> (%1301:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1302:tensor<[1, 192, 256], Float32, CPU>) -> (%1302:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1300:tensor<[1, 192, 1536], Float32, CPU>) -> (%1303:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1301:tensor<[1, 192, 256], Float32, CPU>) -> (%1304:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1302:tensor<[1, 192, 256], Float32, CPU>) -> (%1305:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1300:tensor<[1, 192, 1536], Float32, CPU>) -> (%1300:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1301:tensor<[1, 192, 256], Float32, CPU>) -> (%1301:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1302:tensor<[1, 192, 256], Float32, CPU>) -> (%1302:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1300:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1303:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1301:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1304:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1302:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1305:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1303:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1306:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1304:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1307:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1307:tensor<[1, 2, 192, 128], Float32, CPU>, %1305:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1308:tensor<[1, 2, 192, 128], Float32, CPU>, %1309:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -1928,8 +1928,8 @@
             linalg.CPU.SoftmaxOp(%1313:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1314:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1314:tensor<[1, 12, 192, 192], Float32, CPU>, %1309:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1315:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1315:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1316:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1316:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1316:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1316:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1317:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1316:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1316:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1316:tensor<[1, 192, 1536], Float32, CPU>) -> (%1317:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1317:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -1959,12 +1959,12 @@
             linalg.CPU.LinearOp(%1326:tensor<[1, 192, 1536], Float32, CPU>) -> (%1327:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1326:tensor<[1, 192, 1536], Float32, CPU>) -> (%1328:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1326:tensor<[1, 192, 1536], Float32, CPU>) -> (%1329:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1327:tensor<[1, 192, 1536], Float32, CPU>) -> (%1327:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1328:tensor<[1, 192, 256], Float32, CPU>) -> (%1328:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1329:tensor<[1, 192, 256], Float32, CPU>) -> (%1329:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1327:tensor<[1, 192, 1536], Float32, CPU>) -> (%1330:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1328:tensor<[1, 192, 256], Float32, CPU>) -> (%1331:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1329:tensor<[1, 192, 256], Float32, CPU>) -> (%1332:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1327:tensor<[1, 192, 1536], Float32, CPU>) -> (%1327:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1328:tensor<[1, 192, 256], Float32, CPU>) -> (%1328:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1329:tensor<[1, 192, 256], Float32, CPU>) -> (%1329:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1327:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1330:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1328:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1331:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1329:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1332:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1330:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1333:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1331:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1334:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1334:tensor<[1, 2, 192, 128], Float32, CPU>, %1332:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1335:tensor<[1, 2, 192, 128], Float32, CPU>, %1336:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -1974,8 +1974,8 @@
             linalg.CPU.SoftmaxOp(%1340:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1341:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1341:tensor<[1, 12, 192, 192], Float32, CPU>, %1336:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1342:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1342:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1343:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1343:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1343:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1343:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1344:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1343:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1343:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1343:tensor<[1, 192, 1536], Float32, CPU>) -> (%1344:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1344:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2005,12 +2005,12 @@
             linalg.CPU.LinearOp(%1353:tensor<[1, 192, 1536], Float32, CPU>) -> (%1354:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1353:tensor<[1, 192, 1536], Float32, CPU>) -> (%1355:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1353:tensor<[1, 192, 1536], Float32, CPU>) -> (%1356:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1354:tensor<[1, 192, 1536], Float32, CPU>) -> (%1354:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1355:tensor<[1, 192, 256], Float32, CPU>) -> (%1355:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1356:tensor<[1, 192, 256], Float32, CPU>) -> (%1356:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1354:tensor<[1, 192, 1536], Float32, CPU>) -> (%1357:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1355:tensor<[1, 192, 256], Float32, CPU>) -> (%1358:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1356:tensor<[1, 192, 256], Float32, CPU>) -> (%1359:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1354:tensor<[1, 192, 1536], Float32, CPU>) -> (%1354:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1355:tensor<[1, 192, 256], Float32, CPU>) -> (%1355:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1356:tensor<[1, 192, 256], Float32, CPU>) -> (%1356:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1354:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1357:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1355:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1358:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1356:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1359:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1357:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1360:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1358:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1361:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1361:tensor<[1, 2, 192, 128], Float32, CPU>, %1359:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1362:tensor<[1, 2, 192, 128], Float32, CPU>, %1363:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2020,8 +2020,8 @@
             linalg.CPU.SoftmaxOp(%1367:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1368:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1368:tensor<[1, 12, 192, 192], Float32, CPU>, %1363:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1369:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1369:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1370:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1370:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1370:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1370:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1371:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1370:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1370:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1370:tensor<[1, 192, 1536], Float32, CPU>) -> (%1371:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1371:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2051,12 +2051,12 @@
             linalg.CPU.LinearOp(%1380:tensor<[1, 192, 1536], Float32, CPU>) -> (%1381:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1380:tensor<[1, 192, 1536], Float32, CPU>) -> (%1382:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1380:tensor<[1, 192, 1536], Float32, CPU>) -> (%1383:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1381:tensor<[1, 192, 1536], Float32, CPU>) -> (%1381:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1382:tensor<[1, 192, 256], Float32, CPU>) -> (%1382:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1383:tensor<[1, 192, 256], Float32, CPU>) -> (%1383:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1381:tensor<[1, 192, 1536], Float32, CPU>) -> (%1384:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1382:tensor<[1, 192, 256], Float32, CPU>) -> (%1385:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1383:tensor<[1, 192, 256], Float32, CPU>) -> (%1386:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1381:tensor<[1, 192, 1536], Float32, CPU>) -> (%1381:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1382:tensor<[1, 192, 256], Float32, CPU>) -> (%1382:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1383:tensor<[1, 192, 256], Float32, CPU>) -> (%1383:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1381:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1384:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1382:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1385:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1383:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1386:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1384:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1387:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1385:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1388:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1388:tensor<[1, 2, 192, 128], Float32, CPU>, %1386:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1389:tensor<[1, 2, 192, 128], Float32, CPU>, %1390:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2066,8 +2066,8 @@
             linalg.CPU.SoftmaxOp(%1394:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1395:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1395:tensor<[1, 12, 192, 192], Float32, CPU>, %1390:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1396:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1396:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1397:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1397:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1397:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1397:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1398:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1397:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1397:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1397:tensor<[1, 192, 1536], Float32, CPU>) -> (%1398:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1398:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2097,12 +2097,12 @@
             linalg.CPU.LinearOp(%1407:tensor<[1, 192, 1536], Float32, CPU>) -> (%1408:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1407:tensor<[1, 192, 1536], Float32, CPU>) -> (%1409:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1407:tensor<[1, 192, 1536], Float32, CPU>) -> (%1410:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1408:tensor<[1, 192, 1536], Float32, CPU>) -> (%1408:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1409:tensor<[1, 192, 256], Float32, CPU>) -> (%1409:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1410:tensor<[1, 192, 256], Float32, CPU>) -> (%1410:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1408:tensor<[1, 192, 1536], Float32, CPU>) -> (%1411:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1409:tensor<[1, 192, 256], Float32, CPU>) -> (%1412:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1410:tensor<[1, 192, 256], Float32, CPU>) -> (%1413:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1408:tensor<[1, 192, 1536], Float32, CPU>) -> (%1408:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1409:tensor<[1, 192, 256], Float32, CPU>) -> (%1409:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1410:tensor<[1, 192, 256], Float32, CPU>) -> (%1410:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1408:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1411:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1409:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1412:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1410:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1413:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1411:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1414:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1412:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1415:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1415:tensor<[1, 2, 192, 128], Float32, CPU>, %1413:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1416:tensor<[1, 2, 192, 128], Float32, CPU>, %1417:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2112,8 +2112,8 @@
             linalg.CPU.SoftmaxOp(%1421:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1422:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1422:tensor<[1, 12, 192, 192], Float32, CPU>, %1417:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1423:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1423:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1424:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1424:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1424:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1424:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1425:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1424:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1424:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1424:tensor<[1, 192, 1536], Float32, CPU>) -> (%1425:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1425:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2143,12 +2143,12 @@
             linalg.CPU.LinearOp(%1434:tensor<[1, 192, 1536], Float32, CPU>) -> (%1435:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1434:tensor<[1, 192, 1536], Float32, CPU>) -> (%1436:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1434:tensor<[1, 192, 1536], Float32, CPU>) -> (%1437:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1435:tensor<[1, 192, 1536], Float32, CPU>) -> (%1435:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1436:tensor<[1, 192, 256], Float32, CPU>) -> (%1436:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1437:tensor<[1, 192, 256], Float32, CPU>) -> (%1437:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1435:tensor<[1, 192, 1536], Float32, CPU>) -> (%1438:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1436:tensor<[1, 192, 256], Float32, CPU>) -> (%1439:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1437:tensor<[1, 192, 256], Float32, CPU>) -> (%1440:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1435:tensor<[1, 192, 1536], Float32, CPU>) -> (%1435:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1436:tensor<[1, 192, 256], Float32, CPU>) -> (%1436:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1437:tensor<[1, 192, 256], Float32, CPU>) -> (%1437:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1435:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1438:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1436:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1439:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1437:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1440:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1438:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1441:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1439:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1442:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1442:tensor<[1, 2, 192, 128], Float32, CPU>, %1440:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1443:tensor<[1, 2, 192, 128], Float32, CPU>, %1444:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2158,8 +2158,8 @@
             linalg.CPU.SoftmaxOp(%1448:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1449:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1449:tensor<[1, 12, 192, 192], Float32, CPU>, %1444:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1450:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1450:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1451:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1451:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1451:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1451:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1452:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1451:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1451:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1451:tensor<[1, 192, 1536], Float32, CPU>) -> (%1452:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1452:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2189,12 +2189,12 @@
             linalg.CPU.LinearOp(%1461:tensor<[1, 192, 1536], Float32, CPU>) -> (%1462:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1461:tensor<[1, 192, 1536], Float32, CPU>) -> (%1463:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1461:tensor<[1, 192, 1536], Float32, CPU>) -> (%1464:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1462:tensor<[1, 192, 1536], Float32, CPU>) -> (%1462:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1463:tensor<[1, 192, 256], Float32, CPU>) -> (%1463:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1464:tensor<[1, 192, 256], Float32, CPU>) -> (%1464:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1462:tensor<[1, 192, 1536], Float32, CPU>) -> (%1465:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1463:tensor<[1, 192, 256], Float32, CPU>) -> (%1466:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1464:tensor<[1, 192, 256], Float32, CPU>) -> (%1467:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1462:tensor<[1, 192, 1536], Float32, CPU>) -> (%1462:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1463:tensor<[1, 192, 256], Float32, CPU>) -> (%1463:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1464:tensor<[1, 192, 256], Float32, CPU>) -> (%1464:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1462:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1465:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1463:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1466:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1464:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1467:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1465:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1468:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1466:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1469:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1469:tensor<[1, 2, 192, 128], Float32, CPU>, %1467:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1470:tensor<[1, 2, 192, 128], Float32, CPU>, %1471:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2204,8 +2204,8 @@
             linalg.CPU.SoftmaxOp(%1475:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1476:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1476:tensor<[1, 12, 192, 192], Float32, CPU>, %1471:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1477:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1477:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1478:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1478:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1478:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1478:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1479:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1478:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1478:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1478:tensor<[1, 192, 1536], Float32, CPU>) -> (%1479:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1479:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2235,12 +2235,12 @@
             linalg.CPU.LinearOp(%1488:tensor<[1, 192, 1536], Float32, CPU>) -> (%1489:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1488:tensor<[1, 192, 1536], Float32, CPU>) -> (%1490:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1488:tensor<[1, 192, 1536], Float32, CPU>) -> (%1491:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1489:tensor<[1, 192, 1536], Float32, CPU>) -> (%1489:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1490:tensor<[1, 192, 256], Float32, CPU>) -> (%1490:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1491:tensor<[1, 192, 256], Float32, CPU>) -> (%1491:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1489:tensor<[1, 192, 1536], Float32, CPU>) -> (%1492:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1490:tensor<[1, 192, 256], Float32, CPU>) -> (%1493:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1491:tensor<[1, 192, 256], Float32, CPU>) -> (%1494:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1489:tensor<[1, 192, 1536], Float32, CPU>) -> (%1489:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1490:tensor<[1, 192, 256], Float32, CPU>) -> (%1490:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1491:tensor<[1, 192, 256], Float32, CPU>) -> (%1491:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1489:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1492:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1490:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1493:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1491:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1494:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1492:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1495:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1493:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1496:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1496:tensor<[1, 2, 192, 128], Float32, CPU>, %1494:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1497:tensor<[1, 2, 192, 128], Float32, CPU>, %1498:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2250,8 +2250,8 @@
             linalg.CPU.SoftmaxOp(%1502:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1503:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1503:tensor<[1, 12, 192, 192], Float32, CPU>, %1498:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1504:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1504:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1505:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1505:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1505:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1505:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1506:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1505:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1505:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1505:tensor<[1, 192, 1536], Float32, CPU>) -> (%1506:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1506:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2281,12 +2281,12 @@
             linalg.CPU.LinearOp(%1515:tensor<[1, 192, 1536], Float32, CPU>) -> (%1516:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1515:tensor<[1, 192, 1536], Float32, CPU>) -> (%1517:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1515:tensor<[1, 192, 1536], Float32, CPU>) -> (%1518:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1516:tensor<[1, 192, 1536], Float32, CPU>) -> (%1516:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1517:tensor<[1, 192, 256], Float32, CPU>) -> (%1517:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1518:tensor<[1, 192, 256], Float32, CPU>) -> (%1518:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1516:tensor<[1, 192, 1536], Float32, CPU>) -> (%1519:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1517:tensor<[1, 192, 256], Float32, CPU>) -> (%1520:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1518:tensor<[1, 192, 256], Float32, CPU>) -> (%1521:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1516:tensor<[1, 192, 1536], Float32, CPU>) -> (%1516:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1517:tensor<[1, 192, 256], Float32, CPU>) -> (%1517:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1518:tensor<[1, 192, 256], Float32, CPU>) -> (%1518:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1516:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1519:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1517:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1520:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1518:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1521:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1519:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1522:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1520:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1523:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1523:tensor<[1, 2, 192, 128], Float32, CPU>, %1521:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1524:tensor<[1, 2, 192, 128], Float32, CPU>, %1525:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2296,8 +2296,8 @@
             linalg.CPU.SoftmaxOp(%1529:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1530:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1530:tensor<[1, 12, 192, 192], Float32, CPU>, %1525:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1531:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1531:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1532:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1532:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1532:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1532:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1533:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1532:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1532:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1532:tensor<[1, 192, 1536], Float32, CPU>) -> (%1533:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1533:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2327,12 +2327,12 @@
             linalg.CPU.LinearOp(%1542:tensor<[1, 192, 1536], Float32, CPU>) -> (%1543:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1542:tensor<[1, 192, 1536], Float32, CPU>) -> (%1544:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1542:tensor<[1, 192, 1536], Float32, CPU>) -> (%1545:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1543:tensor<[1, 192, 1536], Float32, CPU>) -> (%1543:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1544:tensor<[1, 192, 256], Float32, CPU>) -> (%1544:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1545:tensor<[1, 192, 256], Float32, CPU>) -> (%1545:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1543:tensor<[1, 192, 1536], Float32, CPU>) -> (%1546:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1544:tensor<[1, 192, 256], Float32, CPU>) -> (%1547:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1545:tensor<[1, 192, 256], Float32, CPU>) -> (%1548:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1543:tensor<[1, 192, 1536], Float32, CPU>) -> (%1543:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1544:tensor<[1, 192, 256], Float32, CPU>) -> (%1544:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1545:tensor<[1, 192, 256], Float32, CPU>) -> (%1545:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1543:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1546:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1544:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1547:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1545:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1548:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1546:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1549:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1547:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1550:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1550:tensor<[1, 2, 192, 128], Float32, CPU>, %1548:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1551:tensor<[1, 2, 192, 128], Float32, CPU>, %1552:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2342,8 +2342,8 @@
             linalg.CPU.SoftmaxOp(%1556:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1557:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1557:tensor<[1, 12, 192, 192], Float32, CPU>, %1552:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1558:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1558:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1559:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1559:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1559:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1559:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1560:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1559:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1559:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1559:tensor<[1, 192, 1536], Float32, CPU>) -> (%1560:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1560:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2373,12 +2373,12 @@
             linalg.CPU.LinearOp(%1569:tensor<[1, 192, 1536], Float32, CPU>) -> (%1570:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1569:tensor<[1, 192, 1536], Float32, CPU>) -> (%1571:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1569:tensor<[1, 192, 1536], Float32, CPU>) -> (%1572:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1570:tensor<[1, 192, 1536], Float32, CPU>) -> (%1570:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1571:tensor<[1, 192, 256], Float32, CPU>) -> (%1571:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1572:tensor<[1, 192, 256], Float32, CPU>) -> (%1572:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1570:tensor<[1, 192, 1536], Float32, CPU>) -> (%1573:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1571:tensor<[1, 192, 256], Float32, CPU>) -> (%1574:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1572:tensor<[1, 192, 256], Float32, CPU>) -> (%1575:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1570:tensor<[1, 192, 1536], Float32, CPU>) -> (%1570:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1571:tensor<[1, 192, 256], Float32, CPU>) -> (%1571:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1572:tensor<[1, 192, 256], Float32, CPU>) -> (%1572:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1570:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1573:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1571:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1574:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1572:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1575:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1573:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1576:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1574:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1577:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1577:tensor<[1, 2, 192, 128], Float32, CPU>, %1575:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1578:tensor<[1, 2, 192, 128], Float32, CPU>, %1579:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2388,8 +2388,8 @@
             linalg.CPU.SoftmaxOp(%1583:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1584:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1584:tensor<[1, 12, 192, 192], Float32, CPU>, %1579:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1585:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1585:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1586:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1586:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1586:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1586:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1587:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1586:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1586:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1586:tensor<[1, 192, 1536], Float32, CPU>) -> (%1587:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1587:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2419,12 +2419,12 @@
             linalg.CPU.LinearOp(%1596:tensor<[1, 192, 1536], Float32, CPU>) -> (%1597:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1596:tensor<[1, 192, 1536], Float32, CPU>) -> (%1598:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1596:tensor<[1, 192, 1536], Float32, CPU>) -> (%1599:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1597:tensor<[1, 192, 1536], Float32, CPU>) -> (%1597:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1598:tensor<[1, 192, 256], Float32, CPU>) -> (%1598:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1599:tensor<[1, 192, 256], Float32, CPU>) -> (%1599:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1597:tensor<[1, 192, 1536], Float32, CPU>) -> (%1600:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1598:tensor<[1, 192, 256], Float32, CPU>) -> (%1601:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1599:tensor<[1, 192, 256], Float32, CPU>) -> (%1602:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1597:tensor<[1, 192, 1536], Float32, CPU>) -> (%1597:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1598:tensor<[1, 192, 256], Float32, CPU>) -> (%1598:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1599:tensor<[1, 192, 256], Float32, CPU>) -> (%1599:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1597:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1600:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1598:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1601:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1599:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1602:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1600:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1603:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1601:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1604:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1604:tensor<[1, 2, 192, 128], Float32, CPU>, %1602:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1605:tensor<[1, 2, 192, 128], Float32, CPU>, %1606:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2434,8 +2434,8 @@
             linalg.CPU.SoftmaxOp(%1610:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1611:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1611:tensor<[1, 12, 192, 192], Float32, CPU>, %1606:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1612:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1612:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1613:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1613:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1613:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1613:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1614:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1613:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1613:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1613:tensor<[1, 192, 1536], Float32, CPU>) -> (%1614:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1614:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2465,12 +2465,12 @@
             linalg.CPU.LinearOp(%1623:tensor<[1, 192, 1536], Float32, CPU>) -> (%1624:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1623:tensor<[1, 192, 1536], Float32, CPU>) -> (%1625:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1623:tensor<[1, 192, 1536], Float32, CPU>) -> (%1626:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1624:tensor<[1, 192, 1536], Float32, CPU>) -> (%1624:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1625:tensor<[1, 192, 256], Float32, CPU>) -> (%1625:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1626:tensor<[1, 192, 256], Float32, CPU>) -> (%1626:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1624:tensor<[1, 192, 1536], Float32, CPU>) -> (%1627:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1625:tensor<[1, 192, 256], Float32, CPU>) -> (%1628:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1626:tensor<[1, 192, 256], Float32, CPU>) -> (%1629:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1624:tensor<[1, 192, 1536], Float32, CPU>) -> (%1624:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1625:tensor<[1, 192, 256], Float32, CPU>) -> (%1625:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1626:tensor<[1, 192, 256], Float32, CPU>) -> (%1626:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1624:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1627:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1625:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1628:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1626:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1629:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1627:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1630:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1628:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1631:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1631:tensor<[1, 2, 192, 128], Float32, CPU>, %1629:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1632:tensor<[1, 2, 192, 128], Float32, CPU>, %1633:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2480,8 +2480,8 @@
             linalg.CPU.SoftmaxOp(%1637:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1638:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1638:tensor<[1, 12, 192, 192], Float32, CPU>, %1633:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1639:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1639:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1640:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1640:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1640:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1640:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1641:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1640:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1640:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1640:tensor<[1, 192, 1536], Float32, CPU>) -> (%1641:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1641:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2511,12 +2511,12 @@
             linalg.CPU.LinearOp(%1650:tensor<[1, 192, 1536], Float32, CPU>) -> (%1651:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1650:tensor<[1, 192, 1536], Float32, CPU>) -> (%1652:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1650:tensor<[1, 192, 1536], Float32, CPU>) -> (%1653:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1651:tensor<[1, 192, 1536], Float32, CPU>) -> (%1651:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1652:tensor<[1, 192, 256], Float32, CPU>) -> (%1652:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1653:tensor<[1, 192, 256], Float32, CPU>) -> (%1653:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1651:tensor<[1, 192, 1536], Float32, CPU>) -> (%1654:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1652:tensor<[1, 192, 256], Float32, CPU>) -> (%1655:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1653:tensor<[1, 192, 256], Float32, CPU>) -> (%1656:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1651:tensor<[1, 192, 1536], Float32, CPU>) -> (%1651:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1652:tensor<[1, 192, 256], Float32, CPU>) -> (%1652:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1653:tensor<[1, 192, 256], Float32, CPU>) -> (%1653:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1651:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1654:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1652:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1655:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1653:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1656:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1654:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1657:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1655:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1658:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1658:tensor<[1, 2, 192, 128], Float32, CPU>, %1656:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1659:tensor<[1, 2, 192, 128], Float32, CPU>, %1660:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2526,8 +2526,8 @@
             linalg.CPU.SoftmaxOp(%1664:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1665:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1665:tensor<[1, 12, 192, 192], Float32, CPU>, %1660:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1666:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1666:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1667:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1667:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1667:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1667:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1668:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1667:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1667:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1667:tensor<[1, 192, 1536], Float32, CPU>) -> (%1668:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1668:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2557,12 +2557,12 @@
             linalg.CPU.LinearOp(%1677:tensor<[1, 192, 1536], Float32, CPU>) -> (%1678:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1677:tensor<[1, 192, 1536], Float32, CPU>) -> (%1679:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1677:tensor<[1, 192, 1536], Float32, CPU>) -> (%1680:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1678:tensor<[1, 192, 1536], Float32, CPU>) -> (%1678:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1679:tensor<[1, 192, 256], Float32, CPU>) -> (%1679:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1680:tensor<[1, 192, 256], Float32, CPU>) -> (%1680:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1678:tensor<[1, 192, 1536], Float32, CPU>) -> (%1681:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1679:tensor<[1, 192, 256], Float32, CPU>) -> (%1682:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1680:tensor<[1, 192, 256], Float32, CPU>) -> (%1683:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1678:tensor<[1, 192, 1536], Float32, CPU>) -> (%1678:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1679:tensor<[1, 192, 256], Float32, CPU>) -> (%1679:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1680:tensor<[1, 192, 256], Float32, CPU>) -> (%1680:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1678:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1681:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1679:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1682:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1680:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1683:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1681:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1684:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1682:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1685:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1685:tensor<[1, 2, 192, 128], Float32, CPU>, %1683:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1686:tensor<[1, 2, 192, 128], Float32, CPU>, %1687:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2572,8 +2572,8 @@
             linalg.CPU.SoftmaxOp(%1691:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1692:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1692:tensor<[1, 12, 192, 192], Float32, CPU>, %1687:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1693:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1693:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1694:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1694:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1694:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1694:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1695:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1694:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1694:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1694:tensor<[1, 192, 1536], Float32, CPU>) -> (%1695:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1695:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2603,12 +2603,12 @@
             linalg.CPU.LinearOp(%1704:tensor<[1, 192, 1536], Float32, CPU>) -> (%1705:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1704:tensor<[1, 192, 1536], Float32, CPU>) -> (%1706:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1704:tensor<[1, 192, 1536], Float32, CPU>) -> (%1707:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1705:tensor<[1, 192, 1536], Float32, CPU>) -> (%1705:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1706:tensor<[1, 192, 256], Float32, CPU>) -> (%1706:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1707:tensor<[1, 192, 256], Float32, CPU>) -> (%1707:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1705:tensor<[1, 192, 1536], Float32, CPU>) -> (%1708:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1706:tensor<[1, 192, 256], Float32, CPU>) -> (%1709:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1707:tensor<[1, 192, 256], Float32, CPU>) -> (%1710:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1705:tensor<[1, 192, 1536], Float32, CPU>) -> (%1705:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1706:tensor<[1, 192, 256], Float32, CPU>) -> (%1706:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1707:tensor<[1, 192, 256], Float32, CPU>) -> (%1707:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1705:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1708:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1706:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1709:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1707:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1710:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1708:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1711:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1709:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1712:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1712:tensor<[1, 2, 192, 128], Float32, CPU>, %1710:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1713:tensor<[1, 2, 192, 128], Float32, CPU>, %1714:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2618,8 +2618,8 @@
             linalg.CPU.SoftmaxOp(%1718:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1719:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1719:tensor<[1, 12, 192, 192], Float32, CPU>, %1714:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1720:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1720:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1721:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1721:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1721:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1721:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1722:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1721:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1721:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1721:tensor<[1, 192, 1536], Float32, CPU>) -> (%1722:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1722:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2649,12 +2649,12 @@
             linalg.CPU.LinearOp(%1731:tensor<[1, 192, 1536], Float32, CPU>) -> (%1732:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1731:tensor<[1, 192, 1536], Float32, CPU>) -> (%1733:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1731:tensor<[1, 192, 1536], Float32, CPU>) -> (%1734:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1732:tensor<[1, 192, 1536], Float32, CPU>) -> (%1732:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1733:tensor<[1, 192, 256], Float32, CPU>) -> (%1733:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1734:tensor<[1, 192, 256], Float32, CPU>) -> (%1734:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1732:tensor<[1, 192, 1536], Float32, CPU>) -> (%1735:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1733:tensor<[1, 192, 256], Float32, CPU>) -> (%1736:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1734:tensor<[1, 192, 256], Float32, CPU>) -> (%1737:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1732:tensor<[1, 192, 1536], Float32, CPU>) -> (%1732:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1733:tensor<[1, 192, 256], Float32, CPU>) -> (%1733:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1734:tensor<[1, 192, 256], Float32, CPU>) -> (%1734:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1732:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1735:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1733:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1736:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1734:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1737:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1735:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1738:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1736:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1739:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1739:tensor<[1, 2, 192, 128], Float32, CPU>, %1737:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1740:tensor<[1, 2, 192, 128], Float32, CPU>, %1741:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2664,8 +2664,8 @@
             linalg.CPU.SoftmaxOp(%1745:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1746:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1746:tensor<[1, 12, 192, 192], Float32, CPU>, %1741:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1747:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1747:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1748:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1748:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1748:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1748:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1749:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1748:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1748:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1748:tensor<[1, 192, 1536], Float32, CPU>) -> (%1749:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1749:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2695,12 +2695,12 @@
             linalg.CPU.LinearOp(%1758:tensor<[1, 192, 1536], Float32, CPU>) -> (%1759:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1758:tensor<[1, 192, 1536], Float32, CPU>) -> (%1760:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1758:tensor<[1, 192, 1536], Float32, CPU>) -> (%1761:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1759:tensor<[1, 192, 1536], Float32, CPU>) -> (%1759:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1760:tensor<[1, 192, 256], Float32, CPU>) -> (%1760:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1761:tensor<[1, 192, 256], Float32, CPU>) -> (%1761:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1759:tensor<[1, 192, 1536], Float32, CPU>) -> (%1762:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1760:tensor<[1, 192, 256], Float32, CPU>) -> (%1763:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1761:tensor<[1, 192, 256], Float32, CPU>) -> (%1764:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1759:tensor<[1, 192, 1536], Float32, CPU>) -> (%1759:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1760:tensor<[1, 192, 256], Float32, CPU>) -> (%1760:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1761:tensor<[1, 192, 256], Float32, CPU>) -> (%1761:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1759:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1762:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1760:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1763:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1761:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1764:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1762:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1765:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1763:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1766:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1766:tensor<[1, 2, 192, 128], Float32, CPU>, %1764:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1767:tensor<[1, 2, 192, 128], Float32, CPU>, %1768:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2710,8 +2710,8 @@
             linalg.CPU.SoftmaxOp(%1772:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1773:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1773:tensor<[1, 12, 192, 192], Float32, CPU>, %1768:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1774:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1774:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1775:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1775:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1775:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1775:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1776:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1775:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1775:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1775:tensor<[1, 192, 1536], Float32, CPU>) -> (%1776:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1776:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2741,12 +2741,12 @@
             linalg.CPU.LinearOp(%1785:tensor<[1, 192, 1536], Float32, CPU>) -> (%1786:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1785:tensor<[1, 192, 1536], Float32, CPU>) -> (%1787:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1785:tensor<[1, 192, 1536], Float32, CPU>) -> (%1788:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1786:tensor<[1, 192, 1536], Float32, CPU>) -> (%1786:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1787:tensor<[1, 192, 256], Float32, CPU>) -> (%1787:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1788:tensor<[1, 192, 256], Float32, CPU>) -> (%1788:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1786:tensor<[1, 192, 1536], Float32, CPU>) -> (%1789:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1787:tensor<[1, 192, 256], Float32, CPU>) -> (%1790:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1788:tensor<[1, 192, 256], Float32, CPU>) -> (%1791:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1786:tensor<[1, 192, 1536], Float32, CPU>) -> (%1786:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1787:tensor<[1, 192, 256], Float32, CPU>) -> (%1787:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1788:tensor<[1, 192, 256], Float32, CPU>) -> (%1788:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1786:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1789:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1787:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1790:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1788:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1791:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1789:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1792:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1790:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1793:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1793:tensor<[1, 2, 192, 128], Float32, CPU>, %1791:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1794:tensor<[1, 2, 192, 128], Float32, CPU>, %1795:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2756,8 +2756,8 @@
             linalg.CPU.SoftmaxOp(%1799:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1800:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1800:tensor<[1, 12, 192, 192], Float32, CPU>, %1795:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1801:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1801:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1802:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1802:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1802:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1802:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1803:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1802:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1802:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1802:tensor<[1, 192, 1536], Float32, CPU>) -> (%1803:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1803:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2787,12 +2787,12 @@
             linalg.CPU.LinearOp(%1812:tensor<[1, 192, 1536], Float32, CPU>) -> (%1813:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1812:tensor<[1, 192, 1536], Float32, CPU>) -> (%1814:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1812:tensor<[1, 192, 1536], Float32, CPU>) -> (%1815:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1813:tensor<[1, 192, 1536], Float32, CPU>) -> (%1813:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1814:tensor<[1, 192, 256], Float32, CPU>) -> (%1814:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1815:tensor<[1, 192, 256], Float32, CPU>) -> (%1815:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1813:tensor<[1, 192, 1536], Float32, CPU>) -> (%1816:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1814:tensor<[1, 192, 256], Float32, CPU>) -> (%1817:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1815:tensor<[1, 192, 256], Float32, CPU>) -> (%1818:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1813:tensor<[1, 192, 1536], Float32, CPU>) -> (%1813:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1814:tensor<[1, 192, 256], Float32, CPU>) -> (%1814:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1815:tensor<[1, 192, 256], Float32, CPU>) -> (%1815:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1813:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1816:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1814:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1817:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1815:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1818:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1816:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1819:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1817:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1820:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1820:tensor<[1, 2, 192, 128], Float32, CPU>, %1818:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1821:tensor<[1, 2, 192, 128], Float32, CPU>, %1822:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2802,8 +2802,8 @@
             linalg.CPU.SoftmaxOp(%1826:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1827:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1827:tensor<[1, 12, 192, 192], Float32, CPU>, %1822:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1828:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1828:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1829:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1829:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1829:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1829:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1830:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1829:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1829:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1829:tensor<[1, 192, 1536], Float32, CPU>) -> (%1830:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1830:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2833,12 +2833,12 @@
             linalg.CPU.LinearOp(%1839:tensor<[1, 192, 1536], Float32, CPU>) -> (%1840:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1839:tensor<[1, 192, 1536], Float32, CPU>) -> (%1841:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1839:tensor<[1, 192, 1536], Float32, CPU>) -> (%1842:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1840:tensor<[1, 192, 1536], Float32, CPU>) -> (%1840:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1841:tensor<[1, 192, 256], Float32, CPU>) -> (%1841:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1842:tensor<[1, 192, 256], Float32, CPU>) -> (%1842:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1840:tensor<[1, 192, 1536], Float32, CPU>) -> (%1843:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1841:tensor<[1, 192, 256], Float32, CPU>) -> (%1844:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1842:tensor<[1, 192, 256], Float32, CPU>) -> (%1845:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1840:tensor<[1, 192, 1536], Float32, CPU>) -> (%1840:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1841:tensor<[1, 192, 256], Float32, CPU>) -> (%1841:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1842:tensor<[1, 192, 256], Float32, CPU>) -> (%1842:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1840:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1843:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1841:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1844:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1842:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1845:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1843:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1846:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1844:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1847:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1847:tensor<[1, 2, 192, 128], Float32, CPU>, %1845:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1848:tensor<[1, 2, 192, 128], Float32, CPU>, %1849:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2848,8 +2848,8 @@
             linalg.CPU.SoftmaxOp(%1853:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1854:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1854:tensor<[1, 12, 192, 192], Float32, CPU>, %1849:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1855:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1855:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1856:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1856:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1856:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1856:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1857:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1856:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1856:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1856:tensor<[1, 192, 1536], Float32, CPU>) -> (%1857:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1857:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2879,12 +2879,12 @@
             linalg.CPU.LinearOp(%1866:tensor<[1, 192, 1536], Float32, CPU>) -> (%1867:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1866:tensor<[1, 192, 1536], Float32, CPU>) -> (%1868:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1866:tensor<[1, 192, 1536], Float32, CPU>) -> (%1869:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1867:tensor<[1, 192, 1536], Float32, CPU>) -> (%1867:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1868:tensor<[1, 192, 256], Float32, CPU>) -> (%1868:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1869:tensor<[1, 192, 256], Float32, CPU>) -> (%1869:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1867:tensor<[1, 192, 1536], Float32, CPU>) -> (%1870:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1868:tensor<[1, 192, 256], Float32, CPU>) -> (%1871:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1869:tensor<[1, 192, 256], Float32, CPU>) -> (%1872:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1867:tensor<[1, 192, 1536], Float32, CPU>) -> (%1867:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1868:tensor<[1, 192, 256], Float32, CPU>) -> (%1868:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1869:tensor<[1, 192, 256], Float32, CPU>) -> (%1869:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1867:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1870:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1868:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1871:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1869:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1872:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1870:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1873:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1871:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1874:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1874:tensor<[1, 2, 192, 128], Float32, CPU>, %1872:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1875:tensor<[1, 2, 192, 128], Float32, CPU>, %1876:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2894,8 +2894,8 @@
             linalg.CPU.SoftmaxOp(%1880:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1881:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1881:tensor<[1, 12, 192, 192], Float32, CPU>, %1876:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1882:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1882:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1883:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1883:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1883:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1883:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1884:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1883:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1883:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1883:tensor<[1, 192, 1536], Float32, CPU>) -> (%1884:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1884:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2925,12 +2925,12 @@
             linalg.CPU.LinearOp(%1893:tensor<[1, 192, 1536], Float32, CPU>) -> (%1894:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1893:tensor<[1, 192, 1536], Float32, CPU>) -> (%1895:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1893:tensor<[1, 192, 1536], Float32, CPU>) -> (%1896:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1894:tensor<[1, 192, 1536], Float32, CPU>) -> (%1894:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1895:tensor<[1, 192, 256], Float32, CPU>) -> (%1895:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1896:tensor<[1, 192, 256], Float32, CPU>) -> (%1896:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1894:tensor<[1, 192, 1536], Float32, CPU>) -> (%1897:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1895:tensor<[1, 192, 256], Float32, CPU>) -> (%1898:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1896:tensor<[1, 192, 256], Float32, CPU>) -> (%1899:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1894:tensor<[1, 192, 1536], Float32, CPU>) -> (%1894:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1895:tensor<[1, 192, 256], Float32, CPU>) -> (%1895:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1896:tensor<[1, 192, 256], Float32, CPU>) -> (%1896:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1894:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1897:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1895:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1898:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1896:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1899:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1897:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1900:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1898:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1901:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1901:tensor<[1, 2, 192, 128], Float32, CPU>, %1899:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1902:tensor<[1, 2, 192, 128], Float32, CPU>, %1903:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2940,8 +2940,8 @@
             linalg.CPU.SoftmaxOp(%1907:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1908:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1908:tensor<[1, 12, 192, 192], Float32, CPU>, %1903:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1909:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1909:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1910:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1910:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1910:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1910:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1911:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1910:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1910:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1910:tensor<[1, 192, 1536], Float32, CPU>) -> (%1911:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1911:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -2971,12 +2971,12 @@
             linalg.CPU.LinearOp(%1920:tensor<[1, 192, 1536], Float32, CPU>) -> (%1921:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1920:tensor<[1, 192, 1536], Float32, CPU>) -> (%1922:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1920:tensor<[1, 192, 1536], Float32, CPU>) -> (%1923:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1921:tensor<[1, 192, 1536], Float32, CPU>) -> (%1921:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1922:tensor<[1, 192, 256], Float32, CPU>) -> (%1922:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1923:tensor<[1, 192, 256], Float32, CPU>) -> (%1923:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1921:tensor<[1, 192, 1536], Float32, CPU>) -> (%1924:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1922:tensor<[1, 192, 256], Float32, CPU>) -> (%1925:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1923:tensor<[1, 192, 256], Float32, CPU>) -> (%1926:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1921:tensor<[1, 192, 1536], Float32, CPU>) -> (%1921:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1922:tensor<[1, 192, 256], Float32, CPU>) -> (%1922:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1923:tensor<[1, 192, 256], Float32, CPU>) -> (%1923:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1921:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1924:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1922:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1925:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1923:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1926:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1924:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1927:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1925:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1928:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1928:tensor<[1, 2, 192, 128], Float32, CPU>, %1926:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1929:tensor<[1, 2, 192, 128], Float32, CPU>, %1930:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -2986,8 +2986,8 @@
             linalg.CPU.SoftmaxOp(%1934:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1935:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1935:tensor<[1, 12, 192, 192], Float32, CPU>, %1930:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1936:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1936:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1937:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1937:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1937:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1937:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1938:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1937:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1937:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1937:tensor<[1, 192, 1536], Float32, CPU>) -> (%1938:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1938:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -3017,12 +3017,12 @@
             linalg.CPU.LinearOp(%1947:tensor<[1, 192, 1536], Float32, CPU>) -> (%1948:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1947:tensor<[1, 192, 1536], Float32, CPU>) -> (%1949:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1947:tensor<[1, 192, 1536], Float32, CPU>) -> (%1950:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1948:tensor<[1, 192, 1536], Float32, CPU>) -> (%1948:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1949:tensor<[1, 192, 256], Float32, CPU>) -> (%1949:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1950:tensor<[1, 192, 256], Float32, CPU>) -> (%1950:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1948:tensor<[1, 192, 1536], Float32, CPU>) -> (%1951:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1949:tensor<[1, 192, 256], Float32, CPU>) -> (%1952:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1950:tensor<[1, 192, 256], Float32, CPU>) -> (%1953:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1948:tensor<[1, 192, 1536], Float32, CPU>) -> (%1948:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1949:tensor<[1, 192, 256], Float32, CPU>) -> (%1949:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1950:tensor<[1, 192, 256], Float32, CPU>) -> (%1950:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1948:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1951:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1949:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1952:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1950:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1953:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1951:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1954:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1952:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1955:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1955:tensor<[1, 2, 192, 128], Float32, CPU>, %1953:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1956:tensor<[1, 2, 192, 128], Float32, CPU>, %1957:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -3032,8 +3032,8 @@
             linalg.CPU.SoftmaxOp(%1961:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1962:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1962:tensor<[1, 12, 192, 192], Float32, CPU>, %1957:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1963:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1963:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1964:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1964:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1964:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1964:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1965:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1964:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1964:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1964:tensor<[1, 192, 1536], Float32, CPU>) -> (%1965:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1965:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -3063,12 +3063,12 @@
             linalg.CPU.LinearOp(%1974:tensor<[1, 192, 1536], Float32, CPU>) -> (%1975:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%1974:tensor<[1, 192, 1536], Float32, CPU>) -> (%1976:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%1974:tensor<[1, 192, 1536], Float32, CPU>) -> (%1977:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1975:tensor<[1, 192, 1536], Float32, CPU>) -> (%1975:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%1976:tensor<[1, 192, 256], Float32, CPU>) -> (%1976:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%1977:tensor<[1, 192, 256], Float32, CPU>) -> (%1977:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1975:tensor<[1, 192, 1536], Float32, CPU>) -> (%1978:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1976:tensor<[1, 192, 256], Float32, CPU>) -> (%1979:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%1977:tensor<[1, 192, 256], Float32, CPU>) -> (%1980:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1975:tensor<[1, 192, 1536], Float32, CPU>) -> (%1975:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1976:tensor<[1, 192, 256], Float32, CPU>) -> (%1976:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%1977:tensor<[1, 192, 256], Float32, CPU>) -> (%1977:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1975:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1978:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1976:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1979:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%1977:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%1980:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1978:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1981:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%1979:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%1982:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%1982:tensor<[1, 2, 192, 128], Float32, CPU>, %1980:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1983:tensor<[1, 2, 192, 128], Float32, CPU>, %1984:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -3078,8 +3078,8 @@
             linalg.CPU.SoftmaxOp(%1988:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%1989:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%1989:tensor<[1, 12, 192, 192], Float32, CPU>, %1984:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%1990:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%1990:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%1991:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%1991:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1991:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%1991:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1992:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%1991:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%1991:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%1991:tensor<[1, 192, 1536], Float32, CPU>) -> (%1992:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%1992:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
@@ -3109,12 +3109,12 @@
             linalg.CPU.LinearOp(%2001:tensor<[1, 192, 1536], Float32, CPU>) -> (%2002:tensor<[1, 192, 1536], Float32, CPU>)
             linalg.CPU.LinearOp(%2001:tensor<[1, 192, 1536], Float32, CPU>) -> (%2003:tensor<[1, 192, 256], Float32, CPU>)
             linalg.CPU.LinearOp(%2001:tensor<[1, 192, 1536], Float32, CPU>) -> (%2004:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%2002:tensor<[1, 192, 1536], Float32, CPU>) -> (%2002:tensor<[1, 192, 1536], Float32, CPU>)
-            linalg.CPU.ViewOp(%2003:tensor<[1, 192, 256], Float32, CPU>) -> (%2003:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.ViewOp(%2004:tensor<[1, 192, 256], Float32, CPU>) -> (%2004:tensor<[1, 192, 256], Float32, CPU>)
-            linalg.CPU.TransposeOp(%2002:tensor<[1, 192, 1536], Float32, CPU>) -> (%2005:tensor<[1, 12, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%2003:tensor<[1, 192, 256], Float32, CPU>) -> (%2006:tensor<[1, 2, 192, 128], Float32, CPU>)
-            linalg.CPU.TransposeOp(%2004:tensor<[1, 192, 256], Float32, CPU>) -> (%2007:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%2002:tensor<[1, 192, 1536], Float32, CPU>) -> (%2002:tensor<[1, 192, 12, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%2003:tensor<[1, 192, 256], Float32, CPU>) -> (%2003:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.ViewOp(%2004:tensor<[1, 192, 256], Float32, CPU>) -> (%2004:tensor<[1, 192, 2, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%2002:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%2005:tensor<[1, 12, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%2003:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%2006:tensor<[1, 2, 192, 128], Float32, CPU>)
+            linalg.CPU.TransposeOp(%2004:tensor<[1, 192, 2, 128], Float32, CPU>) -> (%2007:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%2005:tensor<[1, 12, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%2008:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.MultimodalRoPEOp(%2006:tensor<[1, 2, 192, 128], Float32, CPU>, %1270:tensor<[192, 128], Float32, CPU>, %1271:tensor<[192, 128], Float32, CPU>) -> (%2009:tensor<[1, 2, 192, 128], Float32, CPU>)
             linalg.CPU.KVCacheOp(%2009:tensor<[1, 2, 192, 128], Float32, CPU>, %2007:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%2010:tensor<[1, 2, 192, 128], Float32, CPU>, %2011:tensor<[1, 2, 192, 128], Float32, CPU>)
@@ -3124,8 +3124,8 @@
             linalg.CPU.SoftmaxOp(%2015:tensor<[1, 12, 192, 192], Float32, CPU>) -> (%2016:tensor<[1, 12, 192, 192], Float32, CPU>)
             linalg.CPU.MatMulOp(%2016:tensor<[1, 12, 192, 192], Float32, CPU>, %2011:tensor<[1, 2, 192, 128], Float32, CPU>) -> (%2017:tensor<[1, 12, 192, 128], Float32, CPU>)
             linalg.CPU.TransposeOp(%2017:tensor<[1, 12, 192, 128], Float32, CPU>) -> (%2018:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.ViewOp(%2018:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%2018:tensor<[1, 192, 12, 128], Float32, CPU>)
-            linalg.CPU.LinearOp(%2018:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%2019:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.ViewOp(%2018:tensor<[1, 192, 12, 128], Float32, CPU>) -> (%2018:tensor<[1, 192, 1536], Float32, CPU>)
+            linalg.CPU.LinearOp(%2018:tensor<[1, 192, 1536], Float32, CPU>) -> (%2019:tensor<[1, 192, 1536], Float32, CPU>)
             cf.ReturnOp (%2019:tensor<[1, 192, 1536], Float32, CPU>) -> ()
         }
     }
