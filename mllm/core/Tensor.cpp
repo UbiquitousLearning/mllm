@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/CastTypeOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
 #include "mllm/core/aops/ContiguousOp.hpp"
@@ -169,6 +170,42 @@ Tensor Tensor::operator/(float rhs) {
     case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
     case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
     case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
+}
+
+Tensor Tensor::operator+(std::complex<float> rhs) {
+  auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, aops::AddOpOptions{}, {*this, rhs_tensor})[0];
+}
+
+Tensor Tensor::operator-(std::complex<float> rhs) {
+  auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, aops::SubOpOptions{}, {*this, rhs_tensor})[0];
+}
+
+Tensor Tensor::operator*(std::complex<float> rhs) {
+  auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, aops::MulOpOptions{}, {*this, rhs_tensor})[0];
+}
+
+Tensor Tensor::operator/(std::complex<float> rhs) {
+  auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];

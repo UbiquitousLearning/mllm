@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
@@ -49,6 +50,9 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     std::vector<int> output_shape = broadcastShapes(input_shapes);                                         \
     if (output_shape.empty()) { output_shape = inputs[0].shape(); }                                        \
     Tensor output_0 = Tensor::empty(output_shape, inputs[0].dtype(), inputs[0].device());                  \
+    if (inputs[1].dtype() == kComplexFloat32 || inputs[1].dtype() == kComplexFloat64) {                    \
+      output_0 = Tensor::empty(output_shape, inputs[1].dtype(), inputs[0].device());                       \
+    }                                                                                                      \
     outputs.emplace_back(output_0);                                                                        \
   }                                                                                                        \
   void name::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }

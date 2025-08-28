@@ -157,6 +157,24 @@ void ew_div_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __rest
       dst, src0, src1, size, thread_count);
 }
 
+// ------------ complex input type
+#define EW_FP32_COMPLEX_OP(NAME, OP)                                                                                \
+                                                                                                                    \
+  void ew_##NAME##_fp32_complex(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0,        \
+                                const mllm_complex_fp32_t* __restrict__ src1, size_t size, int thread_count) {      \
+    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = src0[i] OP src1[i]; }); \
+  }                                                                                                                 \
+                                                                                                                    \
+  void ew_##NAME##_fp32_complex_scalar(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, \
+                                       const mllm_complex_fp32_t src1, size_t size, int thread_count) {             \
+    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = src0[i] OP src1; });    \
+  }
+
+EW_FP32_COMPLEX_OP(add, +)
+EW_FP32_COMPLEX_OP(sub, -)
+EW_FP32_COMPLEX_OP(mul, *)
+EW_FP32_COMPLEX_OP(div, /)
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_add_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
                         size_t size, int thread_count) {

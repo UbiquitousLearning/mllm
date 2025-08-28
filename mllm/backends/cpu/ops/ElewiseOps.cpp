@@ -164,6 +164,37 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       break;
     }
 
+    case kComplexFloat32: {
+      // currently only support scalar rhs
+      if (input0.numel() == input1.numel()) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_add_fp32_complex(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                      input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (input1.numel() == 1) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_add_fp32_complex_scalar(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                             *input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
+        mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_add_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                        b,  // b always contains `stride` elements
+                                        broadcast_naive_stride, options_.getThreads());
+        }
+#endif
+      } else {
+        NYI("AddOp broadcast for complex output not supported.");
+      }
+      break;
+    }
+
     default: NYI("AddOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
@@ -277,6 +308,37 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
+      }
+      break;
+    }
+
+    case kComplexFloat32: {
+      // currently only support scalar rhs
+      if (input0.numel() == input1.numel()) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_sub_fp32_complex(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                      input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (input1.numel() == 1) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_sub_fp32_complex_scalar(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                             *input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
+        mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_sub_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                        b,  // b always contains `stride` elements
+                                        broadcast_naive_stride, options_.getThreads());
+        }
+#endif
+      } else {
+        NYI("SubOp broadcast for complex output not supported.");
       }
       break;
     }
@@ -398,6 +460,37 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       break;
     }
 
+    case kComplexFloat32: {
+      // currently only support scalar rhs
+      if (input0.numel() == input1.numel()) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_mul_fp32_complex(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                      input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (input1.numel() == 1) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_mul_fp32_complex_scalar(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                             *input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
+        mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_mul_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                        b,  // b always contains `stride` elements
+                                        broadcast_naive_stride, options_.getThreads());
+        }
+#endif
+      } else {
+        NYI("MulOp broadcast for complex output not supported.");
+      }
+      break;
+    }
+
     default: NYI("MulOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
@@ -511,6 +604,37 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
+      }
+      break;
+    }
+
+    case kComplexFloat32: {
+      // currently only support scalar rhs
+      if (input0.numel() == input1.numel()) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_div_fp32_complex(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                      input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (input1.numel() == 1) {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        cpu::arm::ew_div_fp32_complex_scalar(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
+                                             *input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
+        mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_div_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                        b,  // b always contains `stride` elements
+                                        broadcast_naive_stride, options_.getThreads());
+        }
+#endif
+      } else {
+        NYI("DivOp broadcast for complex output not supported.");
       }
       break;
     }
