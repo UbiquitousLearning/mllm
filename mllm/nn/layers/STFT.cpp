@@ -19,4 +19,16 @@ STFT::STFT(int n_fft, int hop_length, int win_length, bool onesided, bool center
                                                 .pad_mode = pad_mode,
                                                 .return_complex = return_complex}) {}
 
+ISTFT::ISTFT() : Layer(OpTypes::kISTFT, aops::ISTFTOpOptions{}) {}
+
+ISTFT::ISTFT(const aops::ISTFTOpOptions& options) : Layer(OpTypes::kISTFT, options) {}
+
+ISTFT::ISTFT(int n_fft, int hop_length, int win_length, bool onesided, bool center, const std::string& pad_mode)
+    : Layer(OpTypes::kISTFT, aops::ISTFTOpOptions{.n_fft = n_fft,
+                                                  .hop_length = hop_length,
+                                                  .win_length = win_length,
+                                                  .onesided = onesided,
+                                                  .center = center,
+                                                  .pad_mode = pad_mode}) {}
+
 }  // namespace mllm::nn

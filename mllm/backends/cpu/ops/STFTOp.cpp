@@ -5,9 +5,11 @@
 #include <cmath>
 #include <vector>
 #include <complex>
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
 #include "mllm/backends/cpu/ops/STFTOp.hpp"
+#include "mllm/backends/cpu/ops/ISTFTOp.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -16,6 +18,8 @@
 namespace mllm::cpu {
 
 CPUSTFTOp::CPUSTFTOp(const aops::STFTOpOptions& options) : aops::STFTOp(options) {}
+
+CPUISTFTOp::CPUISTFTOp(const aops::ISTFTOpOptions& options) : aops::ISTFTOp(options) {}
 
 template<typename T>
 static T computeAngularVelocity(size_t number_of_samples, bool inverse = false) {
@@ -214,6 +218,64 @@ static void fftBluestein(const std::vector<T>& input, std::vector<std::complex<T
   }
 }
 
+template<typename T>
+static void fftBluesteinComplex(std::vector<std::complex<T>>& input, std::vector<std::complex<T>>& output, int n_fft,
+                                bool inverse = false) {
+  const size_t N = n_fft;
+  if (N == 0) {
+    output.clear();
+    return;
+  }
+
+  // 1. 确定用于卷积的FFT尺寸M，M >= 2*N-1 且为2的幂
+  size_t M = nextPowerOf2(2 * N - 1);
+
+  const T pi = static_cast<T>(M_PI);
+  const T direction = inverse ? 1.f : -1.f;
+
+  // 2. 创建序列a(n): 输入信号与预处理chirp相乘
+  std::vector<std::complex<T>> a(M, {0, 0});
+  for (size_t n = 0; n < N; n++) {
+    if (n < input.size()) {
+      T exponent = direction * pi * n * n / N;
+      std::complex<T> chirp(cos(exponent), sin(exponent));
+      a[n] = input[n] * chirp;
+    }
+  }
+
+  // 3. 创建序列b(n): 用于卷积的chirp核
+  std::vector<std::complex<T>> b(M, {0, 0});
+  for (size_t n = 0; n < N; n++) {
+    T exponent = -direction * pi * n * n / N;  // 注意这里是反号的
+    b[n] = {static_cast<float>(cos(exponent)), static_cast<float>(sin(exponent))};
+  }
+  // 创建循环卷积核
+  for (size_t n = 1; n < N; n++) { b[M - n] = b[n]; }
+
+  // 4. 执行卷积: IFFT(FFT(a) * FFT(b))
+  fftRadix2Complex<T>(a, M, false);  // FFT of a
+  fftRadix2Complex<T>(b, M, false);  // FFT of b
+
+  for (size_t i = 0; i < M; i++) {
+    a[i] *= b[i];  // 频域相乘
+  }
+
+  fftRadix2Complex<T>(a, M, true);  // IFFT of the product
+
+  // 5. 后处理与最终输出
+  output.resize(N);
+  for (size_t n = 0; n < N; n++) {
+    T exponent = direction * pi * n * n / N;
+    std::complex<T> chirp(cos(exponent), sin(exponent));
+    output[n] = a[n] * chirp;
+  }
+
+  // 如果是逆变换，应用1/N缩放
+  if (inverse) {
+    for (size_t i = 0; i < N; ++i) { output[i] /= static_cast<T>(N); }
+  }
+}
+
 static void padSignal(const Tensor& input, std::vector<float>& padded_signal, int n_fft, bool center,
                       const std::string& pad_mode) {
   auto input_shape = input.shape();
@@ -310,9 +372,7 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
       // Store output based on return_complex option
       if (return_complex) {
         // Store as complex values
-        for (int freq = 0; freq < freq_bins; ++freq) {
-          output.at<std::complex<float>>({b, freq, f}) = fft_output[freq];
-        }
+        for (int freq = 0; freq < freq_bins; ++freq) { output.at<std::complex<float>>({b, freq, f}) = fft_output[freq]; }
       } else {
         // Store as real and imaginary parts in the last dimension
         for (int freq = 0; freq < freq_bins; ++freq) {
@@ -324,4 +384,167 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   }
 }
 
+void CPUISTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& window = inputs[1];
+  auto& output = outputs[0];
+
+  // Shapes
+  auto input_shape = input.shape();
+  auto output_shape = output.shape();
+  int batch_size = output_shape[0];
+  // signal_length 现在代表了最终裁剪后的目标长度
+  int signal_length = output_shape[1];
+
+  int freq_bins = input_shape[1];
+  int n_frames = input_shape[2];
+
+  // ISTFT params
+  int n_fft = options_.n_fft;
+  int hop_length = options_.hop_length;
+  int win_length = options_.win_length;
+  bool center = options_.center;
+  std::string pad_mode = options_.pad_mode;
+  bool normalized = options_.normalized;
+
+  // Buffers for IFFT
+  std::vector<std::complex<float>> fft_input(n_fft);
+  std::vector<std::complex<float>> fft_output(n_fft);
+  std::vector<float> ifft_output(n_fft);
+
+  const float* window_ptr = window.ptr<float>();
+
+  // Process each batch
+  for (int b = 0; b < batch_size; ++b) {
+    // 获取当前 batch 的输出指针
+    float* output_ptr = output.ptrAt<float>({b, 0});
+
+    // python vocos library use this pad_mode, just to keep consistent with it
+    if (pad_mode == "same" && !center) {
+      // 'same' padding 逻辑
+      int padding = (win_length - hop_length) / 2;
+      int final_length = n_frames * hop_length;
+
+      // 预分配的输出Tensor长度应与期望的最终长度一致
+      // 在某些情况下，由于STFT的ceil操作，可能存在1个点的差异，这里放宽检查
+      MLLM_RT_ASSERT(std::abs(signal_length - final_length) <= 1);
+
+      // 1. 分配用于重叠相加的临时、全长缓冲区
+      int full_length = (n_frames - 1) * hop_length + win_length;
+      std::vector<float> temp_output(full_length, 0.0f);
+      std::vector<float> temp_envelope(full_length, 0.0f);
+
+      // 2. 在临时缓冲区中执行重叠相加
+      for (int f = 0; f < n_frames; ++f) {
+        // load complex freq bins
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          if (input.dtype() == kComplexFloat32) {
+            fft_input[freq] = input.constAt<mllm_complex_fp32_t>({b, freq, f});
+          } else {
+            float real = input.constAt<float>({b, freq, f, 0});
+            float imag = input.constAt<float>({b, freq, f, 1});
+            fft_input[freq] = std::complex<float>(real, imag);
+          }
+        }
+
+        // reconstruct onesided spectrum if needed
+        if (options_.onesided) {
+          for (int freq = freq_bins; freq < n_fft; ++freq) {
+            int conj_freq = n_fft - freq;
+            fft_input[freq] = std::conj(fft_input[conj_freq]);
+          }
+        }
+
+        // IFFT
+        if (is_power_of_2(n_fft)) {
+          fftRadix2Complex<float>(fft_input, n_fft, true);  // In-place FFT
+        } else {
+          fftBluesteinComplex<float>(fft_input, fft_output, n_fft, true);
+          fft_input = fft_output;
+        }
+
+        // IFFT output (real part) and normalization
+        for (int i = 0; i < n_fft; ++i) {
+          ifft_output[i] = fft_input[i].real();
+          if (normalized) ifft_output[i] /= n_fft;
+        }
+
+        // overlap-add
+        int start_idx = f * hop_length;
+        for (int i = 0; i < win_length; ++i) {
+          int out_idx = start_idx + i;
+          if (out_idx < full_length) {
+            temp_output[out_idx] += ifft_output[i] * window_ptr[i];
+            temp_envelope[out_idx] += window_ptr[i] * window_ptr[i];
+          }
+        }
+      }
+
+      // 3. 在临时缓冲区中归一化
+      for (int i = 0; i < full_length; ++i) {
+        if (temp_envelope[i] > 1e-10f) { temp_output[i] /= temp_envelope[i]; }
+      }
+
+      // 4. 将裁剪后的有效数据从临时缓冲拷贝到最终的 output tensor
+      // 源地址：temp_output 的 padding 之后
+      // 目标地址：output_ptr 的开头
+      // 拷贝长度：final_length
+      std::memcpy(output_ptr, temp_output.data() + padding, final_length * sizeof(float));
+
+    } else {
+      // 标准 'center' 或其他 padding 逻辑 (与您之前的原始逻辑类似)
+      std::vector<float> window_envelope(signal_length, 0.0f);
+      std::memset(output_ptr, 0, signal_length * sizeof(float));
+
+      for (int f = 0; f < n_frames; ++f) {
+        // load complex freq bins
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          if (input.dtype() == kComplexFloat32) {
+            fft_input[freq] = input.constAt<std::complex<float>>({b, freq, f});
+          } else {
+            float real = input.constAt<float>({b, freq, f, 0});
+            float imag = input.constAt<float>({b, freq, f, 1});
+            fft_input[freq] = std::complex<float>(real, imag);
+          }
+        }
+
+        // reconstruct onesided spectrum if needed
+        if (options_.onesided) {
+          for (int freq = freq_bins; freq < n_fft; ++freq) {
+            int conj_freq = n_fft - freq;
+            fft_input[freq] = std::conj(fft_input[conj_freq]);
+          }
+        }
+
+        // IFFT
+        if (is_power_of_2(n_fft)) {
+          fftRadix2Complex<float>(fft_input, n_fft, true);  // In-place FFT
+        } else {
+          fftBluesteinComplex<float>(fft_input, fft_output, n_fft, true);
+          fft_input = fft_output;
+        }
+
+        // IFFT output (real part) and normalization
+        for (int i = 0; i < n_fft; ++i) {
+          ifft_output[i] = fft_input[i].real();
+          if (normalized) ifft_output[i] /= n_fft;
+        }
+
+        // overlap-add
+        int start_idx = f * hop_length;
+        for (int i = 0; i < win_length; ++i) {
+          int out_idx = start_idx + i;
+          if (out_idx < signal_length) {
+            output_ptr[out_idx] += ifft_output[i] * window_ptr[i];
+            window_envelope[out_idx] += window_ptr[i] * window_ptr[i];
+          }
+        }
+      }
+
+      for (int i = 0; i < signal_length; ++i) {
+        if (window_envelope[i] > 1e-10f) { output_ptr[i] /= window_envelope[i]; }
+      }
+    }
+  }
+}
 }  // namespace mllm::cpu

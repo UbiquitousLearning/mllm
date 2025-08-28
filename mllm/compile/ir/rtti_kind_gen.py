@@ -220,6 +220,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("AddOp"))
     op.derive(Cls("SubOp"))
     op.derive(Cls("STFTOp"))
+    op.derive(Cls("ISTFTOp"))
     op.derive(Cls("MulOp"))
     op.derive(Cls("DivOp"))
     op.derive(Cls("AbsOp"))

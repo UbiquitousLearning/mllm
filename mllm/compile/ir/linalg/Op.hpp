@@ -23,6 +23,7 @@ class RoPEOp;
 class KVCacheOp;
 class SoftmaxOp;
 class STFTOp;
+class ISTFTOp;
 class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
@@ -182,6 +183,7 @@ LINALG_AOPS_DEFINE(ReshapeOp, RESHAPEOP);
 
 LINALG_AOPS_DEFINE(SliceOp, SLICEOP);
 LINALG_AOPS_DEFINE(STFTOp, STFTOP);
+LINALG_AOPS_DEFINE(ISTFTOp, ISTFTOP);
 LINALG_AOPS_DEFINE(ParamOp, PARAMOP);
 
 LINALG_AOPS_DEFINE(IndexOp, INDEXOP);

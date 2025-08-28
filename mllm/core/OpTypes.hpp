@@ -23,6 +23,7 @@ enum class OpTypes : int32_t {
   kRoPE,
   kSoftmax,
   kSTFT,
+  kISTFT,
   kTranspose,
   kRMSNorm,
   kSiLU,
@@ -89,6 +90,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kRoPE: return "RoPE";
     case OpTypes::kSoftmax: return "Softmax";
     case OpTypes::kSTFT: return "STFT";
+    case OpTypes::kISTFT: return "ISTFT";
     case OpTypes::kTranspose: return "Transpose";
     case OpTypes::kRMSNorm: return "RMSNorm";
     case OpTypes::kSiLU: return "SiLU";
