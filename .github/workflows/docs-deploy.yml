@@ -16,6 +16,7 @@ on:
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'UbiquitousLearning/mllm'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,7 +54,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/build/
+          path: docs/build/html/
 
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push'
