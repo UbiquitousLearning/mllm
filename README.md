@@ -28,6 +28,12 @@ fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and e
 mllm is a lightweight, fast, and easy-to-use (multimodal) on-device LLM inference engine for mobile devices (mainly supporting CPU/NPU), initiated by the research groups led by [Mengwei Xu](https://xumengwei.github.io/) (BUPT) and [Xuanzhe Liu](http://www.liuxuanzhe.com/) (PKU).
 
 ## Recent update
+- [2025 August 28] :tada: Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS and NPU QWEN2-VL. MLLM will then transition to V2, which can be viewed on the V2 branch.
+V2 will include brand-new capabilities:
+    - A more Pythonic model authoring approach with eager execution
+    - Compilation support and MLLM IR for easier NPU integration
+    - Support for parallel execution of multiple models
+    - A more refined engineering implementation
 - [2024 November 21] Support new model: Phi 3 Vision https://github.com/UbiquitousLearning/mllm/pull/186
 - [2024 August 30] Support new model: MiniCPM 2B https://github.com/UbiquitousLearning/mllm/pull/132
 - [2024 August 15] Support new model: Phi 3 mini https://github.com/UbiquitousLearning/mllm/pull/119
