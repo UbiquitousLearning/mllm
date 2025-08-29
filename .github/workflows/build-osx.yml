@@ -10,6 +10,15 @@ on:
       - "tasks/build_osx_apple_silicon_accelerate.yaml"
       - ".github/workflows/build_osx.yml"
       - "mllm/**"
+  pull_request:
+    branches:
+      - v2
+    paths:
+      - "requirements.txt"
+      - "task.py"
+      - "tasks/build_osx_apple_silicon_accelerate.yaml"
+      - ".github/workflows/build_osx.yml"
+      - "mllm/**"
 
 jobs:
   build-macos:
