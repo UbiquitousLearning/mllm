@@ -31,6 +31,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Initialize and update submodules
+        run: |
+          git submodule init
+          git submodule update --init --recursive
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
