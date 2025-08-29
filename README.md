@@ -1,9 +1,5 @@
 ## Latest News
 
-Here's a concise, scannable version optimized for GitHub README (prioritizing impact + brevity):
-
----
-
 ## Key Features
 
 1. **Pythonic eager execution** – Rapid model development  
