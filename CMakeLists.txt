@@ -138,12 +138,6 @@ if(MLLM_PERFETTO_ENABLE)
   add_compile_definitions(MLLM_PERFETTO_ENABLE=1)
 endif()
 
-# Handle NaN Warning.
-if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-   AND NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86_64"))
-  add_compile_options(-Wno-nan-infinity-disabled)
-endif()
-
 # Handle Windows Symbols.
 if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
