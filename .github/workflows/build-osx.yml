@@ -1,4 +1,4 @@
-name: Build MLLM macOS Apple Silicon Package
+name: Test macOS Apple Silicon Compilation
 
 on:
   push:
