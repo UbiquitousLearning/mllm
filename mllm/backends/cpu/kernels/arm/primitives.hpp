@@ -56,6 +56,11 @@ struct __ScalarLog {
   static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return std::log(a); }
 };
 
+template<typename __T>
+struct __ScalarExp {
+  static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return std::exp(a); }
+};
+
 template<typename __VT>
 struct __VectorAdd {
   static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a, __VT b) {}
@@ -107,6 +112,13 @@ struct __VectorAbs {
 
 template<typename __VT>
 struct __VectorLog {
+  static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
+};
+
+template<typename __VT>
+struct __VectorExp {
   static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
@@ -410,6 +422,42 @@ struct __VectorLog<float32x4_t> {
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
 };
 
+namespace __mllm_vector_exp {
+// from src/backends/cpu/compute/ActivationFunction.hpp in mllm:v1
+
+// adapted from arm limited optimized routine
+// the maximum error is 1.45358 plus 0.5 ulps
+// numbers above 88.38 will flush to infinity
+// numbers beneath -103.97 will flush to zero
+inline float32x4_t exp_ps_f32(float32x4_t a) {
+  const float32x4_t r = vdupq_n_f32(0x1.8p23f);
+  const float32x4_t z = vfmaq_f32(r, a, vdupq_n_f32(std::numbers::log2e_v<float>));
+  const float32x4_t n = vsubq_f32(z, r);
+  const float32x4_t b = vfmsq_f32(vfmsq_f32(a, n, vdupq_n_f32(std::numbers::ln2_v<float>)), n, vdupq_n_f32(0x1.7f7d1cp-20f));
+  const uint32x4_t e = vshlq_n_u32(vreinterpretq_u32_f32(z), 23);
+  const float32x4_t k = vreinterpretq_f32_u32(vaddq_u32(e, vreinterpretq_u32_f32(vdupq_n_f32(1))));
+  const uint32x4_t c = vcagtq_f32(n, vdupq_n_f32(126));
+  const float32x4_t u = vmulq_f32(b, b);
+  const float32x4_t j = vfmaq_f32(vmulq_f32(vdupq_n_f32(0x1.ffffecp-1f), b),
+                                  vfmaq_f32(vfmaq_f32(vdupq_n_f32(0x1.fffdb6p-2f), vdupq_n_f32(0x1.555e66p-3f), b),
+                                            vfmaq_f32(vdupq_n_f32(0x1.573e2ep-5f), vdupq_n_f32(0x1.0e4020p-7f), b), u),
+                                  u);
+  if (!vpaddd_u64(vreinterpretq_u64_u32(c))) return vfmaq_f32(k, j, k);
+  const uint32x4_t d = vandq_u32(vclezq_f32(n), vdupq_n_u32(0x82000000));
+  const float32x4_t s1 = vreinterpretq_f32_u32(vaddq_u32(d, vdupq_n_u32(0x7f000000)));
+  const float32x4_t s2 = vreinterpretq_f32_u32(vsubq_u32(e, d));
+  return vbslq_f32(vcagtq_f32(n, vdupq_n_f32(192)), vmulq_f32(s1, s1),
+                   vbslq_f32(c, vmulq_f32(vfmaq_f32(s2, s2, j), s1), vfmaq_f32(k, k, j)));
+}
+}  // namespace __mllm_vector_exp
+
+template<>
+struct __VectorExp<float32x4_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE float32x4_t cal(float32x4_t a) { return __mllm_vector_exp::exp_ps_f32(a); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
 //===----------------------------------------------------------------------===//
 // Float16 Vector Ops
 //===----------------------------------------------------------------------===//
@@ -475,6 +523,18 @@ struct __VectorLog<float16x8_t> {
 
     return vcombine_f16(vcvt_f16_f32(lo), vcvt_f16_f32(hi));
   }
+};
+
+template<>
+struct __VectorExp<float16x8_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE float16x8_t cal(float16x8_t a) {
+    float32x4_t lo = vcvt_f32_f16(vget_low_f16(a));
+    float32x4_t hi = vcvt_f32_f16(vget_high_f16(a));
+    lo = __mllm_vector_exp::exp_ps_f32(lo);
+    hi = __mllm_vector_exp::exp_ps_f32(hi);
+    return vcombine_f16(vcvt_f16_f32(lo), vcvt_f16_f32(hi));
+  }
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
 };
 
 #endif  // #end if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

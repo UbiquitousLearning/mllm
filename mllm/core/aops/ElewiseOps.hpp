@@ -36,6 +36,12 @@ struct AbsOpOptions : public BaseOpOptions<AbsOpOptions> {};
 
 struct LogOpOptions : public BaseOpOptions<LogOpOptions> {};
 
+struct ExpOpOptions : public BaseOpOptions<ExpOpOptions> {};
+
+struct SinOpOptions : public BaseOpOptions<SinOpOptions> {};
+
+struct CosOpOptions : public BaseOpOptions<CosOpOptions> {};
+
 struct ClipOpOptions : public BaseOpOptions<ClipOpOptions> {
   float min_val = -1.0f;
   float max_val = 1.0f;
@@ -61,6 +67,9 @@ __MLLM_ELEWISE_OP_DEFINE(NegOp, NegOpOptions);
 __MLLM_ELEWISE_OP_DEFINE(AbsOp, AbsOpOptions);
 __MLLM_ELEWISE_OP_DEFINE(LogOp, LogOpOptions);
 __MLLM_ELEWISE_OP_DEFINE(ClipOp, ClipOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(ExpOp, ExpOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(SinOp, SinOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(CosOp, CosOpOptions);
 
 }  // namespace mllm::aops
 

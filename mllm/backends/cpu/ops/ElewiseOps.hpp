@@ -5,8 +5,17 @@
 
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
+#include <vector>
 
 namespace mllm::cpu {
+
+struct BroadcastInfo {
+  bool can_be_broadcast_naive = false;
+  int32_t broadcast_naive_loops = 0;
+  int32_t broadcast_naive_stride = 0;
+};
+
+BroadcastInfo calculateBroadcastInfo(const std::vector<int32_t>& a_shape, const std::vector<int32_t>& b_shape);
 
 class CPUAddOp final : public aops::AddOp {
  public:
@@ -110,6 +119,48 @@ class CPULogOpFactory : public TypedOpFactory<OpTypes::kLog, aops::LogOpOptions>
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::LogOpOptions& options) override {
     return std::make_shared<CPULogOp>(options);
+  }
+};
+
+class CPUExpOp final : public aops::ExpOp {
+ public:
+  explicit CPUExpOp(const aops::ExpOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUExpOpFactory : public TypedOpFactory<OpTypes::kExp, aops::ExpOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::ExpOpOptions& options) override {
+    return std::make_shared<CPUExpOp>(options);
+  }
+};
+
+class CPUSinOp final : public aops::SinOp {
+ public:
+  explicit CPUSinOp(const aops::SinOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUSinOpFactory : public TypedOpFactory<OpTypes::kSin, aops::SinOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::SinOpOptions& options) override {
+    return std::make_shared<CPUSinOp>(options);
+  }
+};
+
+class CPUCosOp final : public aops::CosOp {
+ public:
+  explicit CPUCosOp(const aops::CosOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUCosOpFactory : public TypedOpFactory<OpTypes::kCos, aops::CosOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::CosOpOptions& options) override {
+    return std::make_shared<CPUCosOp>(options);
   }
 };
 

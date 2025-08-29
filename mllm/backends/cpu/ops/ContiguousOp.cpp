@@ -10,8 +10,8 @@ namespace mllm::cpu {
 CPUContiguousOp::CPUContiguousOp(const aops::ContiguousOpOptions& options) : aops::ContiguousOp(options) {}
 
 void CPUContiguousOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  auto i = inputs[0];
-  auto o = outputs[0];
+  const auto& i = inputs[0];
+  auto& o = outputs[0];
 
   const size_t ele_size = bytesOfType(i.dtype());
   const size_t total_elements = o.numel();
@@ -19,8 +19,8 @@ void CPUContiguousOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 
   if (total_elements == 0) { return; }
 
-  char* dst_ptr = o.offsettedPtr<char>({});
-  const char* src_ptr = i.offsettedPtr<char>({});
+  char* dst_ptr = o.ptr<char>();
+  const char* src_ptr = i.ptr<char>();
 
   const int32_t ndim = i.shape().size();
 

@@ -33,6 +33,9 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_STFTOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_STFTOp && (v)->getKind() <= RK_Op_LinalgIROp_STFTOp
 
+#define RTTI_RK_OP_LINALGIROP_ISTFTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ISTFTOp && (v)->getKind() <= RK_Op_LinalgIROp_ISTFTOp
+
 #define RTTI_RK_OP_LINALGIROP_MULOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_MulOp && (v)->getKind() <= RK_Op_LinalgIROp_MulOp
 
@@ -167,6 +170,15 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_CLIPOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_ClipOp && (v)->getKind() <= RK_Op_LinalgIROp_ClipOp
+
+#define RTTI_RK_OP_LINALGIROP_EXPOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ExpOp && (v)->getKind() <= RK_Op_LinalgIROp_ExpOp
+
+#define RTTI_RK_OP_LINALGIROP_SINOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_SinOp && (v)->getKind() <= RK_Op_LinalgIROp_SinOp
+
+#define RTTI_RK_OP_LINALGIROP_COSOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_CosOp && (v)->getKind() <= RK_Op_LinalgIROp_CosOp
 
 #define RTTI_RK_OP_GRAPHIROP_IMPL(v) return (v)->getKind() >= RK_Op_GraphIROp && (v)->getKind() <= RK_Op_GraphIROp_Last
 

@@ -221,6 +221,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("AddOp"))
     op.derive(Cls("SubOp"))
     op.derive(Cls("STFTOp"))
+    op.derive(Cls("ISTFTOp"))
     op.derive(Cls("MulOp"))
     op.derive(Cls("DivOp"))
     op.derive(Cls("AbsOp"))
@@ -266,6 +267,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("TopKOp"))
     op.derive(Cls("MeanOp"))
     op.derive(Cls("ClipOp"))
+    op.derive(Cls("ExpOp"))
+    op.derive(Cls("SinOp"))
+    op.derive(Cls("CosOp"))
 
     # value
 
