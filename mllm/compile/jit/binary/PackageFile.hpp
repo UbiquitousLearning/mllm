@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "mllm/core/MappedFile.hpp"
+
 #define MLLM_JIT_PACKAGE_FILE_V1_MAGIC_NUMBER 0x0212
 #define MLLM_JIT_PACKAGE_FILE_V1_VERSION 1
 #define MLLM_JIT_PACKAGE_FILE_V1_MAX_FILE_NAME_LENGTH 1024
@@ -39,6 +41,9 @@ namespace mllm::jit::binary {
 class PackageFile {
   PackageFile() = default;
   ~PackageFile() = default;
+
+ private:
+  MappedFile::ptr_t file_;
 };
 
 }  // namespace mllm::jit::binary
