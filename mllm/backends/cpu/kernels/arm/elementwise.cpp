@@ -175,6 +175,8 @@ EW_FP32_COMPLEX_OP(sub, -)
 EW_FP32_COMPLEX_OP(mul, *)
 EW_FP32_COMPLEX_OP(div, /)
 
+#undef EW_FP32_COMPLEX_OP
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_add_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
                         size_t size, int thread_count) {

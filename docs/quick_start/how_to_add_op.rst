@@ -215,7 +215,7 @@ Add your operator factory to the backend registration. For CPU backend, this is 
     backend->regOpFactory<CPUMyCustomOpFactory>();
 
 Step 5: Add to IR (Intermediate Representation)
-----------------------------------------------
+---------------------------------------------------
 
 If you need to support graph tracing and compilation, add your operator to the IR system:
 
