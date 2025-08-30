@@ -42,6 +42,16 @@ uint8_t ProgramIntrinsicIdIndexPass::run(const node_ptr_t& op) {
     return ir::IRWriter::WalkResult::WALK_CONTINUE;
   });
 
+  // We process Symbol Index here.
+  {
+    auto symbol_fragment = getCtx()->lookupSymbolTable("__MLLM_JIT_PACKAGE_SYMBOL_TABLE_SEGMENT");
+    MLLM_RT_ASSERT(symbol_fragment != nullptr);
+    uint64_t symbol_cnt = 0;
+    for (auto& op : symbol_fragment->cast_<ir::program::FragmentOp>()->getTopRegion()->ops()) {
+      if (op->isa_<ir::program::ProgramIROp>()) { op->cast_<ir::program::ProgramIROp>()->setProgramIntrinsicId(symbol_cnt++); }
+    }
+  }
+
   return ir::PASS_RET_SUCCESS;
 }
 

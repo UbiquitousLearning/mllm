@@ -16,6 +16,7 @@
 #include "mllm/compile/passes/ProgramLoweringPipeline.hpp"
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
 #include "mllm/compile/passes/ProgramIntrinsicIdIndexPass.hpp"
+#include "mllm/compile/passes/FlattenTensorAndLinalgSymbol2ProgramSymbolPass.hpp"
 
 namespace mllm::ir {
 
@@ -38,7 +39,12 @@ bool LinalgIR2ProgramPattern::rewrite(IRWriter& writer, const op_ptr_t& node) {
   auto mllm_op = node->cast_<ir::linalg::LinalgIROp>()->getAOp();
   auto mllm_op_name = optype2Str(mllm_op->getOpType());
   auto mllm_op_options = jit::binary::dumpLinalgIROptions(node->cast_<ir::linalg::LinalgIROp>()).dump();
-  writer.createAndReplaceOp<ir::program::KernelLaunchOp>(node, ins, ous, mllm_op_name, mllm_op_options);
+  auto kernel_op = writer.createAndReplaceOp<ir::program::KernelLaunchOp>(node, ins, ous, mllm_op_name, mllm_op_options);
+
+  if (!mllm_op->getName().empty()) {
+    kernel_op->setAttr("symbol_name", writer.getContext()->create<ir::StrAttr>(mllm_op->getName()));
+  }
+
   return true;
 }
 
@@ -194,6 +200,7 @@ uint8_t Graph2ProgramPass::run(const node_ptr_t& this_top_op) {
             return ir::IRWriter::WalkResult::WALK_CONTINUE;
           });
           r.removeOp(op);
+          r.getContext()->removeFromSymbolTable(op->cast_<ir::program::FragmentOp>()->getSymbolAttr()->str());
         }
         return ir::IRWriter::WalkResult::WALK_CONTINUE;
       });
@@ -257,6 +264,7 @@ std::vector<Pass::ptr_t> createProgramLoweringPipeline() {
   ret.push_back(createGraph2ProgramPass());
 
   // Program intrinsic Id Indexing.
+  ret.push_back(createFlattenTensorAndLinalgSymbol2ProgramSymbolPass());
   ret.push_back(createProgramIntrinsicIdIndexPass());
 
   return ret;

@@ -77,6 +77,40 @@ KernelLaunchOp::ptr_t KernelLaunchOp::build(IRContext* ctx, const std::vector<te
   return ret;
 }
 
+KernelSymbolOp::KernelSymbolOp() : ProgramIROp(RK_Op_ProgramIROp_KernelSymbolOp) {}
+
+void KernelSymbolOp::dump(IRPrinter& p) {
+  p.print("prog.kernel_symbol");
+  dumpAttributes(p);
+}
+
+KernelSymbolOp::ptr_t KernelSymbolOp::build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr, const std::string& op_type,
+                                            const std::string& op_options) {
+  auto ret = std::make_shared<KernelSymbolOp>();
+  ret->setAttr("op_options", ctx->create<StrAttr>(op_options));
+  ret->setAttr("op_type", ctx->create<StrAttr>(op_type));
+  ret->setSymbolAttr(symbol_attr);
+  return ret;
+}
+
+ValueSymbolOp::ValueSymbolOp() : ProgramIROp(RK_Op_ProgramIROp_ValueSymbolOp) {}
+
+void ValueSymbolOp::dump(IRPrinter& p) {
+  p.print("prog.value_symbol");
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+ValueSymbolOp::ptr_t ValueSymbolOp::build(IRContext* ctx, const val_ptr_t& value_ir, const SymbolAttr::ptr_t& symbol_attr) {
+  auto ret = std::make_shared<ValueSymbolOp>();
+
+  // This op generate the tensor value.
+  // The registerted tensor is marked as a produced value.
+  (*ret)-- > value_ir;
+  ret->setSymbolAttr(symbol_attr);
+  return ret;
+}
+
 JumpOp::JumpOp() : ProgramIROp(RK_Op_ProgramIROp_JumpOp) {}
 
 void JumpOp::dump(IRPrinter& p) {

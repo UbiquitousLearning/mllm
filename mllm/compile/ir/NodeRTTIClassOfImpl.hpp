@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-30 13:21:12
+// Auto generated: 2025-08-30 19:33:13
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -217,6 +217,12 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_PROGRAMIROP_KERNELLAUNCHOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_KernelLaunchOp && (v)->getKind() <= RK_Op_ProgramIROp_KernelLaunchOp
+
+#define RTTI_RK_OP_PROGRAMIROP_KERNELSYMBOLOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_KernelSymbolOp && (v)->getKind() <= RK_Op_ProgramIROp_KernelSymbolOp
+
+#define RTTI_RK_OP_PROGRAMIROP_VALUESYMBOLOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_ValueSymbolOp && (v)->getKind() <= RK_Op_ProgramIROp_ValueSymbolOp
 
 #define RTTI_RK_OP_PROGRAMIROP_JUMPOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_JumpOp && (v)->getKind() <= RK_Op_ProgramIROp_JumpOp

@@ -73,6 +73,37 @@ class KernelLaunchOp final : public ProgramIROp {
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_KERNELLAUNCHOP_IMPL(node); }
 };
 
+class KernelSymbolOp final : public ProgramIROp, public SymbolInterface<KernelSymbolOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(KernelSymbolOp);
+
+  ~KernelSymbolOp() override = default;
+
+  KernelSymbolOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr, const std::string& op_type,
+                     const std::string& op_options);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_KERNELSYMBOLOP_IMPL(node); }
+};
+
+class ValueSymbolOp final : public ProgramIROp, public SymbolInterface<ValueSymbolOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(ValueSymbolOp);
+
+  ~ValueSymbolOp() override = default;
+
+  ValueSymbolOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const val_ptr_t& value_ir, const SymbolAttr::ptr_t& symbol_attr);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_VALUESYMBOLOP_IMPL(node); }
+};
+
 class JumpOp final : public ProgramIROp {
  public:
   DEFINE_SPECIFIC_IR_CLASS(JumpOp);

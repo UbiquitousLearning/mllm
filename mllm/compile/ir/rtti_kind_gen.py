@@ -323,6 +323,8 @@ def define_program_ir(ir: dict):
     # Op
     op.derive(Cls("FragmentOp"))
     op.derive(Cls("KernelLaunchOp"))
+    op.derive(Cls("KernelSymbolOp"))
+    op.derive(Cls("ValueSymbolOp"))
     op.derive(Cls("JumpOp"))
     op.derive(Cls("LabelOp"))
     op.derive(Cls("ExitOp"))
