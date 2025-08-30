@@ -11,33 +11,6 @@ ProgramIROp::ProgramIROp() : Op(RK_Op_ProgramIROp) {}
 
 ProgramIROp::ProgramIROp(const NodeKind& kind) : Op(kind) {}
 
-InstructionOp::InstructionOp() : ProgramIROp(RK_Op_ProgramIROp_InstructionOp) {}
-
-void InstructionOp::dump(IRPrinter& p) {
-  // Not intrinsic !!!
-  p.print("prog.{}.inst.", deviceTypes2Str(getDevice()));
-  auto size = mllm_concrete_ops_.size();
-  int cnt = 0;
-  for (auto op : mllm_concrete_ops_) {
-    p.print(optype2Str(op->getOpType()));
-    if (cnt < size - 1) { p.print("+"); }
-    cnt++;
-  }
-  Op::dump(p);
-}
-
-InstructionOp::ptr_t InstructionOp::build(IRContext* ctx, const std::vector<tensor::TensorValue::ptr_t>& inputs,
-                                          const std::vector<tensor::TensorValue::ptr_t>& outputs) {
-  auto inst = std::make_shared<InstructionOp>();
-  for (auto& input : inputs) { (*input)-- > inst; }
-  for (auto& output : outputs) { (*inst)-- > output; }
-  return inst;
-}
-
-void InstructionOp::pushMllmOp(BaseOp* op) { mllm_concrete_ops_.push_back(op); }
-
-std::vector<BaseOp*> InstructionOp::getMllmOps() const { return mllm_concrete_ops_; }
-
 FragmentOp::FragmentOp() : ProgramIROp(RK_Op_ProgramIROp_FragmentOp) {}
 
 void FragmentOp::dump(IRPrinter& p) {
@@ -45,7 +18,7 @@ void FragmentOp::dump(IRPrinter& p) {
     switch (fragment_type) {
       case FragmentType::kCode: return "code";
       case FragmentType::kData: return "data";
-      case FragmentType::kText: return "text";
+      case FragmentType::kTable: return "table";
       default: return "unknown";
     }
   };
@@ -61,7 +34,17 @@ void FragmentOp::dump(IRPrinter& p) {
   p.blank();
   p.lbrace();
 
-  getTopRegion()->dump(p);
+  {
+    auto& ops = getTopRegion()->ops();
+    size_t cnt = 0;
+    auto size = ops.size();
+    for (auto& op : ops) {
+      if (op->isa_<ProgramIROp>()) { p.print("addr:{:#016x} ", op->cast_<ProgramIROp>()->getProgramIntrinsicId()); }
+      op->dump(p);
+      if (cnt < size - 1) p.newline();
+      cnt++;
+    }
+  }
 
   p.rbrace();
 }
@@ -75,13 +58,35 @@ FragmentOp::ptr_t FragmentOp::build(IRContext* ctx, FragmentType type, const Sym
   return ret;
 }
 
+KernelLaunchOp::KernelLaunchOp() : ProgramIROp(RK_Op_ProgramIROp_KernelLaunchOp) {}
+
+void KernelLaunchOp::dump(IRPrinter& p) {
+  p.print("prog.kernel_launch");
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+KernelLaunchOp::ptr_t KernelLaunchOp::build(IRContext* ctx, const std::vector<tensor::TensorValue::ptr_t>& inputs,
+                                            const std::vector<tensor::TensorValue::ptr_t>& outputs, const std::string& op_type,
+                                            const std::string& op_options) {
+  auto ret = std::make_shared<KernelLaunchOp>();
+  ret->setAttr("op_options", ctx->create<StrAttr>(op_options));
+  ret->setAttr("op_type", ctx->create<StrAttr>(op_type));
+  for (auto& input : inputs) { (*input)-- > ret; }
+  for (auto& output : outputs) { (*ret)-- > output; }
+  return ret;
+}
+
 JumpOp::JumpOp() : ProgramIROp(RK_Op_ProgramIROp_JumpOp) {}
 
 void JumpOp::dump(IRPrinter& p) {
   p.print("prog.jump");
   p.blank();
   p.print("{}", label_name_);
+  dumpAttributes(p);
 }
+
+const std::string& JumpOp::labelName() const { return label_name_; }
 
 JumpOp::ptr_t JumpOp::build(IRContext* ctx, const std::string& label_name) {
   auto ret = std::make_shared<JumpOp>();
@@ -101,6 +106,18 @@ LabelOp::ptr_t LabelOp::build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_at
   ret->setSymbolAttr(symbol_attr);
   return ret;
 }
+
+ExitOp::ExitOp() : ProgramIROp(RK_Op_ProgramIROp_ExitOp) {}
+
+void ExitOp::dump(IRPrinter& p) { p.print("prog.exit"); }
+
+ExitOp::ptr_t ExitOp::build(IRContext* ctx) { return std::make_shared<ExitOp>(); }
+
+RetOp::RetOp() : ProgramIROp(RK_Op_ProgramIROp_RetOp) {}
+
+void RetOp::dump(IRPrinter& p) { p.print("prog.ret"); }
+
+RetOp::ptr_t RetOp::build(IRContext* ctx) { return std::make_shared<RetOp>(); }
 
 EntryPointOp::EntryPointOp() : ProgramIROp(RK_Op_ProgramIROp_EntryPointOp) {}
 

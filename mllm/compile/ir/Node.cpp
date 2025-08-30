@@ -294,8 +294,28 @@ void IRWriter::removeOp(const op_ptr_t& op) {
   is_iterator_modified_ = true;
 }
 
+void IRWriter::removeOpWithoutEdgeCut(const op_ptr_t& op) {
+  auto& ops = cur_region_->ops();
+  cur_op_iter_ = ops.erase(std::find(ops.begin(), ops.end(), op));
+  is_iterator_modified_ = true;
+}
+
 void IRWriter::replaceOp(const op_ptr_t& old_op, const op_ptr_t& new_op) {
   auto& ops = cur_region_->ops();
+
+  for (auto& input : old_op->inputs()) { input->outputs().remove(old_op); }
+  for (auto& output : old_op->outputs()) { output->inputs().remove(old_op); }
+
+  for (auto& input : new_op->inputs()) { input->outputs().emplace_back(new_op); }
+  for (auto& output : new_op->outputs()) { output->inputs().emplace_back(new_op); }
+
+  new_op->setPrevOp(old_op->prevOp());
+  new_op->setNextOp(old_op->nextOp());
+
+  if (auto prev_op = old_op->prevOp()) { prev_op->setNextOp(new_op); }
+  if (auto next_op = old_op->nextOp()) { next_op->setPrevOp(new_op); }
+
+  new_op->setBelongsTo(old_op->belongsTo());
   std::replace(ops.begin(), ops.end(), old_op, new_op->template cast_<Op>());
 }
 
@@ -337,6 +357,24 @@ void IRWriter::insertOpAtPos(const op_ptr_t& pos_op, Position pos, const op_ptr_
       break;
     }
   }
+}
+
+void IRWriter::insertOpAtLast(const op_ptr_t& new_op) {
+  MLLM_RT_ASSERT(new_op != nullptr);
+  auto& ops = cur_region_->ops();
+  new_op->setBelongsTo(cur_region_->belongsTo());
+  new_op->setDevice(ctx_->getDevice());
+  op_ptr_t last_op = ops.empty() ? nullptr : ops.back();
+  if (last_op) {
+    last_op->setNextOp(new_op);
+    new_op->setPrevOp(last_op);
+  } else {
+    new_op->setPrevOp(nullptr);
+  }
+  new_op->setNextOp(nullptr);
+  ops.push_back(new_op);
+  cur_op_iter_ = std::prev(ops.end());
+  is_iterator_modified_ = true;
 }
 
 IRContext::ptr_t IRWriter::getContext() { return ctx_; }

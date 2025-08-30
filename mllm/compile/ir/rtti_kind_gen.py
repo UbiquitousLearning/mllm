@@ -320,12 +320,13 @@ def define_program_ir(ir: dict):
     val: Cls = ir["Value"]
     attr: Cls = ir["Attribute"]
 
-    # op
+    # Op
     op.derive(Cls("FragmentOp"))
-    op.derive(Cls("InstructionOp"))
+    op.derive(Cls("KernelLaunchOp"))
     op.derive(Cls("JumpOp"))
     op.derive(Cls("LabelOp"))
     op.derive(Cls("ExitOp"))
+    op.derive(Cls("RetOp"))
     op.derive(Cls("EntryPointOp"))
 
 

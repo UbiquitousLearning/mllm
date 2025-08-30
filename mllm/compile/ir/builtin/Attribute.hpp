@@ -39,6 +39,8 @@ class IntAttr : public BuiltinIRAttr {
 
   static ptr_t build(IRContext*, int data = 0);
 
+  void dump(IRPrinter& p) override;
+
   static inline bool classof(const Node* node) { RTTI_RK_ATTR_BUILTINIRATTR_INTATTR_IMPL(node); }
 
  private:
@@ -76,6 +78,8 @@ class StrAttr : public BuiltinIRAttr {
   std::string& data();
 
   static ptr_t build(IRContext*, const std::string& data);
+
+  void dump(IRPrinter& p) override;
 
   static inline bool classof(const Node* node) { RTTI_RK_ATTR_BUILTINIRATTR_STRATTR_IMPL(node); }
 
