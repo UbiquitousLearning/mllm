@@ -32,6 +32,8 @@
 namespace mllm::jit::binary {
 
 nlohmann::json dumpLinalgIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  MLLM_RT_ASSERT(op->getAOp() != nullptr);
+
 #define CASE(op_type) \
   case OpTypes::k##op_type: return dump##op_type##OpIROptions(op);
 
@@ -95,22 +97,31 @@ nlohmann::json dumpLinalgIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
 
 // Dump functions for each LinalgIR operation - all return empty JSON by default
 nlohmann::json dumpFillOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpAddOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpSubOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpMulOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpDivOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpAbsOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpLogOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpMatMulOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::MatMulOp*)op->getAOp())->options();
   return {{"transpose_a", options.transpose_a},
           {"transpose_b", options.transpose_b},
           {"matmul_type", MatMulOpType2Str(options.matmul_type)}};
 }
+
 nlohmann::json dumpEmbeddingOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::EmbeddingOp*)op->getAOp())->options();
   return {{"vocab_size", options.vocab_size}, {"hidden_size", options.hidden_size}};
 }
+
 nlohmann::json dumpLinearOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::LinearOp*)op->getAOp())->options();
   return {{"in_channels", options.in_channels},
@@ -118,7 +129,9 @@ nlohmann::json dumpLinearOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
           {"bias", options.bias},
           {"impl_type", LinearImplTypes2Str(options.impl_type)}};
 }
+
 nlohmann::json dumpRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpKVCacheOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::KVCacheOp*)op->getAOp())->options();
   return {{"layer_idx", options.layer_idx},
@@ -127,26 +140,34 @@ nlohmann::json dumpKVCacheOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
           {"head_dim", options.head_dim},
           {"use_fa2", options.use_fa2}};
 }
+
 nlohmann::json dumpCausalMaskOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpSoftmaxOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpTransposeOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::TransposeOp*)op->getAOp())->options();
   return {{"dim0", options.dim0}, {"dim1", options.dim1}};
 }
+
 nlohmann::json dumpRMSNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpSiLUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpCastTypeOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::CastTypeOp*)op->getAOp())->options();
   return {{"dtype", nameOfType(options.dtype)}};
 }
+
 nlohmann::json dumpX2XOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpViewOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ViewOp*)op->getAOp())->options();
   nlohmann::json j;
-  j["to_shape"] = nlohmann::json::array();
-  for (const auto& dim : options.to_shape) { j["to_shape"].push_back(dim); }
+  j["to_shape"] = options.to_shape;
   return j;
 }
+
 nlohmann::json dumpSplitOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::SplitOp*)op->getAOp())->options();
   nlohmann::json j;
@@ -155,16 +176,20 @@ nlohmann::json dumpSplitOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   for (const auto& size : options.split_size_or_sections) { j["split_size_or_sections"].push_back(size); }
   return j;
 }
+
 nlohmann::json dumpSTFTOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpFlashAttention2OpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::FlashAttention2Op*)op->getAOp())->options();
   return {{"B", options.B}, {"q_head", options.q_head}, {"kv_head", options.kv_head},
           {"D", options.D}, {"hp_exp", options.hp_exp}, {"causal_mask", options.causal_mask}};
 }
+
 nlohmann::json dumpRepeatOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::RepeatOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"repeat_times", options.repeat_times}};
 }
+
 nlohmann::json dumpPermuteOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::PermuteOp*)op->getAOp())->options();
   nlohmann::json j;
@@ -172,11 +197,17 @@ nlohmann::json dumpPermuteOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   for (const auto& ax : options.axis) { j["axis"].push_back(ax); }
   return j;
 }
+
 nlohmann::json dumpConv1DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpConv2DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpMultimodalRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::MultimodalRoPEOp*)op->getAOp())->options();
   nlohmann::json j;
@@ -195,6 +226,7 @@ nlohmann::json dumpMultimodalRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t
   }
   return j;
 }
+
 nlohmann::json dumpVisionRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::VisionRoPEOp*)op->getAOp())->options();
   nlohmann::json j;
@@ -211,29 +243,41 @@ nlohmann::json dumpVisionRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op
   }
   return j;
 }
+
 nlohmann::json dumpQuickGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpCopyOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpCloneOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpNegOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpConcatOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ConcatOp*)op->getAOp())->options();
   return {{"dim", options.dim}};
 }
+
 nlohmann::json dumpReduceMaxOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ReduceMaxOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"keep_dim", options.keep_dim}};
 }
+
 nlohmann::json dumpReduceMinOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ReduceMinOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"keep_dim", options.keep_dim}};
 }
+
 nlohmann::json dumpReduceSumOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ReduceSumOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"keep_dim", options.keep_dim}};
 }
+
 nlohmann::json dumpReLUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpContiguousOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpReshapeOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
 nlohmann::json dumpSliceOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::SliceOp*)op->getAOp())->options();
   nlohmann::json j;
@@ -257,19 +301,23 @@ nlohmann::json dumpParamOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   for (const auto& dim : options.shape) { j["shape"].push_back(dim); }
   return j;
 }
+
 nlohmann::json dumpIndexOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::IndexOp*)op->getAOp())->options();
-  // TODO Index is complex
+  MLLM_WARN("dumpIndexOpIROptions are not supported yet");
   return {};
 }
+
 nlohmann::json dumpTopKOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::TopKOp*)op->getAOp())->options();
   return {{"k", options.k}, {"dim", options.dim}, {"largest", options.largest}, {"sorted", options.sorted}};
 }
+
 nlohmann::json dumpMeanOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::MeanOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"keep_dim", options.keep_dim}};
 }
+
 nlohmann::json dumpClipOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ClipOp*)op->getAOp())->options();
   return {{"min_val", options.min_val}, {"max_val", options.max_val}};

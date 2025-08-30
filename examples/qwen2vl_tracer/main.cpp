@@ -7,6 +7,7 @@
 #include <mllm/compile/ir/Trace.hpp>
 #include <mllm/compile/PassManager.hpp>
 #include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
+#include <mllm/compile/passes/ProgramLoweringPipeline.hpp>
 
 using mllm::Argparse;
 
@@ -48,7 +49,8 @@ MLLM_MAIN({
       auto model_ir = qwen2vl.trace(inputs, {})["model"];
 
       mllm::ir::PassManager pm(model_ir);
-      pm.reg(mllm::ir::createLLMCanonicalizationPipeline());
+      pm.reg(mllm::ir::createLLMCanonicalizationPipeline({.auxiliary_dbg_info = false}));
+      pm.reg(mllm::ir::createProgramLoweringPipeline());
       pm.run();
       mllm::print(model_ir);
       fmt::print("\n{}\n", std::string(60, '-'));

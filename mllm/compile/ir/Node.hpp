@@ -480,7 +480,11 @@ class IRWriter {
 
   void removeOp(const op_ptr_t& op);
 
+  void removeOpWithoutEdgeCut(const op_ptr_t& op);
+
   void replaceOp(const op_ptr_t& old_op, const op_ptr_t& new_op);
+
+  void insertOpAtLast(const op_ptr_t& new_op);
 
   template<typename T, typename... Args>
   std::shared_ptr<T> createAndReplaceOp(const op_ptr_t& old_op, Args&&... args) {
@@ -493,7 +497,12 @@ class IRWriter {
       // set device
       created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
 
+      // Cut edge
+      for (auto& input : old_op->inputs()) { input->outputs().remove(old_op); }
+      for (auto& output : old_op->outputs()) { output->inputs().remove(old_op); }
+
       auto prev_op = old_op->prevOp();
+      auto next_op = old_op->nextOp();
 
       // belongsto
       created_node->setBelongsTo(ctx_->getCurInsertRegion()->belongsTo());
@@ -503,8 +512,8 @@ class IRWriter {
 
       // set next op
       if (prev_op) prev_op->setNextOp(created_node);
-
-      created_node->setNextOp(old_op->nextOp());
+      created_node->setNextOp(next_op);
+      if (next_op) next_op->setPrevOp(created_node);
     }
 
     auto& ops = cur_region_->ops();

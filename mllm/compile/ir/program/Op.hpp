@@ -5,11 +5,10 @@
 
 #include <vector>
 
-#include "mllm/core/BaseOp.hpp"
 #include "mllm/compile/ir/Node.hpp"
-#include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/builtin/Interface.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
 
 namespace mllm::ir::program {
 
@@ -24,36 +23,19 @@ class ProgramIROp : public Op {
   explicit ProgramIROp(const NodeKind& kind);
 
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_IMPL(node); }
-};
 
-class InstructionOp final : public ProgramIROp {
- public:
-  DEFINE_SPECIFIC_IR_CLASS(InstructionOp);
+  void setProgramIntrinsicId(uint64_t program_intrinsic_id) { program_intrinsic_id_ = program_intrinsic_id; }
 
-  ~InstructionOp() override = default;
-
-  InstructionOp();
-
-  void dump(IRPrinter& p) override;
-
-  static ptr_t build(IRContext* ctx, const std::vector<tensor::TensorValue::ptr_t>& inputs,
-                     const std::vector<tensor::TensorValue::ptr_t>& outputs);
-
-  void pushMllmOp(BaseOp* op);
-
-  std::vector<BaseOp*> getMllmOps() const;
-
-  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_INSTRUCTIONOP_IMPL(node); }
+  uint64_t getProgramIntrinsicId() const { return program_intrinsic_id_; }
 
  private:
-  // If has multiple ops. It supposed that those ops can be fused when generating code.
-  std::vector<BaseOp*> mllm_concrete_ops_;
+  uint64_t program_intrinsic_id_ = -1;
 };
 
 enum class FragmentType : int32_t {
   kCode,
   kData,
-  kText,
+  kTable,
 };
 
 class FragmentOp final : public ProgramIROp, public SymbolInterface<FragmentOp> {
@@ -74,6 +56,54 @@ class FragmentOp final : public ProgramIROp, public SymbolInterface<FragmentOp> 
   FragmentType type_ = FragmentType::kCode;
 };
 
+class KernelLaunchOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(KernelLaunchOp);
+
+  ~KernelLaunchOp() override = default;
+
+  KernelLaunchOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const std::vector<tensor::TensorValue::ptr_t>& inputs,
+                     const std::vector<tensor::TensorValue::ptr_t>& outputs, const std::string& op_type,
+                     const std::string& op_options);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_KERNELLAUNCHOP_IMPL(node); }
+};
+
+class KernelSymbolOp final : public ProgramIROp, public SymbolInterface<KernelSymbolOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(KernelSymbolOp);
+
+  ~KernelSymbolOp() override = default;
+
+  KernelSymbolOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr, const std::string& op_type,
+                     const std::string& op_options);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_KERNELSYMBOLOP_IMPL(node); }
+};
+
+class ValueSymbolOp final : public ProgramIROp, public SymbolInterface<ValueSymbolOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(ValueSymbolOp);
+
+  ~ValueSymbolOp() override = default;
+
+  ValueSymbolOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const val_ptr_t& value_ir, const SymbolAttr::ptr_t& symbol_attr);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_VALUESYMBOLOP_IMPL(node); }
+};
+
 class JumpOp final : public ProgramIROp {
  public:
   DEFINE_SPECIFIC_IR_CLASS(JumpOp);
@@ -83,6 +113,8 @@ class JumpOp final : public ProgramIROp {
   JumpOp();
 
   void dump(IRPrinter& p) override;
+
+  const std::string& labelName() const;
 
   static ptr_t build(IRContext* ctx, const std::string& label_name);
 
@@ -105,6 +137,36 @@ class LabelOp final : public ProgramIROp, public SymbolInterface<LabelOp> {
   static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr);
 
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_LABELOP_IMPL(node); }
+};
+
+class ExitOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(ExitOp);
+
+  ~ExitOp() override = default;
+
+  ExitOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_JUMPOP_IMPL(node); }
+};
+
+class RetOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(RetOp);
+
+  ~RetOp() override = default;
+
+  RetOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_RETOP_IMPL(node); }
 };
 
 class EntryPointOp final : public ProgramIROp, public SymbolInterface<EntryPointOp> {

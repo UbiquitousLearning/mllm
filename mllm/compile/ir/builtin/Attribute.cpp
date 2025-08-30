@@ -28,6 +28,8 @@ IntAttr::ptr_t IntAttr::build(IRContext*, int data) {
   return ret;
 }
 
+void IntAttr::dump(IRPrinter& p) { p.print("{}", data()); }
+
 FPAttr::~FPAttr() = default;
 
 FPAttr::FPAttr() : BuiltinIRAttr(RK_Attr_BuiltinIRAttr_FPAttr) {}
@@ -55,6 +57,8 @@ StrAttr::ptr_t StrAttr::build(IRContext*, const std::string& data) {
   ret->data() = data;
   return ret;
 }
+
+void StrAttr::dump(IRPrinter& p) { p.print("{}", data()); }
 
 SymbolAttr::~SymbolAttr() = default;
 

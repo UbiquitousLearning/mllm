@@ -54,9 +54,18 @@ class Graph2ProgramPass final : public PatternMatchPass {
 
 Pass::ptr_t createGraph2ProgramPass();
 
+class CFRet2ProgramPattern final : public Pattern {
+ public:
+  bool isMatch(const op_ptr_t& node) override;
+
+  bool rewrite(IRWriter& writer, const op_ptr_t& node) override;
+
+  static ptr_t create();
+};
+
 class CF2ProgramPass final : public PatternMatchPass {
  public:
-  CF2ProgramPass() = default;
+  CF2ProgramPass();
 
   uint8_t run(const node_ptr_t& op) override;
 };
