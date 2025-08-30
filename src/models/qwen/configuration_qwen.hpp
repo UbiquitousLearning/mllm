@@ -77,13 +77,17 @@ public:
 };
 
 struct QWenConfig : public TransformerConfig {
-    explicit QWenConfig(int token_limit, string billions = "0.5B", RoPEType type = RoPEType::HFHUBROPE) :
+    explicit QWenConfig(int token_limit, string billions = "0.5B", RoPEType type = RoPEType::HFHUBROPE, string model_version = "Qwen1.5") :
         cache_limit(token_limit) {
         names_config.init(type);
         string billionsType;
         std::transform(billions.begin(), billions.end(), std::back_inserter(billionsType),
                        ::tolower);
-        if (billionsType == "0.5b") {
+        string modelVersion;
+        std::transform(model_version.begin(), model_version.end(), std::back_inserter(modelVersion),
+                       ::tolower);
+
+        if (billionsType == "0.5b" && modelVersion == "qwen1.5") {
             attention_dropout = 0.0;
             bos_token_id = 151643;
             eos_token_id = 151645;
@@ -97,6 +101,25 @@ struct QWenConfig : public TransformerConfig {
             num_attention_heads = 16;
             num_hidden_layers = 24;
             num_key_value_heads = 16;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = true;
+        } else if (billionsType == "0.5b" && modelVersion == "qwen2.5") {
+            attention_dropout = 0.0;
+            bos_token_id = 151643;
+            eos_token_id = 151645;
+            std::string hidden_act = "silu";
+            hidden_size = 896;
+            initializer_range = 0.02;
+            intermediate_size = 4864;
+            max_position_embeddings = 32768;
+            max_window_layers = 21;
+            model_type = "qwen2";
+            num_attention_heads = 14;
+            num_hidden_layers = 24;
+            num_key_value_heads = 2;
             rms_norm_eps = 1e-6;
             rope_theta = 1000000.0;
             sliding_window = 32768;
@@ -116,7 +139,7 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = false;
-        } else if (billionsType == "1.5b") {
+        } else if (billionsType == "1.5b" && modelVersion == "qwen2.5") {
             attention_dropout = 0.0;
             std::string hidden_act = "silu";
             hidden_size = 1536;
