@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include "mllm/compile/ir/cf/Op.hpp"
+#include "mllm/compile/ir/tensor/Op.hpp"
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
@@ -13,6 +14,7 @@
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/passes/Pattern.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/compile/passes/ProgramModeConfigPass.hpp"
 #include "mllm/compile/passes/ProgramLoweringPipeline.hpp"
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
 #include "mllm/compile/passes/ProgramIntrinsicIdIndexPass.hpp"
@@ -252,11 +254,63 @@ uint8_t CF2ProgramPass::run(const node_ptr_t& this_top_op) {  // The top op shou
 
 Pass::ptr_t createCF2ProgramPass() { return std::make_shared<CF2ProgramPass>(); }
 
-std::vector<Pass::ptr_t> createProgramLoweringPipeline() {
+bool TensorFreeOp2ProgramPattern::isMatch(const op_ptr_t& node) { return node->isa_<ir::tensor::FreeOp>(); }
+
+bool TensorFreeOp2ProgramPattern::rewrite(IRWriter& writer, const op_ptr_t& node) {
+  writer.createAndReplaceOp<ir::program::FreeOp>(node, node->cast_<ir::tensor::FreeOp>()->getFreedTensor());
+  return true;
+}
+
+TensorFreeOp2ProgramPattern::ptr_t TensorFreeOp2ProgramPattern::create() {
+  return std::make_shared<TensorFreeOp2ProgramPattern>();
+}
+
+Tensor2ProgramPass::Tensor2ProgramPass() { regPattern<TensorFreeOp2ProgramPattern>(); }
+
+uint8_t Tensor2ProgramPass::run(const node_ptr_t& this_top_op) {
+  // The top op should be ModuleOp
+  MLLM_RT_ASSERT(this_top_op->isa_<ir::ModuleOp>());
+
+  // Find the subgraph we need to process
+  auto r = ir::IRWriter(getCtx(), this_top_op->cast_<ir::ModuleOp>()->getTopRegion());
+
+  // Rewrite linalg OP in the top module
+  r.walk<ir::tensor::TensorIROp>([&](ir::IRWriter& rw, const ir::Op::ptr_t& op) -> ir::IRWriter::WalkResult {
+    for (auto& p : patterns_) {
+      if (p->isMatch(op)) { p->rewrite(r, op); }
+    }
+    return ir::IRWriter::WalkResult::WALK_CONTINUE;
+  });
+
+  // Graphs need to be write.
+  std::vector<ir::graph::SubGraphOp::ptr_t> graphs_need_to_transform;
+  r.walk<ir::graph::SubGraphOp>([&](ir::IRWriter& reader, const ir::graph::SubGraphOp::ptr_t& op) -> ir::IRWriter::WalkResult {
+    graphs_need_to_transform.emplace_back(op);
+    return ir::IRWriter::WalkResult::WALK_CONTINUE;
+  });
+
+  // Rewrite
+  for (auto& g : graphs_need_to_transform) {
+    auto g_r = ir::IRWriter(getCtx(), g->getTopRegion());
+    g_r.walk<ir::tensor::TensorIROp>([&](ir::IRWriter& rw, const ir::Op::ptr_t& op) -> ir::IRWriter::WalkResult {
+      for (auto& p : patterns_) {
+        if (p->isMatch(op)) { p->rewrite(g_r, op); }
+      }
+      return ir::IRWriter::WalkResult::WALK_CONTINUE;
+    });
+  }
+
+  return ir::PASS_RET_SUCCESS;
+}
+
+Pass::ptr_t createTensor2ProgramPass() { return std::make_shared<Tensor2ProgramPass>(); }
+
+std::vector<Pass::ptr_t> createProgramLoweringPipeline(const ProgramLoweringPipelineOptions& options) {
   std::vector<Pass::ptr_t> ret;
 
   // Transform Linalg op first
   ret.push_back(createLinalg2ProgramPass());
+  ret.push_back(createTensor2ProgramPass());
 
   // Other transformation passes
 
@@ -265,6 +319,9 @@ std::vector<Pass::ptr_t> createProgramLoweringPipeline() {
 
   // Program intrinsic Id Indexing.
   ret.push_back(createFlattenTensorAndLinalgSymbol2ProgramSymbolPass());
+  if (options.enable_eager_flag) {
+    ret.push_back(createProgramModeConfigPass({.mode = (int32_t)ir::program::ModeConfigFlag::kEager}));
+  }
   ret.push_back(createProgramIntrinsicIdIndexPass());
 
   return ret;

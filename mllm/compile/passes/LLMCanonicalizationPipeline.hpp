@@ -10,8 +10,9 @@ namespace mllm::ir {
 
 struct LLMCanonicalizationPipelineOptions {
   bool auxiliary_dbg_info = true;
+  bool enable_eager_memory_solver = true;  // else use static memory solver
 };
 
 std::vector<Pass::ptr_t> createLLMCanonicalizationPipeline(const LLMCanonicalizationPipelineOptions& options = {
-                                                               .auxiliary_dbg_info = true});
+                                                               .auxiliary_dbg_info = true, .enable_eager_memory_solver = true});
 }  // namespace mllm::ir

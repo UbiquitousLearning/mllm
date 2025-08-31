@@ -68,7 +68,9 @@ class FreeOp : public TensorIROp {
 
   static ptr_t build(IRContext* ctx, const TensorValue::ptr_t& tensor_v);
 
-  static inline bool classof(const Node* node) { RTTI_RK_OP_TENSORIROP_ALLOCOP_IMPL(node); }
+  TensorValue::ptr_t getFreedTensor();
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_TENSORIROP_FREEOP_IMPL(node); }
 };
 
 }  // namespace mllm::ir::tensor

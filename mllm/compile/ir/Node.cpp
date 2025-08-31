@@ -377,6 +377,24 @@ void IRWriter::insertOpAtLast(const op_ptr_t& new_op) {
   is_iterator_modified_ = true;
 }
 
+void IRWriter::insertOpAtFront(const op_ptr_t& new_op) {
+  MLLM_RT_ASSERT(new_op != nullptr);
+  auto& ops = cur_region_->ops();
+  new_op->setBelongsTo(cur_region_->belongsTo());
+  new_op->setDevice(ctx_->getDevice());
+  op_ptr_t first_op = ops.empty() ? nullptr : ops.front();
+  if (first_op) {
+    first_op->setPrevOp(new_op);
+    new_op->setNextOp(first_op);
+  } else {
+    new_op->setNextOp(nullptr);
+  }
+  new_op->setPrevOp(nullptr);
+  ops.push_front(new_op);
+  cur_op_iter_ = ops.begin();
+  is_iterator_modified_ = true;
+}
+
 IRContext::ptr_t IRWriter::getContext() { return ctx_; }
 
 }  // namespace mllm::ir

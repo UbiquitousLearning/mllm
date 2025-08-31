@@ -771,16 +771,19 @@ class Qwen2VLForCausalLM : public ARGeneration {
   }
 
   IROutput trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
-    // NOTE:
-    // Trace. Start here.
-    ir::lowlevel::traceStart();
+    // Things we need to return
+    ir::IRContext::ptr_t vit_ir = nullptr;
+    ir::IRContext::ptr_t llm_ir = nullptr;
 
     auto sequence = input.at("sequence");
-
-    ir::lowlevel::traceComment("Calculate the text embeddings");
+    ir::lowlevel::traceStart();
     auto input_embeddings = llm.embedding_(sequence);
+    ir::lowlevel::traceStop();
 
     if (input.count("img")) {
+      // NOTE:
+      // Trace. Start here.
+      ir::lowlevel::traceStart();
       // NOTE:
       // Trace. We don't want to trace things below and they really need to work.
       ir::lowlevel::traceYield();
@@ -798,6 +801,9 @@ class Qwen2VLForCausalLM : public ARGeneration {
       ir::lowlevel::traceContinue();
       ir::lowlevel::traceComment("visual inputs is: [img, visual_embedding_sin, visual_embedding_cos]");
       auto visual_embeddings = ir::lowlevel::traceModule(visual, img, visual_embedding_sin, visual_embedding_cos)[0];
+      ir::lowlevel::traceComment("goooooooooood!!!");
+      ir::lowlevel::traceComment("Everything works fine when tracing ViT");
+      vit_ir = ir::lowlevel::traceStop();
 
       // Insert visual embeddings into llm's embedding
       int32_t vision_pad_token_start = -1;
@@ -814,16 +820,18 @@ class Qwen2VLForCausalLM : public ARGeneration {
         MLLM_RT_ASSERT(vision_pad_token_start != -1);
       }
 
-      ir::lowlevel::traceComment("goooooooooood!!!");
-      ir::lowlevel::traceComment("Everything works fine when tracing ViT");
-      ir::lowlevel::traceComment("Copy visual_embeddings into input_embedding");
+      ir::lowlevel::traceStart();
       // input_embedding is [B, S, D]
       auto D = input_embeddings.shape()[2];
       auto visual_sequence = visual_embeddings.shape()[0];
       visual_embeddings.copy2(
           input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
+      ir::lowlevel::traceStop();
     }
 
+    // NOTE:
+    // Trace. Start here.
+    ir::lowlevel::traceStart();
     // NOTE:
     // Trace. We don't want to trace things below and they really need to work.
     ir::lowlevel::traceYield();
@@ -855,7 +863,8 @@ class Qwen2VLForCausalLM : public ARGeneration {
     ir::lowlevel::traceComment("    ║   ║     ");
     ir::lowlevel::traceComment("   ╱╩╦╦╩╲    ");
     ir::lowlevel::traceComment("Bravo! Tracing finished successfully!");
-    return {{"model", ir::lowlevel::traceStop()}};
+    llm_ir = ir::lowlevel::traceStop();
+    return {{"model", llm_ir}, {"visual", vit_ir}};
   }
 
   inline Tensor getPositionIds(Tensor& img, Tensor& grid_thw, Tensor& sequence, Tensor& position_ids,

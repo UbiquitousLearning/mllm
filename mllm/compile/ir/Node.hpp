@@ -486,6 +486,8 @@ class IRWriter {
 
   void insertOpAtLast(const op_ptr_t& new_op);
 
+  void insertOpAtFront(const op_ptr_t& new_op);
+
   template<typename T, typename... Args>
   std::shared_ptr<T> createAndReplaceOp(const op_ptr_t& old_op, Args&&... args) {
     auto _this = ctx_.get();

@@ -82,4 +82,6 @@ FreeOp::ptr_t FreeOp::build(IRContext* ctx, const TensorValue::ptr_t& tensor_v) 
   return ret;
 }
 
+TensorValue::ptr_t FreeOp::getFreedTensor() { return inputs().front()->cast_<::mllm::ir::tensor::TensorValue>(); }
+
 }  // namespace mllm::ir::tensor

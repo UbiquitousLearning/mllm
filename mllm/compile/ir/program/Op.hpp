@@ -185,4 +185,55 @@ class EntryPointOp final : public ProgramIROp, public SymbolInterface<EntryPoint
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_ENTRYPOINTOP_IMPL(node); }
 };
 
+class AllocOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(AllocOp);
+
+  ~AllocOp() override = default;
+
+  AllocOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const val_ptr_t& v_ir);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_ALLOCOP_IMPL(node); }
+};
+
+class FreeOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(FreeOp);
+
+  ~FreeOp() override = default;
+
+  FreeOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const val_ptr_t& v_ir);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_FREEOP_IMPL(node); }
+};
+
+enum class ModeConfigFlag : uint32_t {
+  kClear = 0x0,
+  kEager = 0x1,
+  kStaticPlanned = 0x2,
+};
+
+class ModeConfigOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(ModeConfigOp);
+
+  ~ModeConfigOp() override = default;
+
+  ModeConfigOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, ModeConfigFlag flag);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_MODECONFIGOP_IMPL(node); }
+};
+
 }  // namespace mllm::ir::program

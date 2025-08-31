@@ -179,4 +179,45 @@ EntryPointOp::ptr_t EntryPointOp::build(IRContext* ctx, const SymbolAttr::ptr_t&
   return ret;
 }
 
+AllocOp::AllocOp() : ProgramIROp(RK_Op_ProgramIROp_AllocOp) {}
+
+void AllocOp::dump(IRPrinter& p) {
+  p.print("prog.alloc");
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+AllocOp::ptr_t AllocOp::build(IRContext* ctx, const val_ptr_t& v_ir) {
+  auto ret = std::make_shared<AllocOp>();
+  (*ret)-- > v_ir;
+  return ret;
+}
+
+FreeOp::FreeOp() : ProgramIROp(RK_Op_ProgramIROp_FreeOp) {}
+
+void FreeOp::dump(IRPrinter& p) {
+  p.print("prog.free");
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+FreeOp::ptr_t FreeOp::build(IRContext* ctx, const val_ptr_t& v_ir) {
+  auto ret = std::make_shared<FreeOp>();
+  (*v_ir)-- > ret;
+  return ret;
+}
+
+ModeConfigOp::ModeConfigOp() : ProgramIROp(RK_Op_ProgramIROp_ModeConfigOp) {}
+
+void ModeConfigOp::dump(IRPrinter& p) {
+  p.print("prog.mode_config");
+  dumpAttributes(p);
+}
+
+ModeConfigOp::ptr_t ModeConfigOp::build(IRContext* ctx, ModeConfigFlag flag) {
+  auto ret = std::make_shared<ModeConfigOp>();
+  ret->setAttr("flag", ctx->create<IntAttr>(static_cast<uint32_t>(flag)));
+  return ret;
+}
+
 }  // namespace mllm::ir::program

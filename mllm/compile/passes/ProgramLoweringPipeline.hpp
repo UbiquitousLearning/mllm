@@ -72,6 +72,28 @@ class CF2ProgramPass final : public PatternMatchPass {
 
 Pass::ptr_t createCF2ProgramPass();
 
-std::vector<Pass::ptr_t> createProgramLoweringPipeline();
+class TensorFreeOp2ProgramPattern final : public Pattern {
+ public:
+  bool isMatch(const op_ptr_t& node) override;
+
+  bool rewrite(IRWriter& writer, const op_ptr_t& node) override;
+
+  static ptr_t create();
+};
+
+class Tensor2ProgramPass final : public PatternMatchPass {
+ public:
+  Tensor2ProgramPass();
+
+  uint8_t run(const node_ptr_t& op) override;
+};
+
+Pass::ptr_t createTensor2ProgramPass();
+
+struct ProgramLoweringPipelineOptions {
+  bool enable_eager_flag = true;  // else use static memory solver
+};
+
+std::vector<Pass::ptr_t> createProgramLoweringPipeline(const ProgramLoweringPipelineOptions& options = {});
 
 }  // namespace mllm::ir
