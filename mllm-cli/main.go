@@ -10,6 +10,14 @@ import (
 
 func main() {
 	mllm.InitContext()
+	
+	// Run welcome interface first
+	if err := tui.RunWelcome(); err != nil {
+		fmt.Printf("Error running Welcome: %v\n", err)
+		return
+	}
+	
+	// Then run model hub
 	selectedURL, err := tui.RunModelHub()
 	if err != nil {
 		fmt.Printf("Error running ModelHub: %v\n", err)
