@@ -330,6 +330,9 @@ def define_program_ir(ir: dict):
     op.derive(Cls("ExitOp"))
     op.derive(Cls("RetOp"))
     op.derive(Cls("EntryPointOp"))
+    op.derive(Cls("AllocOp"))
+    op.derive(Cls("FreeOp"))
+    op.derive(Cls("ModeConfigOp"))
 
 
 def define_dbg_ir(ir: dict):

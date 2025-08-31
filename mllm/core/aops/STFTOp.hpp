@@ -36,6 +36,8 @@ class STFTOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline STFTOpOptions& options() { return options_; }
+
  protected:
   STFTOpOptions options_;
 };

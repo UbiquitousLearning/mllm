@@ -8,6 +8,7 @@
 #include <mllm/compile/PassManager.hpp>
 #include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
 #include <mllm/compile/passes/ProgramLoweringPipeline.hpp>
+#include "mllm/compile/jit/binary/IRSerialization.hpp"
 
 using mllm::Argparse;
 
@@ -46,14 +47,35 @@ MLLM_MAIN({
       auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = "free", .img_file_path = "/Volumes/D/mllm/.tmp/gafei.jpeg"});
       fmt::print("\n🤖 Compiling: \n");
 
-      auto model_ir = qwen2vl.trace(inputs, {})["model"];
+      auto irs = qwen2vl.trace(inputs, {});
 
-      mllm::ir::PassManager pm(model_ir);
-      pm.reg(mllm::ir::createLLMCanonicalizationPipeline({.auxiliary_dbg_info = false}));
-      pm.reg(mllm::ir::createProgramLoweringPipeline());
-      pm.run();
-      mllm::print(model_ir);
-      fmt::print("\n{}\n", std::string(60, '-'));
+      // Compile llm model
+      {
+        mllm::ir::PassManager pm(irs["model"]);
+        pm.reg(mllm::ir::createLLMCanonicalizationPipeline({
+            .auxiliary_dbg_info = false,
+            .enable_eager_memory_solver = true,
+        }));
+        pm.reg(mllm::ir::createProgramLoweringPipeline());
+        pm.run();
+        mllm::jit::binary::IRSerializer serializer;
+        serializer.visit(irs["model"]);
+        serializer.save("model.json");
+      }
+
+      // Compile visual model
+      {
+        mllm::ir::PassManager pm(irs["visual"]);
+        pm.reg(mllm::ir::createLLMCanonicalizationPipeline({
+            .auxiliary_dbg_info = false,
+            .enable_eager_memory_solver = true,
+        }));
+        pm.reg(mllm::ir::createProgramLoweringPipeline());
+        pm.run();
+        mllm::jit::binary::IRSerializer serializer;
+        serializer.visit(irs["visual"]);
+        serializer.save("visual.json");
+      }
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }
 

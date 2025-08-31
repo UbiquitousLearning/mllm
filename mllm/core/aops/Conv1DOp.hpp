@@ -43,6 +43,8 @@ class Conv1DOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
+  inline Conv1DOpOptions& options() { return options_; }
+
  protected:
   Tensor weight_;
   Tensor bias_;

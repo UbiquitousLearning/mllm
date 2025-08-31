@@ -19,14 +19,22 @@
 #include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/SliceOp.hpp"
+#include "mllm/core/aops/Conv3DOp.hpp"
 #include "mllm/core/aops/ParamOp.hpp"
 #include "mllm/core/aops/IndexOp.hpp"
 #include "mllm/core/aops/ConcatOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/TopKOp.hpp"
+#include "mllm/core/aops/CausalMaskOp.hpp"
+#include "mllm/core/aops/SoftmaxOp.hpp"
+#include "mllm/core/aops/RMSNormOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/EmbeddingOp.hpp"
 #include "mllm/core/aops/LinearOp.hpp"
+#include "mllm/core/aops/X2XOp.hpp"
+#include "mllm/core/aops/STFTOp.hpp"
+#include "mllm/core/aops/Conv1DOp.hpp"
+#include "mllm/core/aops/LayerNormOp.hpp"
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
 
 namespace mllm::jit::binary {
@@ -141,16 +149,25 @@ nlohmann::json dumpKVCacheOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
           {"use_fa2", options.use_fa2}};
 }
 
-nlohmann::json dumpCausalMaskOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpCausalMaskOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::CausalMaskOp*)op->getAOp())->options();
+  return {{"sliding_window", options.sliding_window}, {"window_size", options.window_size}};
+}
 
-nlohmann::json dumpSoftmaxOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpSoftmaxOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::SoftmaxOp*)op->getAOp())->options();
+  return {{"axis", options.axis}};
+}
 
 nlohmann::json dumpTransposeOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::TransposeOp*)op->getAOp())->options();
   return {{"dim0", options.dim0}, {"dim1", options.dim1}};
 }
 
-nlohmann::json dumpRMSNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpRMSNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::RMSNormOp*)op->getAOp())->options();
+  return {{"epsilon", options.epsilon}, {"add_unit_offset", options.add_unit_offset}};
+}
 
 nlohmann::json dumpSiLUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
 
@@ -159,7 +176,10 @@ nlohmann::json dumpCastTypeOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) 
   return {{"dtype", nameOfType(options.dtype)}};
 }
 
-nlohmann::json dumpX2XOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpX2XOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::X2XOp*)op->getAOp())->options();
+  return {{"device", deviceTypes2Str(options.device)}};
+}
 
 nlohmann::json dumpViewOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::ViewOp*)op->getAOp())->options();
@@ -177,7 +197,16 @@ nlohmann::json dumpSplitOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   return j;
 }
 
-nlohmann::json dumpSTFTOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpSTFTOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::STFTOp*)op->getAOp())->options();
+  return {{"n_fft", options.n_fft},
+          {"hop_length", options.hop_length},
+          {"win_length", options.win_length},
+          {"onesided", options.onesided},
+          {"center", options.center},
+          {"pad_mode", options.pad_mode},
+          {"return_complex", options.return_complex}};
+}
 
 nlohmann::json dumpFlashAttention2OpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::FlashAttention2Op*)op->getAOp())->options();
@@ -198,15 +227,45 @@ nlohmann::json dumpPermuteOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   return j;
 }
 
-nlohmann::json dumpConv1DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpConv1DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::Conv1DOp*)op->getAOp())->options();
+  return {{"in_channels", options.in_channels},
+          {"out_channels", options.out_channels},
+          {"kernel_size", options.kernel_size},
+          {"stride", options.stride},
+          {"bias", options.bias},
+          {"padding", options.padding},
+          {"groups", options.groups}};
+}
 
 nlohmann::json dumpConv2DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
 
-nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::Conv3DOp*)op->getAOp())->options();
+  nlohmann::json j;
+  j["in_channels"] = options.in_channels;
+  j["out_channels"] = options.out_channels;
+  j["kernel_size"] = nlohmann::json::array();
+  for (const auto& size : options.kernel_size) { j["kernel_size"].push_back(size); }
+  j["stride"] = nlohmann::json::array();
+  for (const auto& s : options.stride) { j["stride"].push_back(s); }
+  j["bias"] = options.bias;
+  j["impl_type"] = static_cast<int>(options.impl_type);
+  return j;
+}
 
 nlohmann::json dumpGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
 
-nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto options = ((aops::LayerNormOp*)op->getAOp())->options();
+  nlohmann::json j;
+  j["normalized_shape"] = nlohmann::json::array();
+  for (const auto& dim : options.normalized_shape) { j["normalized_shape"].push_back(dim); }
+  j["elementwise_affine"] = options.elementwise_affine;
+  j["bias"] = options.bias;
+  j["eps"] = options.eps;
+  return j;
+}
 
 nlohmann::json dumpMultimodalRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::MultimodalRoPEOp*)op->getAOp())->options();

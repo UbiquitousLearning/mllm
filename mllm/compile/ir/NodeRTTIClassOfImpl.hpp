@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-30 19:33:13
+// Auto generated: 2025-08-31 13:59:22
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -238,6 +238,15 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_PROGRAMIROP_ENTRYPOINTOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_EntryPointOp && (v)->getKind() <= RK_Op_ProgramIROp_EntryPointOp
+
+#define RTTI_RK_OP_PROGRAMIROP_ALLOCOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_AllocOp && (v)->getKind() <= RK_Op_ProgramIROp_AllocOp
+
+#define RTTI_RK_OP_PROGRAMIROP_FREEOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_FreeOp && (v)->getKind() <= RK_Op_ProgramIROp_FreeOp
+
+#define RTTI_RK_OP_PROGRAMIROP_MODECONFIGOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_ModeConfigOp && (v)->getKind() <= RK_Op_ProgramIROp_ModeConfigOp
 
 #define RTTI_RK_OP_DBGIROP_IMPL(v) return (v)->getKind() >= RK_Op_DbgIROp && (v)->getKind() <= RK_Op_DbgIROp_Last
 
