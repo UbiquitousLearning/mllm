@@ -149,9 +149,9 @@ class ExitOp final : public ProgramIROp {
 
   void dump(IRPrinter& p) override;
 
-  static ptr_t build(IRContext* ctx);
+  static ptr_t build(IRContext* ctx, const std::vector<ir::val_ptr_t>& rets_values);
 
-  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_JUMPOP_IMPL(node); }
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_EXITOP_IMPL(node); }
 };
 
 class RetOp final : public ProgramIROp {

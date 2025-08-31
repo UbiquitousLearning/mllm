@@ -141,6 +141,9 @@ nlohmann::json IRSerializer::visitProgramFragmentOp(const ir::IRContext::ptr_t& 
     } else if (sub_op->isa_<ir::program::ModeConfigOp>()) {
       auto _j = visitProgramModeConfigOp(ctx, sub_op->cast_<ir::program::ModeConfigOp>());
       j["instructions"].push_back(_j);
+    } else if (sub_op->isa_<ir::program::ExitOp>()) {
+      auto _j = visitProgramExitOp(ctx, sub_op->cast_<ir::program::ExitOp>());
+      j["instructions"].push_back(_j);
     }
     return ir::IRWriter::WalkResult::WALK_CONTINUE;
   });
@@ -244,6 +247,18 @@ nlohmann::json IRSerializer::visitProgramModeConfigOp(const ir::IRContext::ptr_t
   j["op"] = "mode_config";
   j["program_id"] = op->getProgramIntrinsicId();
   if (auto flag_attr = op->getAttr("flag")) { j["flag"] = flag_attr->cast_<ir::IntAttr>()->data(); }
+  return j;
+}
+
+nlohmann::json IRSerializer::visitProgramExitOp(const ir::IRContext::ptr_t& ctx, const ir::program::ExitOp::ptr_t& op) {
+  nlohmann::json j;
+  j["dialect"] = "program";
+  j["op"] = "exit";
+  j["program_id"] = op->getProgramIntrinsicId();
+  j["outputs"] = nlohmann::json::array();
+  for (const auto& output : op->outputs()) {
+    if (auto value = output) { j["outputs"].push_back(value->cast_<ir::tensor::TensorValue>()->tensor_.uuid()); }
+  }
   return j;
 }
 

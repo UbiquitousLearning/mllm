@@ -145,7 +145,11 @@ ExitOp::ExitOp() : ProgramIROp(RK_Op_ProgramIROp_ExitOp) {}
 
 void ExitOp::dump(IRPrinter& p) { p.print("prog.exit"); }
 
-ExitOp::ptr_t ExitOp::build(IRContext* ctx) { return std::make_shared<ExitOp>(); }
+ExitOp::ptr_t ExitOp::build(IRContext* ctx, const std::vector<ir::val_ptr_t>& rets_values) {
+  auto ret = std::make_shared<ExitOp>();
+  for (auto& ret_val : rets_values) { (*ret)-- > ret_val; }
+  return ret;
+}
 
 RetOp::RetOp() : ProgramIROp(RK_Op_ProgramIROp_RetOp) {}
 

@@ -58,6 +58,8 @@ class IRSerializer {
 
   nlohmann::json visitProgramModeConfigOp(const ir::IRContext::ptr_t& ctx, const ir::program::ModeConfigOp::ptr_t& op);
 
+  nlohmann::json visitProgramExitOp(const ir::IRContext::ptr_t& ctx, const ir::program::ExitOp::ptr_t& op);
+
   nlohmann::json& getCode();
 
   void save(const std::string& path);

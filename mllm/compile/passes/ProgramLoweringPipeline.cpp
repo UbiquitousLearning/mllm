@@ -149,6 +149,16 @@ uint8_t Graph2ProgramPass::run(const node_ptr_t& this_top_op) {
   // Find the subgraph we need to process
   auto r = ir::IRWriter(getCtx(), this_top_op->cast_<ir::ModuleOp>()->getTopRegion());
 
+  // Find the callGraphOp, there only can be one callGraphOp in the top Module Region right now.
+  std::vector<ir::graph::CallGraphOp::ptr_t> call_graph_ops;
+  r.walk<ir::graph::CallGraphOp>([&](ir::IRWriter& reader, const ir::graph::CallGraphOp::ptr_t& op) {
+    call_graph_ops.emplace_back(op);
+    return ir::IRWriter::WalkResult::WALK_CONTINUE;
+  });
+  MLLM_RT_ASSERT_EQ(call_graph_ops.size(), 1);
+  std::vector<ir::val_ptr_t> exit_output;
+  for (auto& o : call_graph_ops[0]->outputs()) { exit_output.emplace_back(o->cast_<ir::Val>()); }
+
   // Rewrite the outmost GraphIROp
   r.walk<ir::graph::GraphIROp>([&](ir::IRWriter& reader, const ir::graph::GraphIROp::ptr_t& op) -> ir::IRWriter::WalkResult {
     for (auto& p : patterns_) {
@@ -206,6 +216,8 @@ uint8_t Graph2ProgramPass::run(const node_ptr_t& this_top_op) {
         }
         return ir::IRWriter::WalkResult::WALK_CONTINUE;
       });
+  // Insert EXIT Op to Program.Fragment
+  flatten_code_segment_rw.create<ir::program::ExitOp>(exit_output);
 
   return ir::PASS_RET_SUCCESS;
 }
