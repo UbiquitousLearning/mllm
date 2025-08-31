@@ -8,6 +8,7 @@
 #include <mllm/compile/PassManager.hpp>
 #include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
 #include <mllm/compile/passes/ProgramLoweringPipeline.hpp>
+#include "mllm/compile/jit/binary/IRSerialization.hpp"
 
 using mllm::Argparse;
 
@@ -57,7 +58,9 @@ MLLM_MAIN({
         }));
         pm.reg(mllm::ir::createProgramLoweringPipeline());
         pm.run();
-        mllm::print(irs["model"]);
+        mllm::jit::binary::IRSerializer serializer;
+        serializer.visit(irs["model"]);
+        serializer.save("model.json");
       }
 
       // Compile visual model
@@ -69,7 +72,9 @@ MLLM_MAIN({
         }));
         pm.reg(mllm::ir::createProgramLoweringPipeline());
         pm.run();
-        mllm::print(irs["visual"]);
+        mllm::jit::binary::IRSerializer serializer;
+        serializer.visit(irs["visual"]);
+        serializer.save("visual.json");
       }
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }
