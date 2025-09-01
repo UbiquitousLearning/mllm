@@ -21,6 +21,24 @@ struct Conv3DOpOptions : public BaseOpOptions<Conv3DOpOptions> {
   Conv3DOpImplType impl_type = Conv3DOpImplType::kDefault;
 };
 
+inline Conv3DOpImplType str2Conv3DOpImplType(const std::string& str) {
+  static const std::unordered_map<std::string, Conv3DOpImplType> map = {{"Default", Conv3DOpImplType::kDefault}};
+
+  auto it = map.find(str);
+  if (it != map.end()) { return it->second; }
+
+  // Return default if not found
+  return Conv3DOpImplType::kDefault;
+}
+
+inline std::string conv3DOpImplType2Str(Conv3DOpImplType type) {
+  static const std::unordered_map<Conv3DOpImplType, std::string> map = {{Conv3DOpImplType::kDefault, "Default"}};
+
+  auto it = map.find(type);
+  if (it != map.end()) return it->second;
+  return "Default";
+}
+
 class Conv3DOp : public BaseOp {
  public:
   explicit Conv3DOp(const Conv3DOpOptions& options);

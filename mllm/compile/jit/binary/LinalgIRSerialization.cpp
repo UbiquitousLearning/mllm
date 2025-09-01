@@ -250,7 +250,7 @@ nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   j["stride"] = nlohmann::json::array();
   for (const auto& s : options.stride) { j["stride"].push_back(s); }
   j["bias"] = options.bias;
-  j["impl_type"] = static_cast<int>(options.impl_type);
+  j["impl_type"] = aops::conv3DOpImplType2Str(options.impl_type);
   return j;
 }
 

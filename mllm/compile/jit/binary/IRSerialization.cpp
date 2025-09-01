@@ -144,7 +144,11 @@ nlohmann::json IRSerializer::visitProgramFragmentOp(const ir::IRContext::ptr_t& 
     } else if (sub_op->isa_<ir::program::ExitOp>()) {
       auto _j = visitProgramExitOp(ctx, sub_op->cast_<ir::program::ExitOp>());
       j["instructions"].push_back(_j);
+    } else if (sub_op->isa_<ir::program::BindOp>()) {
+      auto _j = visitProgramBindOp(ctx, sub_op->cast_<ir::program::BindOp>());
+      j["instructions"].push_back(_j);
     }
+    j["instructions"].back()["device"] = deviceTypes2Str(sub_op->getDevice());
     return ir::IRWriter::WalkResult::WALK_CONTINUE;
   });
 
@@ -154,10 +158,11 @@ nlohmann::json IRSerializer::visitProgramFragmentOp(const ir::IRContext::ptr_t& 
 nlohmann::json IRSerializer::visitProgramFreeOp(const ir::IRContext::ptr_t& ctx, const ir::program::FreeOp::ptr_t& op) {
   nlohmann::json j;
   j["dialect"] = "program";
-  j["op"] = "Free";
+  j["op"] = "free";
   j["inputs"] = nlohmann::json::array();
   j["inputs"].push_back(op->inputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.uuid());
   j["outputs"] = nlohmann::json::array();
+  j["program_id"] = op->getProgramIntrinsicId();
   return j;
 }
 
@@ -220,7 +225,7 @@ nlohmann::json IRSerializer::visitProgramKernelSymbolOp(const ir::IRContext::ptr
 
   if (auto op_type_attr = op->getAttr("op_type")) { j["op_type"] = op_type_attr->cast_<ir::StrAttr>()->data(); }
   if (auto op_options_attr = op->getAttr("op_options")) {
-    j["op_options"] = nlohmann::json(op_options_attr->cast_<ir::StrAttr>()->data());
+    j["op_options"] = nlohmann::json::parse(op_options_attr->cast_<ir::StrAttr>()->data());
   }
 
   return j;
@@ -255,9 +260,22 @@ nlohmann::json IRSerializer::visitProgramExitOp(const ir::IRContext::ptr_t& ctx,
   j["dialect"] = "program";
   j["op"] = "exit";
   j["program_id"] = op->getProgramIntrinsicId();
-  j["outputs"] = nlohmann::json::array();
-  for (const auto& output : op->outputs()) {
-    if (auto value = output) { j["outputs"].push_back(value->cast_<ir::tensor::TensorValue>()->tensor_.uuid()); }
+  return j;
+}
+
+nlohmann::json IRSerializer::visitProgramBindOp(const ir::IRContext::ptr_t& ctx, const ir::program::BindOp::ptr_t& op) {
+  nlohmann::json j;
+  j["dialect"] = "program";
+  j["op"] = "bind";
+  j["program_id"] = op->getProgramIntrinsicId();
+
+  if (auto input_pos_attr = op->getAttr("input_pos")) { j["input_pos"] = input_pos_attr->cast_<ir::IntAttr>()->data(); }
+  if (auto program_uuid_attr = op->getAttr("program_uuid")) {
+    j["program_uuid"] = program_uuid_attr->cast_<ir::IntAttr>()->data();
+  }
+  if (auto type_attr = op->getAttr("type")) {
+    auto type = static_cast<ir::program::BindOp::BindType>(type_attr->cast_<ir::IntAttr>()->data());
+    j["type"] = type == ir::program::BindOp::BindType::kInput ? "input" : "output";
   }
   return j;
 }

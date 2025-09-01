@@ -333,6 +333,7 @@ def define_program_ir(ir: dict):
     op.derive(Cls("AllocOp"))
     op.derive(Cls("FreeOp"))
     op.derive(Cls("ModeConfigOp"))
+    op.derive(Cls("BindOp"))
 
 
 def define_dbg_ir(ir: dict):

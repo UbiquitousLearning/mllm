@@ -19,6 +19,7 @@
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
 #include "mllm/compile/passes/ProgramIntrinsicIdIndexPass.hpp"
 #include "mllm/compile/passes/FlattenTensorAndLinalgSymbol2ProgramSymbolPass.hpp"
+#include "mllm/utils/Enumerate.hpp"
 
 namespace mllm::ir {
 
@@ -156,8 +157,23 @@ uint8_t Graph2ProgramPass::run(const node_ptr_t& this_top_op) {
     return ir::IRWriter::WalkResult::WALK_CONTINUE;
   });
   MLLM_RT_ASSERT_EQ(call_graph_ops.size(), 1);
-  std::vector<ir::val_ptr_t> exit_output;
-  for (auto& o : call_graph_ops[0]->outputs()) { exit_output.emplace_back(o->cast_<ir::Val>()); }
+  std::vector<ir::val_ptr_t> bind_input;
+  std::vector<ir::val_ptr_t> bind_output;
+  for (auto& i : call_graph_ops[0]->inputs()) { bind_input.emplace_back(i->cast_<ir::Val>()); }
+  for (auto& o : call_graph_ops[0]->outputs()) { bind_output.emplace_back(o->cast_<ir::Val>()); }
+
+  // IMPORTANT: Insert input bind
+  for (auto [_id, _i_bind] : enumerate(bind_input)) {
+    r.createAtPos<ir::program::BindOp>(call_graph_ops[0], ir::IRWriter::BEFORE, _id,
+                                       _i_bind->cast_<ir::tensor::TensorValue>()->tensor_.uuid(), ir::program::BindOp::kInput);
+  }
+  // IMPORTANT: Insert Exit
+  r.createAtPos<ir::program::ExitOp>(call_graph_ops[0], ir::IRWriter::AFTER);
+  // IMPORTANT: Insert output bind
+  for (auto [_id, _i_bind] : enumerate(bind_output)) {
+    r.createAtPos<ir::program::BindOp>(call_graph_ops[0], ir::IRWriter::AFTER, _id,
+                                       _i_bind->cast_<ir::tensor::TensorValue>()->tensor_.uuid(), ir::program::BindOp::kOutput);
+  }
 
   // Rewrite the outmost GraphIROp
   r.walk<ir::graph::GraphIROp>([&](ir::IRWriter& reader, const ir::graph::GraphIROp::ptr_t& op) -> ir::IRWriter::WalkResult {
@@ -216,8 +232,6 @@ uint8_t Graph2ProgramPass::run(const node_ptr_t& this_top_op) {
         }
         return ir::IRWriter::WalkResult::WALK_CONTINUE;
       });
-  // Insert EXIT Op to Program.Fragment
-  flatten_code_segment_rw.create<ir::program::ExitOp>(exit_output);
 
   return ir::PASS_RET_SUCCESS;
 }

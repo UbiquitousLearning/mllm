@@ -149,7 +149,7 @@ class ExitOp final : public ProgramIROp {
 
   void dump(IRPrinter& p) override;
 
-  static ptr_t build(IRContext* ctx, const std::vector<ir::val_ptr_t>& rets_values);
+  static ptr_t build(IRContext* ctx);
 
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_EXITOP_IMPL(node); }
 };
@@ -234,6 +234,26 @@ class ModeConfigOp final : public ProgramIROp {
   static ptr_t build(IRContext* ctx, ModeConfigFlag flag);
 
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_MODECONFIGOP_IMPL(node); }
+};
+
+class BindOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(BindOp);
+
+  enum BindType : int32_t {
+    kInput = 0,
+    kOutput = 1,
+  };
+
+  ~BindOp() override = default;
+
+  BindOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, uint32_t input_pos, uint32_t program_uuid, BindType type);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_BINDOP_IMPL(node); }
 };
 
 }  // namespace mllm::ir::program

@@ -8,7 +8,8 @@
 #include <mllm/compile/PassManager.hpp>
 #include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
 #include <mllm/compile/passes/ProgramLoweringPipeline.hpp>
-#include "mllm/compile/jit/binary/IRSerialization.hpp"
+#include <mllm/compile/jit/binary/IRSerialization.hpp>
+#include "mllm/compile/jit/interpreter/IRInterpreter.hpp"
 
 using mllm::Argparse;
 
@@ -49,20 +50,6 @@ MLLM_MAIN({
 
       auto irs = qwen2vl.trace(inputs, {});
 
-      // Compile llm model
-      {
-        mllm::ir::PassManager pm(irs["model"]);
-        pm.reg(mllm::ir::createLLMCanonicalizationPipeline({
-            .auxiliary_dbg_info = false,
-            .enable_eager_memory_solver = true,
-        }));
-        pm.reg(mllm::ir::createProgramLoweringPipeline());
-        pm.run();
-        mllm::jit::binary::IRSerializer serializer;
-        serializer.visit(irs["model"]);
-        serializer.save("model.json");
-      }
-
       // Compile visual model
       {
         mllm::ir::PassManager pm(irs["visual"]);
@@ -72,9 +59,27 @@ MLLM_MAIN({
         }));
         pm.reg(mllm::ir::createProgramLoweringPipeline());
         pm.run();
-        mllm::jit::binary::IRSerializer serializer;
-        serializer.visit(irs["visual"]);
-        serializer.save("visual.json");
+        mllm::redirect("qwen2vl_visual_program.mir", [&]() { mllm::print(irs["visual"]); });
+
+        auto img = inputs.at("img");
+        auto grid_thw = inputs.at("grid_thw");
+        auto v_len = img.shape()[0];
+        auto inv_freq =
+            mllm::models::qwen2vl::makeVisualRoPEInvFreq(qwen2vl_cfg.visual_embed_dim / qwen2vl_cfg.visual_num_heads, 10000.0);
+        auto pos_ids = mllm::models::qwen2vl::makeVisualRotaryPosEmbIds(grid_thw, qwen2vl_cfg.visual_spatial_merge_size);
+        auto rotary_pos_emb_full = mllm::models::qwen2vl::makeVisualRotaryPosEmbFull(inv_freq, v_len);
+        auto pos_emb = mllm::models::qwen2vl::makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
+        auto [visual_embedding_sin, visual_embedding_cos] = mllm::models::qwen2vl::makeVisualRotarySinCos(pos_emb);
+
+        mllm::redirect("qwen2vl_visual_program.mir", [&]() { mllm::print(irs["visual"]); });
+        mllm::jit::binary::IRSerializer ir_serializer;
+        auto byte_code = ir_serializer.visit(irs["visual"]);
+        ir_serializer.save("qwen2vl_visual_program.json");
+        mllm::jit::interpreter::IRInterpreter interpreter;
+        interpreter.loadAndLinkPrograms("why you need source code? WHY? U DONT'T NEED IT!", byte_code);
+        interpreter.loadParam(param);
+        auto o = interpreter.run({img, visual_embedding_sin, visual_embedding_cos});
+        mllm::print(o[0]);
       }
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }
