@@ -95,6 +95,35 @@ class Module {
     }
   }
 
+  template<typename T, typename... Args>
+  auto __reg_as_pointer(const std::string& name, Args&&... args) {
+    // Register a module
+    if constexpr (std::is_base_of_v<Module, T>) {
+      auto ret = std::make_shared<T>(impl_->getAbsoluteName() + "." + name, std::forward<Args>(args)...);
+      impl_->regChildNode(ret->impl());
+      ret->impl()->setName(name);
+      return ret;
+    }
+
+    // Register to thisThread table
+    if constexpr (std::is_base_of_v<Layer, T>) {
+      auto ret = std::make_shared<T>(std::forward<Args>(args)...);
+      impl_->regChildNode(ret->impl());
+      ret->impl()->setAbsoluteName(impl_->getAbsoluteName() + "." + name);
+      ret->impl()->setName(name);
+
+      auto& ctx = Context::instance();
+
+      // Create Op
+      auto _op = ctx.getBackend(ret->impl()->getDevice())->createOp(ret->opType(), ret->refOptions());
+      _op->setName(ret->impl()->getAbsoluteName());
+
+      // Register Op
+      ret->impl()->setInstancedOp(_op);
+      return ret;
+    }
+  }
+
   template<typename... Args>
   std::vector<Tensor> operator()(Args&&... args) {
     std::vector<Tensor> tensors;
@@ -184,6 +213,58 @@ class ModuleListSuffixed final : public Module {
   }
 
   std::vector<T>& list() { return layers_; }
+};
+
+class Sequential : public Module {
+ public:
+  Sequential() = default;
+
+  explicit Sequential(const std::string& name) : Module(name) {}
+
+  template<typename T, typename... Args>
+  Sequential& add(Args&&... args) {
+    auto __IN_T = __reg_as_pointer<T>(std::to_string(ops_cnt_), std::forward<Args>(args)...);
+    if constexpr (std::is_base_of_v<Module, T>) {
+      ops_names_.emplace_back(std::to_string(ops_cnt_));
+      module_holder_.emplace_back(__IN_T);
+      op_mapping_[std::to_string(ops_cnt_)] = {AbstractNnNodeTypes::kModule, (void*)(__IN_T.get())};
+      __IN_T->impl()->depthIncrease();
+    } else if constexpr (std::is_base_of_v<Layer, T>) {
+      ops_names_.emplace_back(std::to_string(ops_cnt_));
+      layer_holder_.emplace_back(__IN_T);
+      op_mapping_[std::to_string(ops_cnt_)] = {AbstractNnNodeTypes::kLayer, (void*)(__IN_T.get())};
+      __IN_T->impl()->depthIncrease();
+    }
+    ops_cnt_++;
+    return *this;
+  }
+
+  inline std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    std::vector<Tensor> inputs_ = inputs;
+    for (auto& name : ops_names_) {
+      auto payload = op_mapping_[name];
+      switch (payload.first) {
+        case AbstractNnNodeTypes::kLayer: {
+          auto layer = (Layer*)payload.second;
+          inputs_ = layer->__main(inputs_);
+          break;
+        }
+        case AbstractNnNodeTypes::kModule: {
+          auto op = (Module*)payload.second;
+          inputs_ = op->__main(inputs_, args);
+          break;
+        }
+      }
+    }
+    return inputs_;
+  }
+
+ private:
+  int32_t ops_cnt_ = 0;
+  std::vector<std::string> ops_names_;
+  std::vector<std::shared_ptr<Layer>> layer_holder_;
+  std::vector<std::shared_ptr<Module>> module_holder_;
+  std::unordered_map<std::string, std::pair<AbstractNnNodeTypes, void*>> op_mapping_;
 };
 
 }  // namespace mllm::nn

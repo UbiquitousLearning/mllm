@@ -289,14 +289,18 @@ void IRWriter::removeOp(const op_ptr_t& op) {
   for (auto& input : op->inputs()) { input->outputs().remove(op); }
   for (auto& output : op->outputs()) { output->inputs().remove(op); }
 
-  cur_op_iter_ = ops.erase(std::find(ops.begin(), ops.end(), op));
+  auto it = std::find(ops.begin(), ops.end(), op);
+  MLLM_RT_ASSERT(it != ops.end());
+  cur_op_iter_ = ops.erase(it);
 
   is_iterator_modified_ = true;
 }
 
 void IRWriter::removeOpWithoutEdgeCut(const op_ptr_t& op) {
   auto& ops = cur_region_->ops();
-  cur_op_iter_ = ops.erase(std::find(ops.begin(), ops.end(), op));
+  auto it = std::find(ops.begin(), ops.end(), op);
+  MLLM_RT_ASSERT(it != ops.end());
+  cur_op_iter_ = ops.erase(it);
   is_iterator_modified_ = true;
 }
 
@@ -323,14 +327,14 @@ void IRWriter::insertOpAtPos(const op_ptr_t& pos_op, Position pos, const op_ptr_
   // find the pos_op iter in region
   auto& ops = cur_region_->ops();
   auto pos_op_iter = std::find(ops.begin(), ops.end(), pos_op);
-
+  MLLM_RT_ASSERT(pos_op_iter != ops.end());
   new_op->setBelongsTo(pos_op->belongsTo());
 
   switch (pos) {
     case AFTER: {
       auto pre_op = *pos_op_iter;
       pos_op_iter++;
-      auto next_op = *pos_op_iter;
+      auto next_op = (pos_op_iter != ops.end()) ? *pos_op_iter : nullptr;
 
       pre_op->setNextOp(new_op);
       new_op->setPrevOp(pre_op);

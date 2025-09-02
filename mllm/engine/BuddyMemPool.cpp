@@ -101,8 +101,8 @@ void BuddyMemPool::report() const {
   fmt::print("| Object Memory Cached Times: {:<24} |\n", obj_cached_times_);
   fmt::print("+------------------------------------------------------+\n");
   for (auto& seg : context_.segments) {
-    fmt::print("| address: {:#010x}, cap: {:>4}MB, used: {:>4}MB   |\n", (uintptr_t)seg.first, seg.second->cap / (1024 * 1024),
-               seg.second->used / (1024 * 1024));
+    fmt::print("| address: {:#010x}, cap: {:>4}MB, used: {:>4}MB      |\n", (uintptr_t)seg.first,
+               seg.second->cap / (1024 * 1024), seg.second->used / (1024 * 1024));
   }
   fmt::print("+------------------------------------------------------+\n");
 }

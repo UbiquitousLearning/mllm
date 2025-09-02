@@ -2,12 +2,15 @@
 // Licensed under the MIT License.
 #pragma once
 
+// Custom Cache and Lazy Config
+#include "lazy_vlm_cfg.hpp"
+#include "../../HKVCache.hpp"
+
 #include <algorithm>
 #include <unordered_map>
 
 #include <mllm/mllm.hpp>
 #include <mllm/core/DataTypes.hpp>
-#include <mllm/nn/lmcache/StaticCache.hpp>
 
 #include <mllm/models/ARGeneration.hpp>
 #include <mllm/utils/AnyValue.hpp>
@@ -15,7 +18,7 @@
 
 #include <mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp>
 
-namespace mllm::models::qwen2_5vl {
+using namespace mllm;  // NOLINT
 
 inline auto makeWindowIndex(const Tensor& grid_thw, int window_size = 112, int spatial_merge_size = 2,
                             int patch_size = 14) -> std::pair<std::vector<int32_t>, std::vector<int32_t>> {
@@ -332,7 +335,7 @@ class PatchEmbed final : public nn::Module {
  public:
   PatchEmbed() = default;
 
-  inline PatchEmbed(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  inline PatchEmbed(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     in_chans_ = cfg.visual_in_chans;
     embed_dim_ = cfg.visual_hidden_size;
     patch_size_ = cfg.visual_patch_size;
@@ -368,7 +371,7 @@ class PatchMerger final : public nn::Module {
  public:
   PatchMerger() = default;
 
-  inline PatchMerger(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  inline PatchMerger(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     context_dim_ = cfg.visual_hidden_size;
     spatial_merge_size_ = cfg.visual_spatial_merge_size;
     hidden_size_ = context_dim_ * spatial_merge_size_ * spatial_merge_size_;
@@ -396,7 +399,7 @@ class Qwen2_5VLVisionMLP final : public nn::Module {
 
  public:
   Qwen2_5VLVisionMLP() = default;
-  Qwen2_5VLVisionMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLVisionMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     // clang-format off
     gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
     silu_ = reg<nn::SiLU>("act");
@@ -431,7 +434,7 @@ class VisionAttention final : public nn::Module {
  public:
   VisionAttention() = default;
 
-  inline VisionAttention(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  inline VisionAttention(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     dim_ = cfg.visual_hidden_size;
     num_heads_ = cfg.visual_num_heads;
     head_dim_ = dim_ / num_heads_;
@@ -508,7 +511,7 @@ class Qwen2_5VLVisionBlock final : public nn::Module {
  public:
   Qwen2_5VLVisionBlock() = default;
 
-  inline Qwen2_5VLVisionBlock(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  inline Qwen2_5VLVisionBlock(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     mlp_hidden_dim_ = cfg.visual_mlp_ratio * cfg.visual_hidden_size;
     norm1_ = reg<nn::RMSNorm>("norm1", 1e-6);
     norm2_ = reg<nn::RMSNorm>("norm2", 1e-6);
@@ -537,7 +540,8 @@ class Qwen2_5VisionTransformerPretrainedModel final : public nn::Module {
  public:
   Qwen2_5VisionTransformerPretrainedModel() = default;
 
-  Qwen2_5VisionTransformerPretrainedModel(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VisionTransformerPretrainedModel(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg)
+      : nn::Module(name) {
     visual_fullatt_block_indexes_ = cfg.visual_fullatt_block_indexes;
     patch_embed_ = reg<PatchEmbed>("patch_embed", cfg);
     patch_merger_ = reg<PatchMerger>("merger", cfg);
@@ -624,7 +628,7 @@ class Qwen2_5VLMLP final : public nn::Module {
 
  public:
   Qwen2_5VLMLP() = default;
-  Qwen2_5VLMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     gate_proj_ = reg<nn::Linear>("gate_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
     silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
@@ -660,7 +664,7 @@ class Qwen2_5VLAttention final : public nn::Module {
  public:
   Qwen2_5VLAttention() = default;
 
-  Qwen2_5VLAttention(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLAttention(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     hidden_size_ = cfg.hidden_size;
     num_attention_heads_ = cfg.num_attention_heads;
     num_key_value_heads_ = cfg.num_key_value_heads;
@@ -689,7 +693,7 @@ class Qwen2_5VLAttention final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+    auto past_kv_cache = args[0].get<HKVCache*>();
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
@@ -714,7 +718,73 @@ class Qwen2_5VLAttention final : public nn::Module {
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
     // [B, H, S, D]
-    auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
+    auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states, HKVCache::KVCacheUpdateRule::kAppend);
+    key_states = k;
+    value_states = v;
+
+    Tensor attn;
+    if (key_states.dtype() == kFloat32) {
+      // attention weight
+      // [B, H, S, S]
+      attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
+      attn = mask_(attn);
+      attn = softmax_(attn);
+    } else if (key_states.dtype() == kFloat16) {
+      attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
+      attn = mask_(attn);
+      attn = softmax_(attn);
+      attn = attn.to(kFloat16);
+    }
+
+    // attn output
+    // [B, H, S, S] @ [B, H, S, D] -> [B, H, S, D]
+    auto output = nn::functional::matmul(attn, value_states);
+    // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
+    output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
+    output = o_proj_(output);
+    return {output};
+  }
+
+  std::vector<Tensor> forward_lazy_vlm_prefill(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_lazy_vlm_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_normal_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    auto x = inputs[0];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto past_kv_cache = args[0].get<HKVCache*>();
+
+    // [B, S, H * D]
+    auto query_states = q_proj_(x);
+    auto key_states = k_proj_(x);
+    auto value_states = v_proj_(x);
+
+    int B = inputs[0].shape()[0];
+    int S = inputs[0].shape()[1];
+
+    // [B, S, H, D]
+    query_states = query_states.view({B, S, num_attention_heads_, head_dim_});
+    key_states = key_states.view({B, S, num_key_value_heads_, head_dim_});
+    value_states = value_states.view({B, S, num_key_value_heads_, head_dim_});
+
+    // [B, H, S, D]
+    query_states = query_states.transpose(1, 2);
+    key_states = key_states.transpose(1, 2);
+    value_states = value_states.transpose(1, 2);
+
+    // [B, H, S, D]
+    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
+    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
+
+    // [B, H, S, D]
+    auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states, HKVCache::KVCacheUpdateRule::kAppend);
     key_states = k;
     value_states = v;
 
@@ -753,7 +823,7 @@ class Qwen2_5VLDecoder final : public nn::Module {
 
   Qwen2_5VLDecoder() = default;
 
-  Qwen2_5VLDecoder(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLDecoder(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     self_attn_ = reg<Qwen2_5VLAttention>("self_attn", cfg);
     mlp_ = reg<Qwen2_5VLMLP>("mlp", cfg);
     input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
@@ -761,6 +831,30 @@ class Qwen2_5VLDecoder final : public nn::Module {
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto& kv_cache = args[0];
+
+    auto x = input_layer_norm_(inputs[0]);
+    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0];
+    auto tmp = x + inputs[0];
+    x = post_attention_layer_norm_(tmp);
+    x = mlp_(x)[0];
+    x = x + tmp;
+    return {x};
+  }
+
+  std::vector<Tensor> forward_lazy_vlm_prefill(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_lazy_vlm_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_normal_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
     auto& kv_cache = args[0];
@@ -784,7 +878,7 @@ class Qwen2_5VLText final : public nn::Module {
  public:
   Qwen2_5VLText() = default;
 
-  Qwen2_5VLText(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLText(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
     decode_blocks_ = reg<nn::ModuleList<Qwen2_5VLDecoder>>("layers", cfg.num_hidden_layers, cfg);
@@ -826,26 +920,61 @@ class Qwen2_5VLText final : public nn::Module {
     return {x};
   }
 
+  std::vector<Tensor> forward_lazy_vlm_prefill(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_lazy_vlm_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    // TODO
+    return {};
+  }
+
+  std::vector<Tensor> forward_normal_decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    auto& blocks = decode_blocks_.list();
+
+    // X is already embedded
+    auto x = inputs[0];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto& kv_cache = args[0];
+
+    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+    x = norm_(x);
+
+    // clip x to one seq length
+    {
+      auto S = x.shape()[1];
+      x = x[{kAll, {S - 1}, kAll}];
+    }
+
+    if (tie_word_embeddings_) { x = lm_head_(x); }
+
+    return {x};
+  }
+
   nn::Embedding embedding_;
 };
 
-class Qwen2_5VLForCausalLM : public ARGeneration {
+class Qwen2_5VLForCausalLM : public models::ARGeneration {
  public:
-  explicit Qwen2_5VLForCausalLM(const Qwen2_5VLConfig& cfg) : cfg(cfg), llm("model", cfg), visual("visual", cfg) {
-    kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
-                                cfg.num_attention_heads,                    // q_heads
-                                cfg.num_key_value_heads,                    // kv_heads
-                                cfg.hidden_size / cfg.num_attention_heads,  // kv_dims
-                                kFloat32,                                   // k_dtype
-                                kFloat32,                                   // v_dtype
-                                kCPU,                                       // device_type
-                                false                                       // use_fa2
+  explicit Qwen2_5VLForCausalLM(const models::qwen2_5vl::Qwen2_5VLConfig& cfg, const LazyVLMConfig& lazy_vlm_cfg)
+      : cfg(cfg), llm("model", cfg), visual("visual", cfg), lazy_vlm_cfg_(lazy_vlm_cfg) {
+    kv_cache_ = HKVCache(cfg.max_cache_length, cfg.num_hidden_layers,
+                         cfg.num_attention_heads,                    // q_heads
+                         cfg.num_key_value_heads,                    // kv_heads
+                         cfg.hidden_size / cfg.num_attention_heads,  // kv_dims
+                         kFloat32,                                   // k_dtype
+                         kFloat32,                                   // v_dtype
+                         kCPU,                                       // device_type
+                         false                                       // use_fa2
     );
     eos_token_id_ = cfg.end_of_text_token_id;
     max_length_ = cfg.max_cache_length;
   }
 
-  ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
+  models::ARGenerationOutputPast forward(const models::ARGenerationOutputPast& input,
+                                         const models::ARGenerationArgs& args) override {
     auto sequence = input.at("sequence");
 
     // Calculate the text embeddings
@@ -890,6 +1019,13 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
       auto visual_sequence = visual_embeddings.shape()[0];
       visual_embeddings.copy2(
           input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
+
+      // LAZY: Now, we initialize the hidden states cache in HKVCache
+      kv_cache_.initHiddenStateCache(1, visual_sequence, D);
+
+      // LAZY: update the img token position
+      lazy_vlm_state_.first_img_token_pos = vision_pad_token_start;
+      lazy_vlm_state_.last_img_token_pos = vision_pad_token_start + visual_sequence;
     }
 
     auto position_ids = Tensor::nil();
@@ -909,7 +1045,21 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
         makeMultimodalPositionEmbedding(position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
                                         cfg.hidden_size / cfg.num_attention_heads, cfg.mrope_section);
 
-    sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    // LAZY: update step
+    lazy_vlm_state_.cur_step++;
+    if (lazy_vlm_state_.cur_step == 0) {  // Prefill
+      lazy_vlm_state_.llm_prefill_cos = llm_embedding_cos;
+      lazy_vlm_state_.llm_prefill_sin = llm_embedding_sin;
+    } else {  // Decoding Stage
+      lazy_vlm_state_.llm_current_cos = llm_embedding_cos;
+      lazy_vlm_state_.llm_current_sin = llm_embedding_sin;
+    }
+
+    // LAZY: Initialize chosen position id and Delay Compute Token ID in each step.
+    lazy_vlm_state_.chosen_pos_in_each.resize(cfg.num_hidden_layers);
+    lazy_vlm_state_.chosen_pos_to_delay_compute.resize(cfg.num_hidden_layers);
+
+    sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_), AnyValue(&lazy_vlm_state_))[0];
 
     return {
         {"sequence", sequence},
@@ -918,7 +1068,7 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
   }
 
   inline auto getPositionIds(Tensor& img, Tensor& grid_thw, Tensor& sequence, Tensor& position_ids,
-                             const Qwen2_5VLConfig& cfg) -> Tensor {
+                             const models::qwen2_5vl::Qwen2_5VLConfig& cfg) -> Tensor {
     // Input is [B, S, D]
     if (!img.isNil()) {  // Prefill
       return getPositionIdsPrefill(sequence, grid_thw, cfg);
@@ -932,7 +1082,8 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
     }
   }
 
-  inline auto getPositionIdsPrefill(Tensor& input_ids, Tensor& image_grid_thw, const Qwen2_5VLConfig& cfg) -> Tensor {
+  inline auto getPositionIdsPrefill(Tensor& input_ids, Tensor& image_grid_thw,
+                                    const models::qwen2_5vl::Qwen2_5VLConfig& cfg) -> Tensor {
     // Input is [B, S]
     MLLM_RT_ASSERT_EQ(input_ids.shape().size(), 2);
     // image_grid_thw is [num_images, 3]
@@ -1030,12 +1181,12 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
     return position_ids;
   }
 
-  const Qwen2_5VLConfig& cfg;
+  const models::qwen2_5vl::Qwen2_5VLConfig& cfg;
   Qwen2_5VLText llm;
   Qwen2_5VisionTransformerPretrainedModel visual;
 
  private:
-  nn::StaticCache kv_cache_;
+  HKVCache kv_cache_;
+  LazyVLMConfig lazy_vlm_cfg_;
+  LazyVLMState lazy_vlm_state_{};
 };
-
-}  // namespace mllm::models::qwen2_5vl

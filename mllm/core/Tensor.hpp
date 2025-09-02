@@ -246,7 +246,7 @@ class Tensor {
    * @param dim if dim == 0x7fffffff, return a scalar value.
    * @return Tensor
    */
-  Tensor min(bool keep_dim = false, int32_t dim = 0x7fffffff);
+  Tensor min(int32_t dim = 0x7fffffff, bool keep_dim = false);
 
   /**
    * @brief Get max
@@ -254,7 +254,7 @@ class Tensor {
    * @param dim if dim == 0x7fffffff, return a scalar value.
    * @return Tensor
    */
-  Tensor max(bool keep_dim = false, int32_t dim = 0x7fffffff);
+  Tensor max(int32_t dim = 0x7fffffff, bool keep_dim = false);
 
   /**
    * @brief Get sum
@@ -262,7 +262,7 @@ class Tensor {
    * @param dim if dim == 0x7fffffff, return a scalar value.
    * @return Tensor
    */
-  Tensor sum(bool keep_dim = false, int32_t dim = 0x7fffffff);
+  Tensor sum(int32_t dim = 0x7fffffff, bool keep_dim = false);
 
   /**
    * @brief Get mean
@@ -270,7 +270,7 @@ class Tensor {
    * @param dim if dim == 0x7fffffff, return a scalar value.
    * @return Tensor
    */
-  Tensor mean(bool keep_dim = false, int32_t dim = 0x7fffffff);
+  Tensor mean(int32_t dim = 0x7fffffff, bool keep_dim = false);
 
   /**
    * @brief Negative
@@ -365,6 +365,13 @@ class Tensor {
   [[nodiscard]] shape_t shape() const;
 
   /**
+   * @brief  Gets tensor rank.
+   *
+   * @return size_t
+   */
+  [[nodiscard]] size_t rank() const;
+
+  /**
    * @brief Gets tensor strides.
    *
    * @return stride_t
@@ -432,6 +439,14 @@ class Tensor {
    * @return Tensor
    */
   Tensor unsqueeze(int32_t dim);
+
+  /**
+   * @brief
+   *
+   * @param dim
+   * @return Tensor
+   */
+  Tensor squeeze(int32_t dim = 0x7fffffff);
 
   /**
    * @brief clone a tensor

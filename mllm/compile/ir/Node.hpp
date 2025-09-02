@@ -271,7 +271,8 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
       // set device
       created_node->template cast_<Op>()->setDevice(getDevice());
 
-      auto prev_op = cur_insert_region_->ops().back();
+      auto& ops = cur_insert_region_->ops();
+      op_ptr_t prev_op = ops.empty() ? nullptr : ops.back();
 
       cur_insert_region_->ops().push_back(created_node->template cast_<Op>());
 
@@ -378,7 +379,8 @@ class IRWriter {
       // set device
       created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
 
-      auto prev_op = cur_region_->ops().back();
+      auto& ops = cur_region_->ops();
+      op_ptr_t prev_op = ops.empty() ? nullptr : ops.back();
 
       cur_region_->ops().push_back(created_node->template cast_<Op>());
 
@@ -430,7 +432,7 @@ class IRWriter {
         case AFTER: {
           auto pre_op = *pos_op_iter;
           pos_op_iter++;
-          auto next_op = *pos_op_iter;
+          auto next_op = (pos_op_iter != ops.end()) ? *pos_op_iter : nullptr;
 
           pre_op->setNextOp(created_node);
           created_node->setPrevOp(pre_op);
