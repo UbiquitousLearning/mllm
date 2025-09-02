@@ -277,7 +277,7 @@ class Vocos {
   ISTFTHead head_;
 
  public:
-  Vocos() = delete;
+  Vocos() = default;
 
   /**
    * @brief Construct a Vocos model
@@ -315,6 +315,14 @@ class Vocos {
     // Head for waveform generation
     x = head_(x)[0];  // [B, n_fft + 2, T]
 
+    return {x};
+  }
+
+  std::vector<Tensor> decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    auto x = inputs[0];   // [B, C, T] - features
+    x = backbone_(x)[0];  // [B, C, T]
+    // Head for waveform generation
+    x = head_(x)[0];  // [B, n_fft + 2, T]
     return {x};
   }
 
