@@ -9,6 +9,11 @@
 #include "mllm/core/aops/GraphOps.hpp"
 
 void registerCoreBinding(py::module_& m) {
+  pybind11::enum_<mllm::ModelFileVersion>(m, "ModelFileVersion")
+      .value("V1", mllm::ModelFileVersion::kV1)
+      .value("V2", mllm::ModelFileVersion::kV2)
+      .value("UserTemporary", mllm::ModelFileVersion::kUserTemporary);
+
   py::enum_<mllm::OpTypes>(m, "OpTypes")
       .value("OpType_Start", mllm::OpTypes::kOpType_Start)
       .value("Fill", mllm::OpTypes::kFill)
@@ -176,7 +181,12 @@ void registerCoreBinding(py::module_& m) {
   //===----------------------------------------------------------------------===//
   // Parameter File
   //===----------------------------------------------------------------------===//
-  py::class_<mllm::ParameterFile, std::shared_ptr<mllm::ParameterFile>>(m, "ParameterFile");
+  py::class_<mllm::ParameterFile, std::shared_ptr<mllm::ParameterFile>>(m, "ParameterFile")
+      .def(py::init<mllm::ModelFileVersion>(), py::arg("v") = mllm::ModelFileVersion::kUserTemporary)
+      .def("push", &mllm::ParameterFile::push)
+      .def("pull", &mllm::ParameterFile::pull)
+      .def("has", &mllm::ParameterFile::has)
+      .def("remove", &mllm::ParameterFile::remove);
 
   //===----------------------------------------------------------------------===//
   // BaseOp
