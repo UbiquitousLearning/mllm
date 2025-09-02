@@ -78,6 +78,17 @@ std::array<Tensor, RET_NUM> chunk(const Tensor& x, int32_t dim) {
   return ret;
 }
 
+std::vector<Tensor> chunk(int32_t num, const Tensor& x, int32_t dim) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kSplit, aops::SplitOpOptions{.dim = dim, .split_size_or_sections = {x.shape()[dim] / num}}, {x});
+  std::vector<Tensor> ret;
+
+#pragma unroll
+  for (int i = 0; i < num; ++i) { ret.push_back(outputs[i].contiguous()); }
+
+  return ret;
+}
+
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim);
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
