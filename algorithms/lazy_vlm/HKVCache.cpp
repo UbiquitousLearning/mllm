@@ -73,7 +73,7 @@ int32_t HKVCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_seq
 
 __MLLM_UNSAFE_OPT_BEGIN_O3
 std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Tensor k, mllm::Tensor v, KVCacheUpdateRule rule,
-                                                    std::unordered_map<std::string, mllm::AnyValue>& args) {
+                                                    const std::unordered_map<std::string, mllm::AnyValue>& args) {
   switch (rule) {
     case KVCacheUpdateRule::kAppend: {
       auto inputs_seq_len = k.shape()[2];
@@ -99,7 +99,7 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
       };
     }
     case KVCacheUpdateRule::kInsert: {
-      auto pos = args["pos"].get<std::vector<int32_t>>();
+      auto pos = args.at("pos").get<std::vector<int32_t>>();
       auto inputs_seq_len = k.shape()[2];
       auto repeat_times = q_heads_ / kv_heads_;
       MLLM_RT_ASSERT_EQ(pos.size(), inputs_seq_len);
@@ -121,7 +121,7 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
       return {mllm::Tensor::nil(), mllm::Tensor::nil()};
     }
     case KVCacheUpdateRule::kQuery: {
-      auto pos = args["pos"].get<std::vector<int32_t>>();
+      auto pos = args.at("pos").get<std::vector<int32_t>>();
       // [B, S, H, D]
       return {
           k_cache_[layer_idx][{{mllm::kAll}, pos, {mllm::kAll}, {mllm::kAll}}],
@@ -135,32 +135,32 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
 __MLLM_UNSAFE_OPT_END
 
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
-void HKVCache::initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t head_nums, int32_t hs_dims) {
+void HKVCache::initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t hs_dims) {
   // All hidden states input shape should be [B, S, H, D]
   MLLM_RT_ASSERT(h_cache_.size() == 0);
   for (int i = 0; i < layer_nums_; ++i) {
-    h_cache_.emplace_back(mllm::Tensor::empty({batch_size, seq_len, head_nums, hs_dims}, mllm::kFloat32, mllm::kCPU).alloc());
+    h_cache_.emplace_back(mllm::Tensor::empty({batch_size, seq_len, hs_dims}, mllm::kFloat32, mllm::kCPU).alloc());
   }
 }
 __MLLM_UNSAFE_OPT_END
 
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 mllm::Tensor HKVCache::getHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos) {
-  // [B, S, H, D]
-  return h_cache_[layer_idx][{{mllm::kAll}, pos, {mllm::kAll}, {mllm::kAll}}];
+  // [B, S, D]
+  return h_cache_[layer_idx][{{mllm::kAll}, pos, {mllm::kAll}}];
 }
 __MLLM_UNSAFE_OPT_END
 
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 void HKVCache::updateHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos, mllm::Tensor hs_cache) {
+  MLLM_RT_ASSERT_EQ(hs_cache.rank(), 3);
   auto S = hs_cache.shape()[1];
-  auto H = hs_cache.shape()[2];
-  auto D = hs_cache.shape()[3];
+  auto D = hs_cache.shape()[2];
   MLLM_RT_ASSERT_EQ(S, pos.size());
   for (int s = 0; s < S; ++s) {
-    auto cache_ptr = h_cache_[layer_idx].offsettedPtr<float32_t>({0, pos[s], 0, 0});
-    auto now_ptr = hs_cache.offsettedPtr<float32_t>({0, s, 0, 0});
-    std::memcpy(cache_ptr, now_ptr, H * D * sizeof(float32_t));
+    auto cache_ptr = h_cache_[layer_idx].offsettedPtr<float32_t>({0, pos[s], 0});
+    auto now_ptr = hs_cache.offsettedPtr<float32_t>({0, s, 0});
+    std::memcpy(cache_ptr, now_ptr, D * sizeof(float32_t));
   }
 }
 __MLLM_UNSAFE_OPT_END

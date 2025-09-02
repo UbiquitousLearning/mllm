@@ -248,22 +248,22 @@ std::array<Tensor, 2> Tensor::topk(int32_t k, int32_t dim, bool largest, bool so
   return {outputs[0], outputs[1]};
 }
 
-Tensor Tensor::min(bool keep_dim, int32_t dim) {
+Tensor Tensor::min(int32_t dim, bool keep_dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMin,
                                                   aops::ReduceMinOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
 }
 
-Tensor Tensor::max(bool keep_dim, int32_t dim) {
+Tensor Tensor::max(int32_t dim, bool keep_dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMax,
                                                   aops::ReduceMaxOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
 }
 
-Tensor Tensor::sum(bool keep_dim, int32_t dim) {
+Tensor Tensor::sum(int32_t dim, bool keep_dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceSum,
                                                   aops::ReduceSumOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
 }
 
-Tensor Tensor::mean(bool keep_dim, int32_t dim) {
+Tensor Tensor::mean(int32_t dim, bool keep_dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kMean, aops::MeanOpOptions{.dim = dim, .keep_dim = keep_dim},
                                                   {*this})[0];
 }
@@ -327,6 +327,8 @@ DeviceTypes Tensor::device() const { return impl()->device(); }
 
 Tensor::shape_t Tensor::shape() const { return impl()->shape(); }
 
+size_t Tensor::rank() const { return shape().size(); }
+
 Tensor::stride_t Tensor::stride() const { return impl()->stride(); }
 
 size_t Tensor::numel() const { return impl()->numel(); }
@@ -359,6 +361,41 @@ Tensor Tensor::unsqueeze(int32_t dim) {
   auto this_shape = shape();
   this_shape.insert(this_shape.begin() + dim, 1);
   return view(this_shape);
+}
+
+Tensor Tensor::squeeze(int32_t dim) {
+  auto this_shape = shape();
+  if (dim == 0x7fffffff) {
+    // Remove all dimensions of size 1
+    shape_t new_shape;
+    for (const auto& size : this_shape) {
+      if (size != 1) { new_shape.push_back(size); }
+    }
+    // If no dimensions were removed, return original tensor view
+    if (new_shape.empty() && !this_shape.empty()) { new_shape.push_back(1); }
+    return view(new_shape);
+  } else {
+    // Handle negative indices
+    if (dim < 0) { dim += static_cast<int32_t>(this_shape.size()); }
+
+    // Check if index is valid
+    if (dim < 0 || dim >= static_cast<int32_t>(this_shape.size())) {
+      return *this;  // Return original tensor
+    }
+
+    // If specified dimension has size 1, remove it
+    if (this_shape[dim] == 1) {
+      shape_t new_shape;
+      new_shape.reserve(this_shape.size() - 1);
+      for (int i = 0; i < static_cast<int>(this_shape.size()); ++i) {
+        if (i != dim) { new_shape.push_back(this_shape[i]); }
+      }
+      return view(new_shape);
+    }
+
+    // If specified dimension does not have size 1, return original tensor
+    return *this;
+  }
 }
 
 Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }

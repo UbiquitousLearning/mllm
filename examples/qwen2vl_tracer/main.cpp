@@ -9,7 +9,7 @@
 #include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
 #include <mllm/compile/passes/ProgramLoweringPipeline.hpp>
 #include <mllm/compile/jit/binary/IRSerialization.hpp>
-#include "mllm/compile/jit/interpreter/IRInterpreter.hpp"
+#include <mllm/compile/jit/interpreter/IRInterpreter.hpp>
 
 using mllm::Argparse;
 

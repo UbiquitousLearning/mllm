@@ -31,9 +31,9 @@ class HKVCache {
   [[nodiscard]] int32_t getCurrentSeqCnt(int32_t layer_idx) const;
 
   std::array<mllm::Tensor, 2> updateKVCache(int32_t layer_idx, mllm::Tensor k, mllm::Tensor v, KVCacheUpdateRule rule,
-                                            std::unordered_map<std::string, mllm::AnyValue>& args);
+                                            const std::unordered_map<std::string, mllm::AnyValue>& args = {});
 
-  void initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t head_nums, int32_t hs_dims);
+  void initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t hs_dims);
 
   mllm::Tensor getHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos);
 
