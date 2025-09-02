@@ -50,6 +50,18 @@ MLLM_MAIN({
 
       auto irs = qwen2vl.trace(inputs, {});
 
+      // Compile llm model
+      {
+        mllm::ir::PassManager pm(irs["model"]);
+        pm.reg(mllm::ir::createLLMCanonicalizationPipeline({
+            .auxiliary_dbg_info = false,
+            .enable_eager_memory_solver = true,
+        }));
+        pm.reg(mllm::ir::createProgramLoweringPipeline());
+        pm.run();
+        mllm::redirect("qwen2vl_llm_program.mir", [&]() { mllm::print(irs["model"]); });
+      }
+
       // Compile visual model
       {
         mllm::ir::PassManager pm(irs["visual"]);

@@ -133,7 +133,10 @@ Tensor Tensor::operator+(float rhs) {
     case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, aops::AddOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::AddOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator-(float rhs) {
@@ -146,7 +149,10 @@ Tensor Tensor::operator-(float rhs) {
     case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, aops::SubOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::SubOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator*(float rhs) {
@@ -159,7 +165,10 @@ Tensor Tensor::operator*(float rhs) {
     case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, aops::MulOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::MulOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator/(float rhs) {
@@ -172,7 +181,10 @@ Tensor Tensor::operator/(float rhs) {
     case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::DivOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator+(std::complex<float> rhs) {
@@ -181,7 +193,10 @@ Tensor Tensor::operator+(std::complex<float> rhs) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, aops::AddOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::AddOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator-(std::complex<float> rhs) {
@@ -190,7 +205,10 @@ Tensor Tensor::operator-(std::complex<float> rhs) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, aops::SubOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::SubOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator*(std::complex<float> rhs) {
@@ -199,7 +217,10 @@ Tensor Tensor::operator*(std::complex<float> rhs) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, aops::MulOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::MulOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator/(std::complex<float> rhs) {
@@ -208,7 +229,10 @@ Tensor Tensor::operator/(std::complex<float> rhs) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
   }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
+  auto opts = aops::DivOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, opts, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::abs() { return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0]; }

@@ -61,6 +61,14 @@ class Tensor {
     return tensor;
   }
 
+  template<typename T>
+  inline std::vector<T> toVector() const {
+    std::vector<T> vec;
+    vec.reserve(numel());
+    std::copy(ptr<T>(), ptr<T>() + numel(), std::back_inserter(vec));
+    return vec;
+  }
+
   /**
    * @brief Creates a shallow view (slice) of the tensor.
    * @param slice_index Slice specification.

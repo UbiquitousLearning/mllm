@@ -242,6 +242,12 @@ nlohmann::json IRSerializer::visitProgramValueSymbolOp(const ir::IRContext::ptr_
   for (const auto& output : op->outputs()) {
     if (auto value = output) { j["outputs"].push_back(value->cast_<ir::tensor::TensorValue>()->tensor_.uuid()); }
   }
+  MLLM_RT_ASSERT_EQ(op->outputs().size(), 1);
+  if (op->outputs().front()->cast_<ir::tensor::TensorValue>()->getAttr("constant")) {
+    j["constant"] =
+        op->outputs().front()->cast_<ir::tensor::TensorValue>()->getAttr("constant")->cast_<ir::VectorFP32Attr>()->data();
+    j["shape"] = op->outputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.shape();
+  }
   return j;
 }
 

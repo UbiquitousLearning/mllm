@@ -48,7 +48,7 @@
         addr:0x0000000000002a prog.ret
         addr:0x0000000000002b prog.label[symbol:visual.patch_embed.__entry]
         addr:0x0000000000002c prog.kernel_launch(%580:tensor<[680, 1176], Float32, CPU>) -> (%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>)[op_type:View, op_options:{"to_shape":[-1,3,2,14,14]}]
-        addr:0x0000000000002d prog.kernel_launch(%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)[symbol_name:visual.patch_embed.proj, op_type:Conv3D, op_options:{"bias":false,"impl_type":0,"in_channels":3,"kernel_size":[2,14,14],"out_channels":1280,"stride":[2,14,14]}]
+        addr:0x0000000000002d prog.kernel_launch(%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>) -> (%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>)[symbol_name:visual.patch_embed.proj, op_type:Conv3D, op_options:{"bias":false,"impl_type":"Default","in_channels":3,"kernel_size":[2,14,14],"out_channels":1280,"stride":[2,14,14]}]
         addr:0x0000000000002e prog.free(%580:tensor<[680, 3, 2, 14, 14], Float32, CPU>) -> ()
         addr:0x0000000000002f prog.kernel_launch(%590:tensor<[680, 1280, 1, 1, 1], Float32, CPU>) -> (%590:tensor<[680, 1280], Float32, CPU>)[op_type:View, op_options:{"to_shape":[-1,1280]}]
         addr:0x00000000000030 prog.ret
@@ -82,8 +82,8 @@
         addr:0x0000000000004c prog.kernel_launch(%596:tensor<[1, 16, 680, 80], Float32, CPU>, %597:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%599:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000004d prog.free(%597:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000004e prog.free(%596:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000004f prog.kernel_launch(%599:tensor<[1, 16, 680, 680], Float32, CPU>, %600:tensor<[1], Float32, CPU>) -> (%601:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000050 prog.free(%600:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000004f prog.kernel_launch(%599:tensor<[1, 16, 680, 680], Float32, CPU>, %600:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%601:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000050 prog.free(%600:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000051 prog.free(%599:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000052 prog.kernel_launch(%601:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%602:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.0.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000053 prog.free(%601:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -134,8 +134,8 @@
         addr:0x00000000000080 prog.kernel_launch(%617:tensor<[1, 16, 680, 80], Float32, CPU>, %618:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%620:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000081 prog.free(%618:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000082 prog.free(%617:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000083 prog.kernel_launch(%620:tensor<[1, 16, 680, 680], Float32, CPU>, %621:tensor<[1], Float32, CPU>) -> (%622:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000084 prog.free(%621:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000083 prog.kernel_launch(%620:tensor<[1, 16, 680, 680], Float32, CPU>, %621:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%622:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000084 prog.free(%621:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000085 prog.free(%620:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000086 prog.kernel_launch(%622:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%623:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.1.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000087 prog.free(%622:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -186,8 +186,8 @@
         addr:0x000000000000b4 prog.kernel_launch(%638:tensor<[1, 16, 680, 80], Float32, CPU>, %639:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%641:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000000b5 prog.free(%639:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000000b6 prog.free(%638:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000000b7 prog.kernel_launch(%641:tensor<[1, 16, 680, 680], Float32, CPU>, %642:tensor<[1], Float32, CPU>) -> (%643:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000000b8 prog.free(%642:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000000b7 prog.kernel_launch(%641:tensor<[1, 16, 680, 680], Float32, CPU>, %642:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%643:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000000b8 prog.free(%642:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000000b9 prog.free(%641:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000000ba prog.kernel_launch(%643:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%644:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.2.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000000bb prog.free(%643:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -238,8 +238,8 @@
         addr:0x000000000000e8 prog.kernel_launch(%659:tensor<[1, 16, 680, 80], Float32, CPU>, %660:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%662:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000000e9 prog.free(%660:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000000ea prog.free(%659:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000000eb prog.kernel_launch(%662:tensor<[1, 16, 680, 680], Float32, CPU>, %663:tensor<[1], Float32, CPU>) -> (%664:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000000ec prog.free(%663:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000000eb prog.kernel_launch(%662:tensor<[1, 16, 680, 680], Float32, CPU>, %663:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%664:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000000ec prog.free(%663:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000000ed prog.free(%662:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000000ee prog.kernel_launch(%664:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%665:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.3.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000000ef prog.free(%664:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -290,8 +290,8 @@
         addr:0x0000000000011c prog.kernel_launch(%680:tensor<[1, 16, 680, 80], Float32, CPU>, %681:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%683:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000011d prog.free(%681:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000011e prog.free(%680:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000011f prog.kernel_launch(%683:tensor<[1, 16, 680, 680], Float32, CPU>, %684:tensor<[1], Float32, CPU>) -> (%685:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000120 prog.free(%684:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000011f prog.kernel_launch(%683:tensor<[1, 16, 680, 680], Float32, CPU>, %684:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%685:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000120 prog.free(%684:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000121 prog.free(%683:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000122 prog.kernel_launch(%685:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%686:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.4.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000123 prog.free(%685:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -342,8 +342,8 @@
         addr:0x00000000000150 prog.kernel_launch(%701:tensor<[1, 16, 680, 80], Float32, CPU>, %702:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%704:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000151 prog.free(%702:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000152 prog.free(%701:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000153 prog.kernel_launch(%704:tensor<[1, 16, 680, 680], Float32, CPU>, %705:tensor<[1], Float32, CPU>) -> (%706:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000154 prog.free(%705:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000153 prog.kernel_launch(%704:tensor<[1, 16, 680, 680], Float32, CPU>, %705:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%706:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000154 prog.free(%705:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000155 prog.free(%704:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000156 prog.kernel_launch(%706:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%707:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.5.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000157 prog.free(%706:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -394,8 +394,8 @@
         addr:0x00000000000184 prog.kernel_launch(%722:tensor<[1, 16, 680, 80], Float32, CPU>, %723:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%725:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000185 prog.free(%723:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000186 prog.free(%722:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000187 prog.kernel_launch(%725:tensor<[1, 16, 680, 680], Float32, CPU>, %726:tensor<[1], Float32, CPU>) -> (%727:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000188 prog.free(%726:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000187 prog.kernel_launch(%725:tensor<[1, 16, 680, 680], Float32, CPU>, %726:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%727:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000188 prog.free(%726:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000189 prog.free(%725:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000018a prog.kernel_launch(%727:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%728:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.6.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000018b prog.free(%727:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -446,8 +446,8 @@
         addr:0x000000000001b8 prog.kernel_launch(%743:tensor<[1, 16, 680, 80], Float32, CPU>, %744:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%746:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000001b9 prog.free(%744:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000001ba prog.free(%743:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000001bb prog.kernel_launch(%746:tensor<[1, 16, 680, 680], Float32, CPU>, %747:tensor<[1], Float32, CPU>) -> (%748:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000001bc prog.free(%747:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000001bb prog.kernel_launch(%746:tensor<[1, 16, 680, 680], Float32, CPU>, %747:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%748:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000001bc prog.free(%747:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000001bd prog.free(%746:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000001be prog.kernel_launch(%748:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%749:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.7.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000001bf prog.free(%748:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -498,8 +498,8 @@
         addr:0x000000000001ec prog.kernel_launch(%764:tensor<[1, 16, 680, 80], Float32, CPU>, %765:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%767:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000001ed prog.free(%765:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000001ee prog.free(%764:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000001ef prog.kernel_launch(%767:tensor<[1, 16, 680, 680], Float32, CPU>, %768:tensor<[1], Float32, CPU>) -> (%769:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000001f0 prog.free(%768:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000001ef prog.kernel_launch(%767:tensor<[1, 16, 680, 680], Float32, CPU>, %768:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%769:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000001f0 prog.free(%768:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000001f1 prog.free(%767:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000001f2 prog.kernel_launch(%769:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%770:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.8.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000001f3 prog.free(%769:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -550,8 +550,8 @@
         addr:0x00000000000220 prog.kernel_launch(%785:tensor<[1, 16, 680, 80], Float32, CPU>, %786:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%788:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000221 prog.free(%786:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000222 prog.free(%785:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000223 prog.kernel_launch(%788:tensor<[1, 16, 680, 680], Float32, CPU>, %789:tensor<[1], Float32, CPU>) -> (%790:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000224 prog.free(%789:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000223 prog.kernel_launch(%788:tensor<[1, 16, 680, 680], Float32, CPU>, %789:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%790:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000224 prog.free(%789:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000225 prog.free(%788:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000226 prog.kernel_launch(%790:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%791:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.9.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000227 prog.free(%790:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -602,8 +602,8 @@
         addr:0x00000000000254 prog.kernel_launch(%806:tensor<[1, 16, 680, 80], Float32, CPU>, %807:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%809:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000255 prog.free(%807:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000256 prog.free(%806:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000257 prog.kernel_launch(%809:tensor<[1, 16, 680, 680], Float32, CPU>, %810:tensor<[1], Float32, CPU>) -> (%811:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000258 prog.free(%810:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000257 prog.kernel_launch(%809:tensor<[1, 16, 680, 680], Float32, CPU>, %810:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%811:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000258 prog.free(%810:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000259 prog.free(%809:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000025a prog.kernel_launch(%811:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%812:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.10.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000025b prog.free(%811:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -654,8 +654,8 @@
         addr:0x00000000000288 prog.kernel_launch(%827:tensor<[1, 16, 680, 80], Float32, CPU>, %828:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%830:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000289 prog.free(%828:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000028a prog.free(%827:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000028b prog.kernel_launch(%830:tensor<[1, 16, 680, 680], Float32, CPU>, %831:tensor<[1], Float32, CPU>) -> (%832:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x0000000000028c prog.free(%831:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000028b prog.kernel_launch(%830:tensor<[1, 16, 680, 680], Float32, CPU>, %831:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%832:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x0000000000028c prog.free(%831:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x0000000000028d prog.free(%830:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000028e prog.kernel_launch(%832:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%833:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.11.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000028f prog.free(%832:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -706,8 +706,8 @@
         addr:0x000000000002bc prog.kernel_launch(%848:tensor<[1, 16, 680, 80], Float32, CPU>, %849:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%851:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000002bd prog.free(%849:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000002be prog.free(%848:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000002bf prog.kernel_launch(%851:tensor<[1, 16, 680, 680], Float32, CPU>, %852:tensor<[1], Float32, CPU>) -> (%853:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000002c0 prog.free(%852:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000002bf prog.kernel_launch(%851:tensor<[1, 16, 680, 680], Float32, CPU>, %852:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%853:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000002c0 prog.free(%852:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000002c1 prog.free(%851:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000002c2 prog.kernel_launch(%853:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%854:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.12.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000002c3 prog.free(%853:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -758,8 +758,8 @@
         addr:0x000000000002f0 prog.kernel_launch(%869:tensor<[1, 16, 680, 80], Float32, CPU>, %870:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%872:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000002f1 prog.free(%870:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000002f2 prog.free(%869:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000002f3 prog.kernel_launch(%872:tensor<[1, 16, 680, 680], Float32, CPU>, %873:tensor<[1], Float32, CPU>) -> (%874:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000002f4 prog.free(%873:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000002f3 prog.kernel_launch(%872:tensor<[1, 16, 680, 680], Float32, CPU>, %873:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%874:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000002f4 prog.free(%873:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000002f5 prog.free(%872:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000002f6 prog.kernel_launch(%874:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%875:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.13.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000002f7 prog.free(%874:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -810,8 +810,8 @@
         addr:0x00000000000324 prog.kernel_launch(%890:tensor<[1, 16, 680, 80], Float32, CPU>, %891:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%893:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000325 prog.free(%891:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000326 prog.free(%890:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000327 prog.kernel_launch(%893:tensor<[1, 16, 680, 680], Float32, CPU>, %894:tensor<[1], Float32, CPU>) -> (%895:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000328 prog.free(%894:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000327 prog.kernel_launch(%893:tensor<[1, 16, 680, 680], Float32, CPU>, %894:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%895:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000328 prog.free(%894:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000329 prog.free(%893:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000032a prog.kernel_launch(%895:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%896:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.14.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000032b prog.free(%895:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -862,8 +862,8 @@
         addr:0x00000000000358 prog.kernel_launch(%911:tensor<[1, 16, 680, 80], Float32, CPU>, %912:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%914:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000359 prog.free(%912:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000035a prog.free(%911:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000035b prog.kernel_launch(%914:tensor<[1, 16, 680, 680], Float32, CPU>, %915:tensor<[1], Float32, CPU>) -> (%916:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x0000000000035c prog.free(%915:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000035b prog.kernel_launch(%914:tensor<[1, 16, 680, 680], Float32, CPU>, %915:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%916:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x0000000000035c prog.free(%915:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x0000000000035d prog.free(%914:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000035e prog.kernel_launch(%916:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%917:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.15.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000035f prog.free(%916:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -914,8 +914,8 @@
         addr:0x0000000000038c prog.kernel_launch(%932:tensor<[1, 16, 680, 80], Float32, CPU>, %933:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%935:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000038d prog.free(%933:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000038e prog.free(%932:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000038f prog.kernel_launch(%935:tensor<[1, 16, 680, 680], Float32, CPU>, %936:tensor<[1], Float32, CPU>) -> (%937:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000390 prog.free(%936:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000038f prog.kernel_launch(%935:tensor<[1, 16, 680, 680], Float32, CPU>, %936:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%937:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000390 prog.free(%936:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000391 prog.free(%935:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000392 prog.kernel_launch(%937:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%938:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.16.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000393 prog.free(%937:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -966,8 +966,8 @@
         addr:0x000000000003c0 prog.kernel_launch(%953:tensor<[1, 16, 680, 80], Float32, CPU>, %954:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%956:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000003c1 prog.free(%954:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000003c2 prog.free(%953:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000003c3 prog.kernel_launch(%956:tensor<[1, 16, 680, 680], Float32, CPU>, %957:tensor<[1], Float32, CPU>) -> (%958:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000003c4 prog.free(%957:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000003c3 prog.kernel_launch(%956:tensor<[1, 16, 680, 680], Float32, CPU>, %957:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%958:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000003c4 prog.free(%957:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000003c5 prog.free(%956:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000003c6 prog.kernel_launch(%958:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%959:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.17.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000003c7 prog.free(%958:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1018,8 +1018,8 @@
         addr:0x000000000003f4 prog.kernel_launch(%974:tensor<[1, 16, 680, 80], Float32, CPU>, %975:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%977:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000003f5 prog.free(%975:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000003f6 prog.free(%974:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000003f7 prog.kernel_launch(%977:tensor<[1, 16, 680, 680], Float32, CPU>, %978:tensor<[1], Float32, CPU>) -> (%979:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000003f8 prog.free(%978:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000003f7 prog.kernel_launch(%977:tensor<[1, 16, 680, 680], Float32, CPU>, %978:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%979:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000003f8 prog.free(%978:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000003f9 prog.free(%977:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000003fa prog.kernel_launch(%979:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%980:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.18.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000003fb prog.free(%979:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1070,8 +1070,8 @@
         addr:0x00000000000428 prog.kernel_launch(%995:tensor<[1, 16, 680, 80], Float32, CPU>, %996:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%998:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000429 prog.free(%996:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000042a prog.free(%995:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000042b prog.kernel_launch(%998:tensor<[1, 16, 680, 680], Float32, CPU>, %999:tensor<[1], Float32, CPU>) -> (%1000:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x0000000000042c prog.free(%999:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000042b prog.kernel_launch(%998:tensor<[1, 16, 680, 680], Float32, CPU>, %999:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1000:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x0000000000042c prog.free(%999:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x0000000000042d prog.free(%998:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000042e prog.kernel_launch(%1000:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1001:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.19.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000042f prog.free(%1000:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1122,8 +1122,8 @@
         addr:0x0000000000045c prog.kernel_launch(%1016:tensor<[1, 16, 680, 80], Float32, CPU>, %1017:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1019:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000045d prog.free(%1017:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000045e prog.free(%1016:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000045f prog.kernel_launch(%1019:tensor<[1, 16, 680, 680], Float32, CPU>, %1020:tensor<[1], Float32, CPU>) -> (%1021:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000460 prog.free(%1020:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000045f prog.kernel_launch(%1019:tensor<[1, 16, 680, 680], Float32, CPU>, %1020:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1021:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000460 prog.free(%1020:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000461 prog.free(%1019:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000462 prog.kernel_launch(%1021:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1022:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.20.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000463 prog.free(%1021:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1174,8 +1174,8 @@
         addr:0x00000000000490 prog.kernel_launch(%1037:tensor<[1, 16, 680, 80], Float32, CPU>, %1038:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1040:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000491 prog.free(%1038:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000492 prog.free(%1037:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000493 prog.kernel_launch(%1040:tensor<[1, 16, 680, 680], Float32, CPU>, %1041:tensor<[1], Float32, CPU>) -> (%1042:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000494 prog.free(%1041:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000493 prog.kernel_launch(%1040:tensor<[1, 16, 680, 680], Float32, CPU>, %1041:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1042:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000494 prog.free(%1041:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000495 prog.free(%1040:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000496 prog.kernel_launch(%1042:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1043:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.21.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000497 prog.free(%1042:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1226,8 +1226,8 @@
         addr:0x000000000004c4 prog.kernel_launch(%1058:tensor<[1, 16, 680, 80], Float32, CPU>, %1059:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1061:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000004c5 prog.free(%1059:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000004c6 prog.free(%1058:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000004c7 prog.kernel_launch(%1061:tensor<[1, 16, 680, 680], Float32, CPU>, %1062:tensor<[1], Float32, CPU>) -> (%1063:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000004c8 prog.free(%1062:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000004c7 prog.kernel_launch(%1061:tensor<[1, 16, 680, 680], Float32, CPU>, %1062:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1063:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000004c8 prog.free(%1062:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000004c9 prog.free(%1061:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000004ca prog.kernel_launch(%1063:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1064:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.22.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000004cb prog.free(%1063:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1278,8 +1278,8 @@
         addr:0x000000000004f8 prog.kernel_launch(%1079:tensor<[1, 16, 680, 80], Float32, CPU>, %1080:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1082:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000004f9 prog.free(%1080:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000004fa prog.free(%1079:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000004fb prog.kernel_launch(%1082:tensor<[1, 16, 680, 680], Float32, CPU>, %1083:tensor<[1], Float32, CPU>) -> (%1084:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000004fc prog.free(%1083:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000004fb prog.kernel_launch(%1082:tensor<[1, 16, 680, 680], Float32, CPU>, %1083:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1084:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000004fc prog.free(%1083:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000004fd prog.free(%1082:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000004fe prog.kernel_launch(%1084:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1085:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.23.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000004ff prog.free(%1084:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1330,8 +1330,8 @@
         addr:0x0000000000052c prog.kernel_launch(%1100:tensor<[1, 16, 680, 80], Float32, CPU>, %1101:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1103:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000052d prog.free(%1101:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000052e prog.free(%1100:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000052f prog.kernel_launch(%1103:tensor<[1, 16, 680, 680], Float32, CPU>, %1104:tensor<[1], Float32, CPU>) -> (%1105:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000530 prog.free(%1104:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000052f prog.kernel_launch(%1103:tensor<[1, 16, 680, 680], Float32, CPU>, %1104:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1105:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000530 prog.free(%1104:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000531 prog.free(%1103:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000532 prog.kernel_launch(%1105:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1106:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.24.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000533 prog.free(%1105:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1382,8 +1382,8 @@
         addr:0x00000000000560 prog.kernel_launch(%1121:tensor<[1, 16, 680, 80], Float32, CPU>, %1122:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1124:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000561 prog.free(%1122:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000562 prog.free(%1121:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000563 prog.kernel_launch(%1124:tensor<[1, 16, 680, 680], Float32, CPU>, %1125:tensor<[1], Float32, CPU>) -> (%1126:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000564 prog.free(%1125:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000563 prog.kernel_launch(%1124:tensor<[1, 16, 680, 680], Float32, CPU>, %1125:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1126:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000564 prog.free(%1125:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000565 prog.free(%1124:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000566 prog.kernel_launch(%1126:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1127:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.25.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000567 prog.free(%1126:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1434,8 +1434,8 @@
         addr:0x00000000000594 prog.kernel_launch(%1142:tensor<[1, 16, 680, 80], Float32, CPU>, %1143:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1145:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000595 prog.free(%1143:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000596 prog.free(%1142:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000597 prog.kernel_launch(%1145:tensor<[1, 16, 680, 680], Float32, CPU>, %1146:tensor<[1], Float32, CPU>) -> (%1147:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000598 prog.free(%1146:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000597 prog.kernel_launch(%1145:tensor<[1, 16, 680, 680], Float32, CPU>, %1146:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1147:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000598 prog.free(%1146:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000599 prog.free(%1145:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000059a prog.kernel_launch(%1147:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1148:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.26.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000059b prog.free(%1147:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1486,8 +1486,8 @@
         addr:0x000000000005c8 prog.kernel_launch(%1163:tensor<[1, 16, 680, 80], Float32, CPU>, %1164:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1166:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000005c9 prog.free(%1164:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000005ca prog.free(%1163:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000005cb prog.kernel_launch(%1166:tensor<[1, 16, 680, 680], Float32, CPU>, %1167:tensor<[1], Float32, CPU>) -> (%1168:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x000000000005cc prog.free(%1167:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000005cb prog.kernel_launch(%1166:tensor<[1, 16, 680, 680], Float32, CPU>, %1167:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1168:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x000000000005cc prog.free(%1167:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x000000000005cd prog.free(%1166:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000005ce prog.kernel_launch(%1168:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1169:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.27.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000005cf prog.free(%1168:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1538,8 +1538,8 @@
         addr:0x000000000005fc prog.kernel_launch(%1184:tensor<[1, 16, 680, 80], Float32, CPU>, %1185:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1187:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x000000000005fd prog.free(%1185:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x000000000005fe prog.free(%1184:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x000000000005ff prog.kernel_launch(%1187:tensor<[1, 16, 680, 680], Float32, CPU>, %1188:tensor<[1], Float32, CPU>) -> (%1189:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000600 prog.free(%1188:tensor<[1], Float32, CPU>) -> ()
+        addr:0x000000000005ff prog.kernel_launch(%1187:tensor<[1, 16, 680, 680], Float32, CPU>, %1188:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1189:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000600 prog.free(%1188:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000601 prog.free(%1187:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000602 prog.kernel_launch(%1189:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1190:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.28.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000603 prog.free(%1189:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1590,8 +1590,8 @@
         addr:0x00000000000630 prog.kernel_launch(%1205:tensor<[1, 16, 680, 80], Float32, CPU>, %1206:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1208:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000631 prog.free(%1206:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000632 prog.free(%1205:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000633 prog.kernel_launch(%1208:tensor<[1, 16, 680, 680], Float32, CPU>, %1209:tensor<[1], Float32, CPU>) -> (%1210:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000634 prog.free(%1209:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000633 prog.kernel_launch(%1208:tensor<[1, 16, 680, 680], Float32, CPU>, %1209:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1210:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000634 prog.free(%1209:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000635 prog.free(%1208:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x00000000000636 prog.kernel_launch(%1210:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1211:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.29.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x00000000000637 prog.free(%1210:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1642,8 +1642,8 @@
         addr:0x00000000000664 prog.kernel_launch(%1226:tensor<[1, 16, 680, 80], Float32, CPU>, %1227:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1229:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x00000000000665 prog.free(%1227:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x00000000000666 prog.free(%1226:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x00000000000667 prog.kernel_launch(%1229:tensor<[1, 16, 680, 680], Float32, CPU>, %1230:tensor<[1], Float32, CPU>) -> (%1231:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x00000000000668 prog.free(%1230:tensor<[1], Float32, CPU>) -> ()
+        addr:0x00000000000667 prog.kernel_launch(%1229:tensor<[1, 16, 680, 680], Float32, CPU>, %1230:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1231:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x00000000000668 prog.free(%1230:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x00000000000669 prog.free(%1229:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x0000000000066a prog.kernel_launch(%1231:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1232:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.30.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x0000000000066b prog.free(%1231:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1696,8 +1696,8 @@
         addr:0x0000000000069a prog.kernel_launch(%1247:tensor<[1, 16, 680, 80], Float32, CPU>, %1248:tensor<[1, 16, 680, 80], Float32, CPU>) -> (%1250:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:MatMul, op_options:{"matmul_type":"Default","transpose_a":false,"transpose_b":true}]
         addr:0x0000000000069b prog.free(%1248:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
         addr:0x0000000000069c prog.free(%1247:tensor<[1, 16, 680, 80], Float32, CPU>) -> ()
-        addr:0x0000000000069d prog.kernel_launch(%1250:tensor<[1, 16, 680, 680], Float32, CPU>, %1251:tensor<[1], Float32, CPU>) -> (%1252:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
-        addr:0x0000000000069e prog.free(%1251:tensor<[1], Float32, CPU>) -> ()
+        addr:0x0000000000069d prog.kernel_launch(%1250:tensor<[1, 16, 680, 680], Float32, CPU>, %1251:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> (%1252:tensor<[1, 16, 680, 680], Float32, CPU>)[op_type:Mul, op_options:null]
+        addr:0x0000000000069e prog.free(%1251:tensor<[1], Float32, CPU>[constant: [0.1118034]]) -> ()
         addr:0x0000000000069f prog.free(%1250:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
         addr:0x000000000006a0 prog.kernel_launch(%1252:tensor<[1, 16, 680, 680], Float32, CPU>) -> (%1253:tensor<[1, 16, 680, 680], Float32, CPU>)[symbol_name:visual.blocks.31.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
         addr:0x000000000006a1 prog.free(%1252:tensor<[1, 16, 680, 680], Float32, CPU>) -> ()
@@ -1992,331 +1992,363 @@
         addr:0x00000000000102 prog.value_symbol() -> (%465:tensor<[1280], Float32, CPU>[@visual.merger.ln_q.bias])[symbol:visual.merger.ln_q.bias]
         addr:0x00000000000103 prog.value_symbol() -> (%490:tensor<[14786560], UInt8, CPU>[@visual.merger.mlp.0.weight])[symbol:visual.merger.mlp.0.weight]
         addr:0x00000000000104 prog.value_symbol() -> (%253:tensor<[4435968], UInt8, CPU>[@visual.merger.mlp.2.weight])[symbol:visual.merger.mlp.2.weight]
-        addr:0x00000000000105 prog.kernel_symbol[symbol:visual.patch_embed.proj, op_type:Conv3D, op_options:{"bias":false,"impl_type":0,"in_channels":3,"kernel_size":[2,14,14],"out_channels":1280,"stride":[2,14,14]}]
-        addr:0x00000000000106 prog.kernel_symbol[symbol:visual.blocks.0.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000107 prog.kernel_symbol[symbol:visual.blocks.0.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000108 prog.kernel_symbol[symbol:visual.blocks.0.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000109 prog.kernel_symbol[symbol:visual.blocks.0.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000010a prog.kernel_symbol[symbol:visual.blocks.0.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000010b prog.kernel_symbol[symbol:visual.blocks.0.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000010c prog.kernel_symbol[symbol:visual.blocks.0.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000010d prog.kernel_symbol[symbol:visual.blocks.0.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000010e prog.kernel_symbol[symbol:visual.blocks.0.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000010f prog.kernel_symbol[symbol:visual.blocks.0.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000110 prog.kernel_symbol[symbol:visual.blocks.1.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000111 prog.kernel_symbol[symbol:visual.blocks.1.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000112 prog.kernel_symbol[symbol:visual.blocks.1.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000113 prog.kernel_symbol[symbol:visual.blocks.1.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000114 prog.kernel_symbol[symbol:visual.blocks.1.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000115 prog.kernel_symbol[symbol:visual.blocks.1.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000116 prog.kernel_symbol[symbol:visual.blocks.1.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000117 prog.kernel_symbol[symbol:visual.blocks.1.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000118 prog.kernel_symbol[symbol:visual.blocks.1.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000119 prog.kernel_symbol[symbol:visual.blocks.1.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000011a prog.kernel_symbol[symbol:visual.blocks.2.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000011b prog.kernel_symbol[symbol:visual.blocks.2.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000011c prog.kernel_symbol[symbol:visual.blocks.2.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000011d prog.kernel_symbol[symbol:visual.blocks.2.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000011e prog.kernel_symbol[symbol:visual.blocks.2.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000011f prog.kernel_symbol[symbol:visual.blocks.2.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000120 prog.kernel_symbol[symbol:visual.blocks.2.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000121 prog.kernel_symbol[symbol:visual.blocks.2.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000122 prog.kernel_symbol[symbol:visual.blocks.2.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000123 prog.kernel_symbol[symbol:visual.blocks.2.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000124 prog.kernel_symbol[symbol:visual.blocks.3.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000125 prog.kernel_symbol[symbol:visual.blocks.3.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000126 prog.kernel_symbol[symbol:visual.blocks.3.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000127 prog.kernel_symbol[symbol:visual.blocks.3.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000128 prog.kernel_symbol[symbol:visual.blocks.3.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000129 prog.kernel_symbol[symbol:visual.blocks.3.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000012a prog.kernel_symbol[symbol:visual.blocks.3.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000012b prog.kernel_symbol[symbol:visual.blocks.3.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000012c prog.kernel_symbol[symbol:visual.blocks.3.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000012d prog.kernel_symbol[symbol:visual.blocks.3.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000012e prog.kernel_symbol[symbol:visual.blocks.4.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000012f prog.kernel_symbol[symbol:visual.blocks.4.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000130 prog.kernel_symbol[symbol:visual.blocks.4.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000131 prog.kernel_symbol[symbol:visual.blocks.4.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000132 prog.kernel_symbol[symbol:visual.blocks.4.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000133 prog.kernel_symbol[symbol:visual.blocks.4.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000134 prog.kernel_symbol[symbol:visual.blocks.4.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000135 prog.kernel_symbol[symbol:visual.blocks.4.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000136 prog.kernel_symbol[symbol:visual.blocks.4.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000137 prog.kernel_symbol[symbol:visual.blocks.4.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000138 prog.kernel_symbol[symbol:visual.blocks.5.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000139 prog.kernel_symbol[symbol:visual.blocks.5.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000013a prog.kernel_symbol[symbol:visual.blocks.5.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000013b prog.kernel_symbol[symbol:visual.blocks.5.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000013c prog.kernel_symbol[symbol:visual.blocks.5.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000013d prog.kernel_symbol[symbol:visual.blocks.5.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000013e prog.kernel_symbol[symbol:visual.blocks.5.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000013f prog.kernel_symbol[symbol:visual.blocks.5.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000140 prog.kernel_symbol[symbol:visual.blocks.5.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000141 prog.kernel_symbol[symbol:visual.blocks.5.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000142 prog.kernel_symbol[symbol:visual.blocks.6.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000143 prog.kernel_symbol[symbol:visual.blocks.6.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000144 prog.kernel_symbol[symbol:visual.blocks.6.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000145 prog.kernel_symbol[symbol:visual.blocks.6.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000146 prog.kernel_symbol[symbol:visual.blocks.6.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000147 prog.kernel_symbol[symbol:visual.blocks.6.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000148 prog.kernel_symbol[symbol:visual.blocks.6.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000149 prog.kernel_symbol[symbol:visual.blocks.6.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000014a prog.kernel_symbol[symbol:visual.blocks.6.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000014b prog.kernel_symbol[symbol:visual.blocks.6.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000014c prog.kernel_symbol[symbol:visual.blocks.7.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000014d prog.kernel_symbol[symbol:visual.blocks.7.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000014e prog.kernel_symbol[symbol:visual.blocks.7.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000014f prog.kernel_symbol[symbol:visual.blocks.7.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000150 prog.kernel_symbol[symbol:visual.blocks.7.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000151 prog.kernel_symbol[symbol:visual.blocks.7.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000152 prog.kernel_symbol[symbol:visual.blocks.7.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000153 prog.kernel_symbol[symbol:visual.blocks.7.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000154 prog.kernel_symbol[symbol:visual.blocks.7.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000155 prog.kernel_symbol[symbol:visual.blocks.7.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000156 prog.kernel_symbol[symbol:visual.blocks.8.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000157 prog.kernel_symbol[symbol:visual.blocks.8.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000158 prog.kernel_symbol[symbol:visual.blocks.8.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000159 prog.kernel_symbol[symbol:visual.blocks.8.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000015a prog.kernel_symbol[symbol:visual.blocks.8.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000015b prog.kernel_symbol[symbol:visual.blocks.8.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000015c prog.kernel_symbol[symbol:visual.blocks.8.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000015d prog.kernel_symbol[symbol:visual.blocks.8.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000015e prog.kernel_symbol[symbol:visual.blocks.8.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000015f prog.kernel_symbol[symbol:visual.blocks.8.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000160 prog.kernel_symbol[symbol:visual.blocks.9.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000161 prog.kernel_symbol[symbol:visual.blocks.9.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000162 prog.kernel_symbol[symbol:visual.blocks.9.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000163 prog.kernel_symbol[symbol:visual.blocks.9.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000164 prog.kernel_symbol[symbol:visual.blocks.9.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000165 prog.kernel_symbol[symbol:visual.blocks.9.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000166 prog.kernel_symbol[symbol:visual.blocks.9.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000167 prog.kernel_symbol[symbol:visual.blocks.9.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000168 prog.kernel_symbol[symbol:visual.blocks.9.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000169 prog.kernel_symbol[symbol:visual.blocks.9.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000016a prog.kernel_symbol[symbol:visual.blocks.10.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000016b prog.kernel_symbol[symbol:visual.blocks.10.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000016c prog.kernel_symbol[symbol:visual.blocks.10.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000016d prog.kernel_symbol[symbol:visual.blocks.10.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000016e prog.kernel_symbol[symbol:visual.blocks.10.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000016f prog.kernel_symbol[symbol:visual.blocks.10.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000170 prog.kernel_symbol[symbol:visual.blocks.10.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000171 prog.kernel_symbol[symbol:visual.blocks.10.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000172 prog.kernel_symbol[symbol:visual.blocks.10.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000173 prog.kernel_symbol[symbol:visual.blocks.10.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000174 prog.kernel_symbol[symbol:visual.blocks.11.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000175 prog.kernel_symbol[symbol:visual.blocks.11.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000176 prog.kernel_symbol[symbol:visual.blocks.11.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000177 prog.kernel_symbol[symbol:visual.blocks.11.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000178 prog.kernel_symbol[symbol:visual.blocks.11.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000179 prog.kernel_symbol[symbol:visual.blocks.11.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000017a prog.kernel_symbol[symbol:visual.blocks.11.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000017b prog.kernel_symbol[symbol:visual.blocks.11.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000017c prog.kernel_symbol[symbol:visual.blocks.11.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000017d prog.kernel_symbol[symbol:visual.blocks.11.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000017e prog.kernel_symbol[symbol:visual.blocks.12.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000017f prog.kernel_symbol[symbol:visual.blocks.12.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000180 prog.kernel_symbol[symbol:visual.blocks.12.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000181 prog.kernel_symbol[symbol:visual.blocks.12.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000182 prog.kernel_symbol[symbol:visual.blocks.12.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000183 prog.kernel_symbol[symbol:visual.blocks.12.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000184 prog.kernel_symbol[symbol:visual.blocks.12.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000185 prog.kernel_symbol[symbol:visual.blocks.12.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000186 prog.kernel_symbol[symbol:visual.blocks.12.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000187 prog.kernel_symbol[symbol:visual.blocks.12.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000188 prog.kernel_symbol[symbol:visual.blocks.13.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000189 prog.kernel_symbol[symbol:visual.blocks.13.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000018a prog.kernel_symbol[symbol:visual.blocks.13.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000018b prog.kernel_symbol[symbol:visual.blocks.13.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000018c prog.kernel_symbol[symbol:visual.blocks.13.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000018d prog.kernel_symbol[symbol:visual.blocks.13.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000018e prog.kernel_symbol[symbol:visual.blocks.13.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000018f prog.kernel_symbol[symbol:visual.blocks.13.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000190 prog.kernel_symbol[symbol:visual.blocks.13.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000191 prog.kernel_symbol[symbol:visual.blocks.13.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000192 prog.kernel_symbol[symbol:visual.blocks.14.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000193 prog.kernel_symbol[symbol:visual.blocks.14.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000194 prog.kernel_symbol[symbol:visual.blocks.14.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000195 prog.kernel_symbol[symbol:visual.blocks.14.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000196 prog.kernel_symbol[symbol:visual.blocks.14.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000197 prog.kernel_symbol[symbol:visual.blocks.14.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000198 prog.kernel_symbol[symbol:visual.blocks.14.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000199 prog.kernel_symbol[symbol:visual.blocks.14.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000019a prog.kernel_symbol[symbol:visual.blocks.14.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000019b prog.kernel_symbol[symbol:visual.blocks.14.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000019c prog.kernel_symbol[symbol:visual.blocks.15.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000019d prog.kernel_symbol[symbol:visual.blocks.15.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000019e prog.kernel_symbol[symbol:visual.blocks.15.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000019f prog.kernel_symbol[symbol:visual.blocks.15.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001a0 prog.kernel_symbol[symbol:visual.blocks.15.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001a1 prog.kernel_symbol[symbol:visual.blocks.15.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001a2 prog.kernel_symbol[symbol:visual.blocks.15.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001a3 prog.kernel_symbol[symbol:visual.blocks.15.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001a4 prog.kernel_symbol[symbol:visual.blocks.15.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001a5 prog.kernel_symbol[symbol:visual.blocks.15.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001a6 prog.kernel_symbol[symbol:visual.blocks.16.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001a7 prog.kernel_symbol[symbol:visual.blocks.16.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001a8 prog.kernel_symbol[symbol:visual.blocks.16.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001a9 prog.kernel_symbol[symbol:visual.blocks.16.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001aa prog.kernel_symbol[symbol:visual.blocks.16.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001ab prog.kernel_symbol[symbol:visual.blocks.16.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001ac prog.kernel_symbol[symbol:visual.blocks.16.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001ad prog.kernel_symbol[symbol:visual.blocks.16.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001ae prog.kernel_symbol[symbol:visual.blocks.16.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001af prog.kernel_symbol[symbol:visual.blocks.16.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001b0 prog.kernel_symbol[symbol:visual.blocks.17.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001b1 prog.kernel_symbol[symbol:visual.blocks.17.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001b2 prog.kernel_symbol[symbol:visual.blocks.17.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001b3 prog.kernel_symbol[symbol:visual.blocks.17.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001b4 prog.kernel_symbol[symbol:visual.blocks.17.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001b5 prog.kernel_symbol[symbol:visual.blocks.17.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001b6 prog.kernel_symbol[symbol:visual.blocks.17.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001b7 prog.kernel_symbol[symbol:visual.blocks.17.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001b8 prog.kernel_symbol[symbol:visual.blocks.17.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001b9 prog.kernel_symbol[symbol:visual.blocks.17.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001ba prog.kernel_symbol[symbol:visual.blocks.18.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001bb prog.kernel_symbol[symbol:visual.blocks.18.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001bc prog.kernel_symbol[symbol:visual.blocks.18.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001bd prog.kernel_symbol[symbol:visual.blocks.18.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001be prog.kernel_symbol[symbol:visual.blocks.18.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001bf prog.kernel_symbol[symbol:visual.blocks.18.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001c0 prog.kernel_symbol[symbol:visual.blocks.18.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001c1 prog.kernel_symbol[symbol:visual.blocks.18.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001c2 prog.kernel_symbol[symbol:visual.blocks.18.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001c3 prog.kernel_symbol[symbol:visual.blocks.18.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001c4 prog.kernel_symbol[symbol:visual.blocks.19.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001c5 prog.kernel_symbol[symbol:visual.blocks.19.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001c6 prog.kernel_symbol[symbol:visual.blocks.19.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001c7 prog.kernel_symbol[symbol:visual.blocks.19.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001c8 prog.kernel_symbol[symbol:visual.blocks.19.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001c9 prog.kernel_symbol[symbol:visual.blocks.19.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001ca prog.kernel_symbol[symbol:visual.blocks.19.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001cb prog.kernel_symbol[symbol:visual.blocks.19.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001cc prog.kernel_symbol[symbol:visual.blocks.19.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001cd prog.kernel_symbol[symbol:visual.blocks.19.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001ce prog.kernel_symbol[symbol:visual.blocks.20.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001cf prog.kernel_symbol[symbol:visual.blocks.20.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001d0 prog.kernel_symbol[symbol:visual.blocks.20.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001d1 prog.kernel_symbol[symbol:visual.blocks.20.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001d2 prog.kernel_symbol[symbol:visual.blocks.20.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001d3 prog.kernel_symbol[symbol:visual.blocks.20.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001d4 prog.kernel_symbol[symbol:visual.blocks.20.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001d5 prog.kernel_symbol[symbol:visual.blocks.20.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001d6 prog.kernel_symbol[symbol:visual.blocks.20.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001d7 prog.kernel_symbol[symbol:visual.blocks.20.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001d8 prog.kernel_symbol[symbol:visual.blocks.21.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001d9 prog.kernel_symbol[symbol:visual.blocks.21.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001da prog.kernel_symbol[symbol:visual.blocks.21.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001db prog.kernel_symbol[symbol:visual.blocks.21.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001dc prog.kernel_symbol[symbol:visual.blocks.21.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001dd prog.kernel_symbol[symbol:visual.blocks.21.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001de prog.kernel_symbol[symbol:visual.blocks.21.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001df prog.kernel_symbol[symbol:visual.blocks.21.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001e0 prog.kernel_symbol[symbol:visual.blocks.21.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001e1 prog.kernel_symbol[symbol:visual.blocks.21.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001e2 prog.kernel_symbol[symbol:visual.blocks.22.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001e3 prog.kernel_symbol[symbol:visual.blocks.22.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001e4 prog.kernel_symbol[symbol:visual.blocks.22.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001e5 prog.kernel_symbol[symbol:visual.blocks.22.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001e6 prog.kernel_symbol[symbol:visual.blocks.22.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001e7 prog.kernel_symbol[symbol:visual.blocks.22.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001e8 prog.kernel_symbol[symbol:visual.blocks.22.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001e9 prog.kernel_symbol[symbol:visual.blocks.22.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001ea prog.kernel_symbol[symbol:visual.blocks.22.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001eb prog.kernel_symbol[symbol:visual.blocks.22.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001ec prog.kernel_symbol[symbol:visual.blocks.23.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001ed prog.kernel_symbol[symbol:visual.blocks.23.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001ee prog.kernel_symbol[symbol:visual.blocks.23.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001ef prog.kernel_symbol[symbol:visual.blocks.23.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001f0 prog.kernel_symbol[symbol:visual.blocks.23.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001f1 prog.kernel_symbol[symbol:visual.blocks.23.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001f2 prog.kernel_symbol[symbol:visual.blocks.23.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001f3 prog.kernel_symbol[symbol:visual.blocks.23.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001f4 prog.kernel_symbol[symbol:visual.blocks.23.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001f5 prog.kernel_symbol[symbol:visual.blocks.23.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x000000000001f6 prog.kernel_symbol[symbol:visual.blocks.24.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001f7 prog.kernel_symbol[symbol:visual.blocks.24.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x000000000001f8 prog.kernel_symbol[symbol:visual.blocks.24.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x000000000001f9 prog.kernel_symbol[symbol:visual.blocks.24.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x000000000001fa prog.kernel_symbol[symbol:visual.blocks.24.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x000000000001fb prog.kernel_symbol[symbol:visual.blocks.24.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x000000000001fc prog.kernel_symbol[symbol:visual.blocks.24.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x000000000001fd prog.kernel_symbol[symbol:visual.blocks.24.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x000000000001fe prog.kernel_symbol[symbol:visual.blocks.24.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x000000000001ff prog.kernel_symbol[symbol:visual.blocks.24.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000200 prog.kernel_symbol[symbol:visual.blocks.25.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000201 prog.kernel_symbol[symbol:visual.blocks.25.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000202 prog.kernel_symbol[symbol:visual.blocks.25.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000203 prog.kernel_symbol[symbol:visual.blocks.25.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000204 prog.kernel_symbol[symbol:visual.blocks.25.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000205 prog.kernel_symbol[symbol:visual.blocks.25.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000206 prog.kernel_symbol[symbol:visual.blocks.25.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000207 prog.kernel_symbol[symbol:visual.blocks.25.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000208 prog.kernel_symbol[symbol:visual.blocks.25.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000209 prog.kernel_symbol[symbol:visual.blocks.25.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000020a prog.kernel_symbol[symbol:visual.blocks.26.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000020b prog.kernel_symbol[symbol:visual.blocks.26.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000020c prog.kernel_symbol[symbol:visual.blocks.26.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000020d prog.kernel_symbol[symbol:visual.blocks.26.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000020e prog.kernel_symbol[symbol:visual.blocks.26.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000020f prog.kernel_symbol[symbol:visual.blocks.26.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000210 prog.kernel_symbol[symbol:visual.blocks.26.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000211 prog.kernel_symbol[symbol:visual.blocks.26.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000212 prog.kernel_symbol[symbol:visual.blocks.26.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000213 prog.kernel_symbol[symbol:visual.blocks.26.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000214 prog.kernel_symbol[symbol:visual.blocks.27.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000215 prog.kernel_symbol[symbol:visual.blocks.27.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000216 prog.kernel_symbol[symbol:visual.blocks.27.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000217 prog.kernel_symbol[symbol:visual.blocks.27.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000218 prog.kernel_symbol[symbol:visual.blocks.27.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000219 prog.kernel_symbol[symbol:visual.blocks.27.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000021a prog.kernel_symbol[symbol:visual.blocks.27.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000021b prog.kernel_symbol[symbol:visual.blocks.27.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000021c prog.kernel_symbol[symbol:visual.blocks.27.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000021d prog.kernel_symbol[symbol:visual.blocks.27.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000021e prog.kernel_symbol[symbol:visual.blocks.28.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000021f prog.kernel_symbol[symbol:visual.blocks.28.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000220 prog.kernel_symbol[symbol:visual.blocks.28.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000221 prog.kernel_symbol[symbol:visual.blocks.28.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000222 prog.kernel_symbol[symbol:visual.blocks.28.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000223 prog.kernel_symbol[symbol:visual.blocks.28.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000224 prog.kernel_symbol[symbol:visual.blocks.28.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000225 prog.kernel_symbol[symbol:visual.blocks.28.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000226 prog.kernel_symbol[symbol:visual.blocks.28.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000227 prog.kernel_symbol[symbol:visual.blocks.28.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000228 prog.kernel_symbol[symbol:visual.blocks.29.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000229 prog.kernel_symbol[symbol:visual.blocks.29.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000022a prog.kernel_symbol[symbol:visual.blocks.29.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000022b prog.kernel_symbol[symbol:visual.blocks.29.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x0000000000022c prog.kernel_symbol[symbol:visual.blocks.29.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x0000000000022d prog.kernel_symbol[symbol:visual.blocks.29.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x0000000000022e prog.kernel_symbol[symbol:visual.blocks.29.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x0000000000022f prog.kernel_symbol[symbol:visual.blocks.29.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000230 prog.kernel_symbol[symbol:visual.blocks.29.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000231 prog.kernel_symbol[symbol:visual.blocks.29.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000232 prog.kernel_symbol[symbol:visual.blocks.30.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000233 prog.kernel_symbol[symbol:visual.blocks.30.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000234 prog.kernel_symbol[symbol:visual.blocks.30.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x00000000000235 prog.kernel_symbol[symbol:visual.blocks.30.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000236 prog.kernel_symbol[symbol:visual.blocks.30.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000237 prog.kernel_symbol[symbol:visual.blocks.30.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000238 prog.kernel_symbol[symbol:visual.blocks.30.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000239 prog.kernel_symbol[symbol:visual.blocks.30.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x0000000000023a prog.kernel_symbol[symbol:visual.blocks.30.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x0000000000023b prog.kernel_symbol[symbol:visual.blocks.30.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x0000000000023c prog.kernel_symbol[symbol:visual.blocks.31.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000023d prog.kernel_symbol[symbol:visual.blocks.31.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x0000000000023e prog.kernel_symbol[symbol:visual.blocks.31.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
-        addr:0x0000000000023f prog.kernel_symbol[symbol:visual.blocks.31.attn.vision_rope_q, op_type:SiLU, op_options:null]
-        addr:0x00000000000240 prog.kernel_symbol[symbol:visual.blocks.31.attn.vision_rope_k, op_type:SiLU, op_options:null]
-        addr:0x00000000000241 prog.kernel_symbol[symbol:visual.blocks.31.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
-        addr:0x00000000000242 prog.kernel_symbol[symbol:visual.blocks.31.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
-        addr:0x00000000000243 prog.kernel_symbol[symbol:visual.blocks.31.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
-        addr:0x00000000000244 prog.kernel_symbol[symbol:visual.blocks.31.mlp.act, op_type:QuickGELU, op_options:null]
-        addr:0x00000000000245 prog.kernel_symbol[symbol:visual.blocks.31.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
-        addr:0x00000000000246 prog.kernel_symbol[symbol:visual.merger.ln_q, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
-        addr:0x00000000000247 prog.kernel_symbol[symbol:visual.merger.mlp.0, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":5120}]
-        addr:0x00000000000248 prog.kernel_symbol[symbol:visual.merger.mlp.gelu, op_type:GELU, op_options:null]
-        addr:0x00000000000249 prog.kernel_symbol[symbol:visual.merger.mlp.2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1536}]
+        addr:0x00000000000105 prog.value_symbol() -> (%705:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_705]
+        addr:0x00000000000106 prog.value_symbol() -> (%747:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_747]
+        addr:0x00000000000107 prog.value_symbol() -> (%768:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_768]
+        addr:0x00000000000108 prog.value_symbol() -> (%915:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_915]
+        addr:0x00000000000109 prog.value_symbol() -> (%999:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_999]
+        addr:0x0000000000010a prog.value_symbol() -> (%1125:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1125]
+        addr:0x0000000000010b prog.value_symbol() -> (%1167:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1167]
+        addr:0x0000000000010c prog.value_symbol() -> (%1188:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1188]
+        addr:0x0000000000010d prog.value_symbol() -> (%600:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_600]
+        addr:0x0000000000010e prog.value_symbol() -> (%621:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_621]
+        addr:0x0000000000010f prog.value_symbol() -> (%663:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_663]
+        addr:0x00000000000110 prog.value_symbol() -> (%684:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_684]
+        addr:0x00000000000111 prog.value_symbol() -> (%789:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_789]
+        addr:0x00000000000112 prog.value_symbol() -> (%1020:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1020]
+        addr:0x00000000000113 prog.value_symbol() -> (%1041:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1041]
+        addr:0x00000000000114 prog.value_symbol() -> (%1083:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1083]
+        addr:0x00000000000115 prog.value_symbol() -> (%1251:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1251]
+        addr:0x00000000000116 prog.value_symbol() -> (%642:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_642]
+        addr:0x00000000000117 prog.value_symbol() -> (%894:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_894]
+        addr:0x00000000000118 prog.value_symbol() -> (%957:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_957]
+        addr:0x00000000000119 prog.value_symbol() -> (%726:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_726]
+        addr:0x0000000000011a prog.value_symbol() -> (%810:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_810]
+        addr:0x0000000000011b prog.value_symbol() -> (%831:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_831]
+        addr:0x0000000000011c prog.value_symbol() -> (%852:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_852]
+        addr:0x0000000000011d prog.value_symbol() -> (%873:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_873]
+        addr:0x0000000000011e prog.value_symbol() -> (%936:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_936]
+        addr:0x0000000000011f prog.value_symbol() -> (%978:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_978]
+        addr:0x00000000000120 prog.value_symbol() -> (%1062:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1062]
+        addr:0x00000000000121 prog.value_symbol() -> (%1104:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1104]
+        addr:0x00000000000122 prog.value_symbol() -> (%1146:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1146]
+        addr:0x00000000000123 prog.value_symbol() -> (%1209:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1209]
+        addr:0x00000000000124 prog.value_symbol() -> (%1230:tensor<[1], Float32, CPU>[constant: [0.1118034]])[symbol:constant_1230]
+        addr:0x00000000000125 prog.kernel_symbol[symbol:visual.patch_embed.proj, op_type:Conv3D, op_options:{"bias":false,"impl_type":"Default","in_channels":3,"kernel_size":[2,14,14],"out_channels":1280,"stride":[2,14,14]}]
+        addr:0x00000000000126 prog.kernel_symbol[symbol:visual.blocks.0.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000127 prog.kernel_symbol[symbol:visual.blocks.0.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000128 prog.kernel_symbol[symbol:visual.blocks.0.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000129 prog.kernel_symbol[symbol:visual.blocks.0.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000012a prog.kernel_symbol[symbol:visual.blocks.0.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000012b prog.kernel_symbol[symbol:visual.blocks.0.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000012c prog.kernel_symbol[symbol:visual.blocks.0.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000012d prog.kernel_symbol[symbol:visual.blocks.0.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000012e prog.kernel_symbol[symbol:visual.blocks.0.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000012f prog.kernel_symbol[symbol:visual.blocks.0.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000130 prog.kernel_symbol[symbol:visual.blocks.1.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000131 prog.kernel_symbol[symbol:visual.blocks.1.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000132 prog.kernel_symbol[symbol:visual.blocks.1.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000133 prog.kernel_symbol[symbol:visual.blocks.1.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000134 prog.kernel_symbol[symbol:visual.blocks.1.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000135 prog.kernel_symbol[symbol:visual.blocks.1.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000136 prog.kernel_symbol[symbol:visual.blocks.1.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000137 prog.kernel_symbol[symbol:visual.blocks.1.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000138 prog.kernel_symbol[symbol:visual.blocks.1.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000139 prog.kernel_symbol[symbol:visual.blocks.1.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000013a prog.kernel_symbol[symbol:visual.blocks.2.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000013b prog.kernel_symbol[symbol:visual.blocks.2.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000013c prog.kernel_symbol[symbol:visual.blocks.2.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000013d prog.kernel_symbol[symbol:visual.blocks.2.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000013e prog.kernel_symbol[symbol:visual.blocks.2.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000013f prog.kernel_symbol[symbol:visual.blocks.2.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000140 prog.kernel_symbol[symbol:visual.blocks.2.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000141 prog.kernel_symbol[symbol:visual.blocks.2.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000142 prog.kernel_symbol[symbol:visual.blocks.2.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000143 prog.kernel_symbol[symbol:visual.blocks.2.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000144 prog.kernel_symbol[symbol:visual.blocks.3.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000145 prog.kernel_symbol[symbol:visual.blocks.3.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000146 prog.kernel_symbol[symbol:visual.blocks.3.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000147 prog.kernel_symbol[symbol:visual.blocks.3.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000148 prog.kernel_symbol[symbol:visual.blocks.3.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000149 prog.kernel_symbol[symbol:visual.blocks.3.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000014a prog.kernel_symbol[symbol:visual.blocks.3.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000014b prog.kernel_symbol[symbol:visual.blocks.3.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000014c prog.kernel_symbol[symbol:visual.blocks.3.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000014d prog.kernel_symbol[symbol:visual.blocks.3.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000014e prog.kernel_symbol[symbol:visual.blocks.4.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000014f prog.kernel_symbol[symbol:visual.blocks.4.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000150 prog.kernel_symbol[symbol:visual.blocks.4.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000151 prog.kernel_symbol[symbol:visual.blocks.4.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000152 prog.kernel_symbol[symbol:visual.blocks.4.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000153 prog.kernel_symbol[symbol:visual.blocks.4.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000154 prog.kernel_symbol[symbol:visual.blocks.4.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000155 prog.kernel_symbol[symbol:visual.blocks.4.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000156 prog.kernel_symbol[symbol:visual.blocks.4.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000157 prog.kernel_symbol[symbol:visual.blocks.4.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000158 prog.kernel_symbol[symbol:visual.blocks.5.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000159 prog.kernel_symbol[symbol:visual.blocks.5.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000015a prog.kernel_symbol[symbol:visual.blocks.5.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000015b prog.kernel_symbol[symbol:visual.blocks.5.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000015c prog.kernel_symbol[symbol:visual.blocks.5.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000015d prog.kernel_symbol[symbol:visual.blocks.5.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000015e prog.kernel_symbol[symbol:visual.blocks.5.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000015f prog.kernel_symbol[symbol:visual.blocks.5.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000160 prog.kernel_symbol[symbol:visual.blocks.5.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000161 prog.kernel_symbol[symbol:visual.blocks.5.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000162 prog.kernel_symbol[symbol:visual.blocks.6.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000163 prog.kernel_symbol[symbol:visual.blocks.6.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000164 prog.kernel_symbol[symbol:visual.blocks.6.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000165 prog.kernel_symbol[symbol:visual.blocks.6.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000166 prog.kernel_symbol[symbol:visual.blocks.6.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000167 prog.kernel_symbol[symbol:visual.blocks.6.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000168 prog.kernel_symbol[symbol:visual.blocks.6.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000169 prog.kernel_symbol[symbol:visual.blocks.6.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000016a prog.kernel_symbol[symbol:visual.blocks.6.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000016b prog.kernel_symbol[symbol:visual.blocks.6.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000016c prog.kernel_symbol[symbol:visual.blocks.7.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000016d prog.kernel_symbol[symbol:visual.blocks.7.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000016e prog.kernel_symbol[symbol:visual.blocks.7.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000016f prog.kernel_symbol[symbol:visual.blocks.7.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000170 prog.kernel_symbol[symbol:visual.blocks.7.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000171 prog.kernel_symbol[symbol:visual.blocks.7.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000172 prog.kernel_symbol[symbol:visual.blocks.7.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000173 prog.kernel_symbol[symbol:visual.blocks.7.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000174 prog.kernel_symbol[symbol:visual.blocks.7.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000175 prog.kernel_symbol[symbol:visual.blocks.7.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000176 prog.kernel_symbol[symbol:visual.blocks.8.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000177 prog.kernel_symbol[symbol:visual.blocks.8.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000178 prog.kernel_symbol[symbol:visual.blocks.8.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000179 prog.kernel_symbol[symbol:visual.blocks.8.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000017a prog.kernel_symbol[symbol:visual.blocks.8.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000017b prog.kernel_symbol[symbol:visual.blocks.8.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000017c prog.kernel_symbol[symbol:visual.blocks.8.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000017d prog.kernel_symbol[symbol:visual.blocks.8.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000017e prog.kernel_symbol[symbol:visual.blocks.8.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000017f prog.kernel_symbol[symbol:visual.blocks.8.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000180 prog.kernel_symbol[symbol:visual.blocks.9.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000181 prog.kernel_symbol[symbol:visual.blocks.9.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000182 prog.kernel_symbol[symbol:visual.blocks.9.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000183 prog.kernel_symbol[symbol:visual.blocks.9.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000184 prog.kernel_symbol[symbol:visual.blocks.9.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000185 prog.kernel_symbol[symbol:visual.blocks.9.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000186 prog.kernel_symbol[symbol:visual.blocks.9.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000187 prog.kernel_symbol[symbol:visual.blocks.9.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000188 prog.kernel_symbol[symbol:visual.blocks.9.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000189 prog.kernel_symbol[symbol:visual.blocks.9.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000018a prog.kernel_symbol[symbol:visual.blocks.10.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000018b prog.kernel_symbol[symbol:visual.blocks.10.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000018c prog.kernel_symbol[symbol:visual.blocks.10.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000018d prog.kernel_symbol[symbol:visual.blocks.10.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000018e prog.kernel_symbol[symbol:visual.blocks.10.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000018f prog.kernel_symbol[symbol:visual.blocks.10.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000190 prog.kernel_symbol[symbol:visual.blocks.10.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000191 prog.kernel_symbol[symbol:visual.blocks.10.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000192 prog.kernel_symbol[symbol:visual.blocks.10.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000193 prog.kernel_symbol[symbol:visual.blocks.10.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000194 prog.kernel_symbol[symbol:visual.blocks.11.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000195 prog.kernel_symbol[symbol:visual.blocks.11.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000196 prog.kernel_symbol[symbol:visual.blocks.11.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000197 prog.kernel_symbol[symbol:visual.blocks.11.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000198 prog.kernel_symbol[symbol:visual.blocks.11.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000199 prog.kernel_symbol[symbol:visual.blocks.11.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000019a prog.kernel_symbol[symbol:visual.blocks.11.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000019b prog.kernel_symbol[symbol:visual.blocks.11.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000019c prog.kernel_symbol[symbol:visual.blocks.11.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000019d prog.kernel_symbol[symbol:visual.blocks.11.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000019e prog.kernel_symbol[symbol:visual.blocks.12.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000019f prog.kernel_symbol[symbol:visual.blocks.12.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001a0 prog.kernel_symbol[symbol:visual.blocks.12.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001a1 prog.kernel_symbol[symbol:visual.blocks.12.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001a2 prog.kernel_symbol[symbol:visual.blocks.12.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001a3 prog.kernel_symbol[symbol:visual.blocks.12.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001a4 prog.kernel_symbol[symbol:visual.blocks.12.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001a5 prog.kernel_symbol[symbol:visual.blocks.12.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001a6 prog.kernel_symbol[symbol:visual.blocks.12.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001a7 prog.kernel_symbol[symbol:visual.blocks.12.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001a8 prog.kernel_symbol[symbol:visual.blocks.13.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001a9 prog.kernel_symbol[symbol:visual.blocks.13.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001aa prog.kernel_symbol[symbol:visual.blocks.13.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001ab prog.kernel_symbol[symbol:visual.blocks.13.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001ac prog.kernel_symbol[symbol:visual.blocks.13.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001ad prog.kernel_symbol[symbol:visual.blocks.13.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001ae prog.kernel_symbol[symbol:visual.blocks.13.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001af prog.kernel_symbol[symbol:visual.blocks.13.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001b0 prog.kernel_symbol[symbol:visual.blocks.13.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001b1 prog.kernel_symbol[symbol:visual.blocks.13.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001b2 prog.kernel_symbol[symbol:visual.blocks.14.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001b3 prog.kernel_symbol[symbol:visual.blocks.14.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001b4 prog.kernel_symbol[symbol:visual.blocks.14.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001b5 prog.kernel_symbol[symbol:visual.blocks.14.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001b6 prog.kernel_symbol[symbol:visual.blocks.14.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001b7 prog.kernel_symbol[symbol:visual.blocks.14.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001b8 prog.kernel_symbol[symbol:visual.blocks.14.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001b9 prog.kernel_symbol[symbol:visual.blocks.14.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001ba prog.kernel_symbol[symbol:visual.blocks.14.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001bb prog.kernel_symbol[symbol:visual.blocks.14.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001bc prog.kernel_symbol[symbol:visual.blocks.15.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001bd prog.kernel_symbol[symbol:visual.blocks.15.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001be prog.kernel_symbol[symbol:visual.blocks.15.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001bf prog.kernel_symbol[symbol:visual.blocks.15.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001c0 prog.kernel_symbol[symbol:visual.blocks.15.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001c1 prog.kernel_symbol[symbol:visual.blocks.15.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001c2 prog.kernel_symbol[symbol:visual.blocks.15.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001c3 prog.kernel_symbol[symbol:visual.blocks.15.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001c4 prog.kernel_symbol[symbol:visual.blocks.15.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001c5 prog.kernel_symbol[symbol:visual.blocks.15.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001c6 prog.kernel_symbol[symbol:visual.blocks.16.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001c7 prog.kernel_symbol[symbol:visual.blocks.16.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001c8 prog.kernel_symbol[symbol:visual.blocks.16.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001c9 prog.kernel_symbol[symbol:visual.blocks.16.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001ca prog.kernel_symbol[symbol:visual.blocks.16.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001cb prog.kernel_symbol[symbol:visual.blocks.16.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001cc prog.kernel_symbol[symbol:visual.blocks.16.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001cd prog.kernel_symbol[symbol:visual.blocks.16.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001ce prog.kernel_symbol[symbol:visual.blocks.16.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001cf prog.kernel_symbol[symbol:visual.blocks.16.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001d0 prog.kernel_symbol[symbol:visual.blocks.17.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001d1 prog.kernel_symbol[symbol:visual.blocks.17.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001d2 prog.kernel_symbol[symbol:visual.blocks.17.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001d3 prog.kernel_symbol[symbol:visual.blocks.17.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001d4 prog.kernel_symbol[symbol:visual.blocks.17.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001d5 prog.kernel_symbol[symbol:visual.blocks.17.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001d6 prog.kernel_symbol[symbol:visual.blocks.17.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001d7 prog.kernel_symbol[symbol:visual.blocks.17.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001d8 prog.kernel_symbol[symbol:visual.blocks.17.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001d9 prog.kernel_symbol[symbol:visual.blocks.17.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001da prog.kernel_symbol[symbol:visual.blocks.18.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001db prog.kernel_symbol[symbol:visual.blocks.18.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001dc prog.kernel_symbol[symbol:visual.blocks.18.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001dd prog.kernel_symbol[symbol:visual.blocks.18.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001de prog.kernel_symbol[symbol:visual.blocks.18.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001df prog.kernel_symbol[symbol:visual.blocks.18.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001e0 prog.kernel_symbol[symbol:visual.blocks.18.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001e1 prog.kernel_symbol[symbol:visual.blocks.18.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001e2 prog.kernel_symbol[symbol:visual.blocks.18.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001e3 prog.kernel_symbol[symbol:visual.blocks.18.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001e4 prog.kernel_symbol[symbol:visual.blocks.19.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001e5 prog.kernel_symbol[symbol:visual.blocks.19.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001e6 prog.kernel_symbol[symbol:visual.blocks.19.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001e7 prog.kernel_symbol[symbol:visual.blocks.19.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001e8 prog.kernel_symbol[symbol:visual.blocks.19.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001e9 prog.kernel_symbol[symbol:visual.blocks.19.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001ea prog.kernel_symbol[symbol:visual.blocks.19.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001eb prog.kernel_symbol[symbol:visual.blocks.19.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001ec prog.kernel_symbol[symbol:visual.blocks.19.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001ed prog.kernel_symbol[symbol:visual.blocks.19.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001ee prog.kernel_symbol[symbol:visual.blocks.20.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001ef prog.kernel_symbol[symbol:visual.blocks.20.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001f0 prog.kernel_symbol[symbol:visual.blocks.20.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001f1 prog.kernel_symbol[symbol:visual.blocks.20.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001f2 prog.kernel_symbol[symbol:visual.blocks.20.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001f3 prog.kernel_symbol[symbol:visual.blocks.20.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001f4 prog.kernel_symbol[symbol:visual.blocks.20.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001f5 prog.kernel_symbol[symbol:visual.blocks.20.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x000000000001f6 prog.kernel_symbol[symbol:visual.blocks.20.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x000000000001f7 prog.kernel_symbol[symbol:visual.blocks.20.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x000000000001f8 prog.kernel_symbol[symbol:visual.blocks.21.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001f9 prog.kernel_symbol[symbol:visual.blocks.21.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x000000000001fa prog.kernel_symbol[symbol:visual.blocks.21.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x000000000001fb prog.kernel_symbol[symbol:visual.blocks.21.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x000000000001fc prog.kernel_symbol[symbol:visual.blocks.21.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x000000000001fd prog.kernel_symbol[symbol:visual.blocks.21.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x000000000001fe prog.kernel_symbol[symbol:visual.blocks.21.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x000000000001ff prog.kernel_symbol[symbol:visual.blocks.21.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000200 prog.kernel_symbol[symbol:visual.blocks.21.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000201 prog.kernel_symbol[symbol:visual.blocks.21.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000202 prog.kernel_symbol[symbol:visual.blocks.22.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000203 prog.kernel_symbol[symbol:visual.blocks.22.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000204 prog.kernel_symbol[symbol:visual.blocks.22.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000205 prog.kernel_symbol[symbol:visual.blocks.22.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000206 prog.kernel_symbol[symbol:visual.blocks.22.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000207 prog.kernel_symbol[symbol:visual.blocks.22.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000208 prog.kernel_symbol[symbol:visual.blocks.22.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000209 prog.kernel_symbol[symbol:visual.blocks.22.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000020a prog.kernel_symbol[symbol:visual.blocks.22.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000020b prog.kernel_symbol[symbol:visual.blocks.22.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000020c prog.kernel_symbol[symbol:visual.blocks.23.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000020d prog.kernel_symbol[symbol:visual.blocks.23.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000020e prog.kernel_symbol[symbol:visual.blocks.23.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000020f prog.kernel_symbol[symbol:visual.blocks.23.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000210 prog.kernel_symbol[symbol:visual.blocks.23.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000211 prog.kernel_symbol[symbol:visual.blocks.23.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000212 prog.kernel_symbol[symbol:visual.blocks.23.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000213 prog.kernel_symbol[symbol:visual.blocks.23.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000214 prog.kernel_symbol[symbol:visual.blocks.23.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000215 prog.kernel_symbol[symbol:visual.blocks.23.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000216 prog.kernel_symbol[symbol:visual.blocks.24.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000217 prog.kernel_symbol[symbol:visual.blocks.24.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000218 prog.kernel_symbol[symbol:visual.blocks.24.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000219 prog.kernel_symbol[symbol:visual.blocks.24.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000021a prog.kernel_symbol[symbol:visual.blocks.24.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000021b prog.kernel_symbol[symbol:visual.blocks.24.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000021c prog.kernel_symbol[symbol:visual.blocks.24.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000021d prog.kernel_symbol[symbol:visual.blocks.24.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000021e prog.kernel_symbol[symbol:visual.blocks.24.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000021f prog.kernel_symbol[symbol:visual.blocks.24.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000220 prog.kernel_symbol[symbol:visual.blocks.25.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000221 prog.kernel_symbol[symbol:visual.blocks.25.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000222 prog.kernel_symbol[symbol:visual.blocks.25.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000223 prog.kernel_symbol[symbol:visual.blocks.25.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000224 prog.kernel_symbol[symbol:visual.blocks.25.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000225 prog.kernel_symbol[symbol:visual.blocks.25.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000226 prog.kernel_symbol[symbol:visual.blocks.25.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000227 prog.kernel_symbol[symbol:visual.blocks.25.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000228 prog.kernel_symbol[symbol:visual.blocks.25.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000229 prog.kernel_symbol[symbol:visual.blocks.25.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000022a prog.kernel_symbol[symbol:visual.blocks.26.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000022b prog.kernel_symbol[symbol:visual.blocks.26.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000022c prog.kernel_symbol[symbol:visual.blocks.26.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000022d prog.kernel_symbol[symbol:visual.blocks.26.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000022e prog.kernel_symbol[symbol:visual.blocks.26.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000022f prog.kernel_symbol[symbol:visual.blocks.26.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000230 prog.kernel_symbol[symbol:visual.blocks.26.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000231 prog.kernel_symbol[symbol:visual.blocks.26.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000232 prog.kernel_symbol[symbol:visual.blocks.26.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000233 prog.kernel_symbol[symbol:visual.blocks.26.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000234 prog.kernel_symbol[symbol:visual.blocks.27.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000235 prog.kernel_symbol[symbol:visual.blocks.27.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000236 prog.kernel_symbol[symbol:visual.blocks.27.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000237 prog.kernel_symbol[symbol:visual.blocks.27.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000238 prog.kernel_symbol[symbol:visual.blocks.27.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000239 prog.kernel_symbol[symbol:visual.blocks.27.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000023a prog.kernel_symbol[symbol:visual.blocks.27.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000023b prog.kernel_symbol[symbol:visual.blocks.27.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000023c prog.kernel_symbol[symbol:visual.blocks.27.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000023d prog.kernel_symbol[symbol:visual.blocks.27.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000023e prog.kernel_symbol[symbol:visual.blocks.28.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000023f prog.kernel_symbol[symbol:visual.blocks.28.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000240 prog.kernel_symbol[symbol:visual.blocks.28.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000241 prog.kernel_symbol[symbol:visual.blocks.28.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000242 prog.kernel_symbol[symbol:visual.blocks.28.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000243 prog.kernel_symbol[symbol:visual.blocks.28.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000244 prog.kernel_symbol[symbol:visual.blocks.28.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000245 prog.kernel_symbol[symbol:visual.blocks.28.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000246 prog.kernel_symbol[symbol:visual.blocks.28.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000247 prog.kernel_symbol[symbol:visual.blocks.28.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000248 prog.kernel_symbol[symbol:visual.blocks.29.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000249 prog.kernel_symbol[symbol:visual.blocks.29.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000024a prog.kernel_symbol[symbol:visual.blocks.29.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000024b prog.kernel_symbol[symbol:visual.blocks.29.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x0000000000024c prog.kernel_symbol[symbol:visual.blocks.29.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x0000000000024d prog.kernel_symbol[symbol:visual.blocks.29.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x0000000000024e prog.kernel_symbol[symbol:visual.blocks.29.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x0000000000024f prog.kernel_symbol[symbol:visual.blocks.29.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000250 prog.kernel_symbol[symbol:visual.blocks.29.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000251 prog.kernel_symbol[symbol:visual.blocks.29.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000252 prog.kernel_symbol[symbol:visual.blocks.30.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000253 prog.kernel_symbol[symbol:visual.blocks.30.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000254 prog.kernel_symbol[symbol:visual.blocks.30.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x00000000000255 prog.kernel_symbol[symbol:visual.blocks.30.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000256 prog.kernel_symbol[symbol:visual.blocks.30.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000257 prog.kernel_symbol[symbol:visual.blocks.30.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000258 prog.kernel_symbol[symbol:visual.blocks.30.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000259 prog.kernel_symbol[symbol:visual.blocks.30.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x0000000000025a prog.kernel_symbol[symbol:visual.blocks.30.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x0000000000025b prog.kernel_symbol[symbol:visual.blocks.30.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x0000000000025c prog.kernel_symbol[symbol:visual.blocks.31.norm1, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000025d prog.kernel_symbol[symbol:visual.blocks.31.norm2, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x0000000000025e prog.kernel_symbol[symbol:visual.blocks.31.attn.qkv, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":3840}]
+        addr:0x0000000000025f prog.kernel_symbol[symbol:visual.blocks.31.attn.vision_rope_q, op_type:SiLU, op_options:null]
+        addr:0x00000000000260 prog.kernel_symbol[symbol:visual.blocks.31.attn.vision_rope_k, op_type:SiLU, op_options:null]
+        addr:0x00000000000261 prog.kernel_symbol[symbol:visual.blocks.31.attn.softmax, op_type:Softmax, op_options:{"axis":-1}]
+        addr:0x00000000000262 prog.kernel_symbol[symbol:visual.blocks.31.attn.proj, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":1280}]
+        addr:0x00000000000263 prog.kernel_symbol[symbol:visual.blocks.31.mlp.fc1, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":1280,"out_channels":5120}]
+        addr:0x00000000000264 prog.kernel_symbol[symbol:visual.blocks.31.mlp.act, op_type:QuickGELU, op_options:null]
+        addr:0x00000000000265 prog.kernel_symbol[symbol:visual.blocks.31.mlp.fc2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1280}]
+        addr:0x00000000000266 prog.kernel_symbol[symbol:visual.merger.ln_q, op_type:LayerNorm, op_options:{"bias":true,"elementwise_affine":true,"eps":9.999999974752427e-07,"normalized_shape":[1280]}]
+        addr:0x00000000000267 prog.kernel_symbol[symbol:visual.merger.mlp.0, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":5120}]
+        addr:0x00000000000268 prog.kernel_symbol[symbol:visual.merger.mlp.gelu, op_type:GELU, op_options:null]
+        addr:0x00000000000269 prog.kernel_symbol[symbol:visual.merger.mlp.2, op_type:Linear, op_options:{"bias":true,"impl_type":"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32","in_channels":5120,"out_channels":1536}]
     }
 }
  

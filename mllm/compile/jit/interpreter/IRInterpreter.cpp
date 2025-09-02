@@ -90,6 +90,12 @@ void IRInterpreter::loadAndLinkPrograms(const std::string& source_code, const nl
                  && instruction["op"] == "value_symbol") {
         symbol_table_.program_id_2_op_table[instruction["program_id"]] =
             ProgramIRInstruction{ir::NodeKind::RK_Op_ProgramIROp_ValueSymbolOp, std::nullopt};
+
+        // Register constant symbol.
+        if (instruction.contains("constant")) {
+          uuid_2_tensor_[instruction["outputs"][0]] = Tensor::fromVector<float>(
+              instruction["constant"].get<std::vector<float>>(), instruction["shape"].get<Tensor::shape_t>());
+        }
       }
     }
   }
@@ -232,7 +238,6 @@ std::vector<Tensor> IRInterpreter::run(const std::vector<Tensor>& inputs) {
         break;
       }
     }
-    Dbg(program_counter_, ret_val);
     if (ret_val) { break; }
   } while (program_counter_ < prog_size);
 

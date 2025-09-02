@@ -32,12 +32,21 @@ RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, const TensorValue::ptr_t& te
   // The symbol is registered
   MLLM_RT_ASSERT((tensor_v->tensor_.memType() <= TensorMemTypes::kParams_End
                   && tensor_v->tensor_.memType() >= TensorMemTypes::kParams_Start)
-                 || (tensor_v->tensor_.memType() == TensorMemTypes::kGlobal));
+                 || (tensor_v->tensor_.memType() == TensorMemTypes::kGlobal) || tensor_v->getAttr("constant"));
 
-  auto symbol_attr = ctx->create<SymbolAttr>(tensor_v->getSymbolAttr()->str());
-  ret->setSymbolAttr(symbol_attr);
+  if (tensor_v->hasSymbolAttr()) {
+    // Symbol
+    auto symbol_attr = ctx->create<SymbolAttr>(tensor_v->getSymbolAttr()->str());
+    ret->setSymbolAttr(symbol_attr);
 
-  ctx->addToSymbolTable(ret, symbol_attr->str());
+    ctx->addToSymbolTable(ret, symbol_attr->str());
+  } else {
+    // Constant
+    auto symbol_attr = ctx->create<SymbolAttr>("constant_" + std::to_string(tensor_v->tensor_.uuid()));
+    ret->setSymbolAttr(symbol_attr);
+
+    ctx->addToSymbolTable(ret, symbol_attr->str());
+  }
 
   return ret;
 }

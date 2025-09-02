@@ -17,6 +17,7 @@
 #include "mllm/compile/passes/ProgramModeConfigPass.hpp"
 #include "mllm/compile/passes/ProgramLoweringPipeline.hpp"
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
+#include "mllm/compile/passes/ExtractConstantTensorPass.hpp"
 #include "mllm/compile/passes/ProgramIntrinsicIdIndexPass.hpp"
 #include "mllm/compile/passes/FlattenTensorAndLinalgSymbol2ProgramSymbolPass.hpp"
 #include "mllm/utils/Enumerate.hpp"
@@ -335,6 +336,7 @@ std::vector<Pass::ptr_t> createProgramLoweringPipeline(const ProgramLoweringPipe
   std::vector<Pass::ptr_t> ret;
 
   // Transform Linalg op first
+  ret.push_back(createExtractConstantTensorPass());
   ret.push_back(createLinalg2ProgramPass());
   ret.push_back(createTensor2ProgramPass());
 

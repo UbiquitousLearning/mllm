@@ -80,10 +80,26 @@ BoolAttr::BoolAttr() : BuiltinIRAttr(RK_Attr_BuiltinIRAttr_BoolAttr) {}
 
 BoolAttr::BoolAttr(const NodeKind& kind) : BuiltinIRAttr(kind) {}
 
+void BoolAttr::dump(IRPrinter& p) { p.print("{}", data()); }
+
 bool& BoolAttr::data() { return data_; }
 
 BoolAttr::ptr_t BoolAttr::build(IRContext*, bool data) {
   auto ret = std::make_shared<BoolAttr>();
+  ret->data() = data;
+  return ret;
+}
+
+VectorFP32Attr::VectorFP32Attr() : BuiltinIRAttr(RK_Attr_BuiltinIRAttr_VectorFP32Attr) {}
+
+VectorFP32Attr::VectorFP32Attr(const NodeKind& kind) : BuiltinIRAttr(kind) {}
+
+void VectorFP32Attr::dump(IRPrinter& p) { p.print("{}", data()); }
+
+std::vector<float>& VectorFP32Attr::data() { return data_; }
+
+VectorFP32Attr::ptr_t VectorFP32Attr::build(IRContext*, const std::vector<float>& data) {
+  auto ret = std::make_shared<VectorFP32Attr>();
   ret->data() = data;
   return ret;
 }
