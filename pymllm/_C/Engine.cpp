@@ -8,11 +8,6 @@
 #include "pymllm/_C/Engine.hpp"
 
 void registerEngineBinding(py::module_& m) {
-  pybind11::enum_<mllm::ModelFileVersion>(m, "ModelFileVersion")
-      .value("V1", mllm::ModelFileVersion::kV1)
-      .value("V2", mllm::ModelFileVersion::kV2)
-      .value("UserTemporary", mllm::ModelFileVersion::kUserTemporary);
-
   pybind11::class_<mllm::SessionTCB, mllm::SessionTCB::ptr_t>(m, "SessionTCB")
       .def_readwrite("trace_mode", &mllm::SessionTCB::trace_mode);
 
@@ -49,6 +44,8 @@ void registerEngineBinding(py::module_& m) {
       .def("sync_wait", &mllm::DispatcherManager::syncWait)
       .def("submit", &mllm::DispatcherManager::submit);
 
+  pybind11::class_<mllm::Backend, mllm::Backend::ptr_t>(m, "Backend").def("create_op", &mllm::Backend::createOp);
+
   pybind11::class_<mllm::Context>(m, "Context")
       .def_static("instance", &mllm::Context::instance, py::return_value_policy::reference)
       .def("memory_manager", &mllm::Context::memoryManager, py::return_value_policy::reference)
@@ -58,7 +55,8 @@ void registerEngineBinding(py::module_& m) {
       .def("main_thread", &mllm::Context::mainThread)
       .def("set_random_seed", &mllm::Context::setRandomSeed)
       .def("get_random_seed", &mllm::Context::getRandomSeed)
-      .def("ref_session_threads", &mllm::Context::refSessionThreads);
+      .def("ref_session_threads", &mllm::Context::refSessionThreads)
+      .def("get_backend", &mllm::Context::getBackend, py::return_value_policy::reference);
 
   pybind11::class_<mllm::ConfigFile>(m, "ConfigFile")
       .def(py::init<>())

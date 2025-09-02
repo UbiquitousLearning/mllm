@@ -1,12 +1,13 @@
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
 
-from .._C import LayerImpl, OpTypes, LinearImplTypes, LinearOpOptions
+from .._C import Tensor, CXXLayer, LayerImpl, OpTypes, LinearImplTypes, LinearOpOptions
 
 
 class Layer:
     def __init__(self, op_type: OpTypes, options):
         self.__cxx_impl = LayerImpl(op_type, options)
+        self.__cxx_layer = CXXLayer(self.__cxx_impl)
 
     def set_name(self, name):
         """
@@ -27,10 +28,10 @@ class Layer:
         return self.__cxx_impl
 
     def forward(self, *args):
-        """
-        Forward pass of the layer
-        """
-        raise NotImplementedError("forward method must be implemented in subclass")
+        for arg in args:
+            if not isinstance(arg, Tensor):
+                raise TypeError("All arguments must be C++ Tensor objects")
+        return self.__cxx_layer.forward(list(args))
 
     def __call__(self, *args, **kwargs):
         """
@@ -62,8 +63,7 @@ class Linear(Layer):
         self.impl_type = impl_type
 
     def forward(self, *args):
-        # TODO: Impl details
-        return super().forward(*args)
+        return super().forward(*args)[0]
 
     def __repr__(self):
         """

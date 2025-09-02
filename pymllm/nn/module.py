@@ -1,7 +1,7 @@
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
 
-from .._C import ModuleImpl
+from .._C import ModuleImpl, Context
 from .layer import Layer
 
 
@@ -12,9 +12,8 @@ class Module:
         object.__setattr__(self, "_modules", {})
 
         # Set self name as the class name by default
-        module_name = self.__class__.__name__
-        self.set_name(module_name)
-        self.set_absolute_name(module_name)
+        self.set_name("<top_module>")
+        self.set_absolute_name("<top_module>")
 
     def __setattr__(self, name, value):
         """
@@ -23,12 +22,29 @@ class Module:
         """
         if isinstance(value, Layer):
             value.set_name(name)
-            value.set_absolute_name(self.__cxx_impl.get_absolute_name() + "." + name)
+            if self.__cxx_impl.get_absolute_name() == "<top_module>":
+                value.set_absolute_name(name)
+            else:
+                value.set_absolute_name(
+                    self.__cxx_impl.get_absolute_name() + "." + name
+                )
             self._layers[name] = value
             self.__cxx_impl.reg_child_node(value.cxx_impl())
+            _op = (
+                Context.instance()
+                .get_backend(value.cxx_impl().get_device())
+                .create_op(value.cxx_impl().op_type(), value.cxx_impl().ref_options())
+            )
+            _op.set_name(value.cxx_impl().get_absolute_name())
+            value.cxx_impl().set_instanced_op(_op)
         if isinstance(value, Module):
             value.set_name(name)
-            value.set_absolute_name(self.__cxx_impl.get_absolute_name() + "." + name)
+            if self.__cxx_impl.get_absolute_name() == "<top_module>":
+                value.set_absolute_name(name)
+            else:
+                value.set_absolute_name(
+                    self.__cxx_impl.get_absolute_name() + "." + name
+                )
             self._modules[name] = value
             self.__cxx_impl.reg_child_node(value.cxx_impl())
         object.__setattr__(self, name, value)

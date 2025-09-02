@@ -57,7 +57,7 @@ void registerNnBinding(pybind11::module_& m) {
       .def("params", &ModuleImpl::params)
       .def("to", &ModuleImpl::to);
 
-  py::class_<Layer>(m, "CXXLayer").def(py::init<const LayerImpl::ptr_t&>(), py::arg("impl")).def("__main", &Layer::__main);
+  py::class_<Layer>(m, "CXXLayer").def(py::init<const LayerImpl::ptr_t&>(), py::arg("impl")).def("forward", &Layer::__main);
 
   py::class_<Module>(m, "CXXModule")
       .def(py::init<const ModuleImpl::ptr_t&>(), py::arg("impl"))
