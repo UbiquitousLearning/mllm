@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-31 13:59:22
+// Auto generated: 2025-09-02 09:54:01
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -248,6 +248,9 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_PROGRAMIROP_MODECONFIGOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_ModeConfigOp && (v)->getKind() <= RK_Op_ProgramIROp_ModeConfigOp
 
+#define RTTI_RK_OP_PROGRAMIROP_BINDOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_BindOp && (v)->getKind() <= RK_Op_ProgramIROp_BindOp
+
 #define RTTI_RK_OP_DBGIROP_IMPL(v) return (v)->getKind() >= RK_Op_DbgIROp && (v)->getKind() <= RK_Op_DbgIROp_Last
 
 #define RTTI_RK_OP_DBGIROP_COMMENTOP_IMPL(v) \
@@ -303,6 +306,9 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_ATTR_BUILTINIRATTR_BOOLATTR_IMPL(v) \
   return (v)->getKind() >= RK_Attr_BuiltinIRAttr_BoolAttr && (v)->getKind() <= RK_Attr_BuiltinIRAttr_BoolAttr
+
+#define RTTI_RK_ATTR_BUILTINIRATTR_VECTORFP32ATTR_IMPL(v) \
+  return (v)->getKind() >= RK_Attr_BuiltinIRAttr_VectorFP32Attr && (v)->getKind() <= RK_Attr_BuiltinIRAttr_VectorFP32Attr
 
 #define RTTI_RK_ATTR_CONTROLFLOWIRATTR_IMPL(v) \
   return (v)->getKind() >= RK_Attr_ControlFlowIRAttr && (v)->getKind() <= RK_Attr_ControlFlowIRAttr

@@ -207,6 +207,7 @@ def define_builtin_ir(ir: dict):
     attr.derive(Cls("StrAttr"))
     attr.derive(Cls("SymbolAttr"))
     attr.derive(Cls("BoolAttr"))
+    attr.derive(Cls("VectorFP32Attr"))
 
 
 def define_lianlg_ir(ir: dict):
@@ -333,6 +334,7 @@ def define_program_ir(ir: dict):
     op.derive(Cls("AllocOp"))
     op.derive(Cls("FreeOp"))
     op.derive(Cls("ModeConfigOp"))
+    op.derive(Cls("BindOp"))
 
 
 def define_dbg_ir(ir: dict):

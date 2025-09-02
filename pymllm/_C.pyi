@@ -2,7 +2,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__ = ['AbstractNnNode', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__: list[str] = ['AbstractNnNode', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
 class AbstractNnNode:
     def depth_decrease(self) -> None:
         ...
@@ -567,51 +567,51 @@ class OpTypes:
       OpType_End
     """
     Add: typing.ClassVar[OpTypes]  # value = <OpTypes.Add: 2>
-    CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 17>
-    CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 16>
-    Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 33>
-    Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 35>
-    Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 41>
-    Conv1D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv1D: 26>
-    Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 25>
-    Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 24>
-    Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 32>
+    CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 18>
+    CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 17>
+    Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 34>
+    Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 36>
+    Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 42>
+    Conv1D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv1D: 27>
+    Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 26>
+    Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 25>
+    Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 33>
     Div: typing.ClassVar[OpTypes]  # value = <OpTypes.Div: 5>
     Embedding: typing.ClassVar[OpTypes]  # value = <OpTypes.Embedding: 7>
     Fill: typing.ClassVar[OpTypes]  # value = <OpTypes.Fill: 1>
-    FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 21>
-    GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 27>
-    GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 51>
-    GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 52>
-    KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 15>
-    LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 28>
+    FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 22>
+    GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 28>
+    GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 55>
+    GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 56>
+    KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 16>
+    LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 29>
     Linear: typing.ClassVar[OpTypes]  # value = <OpTypes.Linear: 8>
     MatMul: typing.ClassVar[OpTypes]  # value = <OpTypes.MatMul: 6>
     Mul: typing.ClassVar[OpTypes]  # value = <OpTypes.Mul: 4>
-    MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 29>
-    Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 34>
-    OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 53>
+    MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 30>
+    Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 35>
+    OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 57>
     OpType_Start: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_Start: 0>
-    Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 23>
-    QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 31>
-    RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 13>
-    ReLU: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU: 36>
-    ReLU2: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU2: 37>
-    ReduceMax: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMax: 38>
-    ReduceMin: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMin: 39>
-    ReduceSum: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceSum: 40>
-    Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 22>
-    Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 42>
+    Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 24>
+    QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 32>
+    RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 14>
+    ReLU: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU: 37>
+    ReLU2: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU2: 38>
+    ReduceMax: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMax: 39>
+    ReduceMin: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMin: 40>
+    ReduceSum: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceSum: 41>
+    Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 23>
+    Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 43>
     RoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.RoPE: 9>
-    SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 14>
+    SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 15>
     Softmax: typing.ClassVar[OpTypes]  # value = <OpTypes.Softmax: 10>
-    Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 19>
+    Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 20>
     Sub: typing.ClassVar[OpTypes]  # value = <OpTypes.Sub: 3>
-    Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 12>
-    View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 20>
-    VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 30>
-    X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 18>
-    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 12>, 'RMSNorm': <OpTypes.RMSNorm: 13>, 'SiLU': <OpTypes.SiLU: 14>, 'KVCache': <OpTypes.KVCache: 15>, 'CausalMask': <OpTypes.CausalMask: 16>, 'CastType': <OpTypes.CastType: 17>, 'X2X': <OpTypes.X2X: 18>, 'Split': <OpTypes.Split: 19>, 'View': <OpTypes.View: 20>, 'FlashAttention2': <OpTypes.FlashAttention2: 21>, 'Repeat': <OpTypes.Repeat: 22>, 'Permute': <OpTypes.Permute: 23>, 'Conv3D': <OpTypes.Conv3D: 24>, 'Conv2D': <OpTypes.Conv2D: 25>, 'Conv1D': <OpTypes.Conv1D: 26>, 'GELU': <OpTypes.GELU: 27>, 'LayerNorm': <OpTypes.LayerNorm: 28>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 29>, 'VisionRoPE': <OpTypes.VisionRoPE: 30>, 'QuickGELU': <OpTypes.QuickGELU: 31>, 'Copy': <OpTypes.Copy: 32>, 'Clone': <OpTypes.Clone: 33>, 'Neg': <OpTypes.Neg: 34>, 'Concat': <OpTypes.Concat: 35>, 'ReLU': <OpTypes.ReLU: 36>, 'ReLU2': <OpTypes.ReLU2: 37>, 'ReduceMax': <OpTypes.ReduceMax: 38>, 'ReduceMin': <OpTypes.ReduceMin: 39>, 'ReduceSum': <OpTypes.ReduceSum: 40>, 'Contiguous': <OpTypes.Contiguous: 41>, 'Reshape': <OpTypes.Reshape: 42>, 'GraphBegin': <OpTypes.GraphBegin: 51>, 'GraphEnd': <OpTypes.GraphEnd: 52>, 'OpType_End': <OpTypes.OpType_End: 53>}
+    Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 13>
+    View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 21>
+    VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 31>
+    X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 19>
+    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 13>, 'RMSNorm': <OpTypes.RMSNorm: 14>, 'SiLU': <OpTypes.SiLU: 15>, 'KVCache': <OpTypes.KVCache: 16>, 'CausalMask': <OpTypes.CausalMask: 17>, 'CastType': <OpTypes.CastType: 18>, 'X2X': <OpTypes.X2X: 19>, 'Split': <OpTypes.Split: 20>, 'View': <OpTypes.View: 21>, 'FlashAttention2': <OpTypes.FlashAttention2: 22>, 'Repeat': <OpTypes.Repeat: 23>, 'Permute': <OpTypes.Permute: 24>, 'Conv3D': <OpTypes.Conv3D: 25>, 'Conv2D': <OpTypes.Conv2D: 26>, 'Conv1D': <OpTypes.Conv1D: 27>, 'GELU': <OpTypes.GELU: 28>, 'LayerNorm': <OpTypes.LayerNorm: 29>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 30>, 'VisionRoPE': <OpTypes.VisionRoPE: 31>, 'QuickGELU': <OpTypes.QuickGELU: 32>, 'Copy': <OpTypes.Copy: 33>, 'Clone': <OpTypes.Clone: 34>, 'Neg': <OpTypes.Neg: 35>, 'Concat': <OpTypes.Concat: 36>, 'ReLU': <OpTypes.ReLU: 37>, 'ReLU2': <OpTypes.ReLU2: 38>, 'ReduceMax': <OpTypes.ReduceMax: 39>, 'ReduceMin': <OpTypes.ReduceMin: 40>, 'ReduceSum': <OpTypes.ReduceSum: 41>, 'Contiguous': <OpTypes.Contiguous: 42>, 'Reshape': <OpTypes.Reshape: 43>, 'GraphBegin': <OpTypes.GraphBegin: 55>, 'GraphEnd': <OpTypes.GraphEnd: 56>, 'OpType_End': <OpTypes.OpType_End: 57>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:

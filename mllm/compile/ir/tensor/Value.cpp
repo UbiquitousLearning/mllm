@@ -4,6 +4,7 @@
 #include <string>
 
 #include "mllm/compile/ir/tensor/Value.hpp"
+#include "mllm/compile/ir/builtin/Attribute.hpp"
 #include "mllm/core/DataTypes.hpp"
 
 namespace mllm::ir::tensor {
@@ -66,6 +67,12 @@ void TensorValue::dump(IRPrinter& p) {
   if (hasSymbolAttr()) {
     IRPrinter::lsbracket();
     p.print("@{}", getSymbolAttr()->str());
+    IRPrinter::rsbracket();
+  }
+
+  if (getAttr("constant")) {
+    IRPrinter::lsbracket();
+    p.print("constant: {}", getAttr("constant")->cast_<ir::VectorFP32Attr>()->data());
     IRPrinter::rsbracket();
   }
 }

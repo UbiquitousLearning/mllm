@@ -117,6 +117,8 @@ class BoolAttr : public BuiltinIRAttr {
 
   explicit BoolAttr(const NodeKind& kind);
 
+  void dump(IRPrinter& p) override;
+
   bool& data();
 
   static ptr_t build(IRContext*, bool data);
@@ -125,6 +127,28 @@ class BoolAttr : public BuiltinIRAttr {
 
  private:
   bool data_;
+};
+
+class VectorFP32Attr : public BuiltinIRAttr {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(VectorFP32Attr);
+
+  ~VectorFP32Attr() override = default;
+
+  VectorFP32Attr();
+
+  explicit VectorFP32Attr(const NodeKind& kind);
+
+  void dump(IRPrinter& p) override;
+
+  std::vector<float>& data();
+
+  static ptr_t build(IRContext*, const std::vector<float>& data);
+
+  static inline bool classof(const Node* node) { RTTI_RK_ATTR_BUILTINIRATTR_VECTORFP32ATTR_IMPL(node); }
+
+ private:
+  std::vector<float> data_;
 };
 
 }  // namespace mllm::ir

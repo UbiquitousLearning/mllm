@@ -27,6 +27,7 @@
 #include "mllm/utils/Argparse.hpp"              // IWYU pragma: export
 #include "mllm/nn/Nn.hpp"                       // IWYU pragma: export
 #include "mllm/engine/ConfigFile.hpp"           // IWYU pragma: export
+#include "mllm/utils/ScopedRedirect.hpp"        // IWYU pragma: export
 
 namespace mllm::test {
 

@@ -38,6 +38,9 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     auto ctx = (ir::IRContext*)trace_context;                                                              \
     auto i_irs = ir::tensor::wrapTensors2TensorIR(ctx, inputs);                                            \
     auto o_irs = ir::tensor::wrapTensors2TensorIR(ctx, outputs);                                           \
+    if (options_.getInputsConstant(1)) {                                                                   \
+      i_irs[1]->setAttr("constant", ctx->create<ir::VectorFP32Attr>(inputs[1].toVector<float>()));         \
+    }                                                                                                      \
     ctx->create<ir::linalg::name>(shared_from_this(), i_irs, o_irs);                                       \
   }                                                                                                        \
   void name::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {                    \

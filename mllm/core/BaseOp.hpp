@@ -22,26 +22,48 @@ class BaseOpOptions {
   BaseOpOptions(size_t inputs_len, size_t outputs_len, DataTypes default_dtype = kFloat32)
       : inputs_dtypes_(inputs_len, default_dtype), outputs_dtypes_(outputs_len, default_dtype) {}
 
-  DerivedT& setInputsDtype(size_t pos, DataTypes dtype) {
+  inline DerivedT& setInputsDtype(size_t pos, DataTypes dtype) {
     if (pos >= inputs_dtypes_.size()) { inputs_dtypes_.resize(pos + 1, kFloat32); }
     inputs_dtypes_[pos] = dtype;
     return *static_cast<DerivedT*>(this);
   }
 
-  DerivedT& setOutputsDtype(size_t pos, DataTypes dtype) {
+  inline DerivedT& setOutputsDtype(size_t pos, DataTypes dtype) {
     if (pos >= outputs_dtypes_.size()) { outputs_dtypes_.resize(pos + 1, kFloat32); }
     outputs_dtypes_[pos] = dtype;
     return *static_cast<DerivedT*>(this);
   }
 
-  [[nodiscard]] int getThreads() const { return threads_; }
+  [[nodiscard]] inline int getThreads() const { return threads_; }
 
-  void setThreads(int threads) { threads_ = threads; }
+  inline void setThreads(int threads) { threads_ = threads; }
+
+  inline void setInputsConstant(size_t pos, uint8_t constant) {
+    if (pos >= inputs_constant_.size()) { inputs_constant_.resize(pos + 1, 0); }
+    inputs_constant_[pos] = constant;
+  }
+
+  inline void setOutputsConstant(size_t pos, uint8_t constant) {
+    if (pos >= outputs_constant_.size()) { outputs_constant_.resize(pos + 1, 0); }
+    outputs_constant_[pos] = constant;
+  }
+
+  [[nodiscard]] inline uint8_t getInputsConstant(size_t pos) const {
+    if (pos >= inputs_constant_.size()) { return 0; }
+    return inputs_constant_[pos];
+  }
+
+  [[nodiscard]] inline uint8_t getOutputsConstant(size_t pos) const {
+    if (pos >= outputs_constant_.size()) { return 0; }
+    return outputs_constant_[pos];
+  }
 
  private:
   int threads_ = 4;
   std::vector<DataTypes> inputs_dtypes_;
   std::vector<DataTypes> outputs_dtypes_;
+  std::vector<uint8_t> inputs_constant_;
+  std::vector<uint8_t> outputs_constant_;
 };
 
 // Type Erase

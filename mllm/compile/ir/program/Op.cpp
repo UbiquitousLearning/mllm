@@ -143,9 +143,16 @@ LabelOp::ptr_t LabelOp::build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_at
 
 ExitOp::ExitOp() : ProgramIROp(RK_Op_ProgramIROp_ExitOp) {}
 
-void ExitOp::dump(IRPrinter& p) { p.print("prog.exit"); }
+void ExitOp::dump(IRPrinter& p) {
+  p.print("prog.exit");
+  Op::dump(p);
+  dumpAttributes(p);
+}
 
-ExitOp::ptr_t ExitOp::build(IRContext* ctx) { return std::make_shared<ExitOp>(); }
+ExitOp::ptr_t ExitOp::build(IRContext* ctx) {
+  auto ret = std::make_shared<ExitOp>();
+  return ret;
+}
 
 RetOp::RetOp() : ProgramIROp(RK_Op_ProgramIROp_RetOp) {}
 
@@ -217,6 +224,21 @@ void ModeConfigOp::dump(IRPrinter& p) {
 ModeConfigOp::ptr_t ModeConfigOp::build(IRContext* ctx, ModeConfigFlag flag) {
   auto ret = std::make_shared<ModeConfigOp>();
   ret->setAttr("flag", ctx->create<IntAttr>(static_cast<uint32_t>(flag)));
+  return ret;
+}
+
+BindOp::BindOp() : ProgramIROp(RK_Op_ProgramIROp_BindOp) {}
+
+void BindOp::dump(IRPrinter& p) {
+  p.print("prog.bind");
+  dumpAttributes(p);
+}
+
+BindOp::ptr_t BindOp::build(IRContext* ctx, uint32_t input_pos, uint32_t program_uuid, BindType type) {
+  auto ret = std::make_shared<BindOp>();
+  ret->setAttr("input_pos", ctx->create<IntAttr>(input_pos));
+  ret->setAttr("program_uuid", ctx->create<IntAttr>(program_uuid));
+  ret->setAttr("type", ctx->create<IntAttr>(static_cast<int32_t>(type)));
   return ret;
 }
 

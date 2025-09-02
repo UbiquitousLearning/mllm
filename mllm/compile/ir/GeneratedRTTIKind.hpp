@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-31 13:59:22
+// Auto generated: 2025-09-02 09:54:01
 // do not modify this file
 #pragma once
 
@@ -99,6 +99,7 @@ enum NodeKind : uint32_t {
   RK_Op_ProgramIROp_AllocOp,
   RK_Op_ProgramIROp_FreeOp,
   RK_Op_ProgramIROp_ModeConfigOp,
+  RK_Op_ProgramIROp_BindOp,
   RK_Op_ProgramIROp_Last,
   RK_Op_DbgIROp,
   RK_Op_DbgIROp_CommentOp,
@@ -126,6 +127,7 @@ enum NodeKind : uint32_t {
   RK_Attr_BuiltinIRAttr_StrAttr,
   RK_Attr_BuiltinIRAttr_SymbolAttr,
   RK_Attr_BuiltinIRAttr_BoolAttr,
+  RK_Attr_BuiltinIRAttr_VectorFP32Attr,
   RK_Attr_BuiltinIRAttr_Last,
   RK_Attr_ControlFlowIRAttr,
   RK_Attr_ProgramIRAttr,
