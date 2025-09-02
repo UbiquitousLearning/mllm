@@ -64,4 +64,43 @@ void registerNnBinding(pybind11::module_& m) {
       .def("__send_graph_begin", &Module::__send_graph_begin)
       .def("__send_graph_end", &Module::__send_graph_end)
       .def("__trace", &Module::__trace);
+
+  // Bind Options classes
+  py::class_<mllm::aops::RMSNormOpOptions>(m, "RMSNormOpOptions")
+      .def(py::init<>())
+      .def_readwrite("epsilon", &mllm::aops::RMSNormOpOptions::epsilon)
+      .def_readwrite("add_unit_offset", &mllm::aops::RMSNormOpOptions::add_unit_offset);
+
+  py::class_<mllm::aops::SiLUOpOptions>(m, "SiLUOpOptions").def(py::init<>());
+
+  py::class_<mllm::aops::EmbeddingOpOptions>(m, "EmbeddingOpOptions")
+      .def(py::init<>())
+      .def_readwrite("vocab_size", &mllm::aops::EmbeddingOpOptions::vocab_size)
+      .def_readwrite("hidden_size", &mllm::aops::EmbeddingOpOptions::hidden_size);
+
+  py::class_<mllm::aops::GELUOpOptions>(m, "GELUOpOptions").def(py::init<>());
+
+  py::class_<mllm::aops::LayerNormOpOptions>(m, "LayerNormOpOptions")
+      .def(py::init<>())
+      .def_readwrite("normalized_shape", &mllm::aops::LayerNormOpOptions::normalized_shape)
+      .def_readwrite("elementwise_affine", &mllm::aops::LayerNormOpOptions::elementwise_affine)
+      .def_readwrite("bias", &mllm::aops::LayerNormOpOptions::bias)
+      .def_readwrite("eps", &mllm::aops::LayerNormOpOptions::eps);
+
+  py::class_<mllm::aops::SoftmaxOpOptions>(m, "SoftmaxOpOptions")
+      .def(py::init<>())
+      .def_readwrite("axis", &mllm::aops::SoftmaxOpOptions::axis);
+
+  py::class_<mllm::aops::CausalMaskOpOptions>(m, "CausalMaskOpOptions")
+      .def(py::init<>())
+      .def_readwrite("sliding_window", &mllm::aops::CausalMaskOpOptions::sliding_window)
+      .def_readwrite("window_size", &mllm::aops::CausalMaskOpOptions::window_size);
+
+  py::class_<mllm::aops::KVCacheOpOptions>(m, "KVCacheOpOptions")
+      .def(py::init<>())
+      .def_readwrite("layer_idx", &mllm::aops::KVCacheOpOptions::layer_idx)
+      .def_readwrite("q_head", &mllm::aops::KVCacheOpOptions::q_head)
+      .def_readwrite("kv_head", &mllm::aops::KVCacheOpOptions::kv_head)
+      .def_readwrite("head_dim", &mllm::aops::KVCacheOpOptions::head_dim)
+      .def_readwrite("use_fa2", &mllm::aops::KVCacheOpOptions::use_fa2);
 }

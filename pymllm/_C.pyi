@@ -2,7 +2,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__ = ['AbstractNnNode', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__: list[str] = ['AbstractNnNode', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'CausalMaskOpOptions', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'EmbeddingOpOptions', 'GELUOpOptions', 'KVCacheOpOptions', 'LayerImpl', 'LayerNormOpOptions', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'RMSNormOpOptions', 'SessionTCB', 'SiLUOpOptions', 'SoftmaxOpOptions', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
 class AbstractNnNode:
     def depth_decrease(self) -> None:
         ...
@@ -75,6 +75,16 @@ class CXXModule:
     def __send_graph_end(self, arg0: collections.abc.Sequence[Tensor]) -> None:
         ...
     def __trace(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[...]) -> list[Tensor]:
+        ...
+class CausalMaskOpOptions:
+    sliding_window: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def window_size(self) -> int:
+        ...
+    @window_size.setter
+    def window_size(self, arg0: typing.SupportsInt) -> None:
         ...
 class ConfigFile:
     @typing.overload
@@ -304,6 +314,52 @@ class DispatcherManagerOptions:
     @num_threads.setter
     def num_threads(self, arg0: typing.SupportsInt) -> None:
         ...
+class EmbeddingOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def hidden_size(self) -> int:
+        ...
+    @hidden_size.setter
+    def hidden_size(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def vocab_size(self) -> int:
+        ...
+    @vocab_size.setter
+    def vocab_size(self, arg0: typing.SupportsInt) -> None:
+        ...
+class GELUOpOptions:
+    def __init__(self) -> None:
+        ...
+class KVCacheOpOptions:
+    use_fa2: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def head_dim(self) -> int:
+        ...
+    @head_dim.setter
+    def head_dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def kv_head(self) -> int:
+        ...
+    @kv_head.setter
+    def kv_head(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def layer_idx(self) -> int:
+        ...
+    @layer_idx.setter
+    def layer_idx(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def q_head(self) -> int:
+        ...
+    @q_head.setter
+    def q_head(self, arg0: typing.SupportsInt) -> None:
+        ...
 class LayerImpl(AbstractNnNode):
     def __init__(self, op_type: OpTypes, options: LinearOpOptions) -> None:
         ...
@@ -318,6 +374,23 @@ class LayerImpl(AbstractNnNode):
     def set_instanced_op(self, arg0: BaseOp) -> None:
         ...
     def to(self, arg0: DeviceTypes) -> None:
+        ...
+class LayerNormOpOptions:
+    bias: bool
+    elementwise_affine: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def eps(self) -> float:
+        ...
+    @eps.setter
+    def eps(self, arg0: typing.SupportsFloat) -> None:
+        ...
+    @property
+    def normalized_shape(self) -> list[int]:
+        ...
+    @normalized_shape.setter
+    def normalized_shape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
 class LinearImplTypes:
     """
@@ -654,8 +727,30 @@ class ParameterFile:
         ...
     def remove(self, arg0: str) -> None:
         ...
+class RMSNormOpOptions:
+    add_unit_offset: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def epsilon(self) -> float:
+        ...
+    @epsilon.setter
+    def epsilon(self, arg0: typing.SupportsFloat) -> None:
+        ...
 class SessionTCB:
     trace_mode: bool
+class SiLUOpOptions:
+    def __init__(self) -> None:
+        ...
+class SoftmaxOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def axis(self) -> int:
+        ...
+    @axis.setter
+    def axis(self, arg0: typing.SupportsInt) -> None:
+        ...
 class Task:
     custom_context_ptr: typing_extensions.CapsuleType
     type: TaskTypes
