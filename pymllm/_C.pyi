@@ -2,7 +2,10 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__: list[str] = ['AbstractNnNode', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'CausalMaskOpOptions', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'EmbeddingOpOptions', 'GELUOpOptions', 'KVCacheOpOptions', 'LayerImpl', 'LayerNormOpOptions', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'RMSNormOpOptions', 'SessionTCB', 'SiLUOpOptions', 'SoftmaxOpOptions', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__ = ['AbsOpOptions', 'AbstractNnNode', 'AddOpOptions', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'CastTypeOpOptions', 'CausalMaskOpOptions', 'ClipOpOptions', 'CloneOpOptions', 'ConcatOpOptions', 'ConfigFile', 'Context', 'ContiguousOpOptions', 'Conv1DOpOptions', 'Conv3DOpOptions', 'CopyOpOptions', 'CosOpOptions', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'DivOpOptions', 'EmbeddingOpOptions', 'ExpOpOptions', 'FillOpOptions', 'FlashAttention2OpOptions', 'GELUOpOptions', 'GraphBeginOpOptions', 'GraphEndOpOptions', 'ISTFTOpOptions', 'IndexOpOptions', 'KVCacheOpOptions', 'LayerImpl', 'LayerNormOpOptions', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'LogOpOptions', 'MatMulOpOptions', 'MeanOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'MulOpOptions', 'MultimodalRoPEOpOptions', 'NegOpOptions', 'OpTypes', 'ParamOpOptions', 'ParameterFile', 'PermuteOpOptions', 'QuickGELUOpOptions', 'Qwen2VLRoPEOpOptions', 'RMSNormOpOptions', 'ReLUOpOptions', 'ReduceMaxOpOptions', 'ReduceMinOpOptions', 'ReduceSumOpOptions', 'RepeatOpOptions', 'ReshapeOpOptions', 'STFTOpOptions', 'SessionTCB', 'SiLUOpOptions', 'SinOpOptions', 'SliceOpOptions', 'SoftmaxOpOptions', 'SplitOpOptions', 'SubOpOptions', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'TopKOpOptions', 'TransposeOpOptions', 'ViewOpOptions', 'VisionRoPEOpOptions', 'X2XOpOptions', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+class AbsOpOptions:
+    def __init__(self) -> None:
+        ...
 class AbstractNnNode:
     def depth_decrease(self) -> None:
         ...
@@ -34,6 +37,9 @@ class AbstractNnNode:
         ...
     def set_name(self, arg0: str) -> None:
         ...
+class AddOpOptions:
+    def __init__(self) -> None:
+        ...
 class Backend:
     def create_op(self, arg0: OpTypes, arg1: BaseOpOptionsBase) -> BaseOp:
         ...
@@ -61,7 +67,12 @@ class BaseOp:
     def trace(self, arg0: typing_extensions.CapsuleType, arg1: collections.abc.Sequence[Tensor], arg2: collections.abc.Sequence[Tensor]) -> None:
         ...
 class BaseOpOptionsBase:
-    pass
+    @typing.overload
+    def __init__(self, arg0: LinearOpOptions) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: ClipOpOptions) -> None:
+        ...
 class CXXLayer:
     def __init__(self, impl: LayerImpl) -> None:
         ...
@@ -76,15 +87,53 @@ class CXXModule:
         ...
     def __trace(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[...]) -> list[Tensor]:
         ...
+class CastTypeOpOptions:
+    def __init__(self) -> None:
+        ...
 class CausalMaskOpOptions:
     sliding_window: bool
+    @typing.overload
     def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, sliding_window: bool = False, window_size: typing.SupportsInt = 0) -> None:
         ...
     @property
     def window_size(self) -> int:
         ...
     @window_size.setter
     def window_size(self, arg0: typing.SupportsInt) -> None:
+        ...
+class ClipOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def max_val(self) -> float:
+        ...
+    @max_val.setter
+    def max_val(self, arg0: typing.SupportsFloat) -> None:
+        ...
+    @property
+    def min_val(self) -> float:
+        ...
+    @min_val.setter
+    def min_val(self, arg0: typing.SupportsFloat) -> None:
+        ...
+class CloneOpOptions:
+    def __init__(self) -> None:
+        ...
+class ConcatOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, dim: typing.SupportsInt = 0) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
         ...
 class ConfigFile:
     @typing.overload
@@ -107,6 +156,8 @@ class Context:
     @staticmethod
     def instance() -> Context:
         ...
+    def build_op_and_submit_task(self, arg0: OpTypes, arg1: BaseOpOptionsBase, arg2: collections.abc.Sequence[Tensor], arg3: DeviceTypes) -> list[Tensor]:
+        ...
     def dispatcher_manager(self) -> DispatcherManager:
         ...
     def get_backend(self, arg0: DeviceTypes) -> Backend:
@@ -124,6 +175,84 @@ class Context:
     def set_random_seed(self, arg0: typing.SupportsInt) -> None:
         ...
     def this_thread(self) -> SessionTCB:
+        ...
+class ContiguousOpOptions:
+    def __init__(self) -> None:
+        ...
+class Conv1DOpOptions:
+    bias: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def groups(self) -> int:
+        ...
+    @groups.setter
+    def groups(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def in_channels(self) -> int:
+        ...
+    @in_channels.setter
+    def in_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def kernel_size(self) -> int:
+        ...
+    @kernel_size.setter
+    def kernel_size(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def out_channels(self) -> int:
+        ...
+    @out_channels.setter
+    def out_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def padding(self) -> int:
+        ...
+    @padding.setter
+    def padding(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def stride(self) -> int:
+        ...
+    @stride.setter
+    def stride(self, arg0: typing.SupportsInt) -> None:
+        ...
+class Conv3DOpOptions:
+    bias: bool
+    impl_type: ...
+    def __init__(self) -> None:
+        ...
+    @property
+    def in_channels(self) -> int:
+        ...
+    @in_channels.setter
+    def in_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def kernel_size(self) -> list[int]:
+        ...
+    @kernel_size.setter
+    def kernel_size(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+    @property
+    def out_channels(self) -> int:
+        ...
+    @out_channels.setter
+    def out_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def stride(self) -> list[int]:
+        ...
+    @stride.setter
+    def stride(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class CopyOpOptions:
+    def __init__(self) -> None:
+        ...
+class CosOpOptions:
+    def __init__(self) -> None:
         ...
 class DataTypes:
     """
@@ -314,8 +443,15 @@ class DispatcherManagerOptions:
     @num_threads.setter
     def num_threads(self, arg0: typing.SupportsInt) -> None:
         ...
-class EmbeddingOpOptions:
+class DivOpOptions:
     def __init__(self) -> None:
+        ...
+class EmbeddingOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, vocab_size: typing.SupportsInt = 0, hidden_size: typing.SupportsInt = 0) -> None:
         ...
     @property
     def hidden_size(self) -> int:
@@ -329,12 +465,132 @@ class EmbeddingOpOptions:
     @vocab_size.setter
     def vocab_size(self, arg0: typing.SupportsInt) -> None:
         ...
+class ExpOpOptions:
+    def __init__(self) -> None:
+        ...
+class FillOpOptions:
+    type: ...
+    def __init__(self) -> None:
+        ...
+    @property
+    def end(self) -> float:
+        ...
+    @end.setter
+    def end(self, arg0: typing.SupportsFloat) -> None:
+        ...
+    @property
+    def seed(self) -> int:
+        ...
+    @seed.setter
+    def seed(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def start(self) -> float:
+        ...
+    @start.setter
+    def start(self, arg0: typing.SupportsFloat) -> None:
+        ...
+    @property
+    def step(self) -> float:
+        ...
+    @step.setter
+    def step(self, arg0: typing.SupportsFloat) -> None:
+        ...
+    @property
+    def value(self) -> float:
+        ...
+    @value.setter
+    def value(self, arg0: typing.SupportsFloat) -> None:
+        ...
+class FlashAttention2OpOptions:
+    causal_mask: bool
+    hp_exp: bool
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, B: typing.SupportsInt = 0, q_head: typing.SupportsInt = 0, kv_head: typing.SupportsInt = 0, D: typing.SupportsInt = 0, hp_exp: typing.SupportsInt = 0, causal_mask: bool = False) -> None:
+        ...
+    @property
+    def B(self) -> int:
+        ...
+    @B.setter
+    def B(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def D(self) -> int:
+        ...
+    @D.setter
+    def D(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def kv_head(self) -> int:
+        ...
+    @kv_head.setter
+    def kv_head(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def q_head(self) -> int:
+        ...
+    @q_head.setter
+    def q_head(self, arg0: typing.SupportsInt) -> None:
+        ...
 class GELUOpOptions:
     def __init__(self) -> None:
         ...
+class GraphBeginOpOptions:
+    def __init__(self) -> None:
+        ...
+class GraphEndOpOptions:
+    def __init__(self) -> None:
+        ...
+class ISTFTOpOptions:
+    center: bool
+    normalized: bool
+    onesided: bool
+    pad_mode: str
+    def __init__(self) -> None:
+        ...
+    @property
+    def hop_length(self) -> int:
+        ...
+    @hop_length.setter
+    def hop_length(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def length(self) -> int:
+        ...
+    @length.setter
+    def length(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def n_fft(self) -> int:
+        ...
+    @n_fft.setter
+    def n_fft(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def win_length(self) -> int:
+        ...
+    @win_length.setter
+    def win_length(self, arg0: typing.SupportsInt) -> None:
+        ...
+class IndexOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def indices_(self) -> list[...]:
+        ...
+    @indices_.setter
+    def indices_(self, arg0: collections.abc.Sequence[...]) -> None:
+        ...
 class KVCacheOpOptions:
     use_fa2: bool
+    @typing.overload
     def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, layer_idx: typing.SupportsInt = 0, q_head: typing.SupportsInt = 0, kv_head: typing.SupportsInt = 0, head_dim: typing.SupportsInt = 0, use_fa2: bool = False) -> None:
         ...
     @property
     def head_dim(self) -> int:
@@ -378,7 +634,11 @@ class LayerImpl(AbstractNnNode):
 class LayerNormOpOptions:
     bias: bool
     elementwise_affine: bool
+    @typing.overload
     def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, normalized_shape: collections.abc.Sequence[typing.SupportsInt] = [], elementwise_affine: bool = True, bias: bool = True, eps: typing.SupportsFloat = 9.999999747378752e-06) -> None:
         ...
     @property
     def eps(self) -> float:
@@ -486,6 +746,29 @@ class LinearOpOptions:
     @out_channels.setter
     def out_channels(self, arg0: typing.SupportsInt) -> None:
         ...
+class LogOpOptions:
+    def __init__(self) -> None:
+        ...
+class MatMulOpOptions:
+    matmul_type: ...
+    transpose_a: bool
+    transpose_b: bool
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, transpose_a: bool = False, transpose_b: bool = False, matmul_type: str = 'Default') -> None:
+        ...
+class MeanOpOptions:
+    keep_dim: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
 class MemoryManager:
     def clear_all(self) -> None:
         ...
@@ -550,6 +833,15 @@ class ModuleImpl(AbstractNnNode):
         ...
     def to(self, arg0: DeviceTypes) -> None:
         ...
+class MulOpOptions:
+    def __init__(self) -> None:
+        ...
+class MultimodalRoPEOpOptions:
+    def __init__(self) -> None:
+        ...
+class NegOpOptions:
+    def __init__(self) -> None:
+        ...
 class OpTypes:
     """
     Members:
@@ -575,6 +867,10 @@ class OpTypes:
       RoPE
     
       Softmax
+    
+      STFT
+    
+      ISTFT
     
       Transpose
     
@@ -638,15 +934,39 @@ class OpTypes:
     
       Reshape
     
+      Slice
+    
+      Param
+    
+      Index
+    
+      Abs
+    
+      Log
+    
+      TopK
+    
+      Mean
+    
+      Clip
+    
+      Exp
+    
+      Sin
+    
+      Cos
+    
       GraphBegin
     
       GraphEnd
     
       OpType_End
     """
+    Abs: typing.ClassVar[OpTypes]  # value = <OpTypes.Abs: 47>
     Add: typing.ClassVar[OpTypes]  # value = <OpTypes.Add: 2>
     CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 18>
     CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 17>
+    Clip: typing.ClassVar[OpTypes]  # value = <OpTypes.Clip: 51>
     Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 34>
     Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 36>
     Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 42>
@@ -654,22 +974,29 @@ class OpTypes:
     Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 26>
     Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 25>
     Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 33>
+    Cos: typing.ClassVar[OpTypes]  # value = <OpTypes.Cos: 54>
     Div: typing.ClassVar[OpTypes]  # value = <OpTypes.Div: 5>
     Embedding: typing.ClassVar[OpTypes]  # value = <OpTypes.Embedding: 7>
+    Exp: typing.ClassVar[OpTypes]  # value = <OpTypes.Exp: 52>
     Fill: typing.ClassVar[OpTypes]  # value = <OpTypes.Fill: 1>
     FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 22>
     GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 28>
     GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 55>
     GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 56>
+    ISTFT: typing.ClassVar[OpTypes]  # value = <OpTypes.ISTFT: 12>
+    Index: typing.ClassVar[OpTypes]  # value = <OpTypes.Index: 46>
     KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 16>
     LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 29>
     Linear: typing.ClassVar[OpTypes]  # value = <OpTypes.Linear: 8>
+    Log: typing.ClassVar[OpTypes]  # value = <OpTypes.Log: 48>
     MatMul: typing.ClassVar[OpTypes]  # value = <OpTypes.MatMul: 6>
+    Mean: typing.ClassVar[OpTypes]  # value = <OpTypes.Mean: 50>
     Mul: typing.ClassVar[OpTypes]  # value = <OpTypes.Mul: 4>
     MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 30>
     Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 35>
     OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 57>
     OpType_Start: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_Start: 0>
+    Param: typing.ClassVar[OpTypes]  # value = <OpTypes.Param: 45>
     Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 24>
     QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 32>
     RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 14>
@@ -681,15 +1008,19 @@ class OpTypes:
     Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 23>
     Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 43>
     RoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.RoPE: 9>
+    STFT: typing.ClassVar[OpTypes]  # value = <OpTypes.STFT: 11>
     SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 15>
+    Sin: typing.ClassVar[OpTypes]  # value = <OpTypes.Sin: 53>
+    Slice: typing.ClassVar[OpTypes]  # value = <OpTypes.Slice: 44>
     Softmax: typing.ClassVar[OpTypes]  # value = <OpTypes.Softmax: 10>
     Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 20>
     Sub: typing.ClassVar[OpTypes]  # value = <OpTypes.Sub: 3>
+    TopK: typing.ClassVar[OpTypes]  # value = <OpTypes.TopK: 49>
     Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 13>
     View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 21>
     VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 31>
     X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 19>
-    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 13>, 'RMSNorm': <OpTypes.RMSNorm: 14>, 'SiLU': <OpTypes.SiLU: 15>, 'KVCache': <OpTypes.KVCache: 16>, 'CausalMask': <OpTypes.CausalMask: 17>, 'CastType': <OpTypes.CastType: 18>, 'X2X': <OpTypes.X2X: 19>, 'Split': <OpTypes.Split: 20>, 'View': <OpTypes.View: 21>, 'FlashAttention2': <OpTypes.FlashAttention2: 22>, 'Repeat': <OpTypes.Repeat: 23>, 'Permute': <OpTypes.Permute: 24>, 'Conv3D': <OpTypes.Conv3D: 25>, 'Conv2D': <OpTypes.Conv2D: 26>, 'Conv1D': <OpTypes.Conv1D: 27>, 'GELU': <OpTypes.GELU: 28>, 'LayerNorm': <OpTypes.LayerNorm: 29>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 30>, 'VisionRoPE': <OpTypes.VisionRoPE: 31>, 'QuickGELU': <OpTypes.QuickGELU: 32>, 'Copy': <OpTypes.Copy: 33>, 'Clone': <OpTypes.Clone: 34>, 'Neg': <OpTypes.Neg: 35>, 'Concat': <OpTypes.Concat: 36>, 'ReLU': <OpTypes.ReLU: 37>, 'ReLU2': <OpTypes.ReLU2: 38>, 'ReduceMax': <OpTypes.ReduceMax: 39>, 'ReduceMin': <OpTypes.ReduceMin: 40>, 'ReduceSum': <OpTypes.ReduceSum: 41>, 'Contiguous': <OpTypes.Contiguous: 42>, 'Reshape': <OpTypes.Reshape: 43>, 'GraphBegin': <OpTypes.GraphBegin: 55>, 'GraphEnd': <OpTypes.GraphEnd: 56>, 'OpType_End': <OpTypes.OpType_End: 57>}
+    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'STFT': <OpTypes.STFT: 11>, 'ISTFT': <OpTypes.ISTFT: 12>, 'Transpose': <OpTypes.Transpose: 13>, 'RMSNorm': <OpTypes.RMSNorm: 14>, 'SiLU': <OpTypes.SiLU: 15>, 'KVCache': <OpTypes.KVCache: 16>, 'CausalMask': <OpTypes.CausalMask: 17>, 'CastType': <OpTypes.CastType: 18>, 'X2X': <OpTypes.X2X: 19>, 'Split': <OpTypes.Split: 20>, 'View': <OpTypes.View: 21>, 'FlashAttention2': <OpTypes.FlashAttention2: 22>, 'Repeat': <OpTypes.Repeat: 23>, 'Permute': <OpTypes.Permute: 24>, 'Conv3D': <OpTypes.Conv3D: 25>, 'Conv2D': <OpTypes.Conv2D: 26>, 'Conv1D': <OpTypes.Conv1D: 27>, 'GELU': <OpTypes.GELU: 28>, 'LayerNorm': <OpTypes.LayerNorm: 29>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 30>, 'VisionRoPE': <OpTypes.VisionRoPE: 31>, 'QuickGELU': <OpTypes.QuickGELU: 32>, 'Copy': <OpTypes.Copy: 33>, 'Clone': <OpTypes.Clone: 34>, 'Neg': <OpTypes.Neg: 35>, 'Concat': <OpTypes.Concat: 36>, 'ReLU': <OpTypes.ReLU: 37>, 'ReLU2': <OpTypes.ReLU2: 38>, 'ReduceMax': <OpTypes.ReduceMax: 39>, 'ReduceMin': <OpTypes.ReduceMin: 40>, 'ReduceSum': <OpTypes.ReduceSum: 41>, 'Contiguous': <OpTypes.Contiguous: 42>, 'Reshape': <OpTypes.Reshape: 43>, 'Slice': <OpTypes.Slice: 44>, 'Param': <OpTypes.Param: 45>, 'Index': <OpTypes.Index: 46>, 'Abs': <OpTypes.Abs: 47>, 'Log': <OpTypes.Log: 48>, 'TopK': <OpTypes.TopK: 49>, 'Mean': <OpTypes.Mean: 50>, 'Clip': <OpTypes.Clip: 51>, 'Exp': <OpTypes.Exp: 52>, 'Sin': <OpTypes.Sin: 53>, 'Cos': <OpTypes.Cos: 54>, 'GraphBegin': <OpTypes.GraphBegin: 55>, 'GraphEnd': <OpTypes.GraphEnd: 56>, 'OpType_End': <OpTypes.OpType_End: 57>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
@@ -716,6 +1047,9 @@ class OpTypes:
     @property
     def value(self) -> int:
         ...
+class ParamOpOptions:
+    def __init__(self) -> None:
+        ...
 class ParameterFile:
     def __init__(self, v: ModelFileVersion = ...) -> None:
         ...
@@ -727,6 +1061,43 @@ class ParameterFile:
         ...
     def remove(self, arg0: str) -> None:
         ...
+class PermuteOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, axis: collections.abc.Sequence[typing.SupportsInt] = []) -> None:
+        ...
+    @property
+    def axis(self) -> list[int]:
+        ...
+    @axis.setter
+    def axis(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class QuickGELUOpOptions:
+    def __init__(self) -> None:
+        ...
+class Qwen2VLRoPEOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def dims(self) -> int:
+        ...
+    @dims.setter
+    def dims(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def spatial_merge_size(self) -> int:
+        ...
+    @spatial_merge_size.setter
+    def spatial_merge_size(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def theta(self) -> float:
+        ...
+    @theta.setter
+    def theta(self, arg0: typing.SupportsFloat) -> None:
+        ...
 class RMSNormOpOptions:
     add_unit_offset: bool
     def __init__(self) -> None:
@@ -737,19 +1108,129 @@ class RMSNormOpOptions:
     @epsilon.setter
     def epsilon(self, arg0: typing.SupportsFloat) -> None:
         ...
+class ReLUOpOptions:
+    def __init__(self) -> None:
+        ...
+class ReduceMaxOpOptions:
+    keep_dim: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+class ReduceMinOpOptions:
+    keep_dim: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+class ReduceSumOpOptions:
+    keep_dim: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+class RepeatOpOptions:
+    def __init__(self) -> None:
+        ...
+class ReshapeOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, shape: collections.abc.Sequence[typing.SupportsInt] = []) -> None:
+        ...
+    @property
+    def shape(self) -> list[int]:
+        ...
+    @shape.setter
+    def shape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class STFTOpOptions:
+    center: bool
+    onesided: bool
+    pad_mode: str
+    return_complex: bool
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, n_fft: typing.SupportsInt, hop_length: typing.SupportsInt, win_length: typing.SupportsInt, onesided: bool, center: bool, pad_mode: str = 'constant', return_complex: bool = False) -> None:
+        ...
+    @property
+    def hop_length(self) -> int:
+        ...
+    @hop_length.setter
+    def hop_length(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def n_fft(self) -> int:
+        ...
+    @n_fft.setter
+    def n_fft(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def win_length(self) -> int:
+        ...
+    @win_length.setter
+    def win_length(self, arg0: typing.SupportsInt) -> None:
+        ...
 class SessionTCB:
     trace_mode: bool
 class SiLUOpOptions:
     def __init__(self) -> None:
         ...
-class SoftmaxOpOptions:
+class SinOpOptions:
     def __init__(self) -> None:
+        ...
+class SliceOpOptions:
+    def __init__(self) -> None:
+        ...
+class SoftmaxOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, axis: typing.SupportsInt = 0) -> None:
         ...
     @property
     def axis(self) -> int:
         ...
     @axis.setter
     def axis(self, arg0: typing.SupportsInt) -> None:
+        ...
+class SplitOpOptions:
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, dim: typing.SupportsInt, split_size_or_sections: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def split_size_or_sections(self) -> list[int]:
+        ...
+    @split_size_or_sections.setter
+    def split_size_or_sections(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class SubOpOptions:
+    def __init__(self) -> None:
         ...
 class Task:
     custom_context_ptr: typing_extensions.CapsuleType
@@ -992,6 +1473,41 @@ class TensorMemTypes:
         ...
     @property
     def value(self) -> int:
+        ...
+class TopKOpOptions:
+    largest: bool
+    sorted: bool
+    def __init__(self) -> None:
+        ...
+    @property
+    def dim(self) -> int:
+        ...
+    @dim.setter
+    def dim(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def k(self) -> int:
+        ...
+    @k.setter
+    def k(self, arg0: typing.SupportsInt) -> None:
+        ...
+class TransposeOpOptions:
+    def __init__(self) -> None:
+        ...
+class ViewOpOptions:
+    def __init__(self) -> None:
+        ...
+    @property
+    def to_shape(self) -> list[int]:
+        ...
+    @to_shape.setter
+    def to_shape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
+        ...
+class VisionRoPEOpOptions:
+    def __init__(self) -> None:
+        ...
+class X2XOpOptions:
+    def __init__(self) -> None:
         ...
 def clean_this_thread() -> None:
     """

@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 from .._C import Tensor, CXXLayer, LayerImpl, OpTypes, LinearImplTypes, LinearOpOptions
-# 导入其他Options类
 from .._C import (
     RMSNormOpOptions,
     SiLUOpOptions,

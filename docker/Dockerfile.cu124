@@ -2,9 +2,9 @@ FROM nvcr.io/nvidia/pytorch:24.05-py3
 
 WORKDIR /root
 
-RUN echo "LC_ALL=en_US.UTF-8" >> /etc/environment
-
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    LC_ALL=en_US.UTF-8 \
+    PATH="/opt/conda/bin:$PATH"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

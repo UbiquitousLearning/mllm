@@ -13,6 +13,11 @@
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/ParameterFile.hpp"
 
+#ifdef MLLM_ENABLE_PY_MLLM
+#include <typeindex>
+#include <type_traits>
+#endif
+
 namespace mllm {
 
 template<typename DerivedT>
@@ -67,6 +72,41 @@ class BaseOpOptions {
 };
 
 // Type Erase
+#ifdef MLLM_ENABLE_PY_MLLM
+class BaseOpOptionsBase {
+ public:
+  // Do not mark this explicit
+  template<typename T>
+  BaseOpOptionsBase(const T& cargo)  // NOLINT(google-explicit-constructor)
+      : inner_(std::make_unique<Model<T>>(cargo)) {}
+
+  // Do not mark this explicit
+  template<typename T>
+  BaseOpOptionsBase(T&& cargo)  // NOLINT(google-explicit-constructor)
+      : inner_(std::make_unique<Model<std::decay_t<T>>>(std::forward<T>(cargo))) {}
+
+  template<typename T>
+  const T& as() const {
+    // FIXME: Unsafe cast.
+    return static_cast<const Model<T>&>(*inner_).data_;
+    // if (auto p = dynamic_cast<const Model<T>*>(inner_.get())) { return p->data_; }
+    // throw std::bad_cast();
+  }
+
+ private:
+  struct Concept {
+    virtual ~Concept() = default;
+  };
+
+  template<typename T>
+  struct Model : Concept {
+    Model(const T& data) : data_(data) {}  // NOLINT(google-explicit-constructor)
+    T data_;
+  };
+
+  std::unique_ptr<Concept> inner_;
+};
+#else
 class BaseOpOptionsBase {
  public:
   // Do not mark this explicit
@@ -98,6 +138,7 @@ class BaseOpOptionsBase {
 
   std::unique_ptr<Concept> inner_;
 };
+#endif
 
 class BaseOp : public std::enable_shared_from_this<BaseOp> {
  public:

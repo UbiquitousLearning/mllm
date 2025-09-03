@@ -56,7 +56,8 @@ void registerEngineBinding(py::module_& m) {
       .def("set_random_seed", &mllm::Context::setRandomSeed)
       .def("get_random_seed", &mllm::Context::getRandomSeed)
       .def("ref_session_threads", &mllm::Context::refSessionThreads)
-      .def("get_backend", &mllm::Context::getBackend, py::return_value_policy::reference);
+      .def("get_backend", &mllm::Context::getBackend, py::return_value_policy::reference)
+      .def("build_op_and_submit_task", &mllm::Context::buildOpAndSubmitTask);
 
   pybind11::class_<mllm::ConfigFile>(m, "ConfigFile")
       .def(py::init<>())
