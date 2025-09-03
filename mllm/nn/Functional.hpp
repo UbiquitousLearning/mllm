@@ -66,6 +66,17 @@ std::array<Tensor, RET_NUM> split(const Tensor& x, int32_t dim) {
   return ret;
 }
 
+inline std::vector<Tensor> split(int32_t num, const Tensor& x, int32_t dim) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kSplit, aops::SplitOpOptions{.dim = dim, .split_size_or_sections = {x.shape()[dim] / num}}, {x});
+  std::vector<Tensor> ret;
+
+#pragma unroll
+  for (int i = 0; i < num; ++i) { ret.push_back(outputs[i]); }
+
+  return ret;
+}
+
 template<int32_t RET_NUM>
 std::array<Tensor, RET_NUM> chunk(const Tensor& x, int32_t dim) {
   auto outputs = Context::instance().buildOpAndSubmitTask(
