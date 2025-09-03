@@ -970,6 +970,7 @@ public:
         for (int i = 0; i < short_factor.size(); i++) {
             param_["short_factor_" + std::to_string(i)] = short_factor[i];
         }
+        param_["partial_rotary_factor"] = partial_rotary_factor;
     }
 
     Tensor operator()(Tensor input) {
