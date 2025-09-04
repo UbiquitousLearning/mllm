@@ -1,7 +1,10 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <ranges>
 #include <cstring>
+#include <algorithm>
+#include <unordered_set>
 
 #include "HKVCache.hpp"
 #include <mllm/core/Tensor.hpp>
@@ -124,8 +127,8 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
       auto pos = args.at("pos").get<std::vector<int32_t>>();
       // [B, S, H, D]
       return {
-          k_cache_[layer_idx][{{mllm::kAll}, pos, {mllm::kAll}, {mllm::kAll}}],
-          v_cache_[layer_idx][{{mllm::kAll}, pos, {mllm::kAll}, {mllm::kAll}}],
+          k_cache_[layer_idx][{{mllm::kAll}, {mllm::kAll}, pos, {mllm::kAll}}],
+          v_cache_[layer_idx][{{mllm::kAll}, {mllm::kAll}, pos, {mllm::kAll}}],
       };
     }
   }
@@ -140,6 +143,11 @@ void HKVCache::initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t
   MLLM_RT_ASSERT(h_cache_.size() == 0);
   for (int i = 0; i < layer_nums_; ++i) {
     h_cache_.emplace_back(mllm::Tensor::empty({batch_size, seq_len, hs_dims}, mllm::kFloat32, mllm::kCPU).alloc());
+  }
+  kv_not_filled_pos_.reserve(layer_nums_);
+  for (int i = 0; i < layer_nums_; ++i) {
+    auto range = std::views::iota(0, seq_len);
+    kv_not_filled_pos_.emplace_back(range.begin(), range.end());
   }
 }
 __MLLM_UNSAFE_OPT_END
@@ -162,5 +170,9 @@ void HKVCache::updateHiddenStateCache(int32_t layer_idx, const std::vector<int32
     auto now_ptr = hs_cache.offsettedPtr<float32_t>({0, s, 0});
     std::memcpy(cache_ptr, now_ptr, D * sizeof(float32_t));
   }
+  std::unordered_set<int> set_to_remove(pos.begin(), pos.end());
+  std::erase_if(kv_not_filled_pos_[layer_idx], [&set_to_remove](int value) { return set_to_remove.contains(value); });
 }
 __MLLM_UNSAFE_OPT_END
+
+void HKVCache::manualCacheLengthUpdate(int32_t layer_idx) { current_seq_cnt_[layer_idx]++; }
