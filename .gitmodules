@@ -13,3 +13,11 @@
 [submodule "mllm/backends/cpu/vendors/kleidiai"]
 	path = mllm/backends/cpu/vendors/kleidiai
 	url = https://git.gitlab.arm.com/kleidi/kleidiai.git
+[submodule "mllm/backends/cuda/vendors/cccl"]
+	path = mllm/backends/cuda/vendors/cccl
+	url = https://github.com/NVIDIA/cccl.git
+	update = none
+[submodule "mllm/backends/cuda/vendors/cutlass"]
+	path = mllm/backends/cuda/vendors/cutlass
+	url = https://github.com/NVIDIA/cutlass.git
+	update = none

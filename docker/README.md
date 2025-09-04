@@ -7,8 +7,14 @@ To simplify developers' experience with MLLM, we provide ready-to-use Dockerfile
 ```bash
 git clone https://github.com/UbiquitousLearning/mllm.git
 cd mllm/docker
+
+# CPU
 docker build -t mllm_arm -f Dockerfile.arm .
 docker run -it --cap-add=SYS_ADMIN --network=host --cap-add=SYS_PTRACE --shm-size=4G --security-opt seccomp=unconfined --security-opt apparmor=unconfined --name mllm_arm_dev mllm_arm bash
+
+# NVIDIA GPU. Chose your CUDA version: Dockerfile.cuxxx
+docker build -t mllm_cu124 -f Dockerfile.cu124 .
+docker run -it --gpus all --cap-add=SYS_ADMIN --network=host --cap-add=SYS_PTRACE --shm-size=4G --security-opt seccomp=unconfined --security-opt apparmor=unconfined --name mllm_cu124_dev mllm_cu124 bash
 ```
 
 Important Notes:

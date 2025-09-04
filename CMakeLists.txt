@@ -38,6 +38,10 @@ option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
+if(MLLM_ENABLE_PY_MLLM)
+  add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
+endif()
+
 include(cmake/CPM.cmake)
 set(STDEXEC_BUILD_EXAMPLES OFF)
 CPMAddPackage(
@@ -291,7 +295,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mllmConfig.cmake
 
 # Pymllm install
 if(MLLM_ENABLE_PY_MLLM)
-  target_compile_options(MllmRT PRIVATE -fPIC)
+  add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
+  target_compile_options(MllmRT PRIVATE -fPIC -fvisibility=default)
 
   find_package(Python3 COMPONENTS Interpreter Development)
   include_directories(${Python3_INCLUDE_DIRS})
