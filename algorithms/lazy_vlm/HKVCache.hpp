@@ -39,6 +39,10 @@ class HKVCache {
 
   void updateHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos, mllm::Tensor hs_cache);
 
+  void manualCacheLengthUpdate(int32_t layer_idx);
+
+  std::vector<std::vector<int>> kv_not_filled_pos_;
+
  private:
   mllm::DeviceTypes device_type_;
   mllm::DataTypes k_dtype_;
