@@ -11,17 +11,16 @@ Arm Kernel support
 ^^^^^^^^^^^^^^^^^^
 
 - Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack)
-- 
-
-- Arm Kernel Benchmarks
-- [❗️] omp kernels regression when using ``if (thread_count > 1)``
-- KleidiAI Kernels
-- Search for appropriate Arm Kernel Settings on different Arm platforms.
+- Arm U1-7 Group Quantized Embedding Kernels. (Co-works with bitspack)
+- More KleidiAI Kernels (SME Supports)
+- Optimizing MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM Kernels, for Shapes in LLM Scenarios.
 - Full coverage of the correctness of current Arm operators
-- MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM, Optimized for Shapes in LLM Scenarios.
-- MLLM-BLAS-HGEMV and MLLM-BLAS-HGEMM, Optimized for Shapes in LLM Scenarios, fp32 accumulator.
-- MLLM-BLAS-BF16GEMV and MLLM-BLAS-BF16GEMM.
-- MLLM-BLAS-I8GEMV and MLLM-BLAS-I8GEMM.
+- Kernel Selector Table (Tune)
+
+X86 Backend support
+^^^^^^^^^^^^^^^^^^^^
+
+- Highway kernels for dbg purpose
 
 QNN Backend support
 ^^^^^^^^^^^^^^^^^^^^
@@ -32,10 +31,13 @@ QNN Backend support
 Quantization
 ^^^^^^^^^^^^^^
 
-- Model Convertor
-- Quantizer
-
-
+- Model Convertor & Quantizer
+- Shared weight Embedding(For tie-embedding scenario).
 
 P1
 ~~~
+
+pymllm API
+^^^^^^^^^^^
+
+- C++ Tensor and Python Tensor lifetime conflict in some test cases.
