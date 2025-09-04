@@ -2,6 +2,9 @@ import pymllm as torch
 import pymllm.nn as nn
 import pymllm.nn.functional as F
 from pymllm import ParameterFile
+from pymllm.utils.error_handler import enable_faulthandler
+
+enable_faulthandler()
 
 
 class FooNet(nn.Module):
@@ -15,7 +18,7 @@ class FooNet(nn.Module):
         return self.linear_0(self.linear_1(self.linear_2(x)))
 
 
-def feed_fake_params(net: nn.Module) -> None:
+def feed_fake_params(net: nn.Module):
     # Insert some random params
     param = ParameterFile()
     linear_0 = torch.random(
@@ -31,32 +34,28 @@ def feed_fake_params(net: nn.Module) -> None:
     param.push("linear_1.weight", linear_1)
     param.push("linear_2.weight", linear_2)
     net.load(param)
+    print(net.linear_0.weight())
+    print(net.linear_1.weight())
+    print(net.linear_2.weight())
+    return param
 
 
 def test_foo_net():
     net = FooNet()
     print(net)
     # Insert some random params
-    param = ParameterFile()
-    linear_0 = torch.random(
-        (1024, 1024), dtype=torch.float32, device=torch.cpu
-    ).set_name("linear_0.weight")
-    linear_1 = torch.random(
-        (1024, 1024), dtype=torch.float32, device=torch.cpu
-    ).set_name("linear_1.weight")
-    linear_2 = torch.random(
-        (1024, 1024), dtype=torch.float32, device=torch.cpu
-    ).set_name("linear_2.weight")
-    param.push("linear_0.weight", linear_0)
-    param.push("linear_1.weight", linear_1)
-    param.push("linear_2.weight", linear_2)
-    net.load(param)
+    p = feed_fake_params(net)
+    print("yes")
     t = torch.random((1, 1024), dtype=torch.float32, device=torch.cpu)
     print(t)
+    print(net.linear_0.weight())
+    print(net.linear_1.weight())
+    print(net.linear_2.weight())
     o = net(t)
     print(o)
     o = F.clip(o, min_val=-1.0, max_val=1.0)
     print(o)
+    print(p)
 
 
 if __name__ == "__main__":

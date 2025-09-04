@@ -38,6 +38,10 @@ option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
+if(MLLM_ENABLE_PY_MLLM)
+  add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
+endif()
+
 include(cmake/CPM.cmake)
 set(STDEXEC_BUILD_EXAMPLES OFF)
 CPMAddPackage(

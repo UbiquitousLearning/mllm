@@ -75,6 +75,22 @@ class Linear(Layer):
     def forward(self, *args):
         return super().forward(*args)[0]
 
+    def bias(self):
+        return (
+            self.cxx_impl()
+            .get_instanced_op()
+            .get_params()
+            .pull(self.cxx_impl().get_name() + ".bias")
+        )
+
+    def weight(self):
+        return (
+            self.cxx_impl()
+            .get_instanced_op()
+            .get_params()
+            .pull(self.cxx_impl().get_name() + ".weight")
+        )
+
     def __repr__(self):
         """
         Return a string representation of the Layer.

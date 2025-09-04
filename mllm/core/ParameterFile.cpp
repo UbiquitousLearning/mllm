@@ -33,6 +33,18 @@ void ParameterFile::push(const std::string& name, const Tensor& tensor) {
   }
 }
 
+#ifdef MLLM_ENABLE_PY_MLLM
+void ParameterFile::__py_push(const std::string& name, const Tensor& tensor) {
+  if (data_.has(name)) {
+    MLLM_ERROR_EXIT(ExitCode::kIOError, "Parameter already exists: {}", name);
+  } else {
+    // The tensor is a py object. And may released in the feature.
+    // We need to recreate a Tensor descriptor in c++ side.
+    data_.reg(name, Tensor(tensor.impl()));
+  }
+}
+#endif
+
 Tensor ParameterFile::pull(const std::string& name) {
   if (!data_.has(name)) { MLLM_ERROR_EXIT(ExitCode::kIOError, "Parameter does not exist: {}", name); }
   return data_[name];

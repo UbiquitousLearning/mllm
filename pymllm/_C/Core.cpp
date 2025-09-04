@@ -217,7 +217,7 @@ void registerCoreBinding(py::module_& m) {
   //===----------------------------------------------------------------------===//
   py::class_<mllm::ParameterFile, std::shared_ptr<mllm::ParameterFile>>(m, "ParameterFile")
       .def(py::init<mllm::ModelFileVersion>(), py::arg("v") = mllm::ModelFileVersion::kUserTemporary)
-      .def("push", &mllm::ParameterFile::push)
+      .def("push", &mllm::ParameterFile::push, py::keep_alive<1, 3>())
       .def("pull", &mllm::ParameterFile::pull)
       .def("has", &mllm::ParameterFile::has)
       .def("remove", &mllm::ParameterFile::remove);

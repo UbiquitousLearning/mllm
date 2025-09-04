@@ -41,6 +41,10 @@ class ParameterFile {
 
   void push(const std::string& name, const Tensor& tensor);
 
+#ifdef MLLM_ENABLE_PY_MLLM
+  void __py_push(const std::string& name, const Tensor& tensor);
+#endif
+
   Tensor pull(const std::string& name);
 
   [[nodiscard]] bool has(const std::string& name) const;
