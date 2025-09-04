@@ -10,6 +10,9 @@ P0
 Arm Kernel support
 ^^^^^^^^^^^^^^^^^^
 
+- Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack)
+- 
+
 - Arm Kernel Benchmarks
 - [❗️] omp kernels regression when using ``if (thread_count > 1)``
 - KleidiAI Kernels
@@ -25,6 +28,14 @@ QNN Backend support
 
 - Migration from mllmv1 to mllm v2
 - QNN Kernel Benchmarks
+
+Quantization
+^^^^^^^^^^^^^^
+
+- Model Convertor
+- Quantizer
+
+
 
 P1
 ~~~
