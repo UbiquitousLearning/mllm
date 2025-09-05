@@ -14,7 +14,7 @@ def compile():
         # "-DANDROID_ABI=arm64-v8a",
         # Using your own mllm installation, please replace the path with your own path
         "-Dmllm_DIR=../SDK/lib/cmake/",
-        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_BUILD_TYPE=Release",
     ]
     print(" ".join(COMMAND))
     os.system(" ".join(COMMAND))
