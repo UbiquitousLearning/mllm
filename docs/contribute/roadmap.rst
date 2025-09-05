@@ -16,6 +16,7 @@ Arm Kernel support
 - Optimizing MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM Kernels, for Shapes in LLM Scenarios.
 - Full coverage of the correctness of current Arm operators
 - Kernel Selector Table (Tune)
+- MXFP4 Linear Kernels
 
 X86 Backend support
 ^^^^^^^^^^^^^^^^^^^^

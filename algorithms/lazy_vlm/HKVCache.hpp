@@ -39,7 +39,9 @@ class HKVCache {
 
   void updateHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos, mllm::Tensor hs_cache);
 
-  void manualCacheLengthUpdate(int32_t layer_idx);
+  void visitHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos);
+
+  void manualCacheLengthUpdate(int32_t layer_idx, int32_t times = 1);
 
   std::vector<std::vector<int>> kv_not_filled_pos_;
 

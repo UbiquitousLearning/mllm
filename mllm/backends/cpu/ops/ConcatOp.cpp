@@ -15,6 +15,8 @@ void CPUConcatOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
   auto concat_at_dim = options_.dim;
 
+  if (concat_at_dim < 0) { concat_at_dim += inputs[0].rank(); }
+
   // If not contiguous, we can not copy things using simd, but one by one. we need to give an
   // warning to user, because it is slow.
 

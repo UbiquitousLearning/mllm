@@ -48,6 +48,10 @@ void SliceOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& ou
     if (start == kAll) { start = 0; }
     if (end == kAll) { end = shape[i]; }
 
+    if (start < 0 && end != kAll && end - start == 1) {
+      start = start + shape[i];
+      end = end + shape[i];
+    }
     if (start < 0) { start = start + shape[i]; }
     if (end < 0) { end = end + shape[i]; }
 

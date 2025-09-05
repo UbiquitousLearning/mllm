@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #include "HKVCache.hpp"
+#include <mllm/mllm.hpp>
 #include <mllm/core/Tensor.hpp>
 #include <mllm/utils/Common.hpp>
 #include <mllm/utils/UnsafeMacros.hpp>
@@ -144,11 +145,6 @@ void HKVCache::initHiddenStateCache(int32_t batch_size, int32_t seq_len, int32_t
   for (int i = 0; i < layer_nums_; ++i) {
     h_cache_.emplace_back(mllm::Tensor::empty({batch_size, seq_len, hs_dims}, mllm::kFloat32, mllm::kCPU).alloc());
   }
-  kv_not_filled_pos_.reserve(layer_nums_);
-  for (int i = 0; i < layer_nums_; ++i) {
-    auto range = std::views::iota(0, seq_len);
-    kv_not_filled_pos_.emplace_back(range.begin(), range.end());
-  }
 }
 __MLLM_UNSAFE_OPT_END
 
@@ -170,9 +166,16 @@ void HKVCache::updateHiddenStateCache(int32_t layer_idx, const std::vector<int32
     auto now_ptr = hs_cache.offsettedPtr<float32_t>({0, s, 0});
     std::memcpy(cache_ptr, now_ptr, D * sizeof(float32_t));
   }
+}
+__MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+void HKVCache::visitHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos) {
   std::unordered_set<int> set_to_remove(pos.begin(), pos.end());
   std::erase_if(kv_not_filled_pos_[layer_idx], [&set_to_remove](int value) { return set_to_remove.contains(value); });
 }
 __MLLM_UNSAFE_OPT_END
 
-void HKVCache::manualCacheLengthUpdate(int32_t layer_idx) { current_seq_cnt_[layer_idx]++; }
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+void HKVCache::manualCacheLengthUpdate(int32_t layer_idx, int32_t times) { current_seq_cnt_[layer_idx] += times; }
+__MLLM_UNSAFE_OPT_END
