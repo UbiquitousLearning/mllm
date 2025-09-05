@@ -101,7 +101,8 @@ class ConvNeXtBlock : public nn::Module {
    */
   inline ConvNeXtBlock(const std::string& name, int32_t dim, int32_t intermediate_dim)
       : nn::Module(name), dim_(dim), intermediate_dim_(intermediate_dim) {
-    dwconv_ = reg<nn::Conv1D>("dwconv", dim, dim, 7, 1, true, 3, dim);  // Depthwise conv
+    dwconv_ = reg<nn::Conv1D>("dwconv", dim, dim, 7,
+                              /*stride*/ 1, /*padding*/ 3, /*dilation*/ 1, /*groups*/ dim);  // Depthwise conv
     norm_ = reg<nn::LayerNorm>("norm", std::vector<int32_t>{dim}, true, true, 1e-6);
     pwconv1_ = reg<nn::Linear>("pwconv1", dim, intermediate_dim, true, aops::LinearImplTypes::kDefault);
     act_ = reg<nn::GELU>("act");
@@ -162,7 +163,7 @@ class VocosBackbone final : public nn::Module {
       : nn::Module(name), dim_(dim) {
     // Embedding convolution
     // Using Conv1D with kernel size [1, 1, kernel_size] to simulate 1D convolution
-    embed_ = reg<nn::Conv1D>("embed", 100, dim, 7, 1, true, 3);
+    embed_ = reg<nn::Conv1D>("embed", 100, dim, 7, 1, /*padding*/ 3);
     norm_ = reg<nn::LayerNorm>("norm", std::vector<int32_t>{dim}, true, true, 1e-6);
 
     // ConvNeXt blocks
@@ -277,7 +278,7 @@ class Vocos {
   ISTFTHead head_;
 
  public:
-  Vocos() = delete;
+  Vocos() = default;
 
   /**
    * @brief Construct a Vocos model
@@ -315,6 +316,14 @@ class Vocos {
     // Head for waveform generation
     x = head_(x)[0];  // [B, n_fft + 2, T]
 
+    return {x};
+  }
+
+  std::vector<Tensor> decode(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+    auto x = inputs[0];   // [B, C, T] - features
+    x = backbone_(x)[0];  // [B, C, T]
+    // Head for waveform generation
+    x = head_(x)[0];  // [B, n_fft + 2, T]
     return {x};
   }
 

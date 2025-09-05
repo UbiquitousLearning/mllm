@@ -78,17 +78,15 @@ void Conv1DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   const int kernel_size = options_.kernel_size;
   const int stride = options_.stride;
   const int out_channels = options_.out_channels;
+  const int dilation = options_.dilation;
 
-  // FIXME we not consider dilation right now.
-  // padding is considered
-  // dilation is always 1,
-
+  // Calculate output shape considering dilation
   auto out_shape = [](int dim_size, int kernel_size, int stride_size, int padding_size, int dilation_size) -> int32_t {
-    // FIXME use floor.
+    // Standard convolution output size formula with dilation
     return ((dim_size + 2 * padding_size - dilation_size * (kernel_size - 1) - 1) / stride_size) + 1;
   };
 
-  auto seq_out = out_shape(sequence, kernel_size, stride, options_.padding, 1);
+  auto seq_out = out_shape(sequence, kernel_size, stride, options_.padding, dilation);
 
   auto new_shape = std::vector<int32_t>{batch, out_channels, seq_out};
 
