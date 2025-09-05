@@ -12,7 +12,8 @@ namespace mllm::cpu {
 struct BroadcastInfo {
   bool can_be_broadcast_naive = false;
   int32_t broadcast_naive_loops = 0;
-  int32_t broadcast_naive_stride = 0;
+  int32_t batch_dims = 1;
+  int32_t size = 0;
 };
 
 BroadcastInfo calculateBroadcastInfo(const std::vector<int32_t>& a_shape, const std::vector<int32_t>& b_shape);

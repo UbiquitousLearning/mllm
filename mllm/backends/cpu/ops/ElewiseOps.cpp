@@ -10,42 +10,113 @@ namespace mllm::cpu {
 
 BroadcastInfo calculateBroadcastInfo(const std::vector<int32_t>& a_shape, const std::vector<int32_t>& b_shape) {
   BroadcastInfo info;
-  int a_ndim = a_shape.size();
-  int b_ndim = b_shape.size();
 
-  //  Rules(can_be_broadcast_naive):
-  //  1. b must have fewer/equal dimensions than a (treat a as the "large" tensor).
-  //  2. The last k dimensions of b must exactly match the last k dimensions of a,
-  //     where k == b_ndim.
-  //  3. All leading dimensions of b must be 1 so that a simple stride broadcast works.
-  {
-    if (b_ndim <= a_ndim) {
-      bool can_broadcast = true;
-      for (int i = 1; i <= b_ndim; ++i) {
-        int a_idx = a_ndim - i;
-        int b_idx = b_ndim - i;
-        if (a_shape[a_idx] != b_shape[b_idx] && a_shape[a_idx] != 1 && b_shape[b_idx] != 1) {
-          can_broadcast = false;
-          break;
-        }
-      }
-      info.can_be_broadcast_naive = can_broadcast;
+  // Determine the broadcasted shape
+  int a_rank = a_shape.size();
+  int b_rank = b_shape.size();
+  int max_rank = std::max(a_rank, b_rank);
+
+  std::vector<int32_t> a_shape_padded(max_rank);
+  std::vector<int32_t> b_shape_padded(max_rank);
+
+  // Pad the shorter shape with 1s
+  for (int i = 0; i < max_rank; ++i) {
+    a_shape_padded[i] = (i < max_rank - a_rank) ? 1 : a_shape[i - (max_rank - a_rank)];
+    b_shape_padded[i] = (i < max_rank - b_rank) ? 1 : b_shape[i - (max_rank - b_rank)];
+  }
+
+  // Compute the final broadcasted shape
+  std::vector<int32_t> result_shape(max_rank);
+  for (int i = 0; i < max_rank; ++i) { result_shape[i] = std::max(a_shape_padded[i], b_shape_padded[i]); }
+
+  // Compute batch_dims
+  int batch_dims = 0;
+  for (int i = 0; i < max_rank; ++i) {
+    if (a_shape_padded[i] == b_shape_padded[i]) {
+      batch_dims++;
+    } else {
+      break;
     }
+  }
 
-    if (info.can_be_broadcast_naive) {
-      info.broadcast_naive_loops = 1;
-      for (int i = 0; i < a_ndim; ++i) {
-        if (i < a_ndim - b_ndim) {
-          info.broadcast_naive_loops *= a_shape[i];
-        } else {
-          int b_idx = i - (a_ndim - b_ndim);
-          if (b_shape[b_idx] == 1) { info.broadcast_naive_loops *= a_shape[i]; }
-        }
-      }
+  // Compute the total number of elements in the batch dimension
+  int64_t batch_size = 1;
+  for (int i = 0; i < batch_dims; ++i) { batch_size *= result_shape[i]; }
+  info.batch_dims = static_cast<int32_t>(batch_size);
 
-      info.broadcast_naive_stride = 1;
-      for (int i = 0; i < b_ndim; ++i) { info.broadcast_naive_stride *= b_shape[i]; }
+  // If both shapes are identical, no broadcasting is needed, return directly
+  if (batch_dims == max_rank) {
+    info.can_be_broadcast_naive = false;
+    // size = all elements
+    info.size = std::accumulate(result_shape.begin(), result_shape.end(), 1, std::multiplies<>());
+    return info;
+  }
+
+  // if can be broadcast naive
+  int non_batch_rank = max_rank - batch_dims;
+  std::vector<int32_t> a_non_batch_shape(a_shape_padded.begin() + batch_dims, a_shape_padded.end());
+  std::vector<int32_t> b_non_batch_shape(b_shape_padded.begin() + batch_dims, b_shape_padded.end());
+  std::vector<int32_t> result_non_batch_shape(result_shape.begin() + batch_dims, result_shape.end());
+
+  // if a can be broadcast naive to result
+  int first_diff_a = -1;
+  for (int i = 0; i < non_batch_rank; ++i) {
+    if (a_non_batch_shape[i] != result_non_batch_shape[i]) {
+      first_diff_a = i;
+      break;
     }
+  }
+
+  bool a_can_be_naive = false;
+  if (first_diff_a != -1 && a_non_batch_shape[first_diff_a] == 1) {
+    a_can_be_naive = true;
+    for (int i = first_diff_a + 1; i < non_batch_rank; ++i) {
+      if (a_non_batch_shape[i] != result_non_batch_shape[i]) {
+        a_can_be_naive = false;
+        break;
+      }
+    }
+  }
+
+  // if b can be broadcast naive to result
+  int first_diff_b = -1;
+  for (int i = 0; i < non_batch_rank; ++i) {
+    if (b_non_batch_shape[i] != result_non_batch_shape[i]) {
+      first_diff_b = i;
+      break;
+    }
+  }
+
+  bool b_can_be_naive = false;
+  if (first_diff_b != -1 && b_non_batch_shape[first_diff_b] == 1) {
+    b_can_be_naive = true;
+    for (int i = first_diff_b + 1; i < non_batch_rank; ++i) {
+      if (b_non_batch_shape[i] != result_non_batch_shape[i]) {
+        b_can_be_naive = false;
+        break;
+      }
+    }
+  }
+
+  // only enable this optimization when one tensor needs naive broadcast and the other does not
+  if (a_can_be_naive && !b_can_be_naive) {
+    info.can_be_broadcast_naive = true;
+    info.broadcast_naive_loops = result_non_batch_shape[first_diff_a];
+
+    // size = non batch_elements / broadcast_naive_loops
+    int non_batch_elements =
+        std::accumulate(result_non_batch_shape.begin(), result_non_batch_shape.end(), 1, std::multiplies<>());
+    info.size = non_batch_elements / info.broadcast_naive_loops;
+  } else if (b_can_be_naive && !a_can_be_naive) {
+    info.can_be_broadcast_naive = true;
+    info.broadcast_naive_loops = result_non_batch_shape[first_diff_b];
+
+    int non_batch_elements =
+        std::accumulate(result_non_batch_shape.begin(), result_non_batch_shape.end(), 1, std::multiplies<>());
+    info.size = non_batch_elements / info.broadcast_naive_loops;
+  } else {
+    // cannot be broadcast naive
+    info.size = std::accumulate(result_shape.begin(), result_shape.end(), 1, std::multiplies<>());
   }
 
   return info;
@@ -62,8 +133,9 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
   bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t batch_dims = broadcast_info.batch_dims;
   int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
-  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
+  int32_t vector_size = broadcast_info.size;
 
   switch (dtype) {
     case kFloat32: {
@@ -83,11 +155,16 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         float* out = output.ptr<mllm_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_add_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                b,  // b always contains `stride` elements
-                                broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_add_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -182,11 +259,16 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_add_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                        b,  // b always contains `stride` elements
-                                        broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_add_fp32_complex(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -210,8 +292,9 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
   bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t batch_dims = broadcast_info.batch_dims;
   int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
-  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
+  int32_t vector_size = broadcast_info.size;
 
   switch (dtype) {
     case kFloat32: {
@@ -231,11 +314,16 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         float* out = output.ptr<mllm_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_sub_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                b,  // b always contains `stride` elements
-                                broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -330,11 +418,16 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_sub_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                        b,  // b always contains `stride` elements
-                                        broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_sub_fp32_complex(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -358,8 +451,9 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
   bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t batch_dims = broadcast_info.batch_dims;
   int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
-  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
+  int32_t vector_size = broadcast_info.size;
 
   switch (dtype) {
     case kFloat32: {
@@ -379,11 +473,16 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         float* out = output.ptr<mllm_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_mul_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                b,  // b always contains `stride` elements
-                                broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -478,11 +577,16 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_mul_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                        b,  // b always contains `stride` elements
-                                        broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_mul_fp32_complex(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -506,8 +610,9 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
   bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t batch_dims = broadcast_info.batch_dims;
   int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
-  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
+  int32_t vector_size = broadcast_info.size;
 
   switch (dtype) {
     case kFloat32: {
@@ -527,11 +632,16 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         float* out = output.ptr<mllm_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_div_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                b,  // b always contains `stride` elements
-                                broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {
@@ -626,11 +736,16 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-        // Each iteration processes one contiguous block of size `stride`
-        for (int l = 0; l < broadcast_naive_loops; ++l) {
-          cpu::arm::ew_div_fp32_complex(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
-                                        b,  // b always contains `stride` elements
-                                        broadcast_naive_stride, options_.getThreads());
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+
+            cpu::arm::ew_div_fp32_complex(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
+          }
         }
 #endif
       } else {

@@ -29,7 +29,8 @@ void CPUConv1DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   int stride = options_.stride;
   int padding = options_.padding;
   int groups = options_.groups;
-  
+  int dilation = options_.dilation;
+
   // Calculate channels per group
   int in_channels_per_group = in_channels / groups;
   int out_channels_per_group = out_channels / groups;
@@ -53,7 +54,7 @@ void CPUConv1DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
         int b = idx / (out_channels * out_sequence);
         int oc = (idx % (out_channels * out_sequence)) / out_sequence;
         int os = idx % out_sequence;
-        
+
         // Determine which group this output channel belongs to
         int group_idx = oc / out_channels_per_group;
         int oc_in_group = oc % out_channels_per_group;
@@ -64,7 +65,8 @@ void CPUConv1DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
         for (int ic_in_group = 0; ic_in_group < in_channels_per_group; ic_in_group++) {
           int ic = group_idx * in_channels_per_group + ic_in_group;
           for (int k = 0; k < kernel_size; k++) {
-            int input_pos = os * stride - padding + k;
+            // Apply dilation to kernel position
+            int input_pos = os * stride - padding + k * dilation;
 
             if (input_pos >= 0 && input_pos < sequence) {
               // input index: [batch, in_channel, sequence]
@@ -72,9 +74,8 @@ void CPUConv1DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
               // weight index: [out_channel, in_channel, kernel_size]
               // With groups: [group, out_channels_per_group, in_channels_per_group, kernel_size]
-              int weight_idx = group_idx * (out_channels_per_group * in_channels_per_group * kernel_size) +
-                              oc_in_group * (in_channels_per_group * kernel_size) +
-                              ic_in_group * kernel_size + k;
+              int weight_idx = group_idx * (out_channels_per_group * in_channels_per_group * kernel_size)
+                               + oc_in_group * (in_channels_per_group * kernel_size) + ic_in_group * kernel_size + k;
 
               sum += input_ptr[input_idx] * weight_ptr[weight_idx];
             }
