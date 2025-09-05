@@ -1351,6 +1351,7 @@ class Qwen2_5VLText final : public nn::Module {
         // NOTE: !!! is layer_idx + 1, we need to check the kv cache in the next layer.
         auto& next_layer_kv_cache_not_filled_pos = kv_cache->kv_not_filled_pos_[layer_idx + 1];
         auto need_to_delay_compute_in_next_layer_pos = mappingThis2NextPos(next_layer_pos, next_layer_kv_cache_not_filled_pos);
+        std::ranges::sort(need_to_delay_compute_in_next_layer_pos);
 
         // NOTE: !!! is  layer_idx + 1.
         //  Not include the last generated token.
@@ -1388,13 +1389,13 @@ class Qwen2_5VLText final : public nn::Module {
           {
             const auto& delay_compute = lazy_vlm_state->chosen_pos_to_delay_compute[layer_idx + 1];
             const auto& pos_in_each = lazy_vlm_state->chosen_pos_in_each[layer_idx + 1];
-            int q_bound = delay_compute.size() + 1;
+            int q_bound = delay_compute.size();
             int k_bound = pos_in_each.size();
             causal_mask = Tensor::zeros(
                 {
                     1,
                     1,
-                    q_bound,
+                    q_bound + 1,
                     k_bound,
                 },
                 kFloat32, kCPU);
