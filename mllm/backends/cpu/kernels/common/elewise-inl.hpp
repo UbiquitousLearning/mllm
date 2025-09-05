@@ -18,7 +18,6 @@ HWY_INLINE void __elementwise(const T* HWY_RESTRICT x, const T* HWY_RESTRICT y, 
   const size_t N = hn::Lanes(d);
   size_t idx = 0;
 
-  // 处理完整的向量块
   for (; idx + N <= count; idx += N) {
     const hn::Vec<decltype(d)> vx = hn::LoadU(d, x + idx);
     const hn::Vec<decltype(d)> vy = hn::LoadU(d, y + idx);
@@ -26,7 +25,6 @@ HWY_INLINE void __elementwise(const T* HWY_RESTRICT x, const T* HWY_RESTRICT y, 
     hn::StoreU(result, d, out + idx);
   }
 
-  // 处理剩余元素
   if (idx < count) {
     const hn::Vec<decltype(d)> vx = hn::LoadN(d, x + idx, count - idx);
     const hn::Vec<decltype(d)> vy = hn::LoadN(d, y + idx, count - idx);
