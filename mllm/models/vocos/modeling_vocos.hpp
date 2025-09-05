@@ -101,7 +101,8 @@ class ConvNeXtBlock : public nn::Module {
    */
   inline ConvNeXtBlock(const std::string& name, int32_t dim, int32_t intermediate_dim)
       : nn::Module(name), dim_(dim), intermediate_dim_(intermediate_dim) {
-    dwconv_ = reg<nn::Conv1D>("dwconv", dim, dim, 7, 1, true, 3, dim);  // Depthwise conv
+    dwconv_ = reg<nn::Conv1D>("dwconv", dim, dim, 7,
+                              /*stride*/ 1, /*padding*/ 3, /*dilation*/ 1, /*groups*/ dim);  // Depthwise conv
     norm_ = reg<nn::LayerNorm>("norm", std::vector<int32_t>{dim}, true, true, 1e-6);
     pwconv1_ = reg<nn::Linear>("pwconv1", dim, intermediate_dim, true, aops::LinearImplTypes::kDefault);
     act_ = reg<nn::GELU>("act");
@@ -162,7 +163,7 @@ class VocosBackbone final : public nn::Module {
       : nn::Module(name), dim_(dim) {
     // Embedding convolution
     // Using Conv1D with kernel size [1, 1, kernel_size] to simulate 1D convolution
-    embed_ = reg<nn::Conv1D>("embed", 100, dim, 7, 1, true, 3);
+    embed_ = reg<nn::Conv1D>("embed", 100, dim, 7, 1, /*padding*/ 3);
     norm_ = reg<nn::LayerNorm>("norm", std::vector<int32_t>{dim}, true, true, 1e-6);
 
     // ConvNeXt blocks

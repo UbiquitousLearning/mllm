@@ -6,8 +6,8 @@ namespace mllm::nn {
 
 Conv1D::Conv1D() : Layer(OpTypes::kConv1D, aops::Conv1DOpOptions{}) {}
 
-Conv1D::Conv1D(int32_t in_channels, int32_t out_channels, int32_t kernel_size, int32_t stride_size, bool bias, int32_t padding,
-               int32_t groups, int32_t dilation)
+Conv1D::Conv1D(int32_t in_channels, int32_t out_channels, int32_t kernel_size, int32_t stride_size, int32_t padding,
+               int32_t dilation, int32_t groups, bool bias)
     : Layer(OpTypes::kConv1D, aops::Conv1DOpOptions{.in_channels = in_channels,
                                                     .out_channels = out_channels,
                                                     .kernel_size = kernel_size,
