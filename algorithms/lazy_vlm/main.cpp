@@ -38,14 +38,14 @@ MLLM_MAIN({
   {
     auto qwen2_5vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
     auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
-    auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, LazyVLMConfig{.decode_callback = false,
+    auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, LazyVLMConfig{.decode_callback = true,
                                                                        .pruning_settings = {
-                                                                           //  {3, 0.0},
-                                                                           //  {6, 0.0},
-                                                                           //  {9, 0.0},
-                                                                           //  {12, 0.0},
-                                                                           //  {15, 0.0},
-                                                                           //  {18, 0.0},
+                                                                           {3, 0.20},
+                                                                           {6, 0.20},
+                                                                           {9, 0.20},
+                                                                           {12, 0.20},
+                                                                           {15, 0.20},
+                                                                           {18, 0.20},
                                                                        }});
 
     auto param = mllm::load(model_path.get(), file_version);

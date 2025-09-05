@@ -31,7 +31,8 @@ void ConcatOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     return;
   }
   const int n_dims = inputs[0].shape().size();
-  if (at_dim < 0 || at_dim >= n_dims) {
+  if (at_dim < 0) { at_dim += n_dims; }
+  if (at_dim >= n_dims) {
     MLLM_ERROR_EXIT(ExitCode::kCoreError, "ConcatOp: dim {} out of range [0, {})", at_dim, n_dims);
     return;
   }

@@ -45,7 +45,7 @@ void topk_impl(const T* input_data, T* values_data, int32_t* indices_data, int o
 
         if (heap.size() < k) {
           heap.push(item);
-        } else if (heap_compare(heap.top(), item)) {
+        } else if (heap_compare(item, heap.top())) {
           heap.pop();
           heap.push(item);
         }

@@ -61,15 +61,15 @@ struct LazyVLMState {
   }
 
   inline std::tuple<mllm::Tensor, int, int> attention_score_analyze_decode(mllm::Tensor attn, int layer_idx) {
-    // Decode attention inputs is [B=1, H, 1, S_kv]
+    // Decode attention inputs is [B=1, H, suppose 1, S_kv]
     // For decode phase, we have attention from current token to all previous tokens including visual tokens
-    attn = attn.mean(1);     // [B=1, 1, S_kv]
-    attn = attn.squeeze(0);  // [1, S_kv]
+    attn = attn.mean(1);     // [B=1, suppose 1, S_kv]
+    attn = attn.squeeze(0);  // [suppose 1, S_kv]
 
     if (attn.shape()[1] != 1) {
       // Attn's length is not 1 means there has delay compute tokens! When calculate attn score in decoding stage, we just
       // consider the generated tokens' contribution to visual tokens. So we need to slice it
-      auto d = attn.shape()[2];
+      auto d = attn.shape()[1];
       attn = attn[{-1, mllm::kAll}].contiguous().view({1, d});
     }
 
