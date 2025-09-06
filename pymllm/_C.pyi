@@ -2,7 +2,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__ = ['AbsOpOptions', 'AbstractNnNode', 'AddOpOptions', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'CastTypeOpOptions', 'CausalMaskOpOptions', 'ClipOpOptions', 'CloneOpOptions', 'ConcatOpOptions', 'ConfigFile', 'Context', 'ContiguousOpOptions', 'Conv1DOpOptions', 'Conv3DOpOptions', 'CopyOpOptions', 'CosOpOptions', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'DivOpOptions', 'EmbeddingOpOptions', 'ExpOpOptions', 'FillOpOptions', 'FlashAttention2OpOptions', 'GELUOpOptions', 'GraphBeginOpOptions', 'GraphEndOpOptions', 'ISTFTOpOptions', 'IndexOpOptions', 'KVCacheOpOptions', 'LayerImpl', 'LayerNormOpOptions', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'LogOpOptions', 'MatMulOpOptions', 'MeanOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'MulOpOptions', 'MultimodalRoPEOpOptions', 'NegOpOptions', 'OpTypes', 'ParamOpOptions', 'ParameterFile', 'PermuteOpOptions', 'QuickGELUOpOptions', 'Qwen2VLRoPEOpOptions', 'RMSNormOpOptions', 'ReLUOpOptions', 'ReduceMaxOpOptions', 'ReduceMinOpOptions', 'ReduceSumOpOptions', 'RepeatOpOptions', 'ReshapeOpOptions', 'STFTOpOptions', 'SessionTCB', 'SiLUOpOptions', 'SinOpOptions', 'SliceOpOptions', 'SoftmaxOpOptions', 'SplitOpOptions', 'SubOpOptions', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'TopKOpOptions', 'TransposeOpOptions', 'ViewOpOptions', 'VisionRoPEOpOptions', 'X2XOpOptions', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__: list[str] = ['AbsOpOptions', 'AbstractNnNode', 'AddOpOptions', 'Backend', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'CastTypeOpOptions', 'CausalMaskOpOptions', 'ClipOpOptions', 'CloneOpOptions', 'ConcatOpOptions', 'ConfigFile', 'Context', 'ContiguousOpOptions', 'Conv1DOpOptions', 'Conv3DOpOptions', 'CopyOpOptions', 'CosOpOptions', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'DivOpOptions', 'EmbeddingOpOptions', 'ExpOpOptions', 'FillOpOptions', 'FlashAttention2OpOptions', 'GELUOpOptions', 'GraphBeginOpOptions', 'GraphEndOpOptions', 'ISTFTOpOptions', 'IndexOpOptions', 'KVCacheOpOptions', 'LayerImpl', 'LayerNormOpOptions', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'LogOpOptions', 'MatMulOpOptions', 'MeanOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'MulOpOptions', 'MultimodalRoPEOpOptions', 'NegOpOptions', 'OpTypes', 'ParamOpOptions', 'ParameterFile', 'PermuteOpOptions', 'QuickGELUOpOptions', 'Qwen2VLRoPEOpOptions', 'RMSNormOpOptions', 'ReLUOpOptions', 'ReduceMaxOpOptions', 'ReduceMinOpOptions', 'ReduceSumOpOptions', 'RepeatOpOptions', 'ReshapeOpOptions', 'STFTOpOptions', 'SessionTCB', 'SiLUOpOptions', 'SinOpOptions', 'SliceOpOptions', 'SoftmaxOpOptions', 'SplitOpOptions', 'SubOpOptions', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'TopKOpOptions', 'TransposeOpOptions', 'ViewOpOptions', 'X2XOpOptions', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
 class AbsOpOptions:
     def __init__(self) -> None:
         ...
@@ -1502,9 +1502,6 @@ class ViewOpOptions:
         ...
     @to_shape.setter
     def to_shape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> None:
-        ...
-class VisionRoPEOpOptions:
-    def __init__(self) -> None:
         ...
 class X2XOpOptions:
     def __init__(self) -> None:

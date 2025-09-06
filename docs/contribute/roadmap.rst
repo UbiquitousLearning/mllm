@@ -72,6 +72,11 @@ QNN Backend support
 - Migration from mllmv1 to mllm v2
 - QNN Kernel Benchmarks
 
+CANN Backend support
+^^^^^^^^^^^^^^^^^^^^
+
+- CANN Kernels
+
 Quantization
 ^^^^^^^^^^^^^^
 
