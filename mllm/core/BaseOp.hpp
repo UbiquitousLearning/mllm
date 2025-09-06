@@ -63,7 +63,12 @@ class BaseOpOptions {
     return outputs_constant_[pos];
   }
 
+  inline void setInplace(bool inplace) { inplace_ = inplace; }
+
+  [[nodiscard]] bool isInplace() const { return inplace_; }
+
  private:
+  bool inplace_ = false;
   int threads_ = 4;
   std::vector<DataTypes> inputs_dtypes_;
   std::vector<DataTypes> outputs_dtypes_;

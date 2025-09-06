@@ -1,8 +1,6 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include <hwy/highway.h>
-
 #include "mllm/utils/CPUArchHelper.hpp"
 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)

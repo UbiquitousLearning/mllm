@@ -89,4 +89,12 @@ class Layer {
     return {outs[0], outs[1], outs[2]};                                       \
   }
 
+#define MLLM_LAYER_ENABLE_INPLACE_ATTRIBUTE(__CXX_CLASS_NAME__)            \
+  inline __CXX_CLASS_NAME__& inplace() {                                   \
+    auto& opts = const_cast<::mllm::aops::__CXX_CLASS_NAME__##OpOptions&>( \
+        refOptions().as<::mllm::aops::__CXX_CLASS_NAME__##OpOptions>());   \
+    opts.setInplace(true);                                                 \
+    return *this;                                                          \
+  }
+
 }  // namespace mllm::nn
