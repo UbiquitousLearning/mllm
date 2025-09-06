@@ -5,10 +5,97 @@
 #include <algorithm>
 
 #include "mllm/nn/Functional.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/UnsafeMacros.hpp"
 #include "mllm/models/ARGeneration.hpp"
 
 namespace mllm::models {
+
+ARGenerationChatContext::ARGenerationChatContext(ARGeneration& gen, const ARGenerationOutputPast& input,
+                                                 const ARGenerationArgs& args)
+    : gen_(gen), input_(input), args_(args) {
+  MLLM_EMPTY_SCOPE;
+}
+
+ARGenerationChatIterator ARGenerationChatContext::begin() { return {gen_, input_, args_}; }
+
+ARGenerationChatIterator ARGenerationChatContext::end() { return {}; }
+
+ARGenerationChatIterator::ARGenerationChatIterator(ARGeneration& gen, const ARGenerationOutputPast& initial_input,
+                                                   const ARGenerationArgs& args)
+    : gen_(&gen), current_input_(initial_input), args_(args), finished_(false) {
+  temperature_ = args.count("temperature") ? args.at("temperature").get<float>() : 1.0f;
+  top_k_ = args.count("top_k") ? args.at("top_k").get<int>() : 0;
+  top_p_ = args.count("top_p") ? args.at("top_p").get<float>() : 0.0f;
+  max_length_ = args.count("max_length") ? args.at("max_length").get<int>() : gen.max_length_;
+  eos_token_id_ = args.count("eos_token_id") ? args.at("eos_token_id").get<int>() : gen.eos_token_id_;
+  do_sample_ = args.count("do_sample") ? args.at("do_sample").get<bool>() : gen.do_sample_;
+}
+
+ARGenerationChatIterator::ARGenerationChatIterator() : gen_(nullptr), finished_(true) { MLLM_EMPTY_SCOPE; }  // NOLINT
+
+ARGenerationChatIterator::reference ARGenerationChatIterator::operator*() const { return current_step_; }
+
+ARGenerationChatIterator::pointer ARGenerationChatIterator::operator->() const { return &current_step_; }
+
+ARGenerationChatIterator& ARGenerationChatIterator::operator++() {
+  if (finished_ || gen_ == nullptr) {
+    MLLM_WARN("Invalid iterator: cannot increment an end() iterator.");
+    return *this;
+  }
+  step();
+  return *this;
+}
+
+bool ARGenerationChatIterator::operator==(const ARGenerationChatIterator& other) const {
+  if (this->finished_ && other.finished_) return true;
+  if (this->finished_ || other.finished_) return false;
+  if (this->gen_ != other.gen_) return false;
+  return this->finished_ == other.finished_;
+}
+
+bool ARGenerationChatIterator::operator!=(const ARGenerationChatIterator& other) const { return !(*this == other); }
+
+void ARGenerationChatIterator::step() {
+  if (finished_ || gen_ == nullptr) {
+    MLLM_WARN("Invalid iterator: cannot step an end() iterator.");
+    return;
+  }
+
+  if (step_count_ >= max_length_) {
+    finished_ = true;
+    return;
+  }
+
+  bool use_sampling = do_sample_ || (temperature_ != 1.0f) || (top_k_ > 0) || (top_p_ > 0.0f);
+  ARGenerationOutputPast output = gen_->forward(current_input_, args_);
+  Tensor logits = output["sequence"];
+  int64_t next_token_id;
+  if (use_sampling) {
+    if (top_k_ > 0) {
+      next_token_id = gen_->sampleTopK(logits, top_k_, temperature_);
+    } else if (top_p_ > 0.0f) {
+      next_token_id = gen_->sampleTopP(logits, top_p_, temperature_);
+    } else {
+      next_token_id = gen_->sampleTemperature(logits, temperature_);
+    }
+  } else {
+    next_token_id = gen_->sampleGreedy(logits);
+  }
+
+  current_step_.current_step = step_count_;
+  current_step_.cur_token_id = next_token_id;
+
+  if (next_token_id == eos_token_id_) { finished_ = true; }
+
+  // [B, S]
+  current_input_ = std::move(output);
+  ;
+  current_input_["sequence"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
+  current_input_["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
+
+  step_count_++;
+}
 
 __MLLM_UNSAFE_OPT_BEGIN_O3
 ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& input, const ARGenerationArgs& args) {
@@ -216,6 +303,12 @@ int64_t ARGeneration::sampleTopP(Tensor& logits, float p, float temperature) {
   for (float& prob : top_probs) { prob *= (1.f / sum); }
 
   return indices[sampleFromDistribution(top_probs)];
+}
+__MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+ARGenerationChatContext ARGeneration::chat(const ARGenerationOutputPast& input, const ARGenerationArgs& args) {
+  return {*this, input, args};
 }
 __MLLM_UNSAFE_OPT_END
 

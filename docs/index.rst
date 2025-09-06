@@ -72,15 +72,9 @@ The following example demonstrates how to perform inference on a multimodal visi
    qwen2vl.load(mllm::load(model_path));
    auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
 
-   qwen2vl.streamGenerate(inputs,
-                           {
-                               {"do_sample", mllm::AnyValue(false)},
-                               {"max_length", mllm::AnyValue(qwen2vl_cfg.max_cache_length)},
-                           },
-                           [&](int64_t token_id) {
-                             auto str = qwen2vl_tokenizer.detokenize(token_id);
-                             std::wcout << str << std::flush;
-                           });
+   for (auto& step : qwen2vl.chat(inputs)) { 
+      std::wcout << qwen2vl_tokenizer.detokenize(step.cur_token_id) << std::flush; 
+   }
 
 more examples can be found in `examples <./examples/>`_
 
