@@ -41,4 +41,11 @@ PYBIND11_MODULE(_C, m) {
         pybind11::arg("version") = mllm::ModelFileVersion::kV1, pybind11::arg("map_2_device") = mllm::kCPU);
   m.def("save", &mllm::save, "Save parameter file", pybind11::arg("file_name"), pybind11::arg("parameter_file"),
         pybind11::arg("version") = mllm::ModelFileVersion::kV1, pybind11::arg("map_2_device") = mllm::kCPU);
+
+  // Expose _GLIBCXX_USE_CXX11_ABI
+#ifdef _GLIBCXX_USE_CXX11_ABI
+  m.attr("_GLIBCXX_USE_CXX11_ABI") = pybind11::int_(_GLIBCXX_USE_CXX11_ABI);
+#else
+  m.attr("_GLIBCXX_USE_CXX11_ABI") = pybind11::none();
+#endif
 }

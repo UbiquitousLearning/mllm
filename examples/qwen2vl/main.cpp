@@ -63,16 +63,20 @@ MLLM_MAIN({
 
       fmt::print("\n🤖 Response: ");
 
+      // Use for loop
+      for (auto& step : qwen2vl.chat(inputs)) { std::wcout << qwen2vl_tokenizer.detokenize(step.cur_token_id) << std::flush; }
+
+      // OR
       // Steam it!
-      qwen2vl.streamGenerate(inputs,
-                             {
-                                 {"do_sample", mllm::AnyValue(false)},
-                                 {"max_length", mllm::AnyValue(qwen2vl_cfg.max_cache_length)},
-                             },
-                             [&](int64_t token_id) {
-                               auto str = qwen2vl_tokenizer.detokenize(token_id);
-                               std::wcout << str << std::flush;
-                             });
+      // qwen2vl.streamGenerate(inputs,
+      //                        {
+      //                            {"do_sample", mllm::AnyValue(false)},
+      //                            {"max_length", mllm::AnyValue(qwen2vl_cfg.max_cache_length)},
+      //                        },
+      //                        [&](int64_t token_id) {
+      //                          auto str = qwen2vl_tokenizer.detokenize(token_id);
+      //                          std::wcout << str << std::flush;
+      //                        });
 
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
