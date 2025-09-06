@@ -537,7 +537,6 @@ void registerCoreBinding(py::module_& m) {
       .def_readwrite("dims", &mllm::aops::Qwen2VLRoPEOpOptions::dims)
       .def_readwrite("spatial_merge_size", &mllm::aops::Qwen2VLRoPEOpOptions::spatial_merge_size)
       .def_readwrite("theta", &mllm::aops::Qwen2VLRoPEOpOptions::theta);
-  py::class_<mllm::aops::VisionRoPEOpOptions>(m, "VisionRoPEOpOptions").def(py::init<>());
   py::class_<mllm::aops::MultimodalRoPEOpOptions>(m, "MultimodalRoPEOpOptions").def(py::init<>());
   py::class_<mllm::aops::ClipOpOptions>(m, "ClipOpOptions")
       .def(py::init<>())
