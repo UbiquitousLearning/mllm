@@ -392,6 +392,35 @@ struct MicroKernel {
   __MLLM_UNSAFE_OPT_END
 };
 
+template<int RM, int RN>
+struct MicroKernel_NT_T_Bias;
+
+template<int RM, int RN>
+struct MicroKernel_NT_T_Bias {
+  static inline void accumulate(const float* a, int64_t lda, const float* b, int64_t ldb, float* c, int64_t ldc, int64_t k,
+                                const float* bias) {
+#pragma unroll
+    for (int i = 0; i < RM; ++i) {
+#pragma unroll
+      for (int j = 0; j < RN; ++j) {
+        float sum = 0.0f;
+        for (int64_t l = 0; l < k; ++l) { sum += a[i * lda + l] * b[j * ldb + l]; }
+        c[i * ldc + j] = sum;
+      }
+    }
+    if (bias != nullptr) {
+#pragma unroll
+      for (int i = 0; i < RM; ++i) {
+#pragma unroll
+        for (int j = 0; j < RN; ++j) { c[i * ldc + j] += bias[j]; }
+      }
+    }
+  }
+};
+
+bool __mllm_blas_sgemm_nt_t(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb, float* C,
+                            int64_t ldc, int ith, const float* bias, int thread_count);
+
 void mllm_blas_matmul_fp32(const int M, const int K, const int N, mllm_fp32_t* __restrict__ dst,
                            const mllm_fp32_t* __restrict__ A, const mllm_fp32_t* __restrict__ B,
                            const mllm_fp32_t* __restrict__ C, bool transpose_a, bool transpose_b, int thread_count);

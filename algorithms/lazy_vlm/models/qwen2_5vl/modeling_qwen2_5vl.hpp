@@ -711,7 +711,7 @@ class Qwen2_5VLAttention final : public nn::Module {
         return forward_normal_prefill(inputs, args);
       }
     } else {  // Decode
-      if (lazy_vlm_cfg->decode_callback) {
+      if (lazy_vlm_cfg->decode_callback && lazy_vlm_state->cur_step <= 3) {
         return forward_lazy_vlm_decode(inputs, args);
       } else {
         return forward_normal_decode(inputs, args);
@@ -997,7 +997,7 @@ class Qwen2_5VLDecoder final : public nn::Module {
         return forward_normal_prefill(inputs, args);
       }
     } else {  // Decode
-      if (lazy_vlm_cfg->decode_callback) {
+      if (lazy_vlm_cfg->decode_callback && lazy_vlm_state->cur_step <= 3) {
         return forward_lazy_vlm_decode(inputs, args);
       } else {
         return forward_normal_decode(inputs, args);
@@ -1165,7 +1165,7 @@ class Qwen2_5VLText final : public nn::Module {
         return forward_normal_prefill(inputs, args);
       }
     } else {  // Decode
-      if (lazy_vlm_cfg->decode_callback) {
+      if (lazy_vlm_cfg->decode_callback && lazy_vlm_state->cur_step <= 3) {
         return forward_lazy_vlm_decode(inputs, args);
       } else {
         return forward_normal_decode(inputs, args);

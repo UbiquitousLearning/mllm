@@ -299,6 +299,74 @@ static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, co
 #undef KERNEL
 }
 __MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+static inline void dispatch_tile_nt_t(int rm, int rn, const float* a, int64_t lda, const float* b, int64_t ldb, float* c,
+                                      int64_t ldc, int64_t k, const float* bias) {
+#define KERNEL(__tile_m, __tile_n)                                                          \
+  case (__tile_m << 8) | __tile_n:                                                          \
+    MicroKernel_NT_T_Bias<__tile_m, __tile_n>::accumulate(a, lda, b, ldb, c, ldc, k, bias); \
+    break;
+
+  switch ((std::min(rm, 8) << 8) | std::min(rn, 16)) {
+    // Compiler Optimized Kernel
+    KERNEL(8, 16)
+    KERNEL(4, 16)
+    KERNEL(1, 4)
+    // General GEMV, M = 1, decode
+    KERNEL(1, 1)
+    KERNEL(1, 2)
+    KERNEL(1, 3)
+    KERNEL(1, 5)
+    KERNEL(1, 6)
+    KERNEL(1, 7)
+    KERNEL(1, 8)
+    KERNEL(1, 9)
+    KERNEL(1, 10)
+    KERNEL(1, 11)
+    KERNEL(1, 12)
+    KERNEL(1, 13)
+    KERNEL(1, 14)
+    KERNEL(1, 15)
+    KERNEL(1, 16)
+    // Compiler Optimized Kernel
+    KERNEL(2, 2)
+    KERNEL(2, 4)
+    KERNEL(2, 6)
+    KERNEL(2, 8)
+    KERNEL(2, 12)
+    KERNEL(2, 16)
+    KERNEL(4, 2)
+    KERNEL(4, 4)
+    KERNEL(4, 6)
+    KERNEL(4, 8)
+    KERNEL(4, 12)
+    default: {
+      auto _rm = std::min(rm, 8);
+      auto _rn = std::min(rn, 16);
+#pragma unroll
+      for (int i = 0; i < _rm; ++i) {
+#pragma unroll
+        for (int j = 0; j < _rn; ++j) {
+          float sum = 0.0f;
+          for (int64_t l = 0; l < k; ++l) { sum += a[i * lda + l] * b[j * ldb + l]; }
+          c[i * ldc + j] = sum;
+        }
+      }
+      if (bias != nullptr) {
+#pragma unroll
+        for (int i = 0; i < _rm; ++i) {
+#pragma unroll
+          for (int j = 0; j < _rn; ++j) { c[i * ldc + j] += bias[j]; }
+        }
+      }
+      break;
+    }
+  }
+
+#undef KERNEL
+}
+__MLLM_UNSAFE_OPT_END
 }  // namespace
 
 bool __mllm_blas_sgemm_nt_nt(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb,
@@ -320,6 +388,29 @@ bool __mllm_blas_sgemm_nt_nt(int64_t m, int64_t n, int64_t k, const float* A, in
     int64_t rm = std::min(mc, m - ii);
     int64_t rn = std::min(nc, n - jj);
     dispatch_tile(rm, rn, &A[ii * lda], lda, &B[jj], ldb, &C[ii * ldc + jj], ldc, k);
+  });
+  return true;
+}
+
+bool __mllm_blas_sgemm_nt_t(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb, float* C,
+                            int64_t ldc, int ith, const float* bias, int thread_count) {
+  if (m <= 0 || n <= 0 || k <= 0) return false;
+  if (lda < k || ldb < n || ldc < n) return false;
+  if (thread_count <= 0 || ith < 0 || ith >= thread_count) return false;
+  /* dynamic tiling */
+  int64_t mc = 8, nc = 16;
+  if (m < 8) mc = 4;
+  if (m < 4) mc = 1;
+  if (n < 16) nc = 4;
+  if (n < 4) nc = 1;
+  int64_t yt = (m + mc - 1) / mc, xt = (n + nc - 1) / nc;
+  int64_t tiles = yt * xt;
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, job, 0, tiles, 1, {
+    int64_t ii = (job / xt) * mc;
+    int64_t jj = (job % xt) * nc;
+    int64_t rm = std::min(mc, m - ii);
+    int64_t rn = std::min(nc, n - jj);
+    dispatch_tile_nt_t(rm, rn, &A[ii * lda], lda, &B[jj], ldb, &C[ii * ldc + jj], ldc, k, bias);
   });
   return true;
 }
@@ -348,7 +439,7 @@ void mllm_blas_matmul_fp32(const int M, const int K, const int N, mllm_fp32_t* _
     } else
     // gemm
     {
-      NYI("!transpose_a && transpose_b not supported in mllm_blas_matmul_fp32 gemm");
+      __mllm_blas_sgemm_nt_t(M, N, K, A, K, B, K, dst, N, 0, C, thread_count);
     }
     return;
   } else {
@@ -388,7 +479,11 @@ void mllm_blas_batch_matmul_fp32(const int BATCH, const int M, const int K, cons
     } else
     // gemm
     {
-      NYI("!transpose_a && transpose_b not supported in mllm_blas_matmul_fp32 gemm");
+      // Parallel is in the inner loops, not here.
+      for (int i = 0; i < BATCH; ++i) {
+        __mllm_blas_sgemm_nt_t(M, N, K, A + i * A_batch_stride, K, B + i * B_batch_stride, K, dst + i * Dst_batch_stride, N, 0,
+                               C, thread_count);
+      }
     }
     return;
   } else {

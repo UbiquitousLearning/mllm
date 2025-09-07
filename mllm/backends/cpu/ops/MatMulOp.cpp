@@ -50,8 +50,8 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #if defined(MLLM_USE_BLAS)
     mt = aops::MatMulOpType::kBLAS;
 #else
-    if (!transpose_a && transpose_b && M != 1) {
-      // FIXME: kLLamaFile is not supported for M == 1
+    if (!transpose_a && transpose_b && M >= 4) {
+      // FIXME: kLLamaFile is not supported for M < 4
       mt = aops::MatMulOpType::kLlamaFile;
     } else
     // All fallback to mllm blas
@@ -97,7 +97,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
                       o.ptr<mllm_byte_t>()
                           + o.stride()[o.shape().size() - 3] * b / lanesOfType(o.dtype()) * bytesOfType(o.dtype()),
                       ldc / lanesOfType(o.dtype()), id, thread_count, rhs.dtype(), lhs.dtype(), o.dtype())) {
-                MLLM_WARN("LlamaFile matmul failed");
+                MLLM_WARN("LlamaFile matmul failed N: {}, M: {}, K: {}", N, M, K);
               }
             });
           }
@@ -106,7 +106,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
             if (!llamafile_sgemm(N, M, K / src1_blck_size, rhs.ptr<mllm_byte_t>(), ld1 / src1_blck_size, lhs.ptr<mllm_byte_t>(),
                                  ld0 / src0_blck_size, o.ptr<mllm_byte_t>(), ldc / lanesOfType(o.dtype()), id, thread_count,
                                  rhs.dtype(), lhs.dtype(), o.dtype())) {
-              MLLM_WARN("LlamaFile matmul failed");
+              MLLM_WARN("LlamaFile matmul failed N: {}, M: {}, K: {}", N, M, K);
             }
           });
         }
