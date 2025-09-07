@@ -344,9 +344,7 @@ static inline void dispatch_tile_nt_t(int rm, int rn, const float* a, int64_t ld
     default: {
       auto _rm = std::min(rm, 8);
       auto _rn = std::min(rn, 16);
-#pragma unroll
       for (int i = 0; i < _rm; ++i) {
-#pragma unroll
         for (int j = 0; j < _rn; ++j) {
           float sum = 0.0f;
           for (int64_t l = 0; l < k; ++l) { sum += a[i * lda + l] * b[j * ldb + l]; }
@@ -354,9 +352,7 @@ static inline void dispatch_tile_nt_t(int rm, int rn, const float* a, int64_t ld
         }
       }
       if (bias != nullptr) {
-#pragma unroll
         for (int i = 0; i < _rm; ++i) {
-#pragma unroll
           for (int j = 0; j < _rn; ++j) { c[i * ldc + j] += bias[j]; }
         }
       }

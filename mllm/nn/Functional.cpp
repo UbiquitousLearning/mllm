@@ -12,6 +12,7 @@
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/TopKOp.hpp"
+#include "mllm/core/aops/SiLUOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -101,6 +102,14 @@ Tensor sum(const Tensor& x, int32_t dim, bool keep_dim) {
 Tensor mean(const Tensor& x, int32_t dim, bool keep_dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kMean, aops::MeanOpOptions{.dim = dim, .keep_dim = keep_dim},
                                                   {x})[0];
+}
+
+Tensor silu(const Tensor& x) { return Context::instance().buildOpAndSubmitTask(OpTypes::kSiLU, aops::SiLUOpOptions{}, {x})[0]; }
+
+Tensor silu_(const Tensor& x) {
+  auto opt = aops::SiLUOpOptions{};
+  opt.setInplace(true);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSiLU, opt, {x})[0];
 }
 
 }  // namespace mllm::nn::functional

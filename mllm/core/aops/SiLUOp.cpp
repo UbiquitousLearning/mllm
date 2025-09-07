@@ -25,10 +25,16 @@ void SiLUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
 }
 
 void SiLUOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  const auto& i = inputs[0];
-  outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
+  if (options_.isInplace()) {
+    outputs.emplace_back(inputs[0]);
+  } else {
+    const auto& i = inputs[0];
+    outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
+  }
 }
 
-void SiLUOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+void SiLUOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (!options_.isInplace()) { BaseOp::setup(inputs, outputs); }
+}
 
 }  // namespace mllm::aops

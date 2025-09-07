@@ -409,14 +409,12 @@ class Qwen2_5VLVisionMLP final : public nn::Module {
   nn::Linear gate_proj_;
   nn::Linear up_proj_;
   nn::Linear down_proj_;
-  nn::SiLU silu_;
 
  public:
   Qwen2_5VLVisionMLP() = default;
   Qwen2_5VLVisionMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     // clang-format off
     gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
-    silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
     down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, true);
     // clang-format on
@@ -424,7 +422,7 @@ class Qwen2_5VLVisionMLP final : public nn::Module {
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = gate_proj_(inputs[0]);
-    x = silu_(x);
+    x = nn::functional::silu_(x);
     auto y = up_proj_(inputs[0]);
     x = x * y;
     x = down_proj_(x);
@@ -638,20 +636,18 @@ class Qwen2_5VLMLP final : public nn::Module {
   nn::Linear gate_proj_;
   nn::Linear up_proj_;
   nn::Linear down_proj_;
-  nn::SiLU silu_;
 
  public:
   Qwen2_5VLMLP() = default;
   Qwen2_5VLMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
     gate_proj_ = reg<nn::Linear>("gate_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
-    silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
     down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = gate_proj_(inputs[0]);
-    x = silu_(x);
+    x = nn::functional::silu_(x);
     auto y = up_proj_(inputs[0]);
     x = x * y;
     x = down_proj_(x);
