@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <iterator>
+#include <chrono>
 
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/AnyValue.hpp"
@@ -92,6 +93,8 @@ class ARGeneration {
 
   virtual IROutput trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args);
 
+  virtual void perfSummary();
+
   int64_t sampleGreedy(Tensor& logits);
 
   int64_t sampleTemperature(Tensor& logits, float temperature);
@@ -108,10 +111,33 @@ class ARGeneration {
 
   int sampleFromDistribution(const std::vector<float>& probs);
 
+  void prefillEventStartTimePoint();
+
+  void prefillEventEndTimePoint();
+
+  void decodeEventStartTimePoint();
+
+  void decodeEventEndTimePoint();
+
+  void customEventStartTimePoint(const std::string& name);
+
+  void customEventEndTimePoint(const std::string& name);
+
  protected:
   bool do_sample_ = false;
   int eos_token_id_;
   int max_length_ = 1024;
+
+  int64_t ar_steps_ = 0;
+  int64_t ar_prefill_tokens_ = 0;
+
+  std::chrono::high_resolution_clock::time_point llm_prefill_start_time_;
+  std::chrono::high_resolution_clock::time_point llm_prefill_end_time_;
+  std::chrono::high_resolution_clock::time_point llm_decode_start_time_;
+  std::chrono::high_resolution_clock::time_point llm_decode_end_time_;
+  std::unordered_map<std::string,
+                     std::pair<std::chrono::high_resolution_clock::time_point, std::chrono::high_resolution_clock::time_point>>
+      custom_event_time_;
 };
 
 }  // namespace mllm::models

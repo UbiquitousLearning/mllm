@@ -124,4 +124,7 @@ Tensor max(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), b
 Tensor sum(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
 Tensor mean(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
 
+Tensor silu(const Tensor& x);
+Tensor silu_(const Tensor& x);
+
 }  // namespace mllm::nn::functional
