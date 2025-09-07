@@ -6,6 +6,7 @@
 #include <vector>
 #include <type_traits>
 
+#include "mllm/core/MappedFile.hpp"
 #include "mllm/utils/AnyValue.hpp"
 #include "mllm/nn/AbstractNnNode.hpp"
 #include "mllm/nn/Layer.hpp"
@@ -37,6 +38,7 @@ class ModuleImpl : public AbstractNnNode {
  private:
   /// Buffer is tensors that will not shown in params. And will not be saved.
   SymbolTable<std::string, Tensor> buffer_;
+  std::vector<MappedFile::ptr_t> resources_mapped_files_;
 };
 
 template<typename T>

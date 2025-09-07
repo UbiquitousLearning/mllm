@@ -16,6 +16,14 @@ MLLM_MAIN({
   auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer directory").required(true);
   auto& config_path = Argparse::add<std::string>("-c|--config_path").help("Config path").required(true);
 
+  // 1. prefill_only
+  // 2. prefill_decode
+  // 3. normal
+  auto& settings = Argparse::add<std::string>("-s|--settings").help("Settings path").def("normal");
+
+  auto& prompt = Argparse::add<std::string>("-p|--prompt").help("Prompt").required(true);
+  auto& image_path = Argparse::add<std::string>("-i|--image_path").help("Image path").required(true);
+
   Argparse::parse(argc, argv);
 
 #ifdef MLLM_PERFETTO_ENABLE
@@ -36,17 +44,26 @@ MLLM_MAIN({
   }
 
   {
+    LazyVLMConfig lazy_cfg;
+
+    if (settings.get() == "normal") {
+      lazy_cfg.decode_callback = false;
+      lazy_cfg.pruning_settings = {};
+    } else if (settings.get() == "prefill_only") {
+      lazy_cfg.decode_callback = false;
+      lazy_cfg.pruning_settings = {
+          {3, 0.20}, {6, 0.20}, {9, 0.20}, {12, 0.20}, {15, 0.20}, {18, 0.20},
+      };
+    } else if (settings.get() == "prefill_decode") {
+      lazy_cfg.decode_callback = true;
+      lazy_cfg.pruning_settings = {
+          {3, 0.20}, {6, 0.20}, {9, 0.20}, {12, 0.20}, {15, 0.20}, {18, 0.20},
+      };
+    }
+
     auto qwen2_5vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
     auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
-    auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, LazyVLMConfig{.decode_callback = true,
-                                                                       .pruning_settings = {
-                                                                           {3, 0.20},
-                                                                           {6, 0.20},
-                                                                           {9, 0.20},
-                                                                           {12, 0.20},
-                                                                           {15, 0.20},
-                                                                           {18, 0.20},
-                                                                       }});
+    auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, lazy_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);
     qwen2_5vl.llm.load(param);
@@ -54,21 +71,18 @@ MLLM_MAIN({
 
     try {
       fmt::print("🔄 Processing...\n");
-      auto inputs = qwen2_5vl_tokenizer.convertMessage(
-          {.prompt = "Describe this image", .img_file_path = "/Volumes/D/mllm/.tmp/gafei.jpeg"});
+      auto inputs = qwen2_5vl_tokenizer.convertMessage({.prompt = prompt.get(), .img_file_path = image_path.get()});
 
       fmt::print("\n🤖 Response: ");
 
-      // Steam it!
-      qwen2_5vl.streamGenerate(inputs,
-                               {
-                                   {"do_sample", mllm::AnyValue(false)},
-                                   {"max_length", mllm::AnyValue(qwen2_5vl_cfg.max_cache_length)},
-                               },
-                               [&](int64_t token_id) {
-                                 auto str = qwen2_5vl_tokenizer.detokenize(token_id);
-                                 std::wcout << str << std::flush;
-                               });
+      for (auto& step : qwen2_5vl.chat(inputs, {
+                                                   {"do_sample", mllm::AnyValue(false)},
+                                                   {"max_length", mllm::AnyValue(qwen2_5vl_cfg.max_cache_length)},
+                                               })) {
+        std::wcout << qwen2_5vl_tokenizer.detokenize(step.cur_token_id) << std::flush;
+      }
+
+      qwen2_5vl.perfSummary();
 
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }

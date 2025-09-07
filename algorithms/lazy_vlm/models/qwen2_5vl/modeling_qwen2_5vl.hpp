@@ -1495,21 +1495,15 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
       auto img = input.at("img");
       auto grid_thw = input.at("grid_thw");
 
-      // process img
-      print("ViT Processing: ...");
-      print("Image shape is:", img.shape());
-
       auto v_len = img.shape()[0];
       auto inv_freq = makeVisualRoPEInvFreq(cfg.visual_hidden_size / cfg.visual_num_heads, 10000.0);
       auto pos_ids = makeVisualRotaryPosEmbIds(grid_thw, cfg.visual_spatial_merge_size);
       auto rotary_pos_emb_full = makeVisualRotaryPosEmbFull(inv_freq, v_len);
       auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
       auto [visual_embedding_sin, visual_embedding_cos] = makeVisualRotarySinCos(pos_emb);
-      auto start_time = std::chrono::high_resolution_clock::now();
+      customEventStartTimePoint("visual");
       auto visual_embeddings = visual(img, visual_embedding_sin, visual_embedding_cos, grid_thw)[0];
-      auto end_time = std::chrono::high_resolution_clock::now();
-      auto all_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
-      print("ViT Processing: done, time cost: {} seconds", all_time.count());
+      customEventEndTimePoint("visual");
 
       // Insert visual embeddings into llm's embedding
       int32_t vision_pad_token_start = -1;
@@ -1568,8 +1562,10 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
       lazy_vlm_state_.llm_prefill_sin = llm_embedding_sin;
     }
 
+    if (lazy_vlm_state_.cur_step == 0) { customEventStartTimePoint("non_visual_prefill"); }
     sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_), AnyValue(&lazy_vlm_state_),
                    AnyValue(&lazy_vlm_cfg_))[0];
+    if (lazy_vlm_state_.cur_step == 0) { customEventEndTimePoint("non_visual_prefill"); }
 
     return {
         {"sequence", sequence},
@@ -1689,6 +1685,40 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
     }
 
     return position_ids;
+  }
+
+  void perfSummary() override {
+    mllm::models::ARGeneration::perfSummary();
+    if (!custom_event_time_.empty()) {
+      bool has_visual = custom_event_time_.count("visual") > 0;
+      bool has_non_visual_prefill = custom_event_time_.count("non_visual_prefill") > 0;
+
+      if (has_visual || has_non_visual_prefill) {
+        fmt::print(fg(fmt::color::magenta), "\n{:=^50}\n", " Qwen2.5-VL Custom Events ");
+
+        if (has_visual) {
+          const auto& time_points = custom_event_time_["visual"];
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_points.second - time_points.first).count();
+          fmt::print(fg(fmt::color::white), "{:<20}: ", "Visual processing");
+          fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs\n", (double)duration);
+        }
+
+        if (has_non_visual_prefill) {
+          const auto& time_points = custom_event_time_["non_visual_prefill"];
+          auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_points.second - time_points.first).count();
+          fmt::print(fg(fmt::color::white), "{:<20}: ", "Non-visual prefill");
+          fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs", (double)duration);
+
+          if (duration > 0 && ar_prefill_tokens_ > 0) {
+            double tokens_per_sec = (double)ar_prefill_tokens_ / (duration / 1000000.0);
+            fmt::print(fg(fmt::color::white), " ({:>6.2f} tokens/s)", tokens_per_sec);
+          }
+          fmt::print("\n");
+        }
+
+        fmt::print(fg(fmt::color::magenta), "{:=^50}\n", "");
+      }
+    }
   }
 
   const models::qwen2_5vl::Qwen2_5VLConfig& cfg;

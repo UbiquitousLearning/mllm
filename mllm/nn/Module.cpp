@@ -22,6 +22,7 @@ void ModuleImpl::load(const ParameterFile::ptr_t& param_file) {
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->load(param_file); break;
     }
   }
+  resources_mapped_files_.push_back(param_file->getMappedFile());
 }
 
 ParameterFile::ptr_t ModuleImpl::params(ModelFileVersion v) {
