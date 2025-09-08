@@ -62,7 +62,7 @@ MLLM_MAIN({
     }
 
     auto qwen2_5vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
-    auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
+    auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get(), 56 * 56, 28 * 28 * 2048);
     auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, lazy_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);

@@ -71,6 +71,9 @@ HKVCache::HKVCache(int32_t max_cache_length, int32_t layer_nums, int32_t q_heads
       current_seq_cnt_.push_back(0);
     }
   }
+
+  // Init visited
+  visited_kv_pos_.resize(layer_nums_ + 1);
 }
 
 int32_t HKVCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_seq_cnt_[layer_idx]; }
@@ -95,8 +98,14 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
           std::memcpy(v_cache_ptr, v_ptr, inputs_seq_len * kv_dims_ * bytesOfType(v_dtype_) / lanesOfType(v_dtype_));
         }
       }
+      // update visited
+      for (int idx = 0; idx < inputs_seq_len; ++idx) {
+        visited_kv_pos_[layer_idx].emplace_back(current_seq_cnt_[layer_idx] + idx);
+      }
+
       // Update sequence length.
       current_seq_cnt_[layer_idx] += inputs_seq_len;
+
       return {
           k_cache_[layer_idx][{mllm::kAll, mllm::kAll, {mllm::kAll, current_seq_cnt_[layer_idx]}, mllm::kAll}],
           v_cache_[layer_idx][{mllm::kAll, mllm::kAll, {mllm::kAll, current_seq_cnt_[layer_idx]}, mllm::kAll}],
@@ -122,6 +131,10 @@ std::array<mllm::Tensor, 2> HKVCache::updateKVCache(int32_t layer_idx, mllm::Ten
           }
         }
       }
+
+      // Update visited
+      for (int idx : pos) { visited_kv_pos_[layer_idx].emplace_back(idx); }
+
       return {mllm::Tensor::nil(), mllm::Tensor::nil()};
     }
     case KVCacheUpdateRule::kQuery: {
@@ -178,4 +191,31 @@ __MLLM_UNSAFE_OPT_END
 
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 void HKVCache::manualCacheLengthUpdate(int32_t layer_idx, int32_t times) { current_seq_cnt_[layer_idx] += times; }
+__MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+void HKVCache::reorderKVCache() {
+  for (int i = 0; i < layer_nums_; ++i) {
+    auto pos = visited_kv_pos_[i];
+    pos.erase(std::unique(pos.begin(), pos.end()), pos.end());
+    std::ranges::sort(pos);
+    current_seq_cnt_[i] = pos.size();
+    auto k = k_cache_[i][{{mllm::kAll}, {mllm::kAll}, pos, {mllm::kAll}}];
+    auto v = v_cache_[i][{{mllm::kAll}, {mllm::kAll}, pos, {mllm::kAll}}];
+
+    // Recopy to k_cache_[i] and v_cache_[i]
+    for (int b = 0; b < 1; ++b) {
+      for (int h = 0; h < q_heads_; ++h) {
+        for (int s = 0; s < pos.size(); ++s) {
+          auto k_ptr = k.offsettedPtr<float>({b, h, s, 0});
+          auto v_ptr = v.offsettedPtr<float>({b, h, s, 0});
+          auto k_cache_ptr = k_cache_[i].offsettedPtr<float>({b, h, s, 0});
+          auto v_cache_ptr = v_cache_[i].offsettedPtr<float>({b, h, s, 0});
+          std::memcpy(k_cache_ptr, k_ptr, kv_dims_ * sizeof(float));
+          std::memcpy(v_cache_ptr, v_ptr, kv_dims_ * sizeof(float));
+        }
+      }
+    }
+  }
+}
 __MLLM_UNSAFE_OPT_END

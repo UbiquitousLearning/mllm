@@ -116,6 +116,32 @@
             "replace": true
         }
     },
+    "^visual\\.blocks\\.\\d+\\.mlp\\.fc1.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                5120,
+                1280
+            ],
+            "replace": true
+        }
+    },
+    "^visual\\.blocks\\.\\d+\\.mlp\\.fc2.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                1280,
+                5120
+            ],
+            "replace": true
+        }
+    },
     "^visual\\.merger\\.mlp\\.0\\.(bias|weight)": {
         "hints": {
             "quant_method": "kai",

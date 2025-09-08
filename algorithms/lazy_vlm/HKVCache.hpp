@@ -43,7 +43,10 @@ class HKVCache {
 
   void manualCacheLengthUpdate(int32_t layer_idx, int32_t times = 1);
 
+  void reorderKVCache();
+
   std::vector<std::vector<int>> kv_not_filled_pos_;
+  std::vector<std::vector<int>> visited_kv_pos_;
 
  private:
   mllm::DeviceTypes device_type_;

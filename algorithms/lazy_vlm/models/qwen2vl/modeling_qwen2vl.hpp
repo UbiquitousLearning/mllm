@@ -20,11 +20,11 @@
 #include <mllm/utils/AnyValue.hpp>
 #include <mllm/utils/Enumerate.hpp>
 
-#include <mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp>
+#include <mllm/models/qwen2vl/configuration_qwen2vl.hpp>
 
 using namespace mllm;  // NOLINT
 
-std::vector<int> mappingThis2NextPos(const std::vector<int>& this_layer_pos, const std::vector<int>& next_layer_pos) {
+inline std::vector<int> mappingThis2NextPos(const std::vector<int>& this_layer_pos, const std::vector<int>& next_layer_pos) {
   const std::unordered_set<int> next_set(next_layer_pos.begin(), next_layer_pos.end());
   std::vector<int> res;
   res.reserve(this_layer_pos.size());
@@ -34,78 +34,7 @@ std::vector<int> mappingThis2NextPos(const std::vector<int>& this_layer_pos, con
   return res;
 }
 
-inline auto makeWindowIndex(const Tensor& grid_thw, int window_size = 112, int spatial_merge_size = 2,
-                            int patch_size = 14) -> std::pair<std::vector<int32_t>, std::vector<int32_t>> {
-  int grid_t = grid_thw.constAt<mllm_int32_t>({0, 0});
-  int grid_h = grid_thw.constAt<mllm_int32_t>({0, 1});
-  int grid_w = grid_thw.constAt<mllm_int32_t>({0, 2});
-
-  int vit_merger_window_size = window_size / spatial_merge_size / patch_size;
-  int spatial_merge_unit = spatial_merge_size * spatial_merge_size;
-
-  int llm_grid_h = grid_h / spatial_merge_size;
-  int llm_grid_w = grid_w / spatial_merge_size;
-
-  int pad_h = (vit_merger_window_size - llm_grid_h % vit_merger_window_size) % vit_merger_window_size;
-  int pad_w = (vit_merger_window_size - llm_grid_w % vit_merger_window_size) % vit_merger_window_size;
-
-  int num_windows_h = (llm_grid_h + pad_h) / vit_merger_window_size;
-  int num_windows_w = (llm_grid_w + pad_w) / vit_merger_window_size;
-  int total_windows = grid_t * num_windows_h * num_windows_w;
-
-  std::vector<std::vector<std::vector<int32_t>>> index(
-      grid_t, std::vector<std::vector<int32_t>>(llm_grid_h, std::vector<int32_t>(llm_grid_w)));
-
-  int counter = 0;
-  for (int t = 0; t < grid_t; t++) {
-    for (int h = 0; h < llm_grid_h; h++) {
-      for (int w = 0; w < llm_grid_w; w++) { index[t][h][w] = counter++; }
-    }
-  }
-
-  std::vector<std::vector<std::vector<int32_t>>> index_padded(
-      grid_t, std::vector<std::vector<int32_t>>(llm_grid_h + pad_h, std::vector<int32_t>(llm_grid_w + pad_w, -100)));
-
-  for (int t = 0; t < grid_t; t++) {
-    for (int h = 0; h < llm_grid_h; h++) {
-      for (int w = 0; w < llm_grid_w; w++) { index_padded[t][h][w] = index[t][h][w]; }
-    }
-  }
-
-  std::vector<int32_t> window_index;
-  std::vector<int32_t> seqlens(total_windows, 0);
-
-  for (int t = 0; t < grid_t; t++) {
-    for (int wh = 0; wh < num_windows_h; wh++) {
-      for (int ww = 0; ww < num_windows_w; ww++) {
-        int window_idx = t * num_windows_h * num_windows_w + wh * num_windows_w + ww;
-
-        for (int h = 0; h < vit_merger_window_size; h++) {
-          for (int w = 0; w < vit_merger_window_size; w++) {
-            int orig_h = wh * vit_merger_window_size + h;
-            int orig_w = ww * vit_merger_window_size + w;
-
-            if (index_padded[t][orig_h][orig_w] != -100) {
-              window_index.push_back(index_padded[t][orig_h][orig_w]);
-              seqlens[window_idx]++;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  std::vector<int32_t> cu_window_seqlens = {0};
-  int cumulative = 0;
-  for (int i = 0; i < total_windows; i++) {
-    cumulative += seqlens[i] * spatial_merge_unit;
-    cu_window_seqlens.push_back(cumulative);
-  }
-
-  return {window_index, cu_window_seqlens};
-}
-
-inline auto makeVisualRoPEInvFreq(int32_t dims, float theta) -> Tensor {
+inline Tensor makeVisualRoPEInvFreq(int32_t dims, float theta) {
   const int half_dim = dims / (2 * 2);
   Tensor inv_freq = Tensor::empty({half_dim}, kFloat32).alloc();
   float* inv_freq_ptr = inv_freq.ptr<float>();
@@ -117,7 +46,7 @@ inline auto makeVisualRoPEInvFreq(int32_t dims, float theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeVisualRotaryPosEmbIds(Tensor& grid_thw, int32_t spatial_merge_size) -> Tensor {
+inline Tensor makeVisualRotaryPosEmbIds(Tensor& grid_thw, int32_t spatial_merge_size) {
   MLLM_RT_ASSERT_EQ(grid_thw.shape().size(), 2);
 
   auto img_nums = grid_thw.shape()[0];
@@ -183,7 +112,7 @@ inline auto makeVisualRotaryPosEmbIds(Tensor& grid_thw, int32_t spatial_merge_si
   return out;
 }
 
-inline auto makeVisualRotaryPosEmbFull(Tensor& inv_freq, int seq_len) -> Tensor {
+inline Tensor makeVisualRotaryPosEmbFull(Tensor& inv_freq, int seq_len) {
   MLLM_RT_ASSERT(seq_len > 0);
   const int32_t dim = inv_freq.shape()[0];
   Tensor freqs = Tensor::empty({seq_len, dim}, kFloat32, kCPU).alloc();
@@ -197,7 +126,7 @@ inline auto makeVisualRotaryPosEmbFull(Tensor& inv_freq, int seq_len) -> Tensor 
   return freqs;
 }
 
-inline auto makeVisualRotarySinCos(Tensor& rotary_pos_emb) -> std::pair<Tensor, Tensor> {
+std::pair<Tensor, Tensor> makeVisualRotarySinCos(Tensor& rotary_pos_emb) {
   auto seq = rotary_pos_emb.shape()[0];
   auto dim = rotary_pos_emb.shape()[1];
 
@@ -219,7 +148,7 @@ inline auto makeVisualRotarySinCos(Tensor& rotary_pos_emb) -> std::pair<Tensor, 
   return {sin_pos_emb, cos_pos_emb};
 }
 
-inline auto makeVisualRotaryPosEmb(Tensor& rotary_pos_emb_full, Tensor& pos_ids, Tensor& grid_thw) -> Tensor {
+inline Tensor makeVisualRotaryPosEmb(Tensor& rotary_pos_emb_full, Tensor& pos_ids, Tensor& grid_thw) {
   const int* grid_dims = grid_thw.offsettedPtr<int>({0, 0});
   const int t = grid_dims[0];
   const int h = grid_dims[1];
@@ -349,13 +278,13 @@ class PatchEmbed final : public nn::Module {
  public:
   PatchEmbed() = default;
 
-  inline PatchEmbed(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  inline PatchEmbed(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
     in_chans_ = cfg.visual_in_chans;
-    embed_dim_ = cfg.visual_hidden_size;
+    embed_dim_ = cfg.visual_embed_dim;
     patch_size_ = cfg.visual_patch_size;
     temporal_patch_size_ = cfg.visual_temporal_patch_size;
 
-    proj_ = reg<nn::Conv3D>("proj", cfg.visual_in_chans, cfg.visual_hidden_size,
+    proj_ = reg<nn::Conv3D>("proj", cfg.visual_in_chans, cfg.visual_embed_dim,
                             std::vector<int32_t>{cfg.visual_temporal_patch_size, cfg.visual_patch_size, cfg.visual_patch_size},
                             std::vector<int32_t>{cfg.visual_temporal_patch_size, cfg.visual_patch_size, cfg.visual_patch_size},
                             false);
@@ -377,7 +306,7 @@ class PatchMerger final : public nn::Module {
   int32_t spatial_merge_size_;
   int32_t context_dim_;
 
-  nn::RMSNorm ln_q_;
+  nn::LayerNorm ln_q_;
   nn::Linear mlp_0_;
   nn::Linear mlp_2_;
   nn::GELU mlp_gelu_;
@@ -385,12 +314,12 @@ class PatchMerger final : public nn::Module {
  public:
   PatchMerger() = default;
 
-  inline PatchMerger(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
-    context_dim_ = cfg.visual_hidden_size;
+  inline PatchMerger(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
+    context_dim_ = cfg.visual_embed_dim;
     spatial_merge_size_ = cfg.visual_spatial_merge_size;
     hidden_size_ = context_dim_ * spatial_merge_size_ * spatial_merge_size_;
 
-    ln_q_ = reg<nn::RMSNorm>("ln_q", 1e-6);
+    ln_q_ = reg<nn::LayerNorm>("ln_q", std::vector<int32_t>{context_dim_}, true, true, 1e-6);
     mlp_0_ = reg<nn::Linear>("mlp.0", hidden_size_, hidden_size_, true, cfg.linear_impl_type);
     mlp_gelu_ = reg<nn::GELU>("mlp.gelu");
     mlp_2_ = reg<nn::Linear>("mlp.2", hidden_size_, cfg.hidden_size, true, cfg.linear_impl_type);
@@ -405,28 +334,28 @@ class PatchMerger final : public nn::Module {
   }
 };
 
-class Qwen2_5VLVisionMLP final : public nn::Module {
-  nn::Linear gate_proj_;
-  nn::Linear up_proj_;
-  nn::Linear down_proj_;
+class VisionMlp final : public nn::Module {
+  int32_t dim_;
+  int32_t hidden_dim_;
+
+  nn::QuickGELU act_;
+  nn::Linear fc_1_;
+  nn::Linear fc_2_;
 
  public:
-  Qwen2_5VLVisionMLP() = default;
-  Qwen2_5VLVisionMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
-    // clang-format off
-    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
-    up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
-    down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, true);
-    // clang-format on
+  VisionMlp() = default;
+
+  inline VisionMlp(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
+    dim_ = cfg.visual_embed_dim;
+    hidden_dim_ = cfg.visual_embed_dim * cfg.visual_mlp_ratio;
+
+    fc_1_ = reg<nn::Linear>("fc1", dim_, hidden_dim_, true, cfg.linear_impl_type);
+    fc_2_ = reg<nn::Linear>("fc2", hidden_dim_, dim_, true, cfg.linear_impl_type);
+    act_ = reg<nn::QuickGELU>("act");
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
-    auto x = gate_proj_(inputs[0]);
-    x = nn::functional::silu_(x);
-    auto y = up_proj_(inputs[0]);
-    x = x * y;
-    x = down_proj_(x);
-    return {x};
+    return {fc_2_(act_(fc_1_(inputs[0])))};
   }
 };
 
@@ -446,8 +375,8 @@ class VisionAttention final : public nn::Module {
  public:
   VisionAttention() = default;
 
-  inline VisionAttention(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
-    dim_ = cfg.visual_hidden_size;
+  inline VisionAttention(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
+    dim_ = cfg.visual_embed_dim;
     num_heads_ = cfg.visual_num_heads;
     head_dim_ = dim_ / num_heads_;
     scaling = std::sqrt(head_dim_);
@@ -475,7 +404,6 @@ class VisionAttention final : public nn::Module {
     auto hidden_states = inputs[0];
     auto visual_embedding_sin = inputs[1];
     auto visual_embedding_cos = inputs[2];
-    auto& mask = inputs[3];
 
     auto seq_length = hidden_states.shape()[0];
 
@@ -495,7 +423,6 @@ class VisionAttention final : public nn::Module {
     // attention weight
     // [B=1, H, S, S]
     auto attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
-    if (mask) { attn = attn + mask; }
     attn = softmax_(attn);
 
     // attn output
@@ -511,143 +438,85 @@ class VisionAttention final : public nn::Module {
   }
 };
 
-class Qwen2_5VLVisionBlock final : public nn::Module {
+class Qwen2VLVisionBlock final : public nn::Module {
   int mlp_hidden_dim_;
 
-  nn::RMSNorm norm1_;
-  nn::RMSNorm norm2_;
+  nn::LayerNorm norm1_;
+  nn::LayerNorm norm2_;
 
   VisionAttention attn_;
-  Qwen2_5VLVisionMLP mlp_;
+  VisionMlp mlp_;
 
  public:
-  Qwen2_5VLVisionBlock() = default;
+  Qwen2VLVisionBlock() = default;
 
-  inline Qwen2_5VLVisionBlock(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
-    mlp_hidden_dim_ = cfg.visual_mlp_ratio * cfg.visual_hidden_size;
-    norm1_ = reg<nn::RMSNorm>("norm1", 1e-6);
-    norm2_ = reg<nn::RMSNorm>("norm2", 1e-6);
+  inline Qwen2VLVisionBlock(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
+    mlp_hidden_dim_ = cfg.visual_mlp_ratio * cfg.visual_embed_dim;
+    norm1_ = reg<nn::LayerNorm>("norm1", std::vector<int32_t>{cfg.visual_embed_dim}, true, true, 1e-6);
+    norm2_ = reg<nn::LayerNorm>("norm2", std::vector<int32_t>{cfg.visual_embed_dim}, true, true, 1e-6);
     attn_ = reg<VisionAttention>("attn", cfg);
-    mlp_ = reg<Qwen2_5VLVisionMLP>("mlp", cfg);
+    mlp_ = reg<VisionMlp>("mlp", cfg);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
     auto visual_embedding_sin = inputs[1];
     auto visual_embedding_cos = inputs[2];
-    auto mask = inputs[3];
 
-    hidden_states = hidden_states + attn_(norm1_(hidden_states), visual_embedding_sin, visual_embedding_cos, mask)[0];
+    hidden_states = hidden_states + attn_(norm1_(hidden_states), visual_embedding_sin, visual_embedding_cos)[0];
     hidden_states = hidden_states + mlp_(norm2_(hidden_states))[0];
     return {hidden_states};
   }
 };
 
-class Qwen2_5VisionTransformerPretrainedModel final : public nn::Module {
+class Qwen2VisionTransformerPretrainedModel final : public nn::Module {
   PatchEmbed patch_embed_;
   PatchMerger patch_merger_;
-  nn::ModuleList<Qwen2_5VLVisionBlock> blocks_;
-  std::vector<int32_t> visual_fullatt_block_indexes_;
+  nn::ModuleList<Qwen2VLVisionBlock> blocks_;
 
  public:
-  Qwen2_5VisionTransformerPretrainedModel() = default;
+  Qwen2VisionTransformerPretrainedModel() = default;
 
-  Qwen2_5VisionTransformerPretrainedModel(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg)
+  Qwen2VisionTransformerPretrainedModel(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
       : nn::Module(name) {
-    visual_fullatt_block_indexes_ = cfg.visual_fullatt_block_indexes;
     patch_embed_ = reg<PatchEmbed>("patch_embed", cfg);
     patch_merger_ = reg<PatchMerger>("merger", cfg);
-    blocks_ = reg<nn::ModuleList<Qwen2_5VLVisionBlock>>("blocks", cfg.visual_depth, cfg);
+    blocks_ = reg<nn::ModuleList<Qwen2VLVisionBlock>>("blocks", cfg.visual_depth, cfg);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
     auto embedding_sin = inputs[1];
     auto embedding_cos = inputs[2];
-    auto& grid_thw = inputs[3];
 
-    // Embedding first
     hidden_states = patch_embed_(hidden_states)[0];
-    auto [window_index, cu_window_seqlens] = makeWindowIndex(grid_thw, 112, 2, 14);
 
-    // NOTE: Transformers code:
-    // seq_len, _ = hidden_states.size()
-    // hidden_states = hidden_states.reshape(seq_len // self.spatial_merge_unit, self.spatial_merge_unit, -1)
-    // hidden_states = hidden_states[window_index, :, :]
-    // hidden_states = hidden_states.reshape(seq_len, -1)
-    // Transform image embedding and sin/cos embeddings
-    auto seq_len = hidden_states.shape()[0];
-    hidden_states = hidden_states.view({seq_len / 4, 4, -1});
-    hidden_states = hidden_states[{window_index, {kAll}, {kAll}}];
-    hidden_states = hidden_states.view({seq_len, -1});
-
-    // NOTE: Transformers code:
-    // rotary_pos_emb = rotary_pos_emb.reshape(seq_len // self.spatial_merge_unit, self.spatial_merge_unit, -1)
-    // rotary_pos_emb = rotary_pos_emb[window_index, :, :]
-    // rotary_pos_emb = rotary_pos_emb.reshape(seq_len, -1)
-    // In mllm, we have already calculate sin and cos embedding. We need to transform them separately.
-    embedding_sin = embedding_sin.view({seq_len / 4, 4, -1});
-    embedding_sin = embedding_sin[{window_index, {kAll}, {kAll}}];
-    embedding_sin = embedding_sin.view({seq_len, -1});
-    embedding_cos = embedding_cos.view({seq_len / 4, 4, -1});
-    embedding_cos = embedding_cos[{window_index, {kAll}, {kAll}}];
-    embedding_cos = embedding_cos.view({seq_len, -1});
-
-    // Procsessing cu_seqlen mask
-    auto mask = Tensor::empty({1, 1, seq_len, seq_len}, DataTypes::kFloat32, DeviceTypes::kCPU).alloc();
-    {
-      auto mask_ptr = mask.ptr<mllm_fp32_t>();
-      const mllm_fp32_t neg_inf = -1e12f;
-      for (int i = 0; i < seq_len * seq_len; ++i) { mask_ptr[i] = neg_inf; }
-      for (int i = 1; i < cu_window_seqlens.size(); ++i) {
-        int start = cu_window_seqlens[i - 1];
-        int end = cu_window_seqlens[i];
-        for (int r = start; r < end; ++r) {
-          for (int c = start; c < end; ++c) { mask_ptr[r * seq_len + c] = 0.0f; }
-        }
-      }
-    }
-
-    for (auto [layer_idx, b] : enumerate(blocks_.list())) {
-      if (std::find(visual_fullatt_block_indexes_.begin(), visual_fullatt_block_indexes_.end(), layer_idx)
-          != visual_fullatt_block_indexes_.end()) {
-        // Full Attention
-        hidden_states = b(hidden_states, embedding_sin, embedding_cos, Tensor::nil())[0];
-      } else {
-        // Sliding Window
-        hidden_states = b(hidden_states, embedding_sin, embedding_cos, mask)[0];
-      }
-    }
+    for (auto& b : blocks_.list()) { hidden_states = b(hidden_states, embedding_sin, embedding_cos)[0]; }
 
     hidden_states = patch_merger_(hidden_states)[0];
-
-    // DeTransform image embedding embeddings.
-    std::vector<int32_t> reverse_indices(window_index.size());
-    std::iota(reverse_indices.begin(), reverse_indices.end(), 0);
-    std::sort(reverse_indices.begin(), reverse_indices.end(),
-              [&window_index](int i, int j) { return window_index[i] < window_index[j]; });
-    hidden_states = hidden_states[{reverse_indices, {kAll}}];
 
     return {hidden_states};
   }
 };
 
-class Qwen2_5VLMLP final : public nn::Module {
+class Qwen2VLMLP final : public nn::Module {
   nn::Linear gate_proj_;
   nn::Linear up_proj_;
   nn::Linear down_proj_;
+  nn::SiLU silu_;
 
  public:
-  Qwen2_5VLMLP() = default;
-  Qwen2_5VLMLP(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2VLMLP() = default;
+  Qwen2VLMLP(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
     gate_proj_ = reg<nn::Linear>("gate_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
+    silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
     down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = gate_proj_(inputs[0]);
-    x = nn::functional::silu_(x);
+    x = silu_(x);
     auto y = up_proj_(inputs[0]);
     x = x * y;
     x = down_proj_(x);
@@ -655,7 +524,7 @@ class Qwen2_5VLMLP final : public nn::Module {
   }
 };
 
-class Qwen2_5VLAttention final : public nn::Module {
+class Qwen2VLAttention final : public nn::Module {
   nn::Linear q_proj_;
   nn::Linear k_proj_;
   nn::Linear v_proj_;
@@ -671,9 +540,9 @@ class Qwen2_5VLAttention final : public nn::Module {
   int num_key_value_groups_;
 
  public:
-  Qwen2_5VLAttention() = default;
+  Qwen2VLAttention() = default;
 
-  Qwen2_5VLAttention(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2VLAttention(const std::string& name, const models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
     hidden_size_ = cfg.hidden_size;
     num_attention_heads_ = cfg.num_attention_heads;
     num_key_value_heads_ = cfg.num_key_value_heads;
@@ -965,19 +834,19 @@ class Qwen2_5VLAttention final : public nn::Module {
   int layer_idx_;
 };
 
-class Qwen2_5VLDecoder final : public nn::Module {
+class Qwen2VLDecoder final : public nn::Module {
  public:
   int32_t layer_idx_;
-  Qwen2_5VLAttention self_attn_;
-  Qwen2_5VLMLP mlp_;
+  Qwen2VLAttention self_attn_;
+  Qwen2VLMLP mlp_;
   nn::RMSNorm input_layer_norm_;
   nn::RMSNorm post_attention_layer_norm_;
 
-  Qwen2_5VLDecoder() = default;
+  Qwen2VLDecoder() = default;
 
-  Qwen2_5VLDecoder(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
-    self_attn_ = reg<Qwen2_5VLAttention>("self_attn", cfg);
-    mlp_ = reg<Qwen2_5VLMLP>("mlp", cfg);
+  Qwen2VLDecoder(const std::string& name, const models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
+    self_attn_ = reg<Qwen2VLAttention>("self_attn", cfg);
+    mlp_ = reg<Qwen2VLMLP>("mlp", cfg);
     input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
     post_attention_layer_norm_ = reg<nn::RMSNorm>("post_attention_layernorm", cfg.rms_norm_eps);
   }
@@ -1119,20 +988,20 @@ class Qwen2_5VLDecoder final : public nn::Module {
   }
 };
 
-class Qwen2_5VLText final : public nn::Module {
-  nn::ModuleList<Qwen2_5VLDecoder> decode_blocks_;
+class Qwen2VLText final : public nn::Module {
+  nn::ModuleList<Qwen2VLDecoder> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Linear lm_head_;
   bool kv_cache_reordered_ = false;
   bool tie_word_embeddings_;
 
  public:
-  Qwen2_5VLText() = default;
+  Qwen2VLText() = default;
 
-  Qwen2_5VLText(const std::string& name, const models::qwen2_5vl::Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2VLText(const std::string& name, const models::qwen2vl::Qwen2VLConfig& cfg) : nn::Module(name) {
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
-    decode_blocks_ = reg<nn::ModuleList<Qwen2_5VLDecoder>>("layers", cfg.num_hidden_layers, cfg);
+    decode_blocks_ = reg<nn::ModuleList<Qwen2VLDecoder>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) {
       b.layer_idx_ = idx;
       b.self_attn_.layer_idx_ = idx;
@@ -1469,9 +1338,9 @@ class Qwen2_5VLText final : public nn::Module {
   nn::Embedding embedding_;
 };
 
-class Qwen2_5VLForCausalLM : public models::ARGeneration {
+class Qwen2VLForCausalLM : public mllm::models::ARGeneration {
  public:
-  explicit Qwen2_5VLForCausalLM(const models::qwen2_5vl::Qwen2_5VLConfig& cfg, const LazyVLMConfig& lazy_vlm_cfg)
+  explicit Qwen2VLForCausalLM(const models::qwen2vl::Qwen2VLConfig& cfg, const LazyVLMConfig& lazy_vlm_cfg)
       : cfg(cfg), llm("model", cfg), visual("visual", cfg), lazy_vlm_cfg_(lazy_vlm_cfg) {
     kv_cache_ = HKVCache(cfg.max_cache_length, cfg.num_hidden_layers,
                          cfg.num_attention_heads,                    // q_heads
@@ -1498,7 +1367,7 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
       auto grid_thw = input.at("grid_thw");
 
       auto v_len = img.shape()[0];
-      auto inv_freq = makeVisualRoPEInvFreq(cfg.visual_hidden_size / cfg.visual_num_heads, 10000.0);
+      auto inv_freq = makeVisualRoPEInvFreq(cfg.visual_embed_dim / cfg.visual_num_heads, 10000.0);
       auto pos_ids = makeVisualRotaryPosEmbIds(grid_thw, cfg.visual_spatial_merge_size);
       auto rotary_pos_emb_full = makeVisualRotaryPosEmbFull(inv_freq, v_len);
       auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
@@ -1575,8 +1444,8 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
     };
   }
 
-  inline auto getPositionIds(Tensor& img, Tensor& grid_thw, Tensor& sequence, Tensor& position_ids,
-                             const models::qwen2_5vl::Qwen2_5VLConfig& cfg) -> Tensor {
+  inline Tensor getPositionIds(Tensor& img, Tensor& grid_thw, Tensor& sequence, Tensor& position_ids,
+                               const mllm::models::qwen2vl::Qwen2VLConfig& cfg) {
     // Input is [B, S, D]
     if (!img.isNil()) {  // Prefill
       return getPositionIdsPrefill(sequence, grid_thw, cfg);
@@ -1590,8 +1459,8 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
     }
   }
 
-  inline auto getPositionIdsPrefill(Tensor& input_ids, Tensor& image_grid_thw,
-                                    const models::qwen2_5vl::Qwen2_5VLConfig& cfg) -> Tensor {
+  inline Tensor getPositionIdsPrefill(Tensor& input_ids, Tensor& image_grid_thw,
+                                      const mllm::models::qwen2vl::Qwen2VLConfig& cfg) {
     // Input is [B, S]
     MLLM_RT_ASSERT_EQ(input_ids.shape().size(), 2);
     // image_grid_thw is [num_images, 3]
@@ -1723,9 +1592,9 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
     }
   }
 
-  const models::qwen2_5vl::Qwen2_5VLConfig& cfg;
-  Qwen2_5VLText llm;
-  Qwen2_5VisionTransformerPretrainedModel visual;
+  const mllm::models::qwen2vl::Qwen2VLConfig& cfg;
+  Qwen2VLText llm;
+  Qwen2VisionTransformerPretrainedModel visual;
 
  private:
   HKVCache kv_cache_;
