@@ -60,6 +60,7 @@ class Context {
   int getPrintMaxElementsPerDim() const;
 
  private:
+  // NOTE: Context should be made private in singleton design pattern.
   Context();
 
   uint64_t random_seed_ = 42;
