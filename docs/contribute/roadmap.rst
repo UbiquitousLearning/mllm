@@ -68,7 +68,7 @@ Using 1. Manually memory planning 2. Fused kernels 3. Inplace Operators etc. To 
 Arm Kernel support
 ^^^^^^^^^^^^^^^^^^
 
-- MLLM-BLAS fp32 GEMM Kernels (transpose_a=False, transpose_b=True)
+- ✅ MLLM-BLAS fp32 GEMM Kernels (transpose_a=False, transpose_b=True) [@chenghua]
 - Element-wise Kernels has slightly performance issues
 - Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack)
 - Arm U1-7 Group Quantized Embedding Kernels. (Co-works with bitspack)

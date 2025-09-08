@@ -19,7 +19,8 @@ __all__ = [
     "load_torch_model",
     "load_safetensors_model",
     "convert_torch_model_to_mllm",
-    "convert_safetensors_model_to_mllm"
+    "convert_safetensors_model_to_mllm",
+    "_detect_mllm_version"
 ]
 
 
