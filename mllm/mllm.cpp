@@ -19,6 +19,8 @@ void shutdownContext() {
   ::mllm::cleanThisThread();
 }
 
+void setLogLevel(const LogLevel& level) { ::mllm::Logger::level() = level; }
+
 void setRandomSeed(uint64_t seed) { Context::instance().setRandomSeed(seed); }
 
 void setMaximumNumThreads(uint32_t num_threads) {

@@ -194,8 +194,8 @@ void HKVCache::manualCacheLengthUpdate(int32_t layer_idx, int32_t times) { curre
 __MLLM_UNSAFE_OPT_END
 
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
-void HKVCache::reorderKVCache() {
-  for (int i = 0; i < layer_nums_; ++i) {
+void HKVCache::reorderKVCache(int start) {
+  for (int i = start; i < layer_nums_; ++i) {
     auto pos = visited_kv_pos_[i];
     pos.erase(std::unique(pos.begin(), pos.end()), pos.end());
     std::ranges::sort(pos);

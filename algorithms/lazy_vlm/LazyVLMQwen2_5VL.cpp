@@ -10,6 +10,8 @@
 #include "lazy_vlm/models/qwen2_5vl/lazy_vlm_cfg.hpp"
 
 MLLM_MAIN({
+  mllm::setLogLevel(mllm::LogLevel::kError);
+
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& model_version = Argparse::add<std::string>("-mv|--model_version").help("Model version").required(true);
