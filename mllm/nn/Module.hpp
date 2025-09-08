@@ -72,7 +72,8 @@ class Module {
   auto reg(const std::string& name, Args&&... args) {
     // Register a module
     if constexpr (std::is_base_of_v<Module, T>) {
-      auto ret = T(impl_->getAbsoluteName() + "." + name, std::forward<Args>(args)...);
+      auto ret =
+          T((impl_->getAbsoluteName() == "" ? name : impl_->getAbsoluteName() + "." + name), std::forward<Args>(args)...);
       impl_->regChildNode(ret.impl());
       ret.impl()->setName(name);
       return ret;
@@ -82,7 +83,7 @@ class Module {
     if constexpr (std::is_base_of_v<Layer, T>) {
       auto ret = T(std::forward<Args>(args)...);
       impl_->regChildNode(ret.impl());
-      ret.impl()->setAbsoluteName(impl_->getAbsoluteName() + "." + name);
+      ret.impl()->setAbsoluteName((impl_->getAbsoluteName() == "" ? name : impl_->getAbsoluteName() + "." + name));
       ret.impl()->setName(name);
 
       auto& ctx = Context::instance();

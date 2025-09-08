@@ -3,6 +3,7 @@
 
 #include "mllm/core/aops/EmbeddingOp.hpp"
 #include "mllm/core/BaseOp.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
@@ -52,7 +53,7 @@ void EmbeddingOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto shape = i.shape();
   std::vector<int32_t> o_shape{/*batch*/ shape[0], /*seq*/ shape[1],
                                /*feat dim*/ options_.hidden_size};
-  outputs.emplace_back(Tensor::empty(o_shape, weight_.dtype(), i.device()));
+  outputs.emplace_back(Tensor::empty(o_shape, kFloat32, i.device()));
 }
 
 void EmbeddingOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
