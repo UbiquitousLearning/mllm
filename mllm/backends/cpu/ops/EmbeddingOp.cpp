@@ -6,6 +6,7 @@
 #include "mllm/backends/cpu/ops/EmbeddingOp.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Parallel.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
 
 namespace mllm::cpu {
 
@@ -37,6 +38,14 @@ void CPUEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
                       weight_.ptr<mllm_fp16_t>() + options_.hidden_size * (*ins.coffsettedPtr<mllm_int64_t>({b, (int)s})),
                       options_.hidden_size * sizeof(mllm_fp16_t));
           break;
+        case kGGUF_Q4_K: {
+          auto token_idx = *ins.coffsettedPtr<mllm_int64_t>({b, (int)s});
+          if (token_idx >= 0) {
+            dequantize_row_q4_K(weight_.ptr<block_q4_K>() + token_idx * options_.hidden_size / QK_K,
+                                ous.coffsettedPtr<float>({b, (int)s, 0}), options_.hidden_size);
+          }
+          break;
+        }
         default: NYI("Not supported weight dtype for arm llm embedding token op");
       }
     });
