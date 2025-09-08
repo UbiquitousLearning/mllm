@@ -419,6 +419,7 @@ class BuildPythonCLibTask(Task):
                 "-DHWY_ENABLE_EXAMPLES=OFF",
                 "-DHWY_ENABLE_CONTRIB=OFF",
                 '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
+                "-DMLLM_ENABLE_TOOLS=ON",  # Enable tools build
             ]
         elif is_arm:
             # Most likely on Apple Silicon
@@ -438,6 +439,7 @@ class BuildPythonCLibTask(Task):
                 "-DMLLM_KERNEL_USE_THREADS=ON",
                 "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF",
                 "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON",
+                "-DMLLM_ENABLE_TOOLS=ON",  # Enable tools build
             ]
 
         BUILD_ARGS = [
@@ -446,6 +448,8 @@ class BuildPythonCLibTask(Task):
             f"-j{max(1, int(os.cpu_count() / 2))}",
             "--target",
             "_C",
+            "--target",
+            "mllm-quantizer",
         ]
         cmake_cache_dir = os.path.join(base_cmake_root, "cmake-out")
         if not os.path.exists(cmake_cache_dir):

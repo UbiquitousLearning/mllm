@@ -151,6 +151,8 @@ inline void initializeContext() {
 
 void shutdownContext();
 
+void setLogLevel(const LogLevel& level);
+
 void setRandomSeed(uint64_t seed);
 
 void setMaximumNumThreads(uint32_t num_threads);
