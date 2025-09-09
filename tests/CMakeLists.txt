@@ -6,3 +6,6 @@ add_subdirectory(compile)
 
 # Backends
 add_subdirectory(cpu)
+if(MLLM_BUILD_CUDA_BACKEND)
+  add_subdirectory(cuda)
+endif()
