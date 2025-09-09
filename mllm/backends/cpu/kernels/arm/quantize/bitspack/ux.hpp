@@ -30,7 +30,7 @@
 #include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u6.hpp"
 #include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u7.hpp"
 
-namespace mllm::cpu::arm {
+namespace mllm::cpu::arm::bitspack {
 
 MLLM_CPU_ARM_FORCE_INLINE void vec_store_32_uint8_values(uint8_t* dest, const uint8x8_t& vec0, const uint8x8_t& vec1,
                                                          const uint8x8_t& vec2, const uint8x8_t& vec3) {
@@ -433,5 +433,5 @@ MLLM_CPU_ARM_FORCE_INLINE void vec_unpack_128_lowbit_values(int8x16_t& unpacked0
     unpacked7 = vaddq_s8(vreinterpretq_s8_u8(shifted7), unshift);
   }
 }
-}  // namespace mllm::cpu::arm
+}  // namespace mllm::cpu::arm::bitspack
 #endif
