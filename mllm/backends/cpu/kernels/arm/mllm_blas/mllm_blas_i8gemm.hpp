@@ -17,7 +17,7 @@
 #include "mllm/backends/cpu/kernels/arm/quantize/bitspack/ux.hpp"
 
 namespace mllm::cpu::arm {
-namespace i8gemm_details {
+namespace bitspack_i8gemm_details {
 
 inline float32x4_t vec_clamp(float32x4_t x, float32x4_t vec_min, float32x4_t vec_max) {
   float32x4_t tmp = vmaxq_f32(x, vec_min);
@@ -241,8 +241,8 @@ void kernel_impl(
       if constexpr (has_clamp) {
         float32x4_t vec_min = vdupq_n_f32(clamp_min);
         float32x4_t vec_max = vdupq_n_f32(clamp_max);
-        res_0123 = i8gemm_details::vec_clamp(res_0123, vec_min, vec_max);
-        res_4567 = i8gemm_details::vec_clamp(res_4567, vec_min, vec_max);
+        res_0123 = bitspack_i8gemm_details::vec_clamp(res_0123, vec_min, vec_max);
+        res_4567 = bitspack_i8gemm_details::vec_clamp(res_4567, vec_min, vec_max);
       }
 
       // Store result
@@ -277,5 +277,5 @@ void kernel_impl(
   }  // m_idx
 }
 
-}  // namespace i8gemm_details
+}  // namespace bitspack_i8gemm_details
 }  // namespace mllm::cpu::arm

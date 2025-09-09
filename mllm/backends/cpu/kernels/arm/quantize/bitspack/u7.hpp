@@ -11,7 +11,7 @@
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
-namespace mllm::cpu::arm {
+namespace mllm::cpu::arm::bitspack {
 
 // We use the code from torch for u1-u7 bits packing/unpacking.
 
@@ -234,5 +234,5 @@ MLLM_CPU_ARM_FORCE_INLINE void vec_unpack_128_uint7_values(uint8x16_t& unpacked0
   unpacked7 = vsriq_n_u8(unpacked7, unpacked0, 7);
   unpacked0 = vandq_u8(unpacked0, mask);
 }
-}  // namespace mllm::cpu::arm
+}  // namespace mllm::cpu::arm::bitspack
 #endif
