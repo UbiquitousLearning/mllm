@@ -33,16 +33,16 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
       for (int n = 0; n < B; ++n) {
         for (int h = 0; h < H; ++h) {
           for (int s = 0; s < S; ++s) {
-            float* act_ptr = activation.offsettedPtr<float>({n, h, s, 0});
-            float* out_ptr = out.offsettedPtr<float>({n, h, s, 0});
-            const float* sin_ptr = sin.offsettedPtr<float>({n, s, 0});
-            const float* cos_ptr = cos.offsettedPtr<float>({n, s, 0});
+            mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+            mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+            const mllm_fp32_t* sin_ptr = sin.offsettedPtr<mllm_fp32_t>({n, s, 0});
+            const mllm_fp32_t* cos_ptr = cos.offsettedPtr<mllm_fp32_t>({n, s, 0});
 
             for (int d = 0; d < half; ++d) {
-              float in_val = act_ptr[d];
-              float in_val2 = act_ptr[d + half];
-              float sin_val = sin_ptr[d];
-              float cos_val = cos_ptr[d];
+              mllm_fp32_t in_val = act_ptr[d];
+              mllm_fp32_t in_val2 = act_ptr[d + half];
+              mllm_fp32_t sin_val = sin_ptr[d];
+              mllm_fp32_t cos_val = cos_ptr[d];
 
               out_ptr[d] = in_val * cos_val - in_val2 * sin_val;
               out_ptr[d + half] = in_val * sin_val + in_val2 * cos_val;
@@ -54,10 +54,10 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
       for (int n = 0; n < B; ++n) {
         for (int h = 0; h < H; ++h) {
           for (int s = 0; s < S; ++s) {
-            float* act_ptr = activation.offsettedPtr<float>({n, h, s, 0});
-            float* out_ptr = out.offsettedPtr<float>({n, h, s, 0});
-            const float* sin_ptr = sin.offsettedPtr<float>({n, s, 0});
-            const float* cos_ptr = cos.offsettedPtr<float>({n, s, 0});
+            mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+            mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+            const mllm_fp32_t* sin_ptr = sin.offsettedPtr<mllm_fp32_t>({n, s, 0});
+            const mllm_fp32_t* cos_ptr = cos.offsettedPtr<mllm_fp32_t>({n, s, 0});
 
             // Vectorized processing (4 elements per iteration)
             int d = 0;
@@ -82,10 +82,10 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
 
             // Process remaining elements
             for (; d < half; ++d) {
-              float in_val = act_ptr[d];
-              float in_val2 = act_ptr[d + half];
-              float sin_val = sin_ptr[d];
-              float cos_val = cos_ptr[d];
+              mllm_fp32_t in_val = act_ptr[d];
+              mllm_fp32_t in_val2 = act_ptr[d + half];
+              mllm_fp32_t sin_val = sin_ptr[d];
+              mllm_fp32_t cos_val = cos_ptr[d];
 
               out_ptr[d] = in_val * cos_val - in_val2 * sin_val;
               out_ptr[d + half] = in_val * sin_val + in_val2 * cos_val;
@@ -101,19 +101,19 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
       for (int n = 0; n < B; ++n) {
         for (int h = 0; h < H; ++h) {
           for (int s = 0; s < S; ++s) {
-            float16_t* act_ptr = activation.offsettedPtr<float16_t>({n, h, s, 0});
-            float16_t* out_ptr = out.offsettedPtr<float16_t>({n, h, s, 0});
-            const float16_t* sin_ptr = sin.offsettedPtr<float16_t>({n, s, 0});
-            const float16_t* cos_ptr = cos.offsettedPtr<float16_t>({n, s, 0});
+            mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+            mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+            const mllm_fp16_t* sin_ptr = sin.offsettedPtr<mllm_fp16_t>({n, s, 0});
+            const mllm_fp16_t* cos_ptr = cos.offsettedPtr<mllm_fp16_t>({n, s, 0});
 
             for (int d = 0; d < half; ++d) {
-              float in_val = static_cast<float>(act_ptr[d]);
-              float in_val2 = static_cast<float>(act_ptr[d + half]);
-              float sin_val = static_cast<float>(sin_ptr[d]);
-              float cos_val = static_cast<float>(cos_ptr[d]);
+              mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+              mllm_fp32_t in_val2 = static_cast<mllm_fp32_t>(act_ptr[d + half]);
+              mllm_fp32_t sin_val = static_cast<mllm_fp32_t>(sin_ptr[d]);
+              mllm_fp32_t cos_val = static_cast<mllm_fp32_t>(cos_ptr[d]);
 
-              out_ptr[d] = static_cast<float16_t>(in_val * cos_val - in_val2 * sin_val);
-              out_ptr[d + half] = static_cast<float16_t>(in_val * sin_val + in_val2 * cos_val);
+              out_ptr[d] = static_cast<mllm_fp16_t>(in_val * cos_val - in_val2 * sin_val);
+              out_ptr[d + half] = static_cast<mllm_fp16_t>(in_val * sin_val + in_val2 * cos_val);
             }
           }
         }
@@ -122,10 +122,10 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
       for (int n = 0; n < B; ++n) {
         for (int h = 0; h < H; ++h) {
           for (int s = 0; s < S; ++s) {
-            float16_t* act_ptr = activation.offsettedPtr<float16_t>({n, h, s, 0});
-            float16_t* out_ptr = out.offsettedPtr<float16_t>({n, h, s, 0});
-            const float16_t* sin_ptr = sin.offsettedPtr<float16_t>({n, s, 0});
-            const float16_t* cos_ptr = cos.offsettedPtr<float16_t>({n, s, 0});
+            mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+            mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+            const mllm_fp16_t* sin_ptr = sin.offsettedPtr<mllm_fp16_t>({n, s, 0});
+            const mllm_fp16_t* cos_ptr = cos.offsettedPtr<mllm_fp16_t>({n, s, 0});
 
             // Vectorized processing (8 elements per iteration)
             int d = 0;
@@ -150,13 +150,13 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
 
             // Process remaining elements
             for (; d < half; ++d) {
-              float in_val = static_cast<float>(act_ptr[d]);
-              float in_val2 = static_cast<float>(act_ptr[d + half]);
-              float sin_val = static_cast<float>(sin_ptr[d]);
-              float cos_val = static_cast<float>(cos_ptr[d]);
+              mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+              mllm_fp32_t in_val2 = static_cast<mllm_fp32_t>(act_ptr[d + half]);
+              mllm_fp32_t sin_val = static_cast<mllm_fp32_t>(sin_ptr[d]);
+              mllm_fp32_t cos_val = static_cast<mllm_fp32_t>(cos_ptr[d]);
 
-              out_ptr[d] = static_cast<float16_t>(in_val * cos_val - in_val2 * sin_val);
-              out_ptr[d + half] = static_cast<float16_t>(in_val * sin_val + in_val2 * cos_val);
+              out_ptr[d] = static_cast<mllm_fp16_t>(in_val * cos_val - in_val2 * sin_val);
+              out_ptr[d + half] = static_cast<mllm_fp16_t>(in_val * sin_val + in_val2 * cos_val);
             }
           }
         }

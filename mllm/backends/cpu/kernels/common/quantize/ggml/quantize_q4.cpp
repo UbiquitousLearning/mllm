@@ -26,7 +26,7 @@
  */
 
 #include <cstring>
-
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
 
 namespace mllm::cpu {
@@ -283,7 +283,7 @@ void quantize_row_q4_K_reference(const float* __restrict x, block_q4_K* __restri
   }
 }
 
-void dequantize_row_q4_K(const block_q4_K* __restrict x, float* __restrict y, int k) {
+void dequantize_row_q4_K(const mllm_block_q4_K_t* __restrict x, float* __restrict y, int k) {
   assert(k % QK_K == 0);
   const int nb = k / QK_K;
 
