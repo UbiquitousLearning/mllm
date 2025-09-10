@@ -4,7 +4,6 @@
 #pragma once
 
 #include "mllm/utils/CPUArchHelper.hpp"
-#include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"  // IWYU pragma: export
 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 #include "mllm/backends/cpu/kernels/x86/fill.hpp"                // IWYU pragma: export
@@ -29,6 +28,11 @@
 #include "mllm/backends/cpu/kernels/arm/conv3d.hpp"                     // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"                 // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"  // IWYU pragma: export
+#else
+#include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"  // IWYU pragma: export
 #endif
 
-#include "mllm/backends/cpu/kernels/common/blas.hpp"  // IWYU pragma: export
+// Platform free Kernels
+#include "mllm/backends/cpu/kernels/common/blas.hpp"                 // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"         // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/paged_attn/fwd_bshd.hpp"  // IWYU pragma: export
