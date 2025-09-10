@@ -25,9 +25,7 @@
  * SOFTWARE.
  */
 
-#include <cstring>
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
 
 namespace mllm::cpu {
 

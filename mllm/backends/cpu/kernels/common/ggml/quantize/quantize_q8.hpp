@@ -26,7 +26,7 @@
  */
 #pragma once
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
+#include "mllm/core/DataTypes.hpp"
 
 namespace mllm::cpu {
 

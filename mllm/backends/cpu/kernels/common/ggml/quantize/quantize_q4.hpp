@@ -26,8 +26,7 @@
  */
 #pragma once
 
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
 
 namespace mllm::cpu {
 void quantize_row_q4_0(const float* __restrict x, void* __restrict y, int k);
