@@ -32,6 +32,9 @@ dependencies=[
   "cmake-format >= 0.6.13"
 ]
 
+[project.scripts]
+mllm-convertor = "pymllm.utils.mllm_convertor:main"
+
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc"]
 

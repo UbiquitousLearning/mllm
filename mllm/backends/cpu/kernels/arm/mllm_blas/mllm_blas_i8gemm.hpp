@@ -1,281 +1,147 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-// I8GEMM is inspired by KAI and co-works with bitspack.
-
-// The code is modified from torchao
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 // All rights reserved.
 //
-// see:
-// torchao/experimental/kernels/cpu/aarch64/linear/channelwise_8bit_activation_groupwise_lowbit_weight_1x8x16_f32_neondot-impl.h
+// This source code is licensed under the license found in the
+// LICENSE file in the root directory of this source tree.
+
+// NOTE from mllm team.
+// Bitspack implement wxa32 quantization algorithms. It receive per-channel int8 activations and x bits per group quantized
+// weight as inputs, output fp32 activations.
 
 #pragma once
 
-#include <arm_neon.h>
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/bitspack.hpp"
+#include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_i8gemm_bitspack_1x1x32_fp32_neondot.hpp"
+#include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_i8gemm_bitspack_1x4x16_fp32_neondot.hpp"
+#include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_i8gemm_bitspack_1x8x16_fp32_neondot.hpp"
 
-#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/ux.hpp"
+namespace mllm::cpu::arm {  // NOLINT
 
-namespace mllm::cpu::arm {
-namespace i8gemm_details {
+namespace fp32_channel_a8_weight_group_ux {
 
-inline float32x4_t vec_clamp(float32x4_t x, float32x4_t vec_min, float32x4_t vec_max) {
-  float32x4_t tmp = vmaxq_f32(x, vec_min);
-  return vminq_f32(tmp, vec_max);
+inline size_t packed_activations_size(int m, int k, int group_size, bool has_weight_zeros, int mr, int kr, int sr) {
+  (void)mr;  // unused
+  (void)kr;  // unused
+  (void)sr;  // unused
+  return bitspack::activation_packing::packed_activations_size(m, k, group_size, has_weight_zeros);
 }
 
-template<int weight_nbit, bool has_weight_zeros, bool has_bias, bool has_clamp>
-void kernel_impl(
+inline size_t packed_activations_offset(int m_idx, int k, int group_size, bool has_weight_zeros, int mr, int kr, int sr) {
+  assert(m_idx % mr == 0);
+  auto packed_activations_size_mr_rows = packed_activations_size(mr, k, group_size, has_weight_zeros, mr, kr, sr);
+  return (m_idx / mr) * packed_activations_size_mr_rows;
+}
+
+template<int mr_, int kr_, int sr_>
+void pack_activations(void* packed_activations, int m, int k, int group_size, const float* activations, bool has_weight_zeros,
+                      int mr, int kr, int sr) {
+  (void)mr;  // unused
+  (void)kr;  // unused
+  (void)sr;  // unused
+  bitspack::activation_packing::pack_activations<mr_, kr_, sr_>(packed_activations, m, k, group_size, activations,
+                                                                has_weight_zeros);
+}
+
+inline size_t packed_weights_size(int n, int k, int group_size, int weight_nbit, bool has_weight_zeros, bool has_bias, int nr,
+                                  int kr, int sr) {
+  (void)kr;  // unused
+  (void)sr;  // unused
+  return bitspack::weight_packing::packed_weights_size(n, k, group_size, weight_nbit, has_weight_zeros, has_bias, nr);
+}
+
+inline size_t packed_weights_offset(int n_idx, int k, int group_size, int weight_nbit, bool has_weight_zeros, bool has_bias,
+                                    int nr, int kr, int sr) {
+  assert(n_idx % nr == 0);
+  auto packed_weights_size_nr_cols =
+      packed_weights_size(nr, k, group_size, weight_nbit, has_weight_zeros, has_bias, nr, kr, sr);
+  return (n_idx / nr) * packed_weights_size_nr_cols;
+}
+
+template<int weight_nbit, int nr_, int kr_, int sr_>
+void pack_weights(void* packed_weights, int n, int k, int group_size, const int8_t* weight_qvals, const float* weight_scales,
+                  const int8_t* weight_zeros, const float* bias, int nr, int kr, int sr) {
+  (void)nr;  // unused
+  (void)kr;  // unused
+  (void)sr;  // unused
+  bitspack::weight_packing::pack_weights<weight_nbit, nr_, kr_, sr_>(packed_weights, n, k, group_size, weight_qvals,
+                                                                     weight_scales, weight_zeros, bias);
+}
+
+template<int weight_nbit, int nr_, int kr_, int sr_>
+void pack_weights_with_lut(
+    // Output
+    void* packed_weights,
+    // Inputs
+    int n, int k, int group_size, const int8_t* weight_qval_idxs, int n_luts, const int8_t* luts, const float* weight_scales,
+    // weight_zeros not packed if nullptr
+    const int8_t* weight_zeros,
+    // bias not packed if nullptr
+    const float* bias, int nr, int kr, int sr) {
+  (void)nr;  // unused
+  (void)kr;  // unused
+  (void)sr;  // unused
+  bitspack::weight_packing::pack_weights_with_lut<weight_nbit, nr_, kr_, sr_>(
+      packed_weights, n, k, group_size, weight_qval_idxs, n_luts, luts, weight_scales, weight_zeros, bias);
+}
+
+inline size_t packed_weights_with_lut_size(int n, int k, int group_size, int weight_nbit, bool has_weight_zeros, bool has_bias,
+                                           int nr, int kr, int sr) {
+  (void)kr;  // unused
+  (void)sr;  // unused
+  return bitspack::weight_packing::packed_weights_with_lut_size(n, k, group_size, weight_nbit, has_weight_zeros, has_bias, nr);
+}
+
+inline size_t packed_weights_with_lut_offset(int n_idx, int k, int group_size, int weight_nbit, bool has_weight_zeros,
+                                             bool has_bias, int nr, int kr, int sr) {
+  assert(n_idx % nr == 0);
+  auto packed_weights_size_nr_cols =
+      packed_weights_with_lut_size(nr, k, group_size, weight_nbit, has_weight_zeros, has_bias, nr, kr, sr);
+  return (n_idx / nr) * packed_weights_size_nr_cols;
+}
+
+template<int weight_nbit>
+void kernel_1x1x32_f32_neondot(
     // Outputs
     float32_t* output,
     // Inputs
-    int output_m_stride, int m, int n, int k, int group_size, const void* weight_data, const void* activation_data,
-    // Ignored if has_clamp is false
-    float clamp_min, float clamp_max) {
-  assert(k % group_size == 0);
-  assert(group_size % 16 == 0);
-
-  constexpr int bytes_per_128_weight_values = 16 * weight_nbit;
-
-  auto activation_data_byte_ptr = (char*)(activation_data);
-  char* activation_ptr;
-
-  for (int m_idx = 0; m_idx < m; m_idx++) {
-    // Read activation scale and zero
-    float activation_scale = *((float*)activation_data_byte_ptr);
-    activation_data_byte_ptr += sizeof(float);
-
-    int activation_zero = (int)(*((int8_t*)activation_data_byte_ptr));
-    activation_data_byte_ptr += sizeof(int8_t);
-
-    // Set weight_data_byte_ptr to start of weight_data
-    auto weight_data_byte_ptr = (char*)(weight_data);
-
-    // Loop over 8 cols at a time
-    // Weights and activations are padded when prepared, so the
-    // reads are legal, even if on a partial tile
-    for (int n_idx = 0; n_idx < n; n_idx += 8) {
-      // Set activation_ptr to start of activation qvals for row m_idx
-      activation_ptr = activation_data_byte_ptr;
-      float32x4_t res_0123 = vdupq_n_f32(0.0);
-      float32x4_t res_4567 = vdupq_n_f32(0.0);
-
-      // Loop k_idx by group
-      for (int k_idx = 0; k_idx < k; k_idx += group_size) {
-        // Iterating over k in chunks of 16, we compute the dot product
-        // between 16 values of activation data with 16 values in each of 8 cols
-        // of weight data. These dot products are stored in accumulators
-        // acc_cols0011, acc_cols2233, acc_cols4455, acc_cols6677
-        // as indicated in the below table:
-        //
-        // weight data          activation data     accumulator
-        // -------------------------------------------------------
-        // 1st 8 vals of col0   1st 8 vals          acc_cols0011[0]
-        // 2nd 8 vals of col0   2nd 8 vals          acc_cols0011[1]
-        // 1st 8 vals of col1   1st 8 vals          acc_cols0011[2]
-        // 2nd 8 vals of col1   2nd 8 vals          acc_cols0011[3]
-        // 1st 8 vals of col2   1st 8 vals          acc_cols2233[0]
-        // 2nd 8 vals of col2   2nd 8 vals          acc_cols2233[1]
-        // 1st 8 vals of col3   1st 8 vals          acc_cols2233[2]
-        // 2nd 8 vals of col3   2nd 8 vals          acc_cols2233[3]
-        // 1st 8 vals of col4   1st 8 vals          acc_cols4455[0]
-        // 2nd 8 vals of col4   2nd 8 vals          acc_cols4455[1]
-        // 1st 8 vals of col5   1st 8 vals          acc_cols4455[2]
-        // 2nd 8 vals of col5   2nd 8 vals          acc_cols4455[3]
-        // 1st 8 vals of col6   1st 8 vals          acc_cols6677[0]
-        // 2nd 8 vals of col6   2nd 8 vals          acc_cols6677[1]
-        // 1st 8 vals of col7   1st 8 vals          acc_cols6677[2]
-        // 2nd 8 vals of col7   2nd 8 vals          acc_cols6677[3]
-        //
-        // The above computation scheme is what informs the weight valpacking
-        int32x4_t acc_cols0011 = vdupq_n_s32(0);
-        int32x4_t acc_cols2233 = vdupq_n_s32(0);
-        int32x4_t acc_cols4455 = vdupq_n_s32(0);
-        int32x4_t acc_cols6677 = vdupq_n_s32(0);
-
-        // holds chunk of 16 activation_q values
-        int8x16_t act_q;
-
-        // holds chunk of 8 activation vals, duplicated twice
-        int8x16_t act_q_dup;
-
-        // holds chunk of 8 vals from weight_q col0, followed by 8 vals from
-        // weight_q col1
-        int8x16_t weight_q_cols01_0;
-        int8x16_t weight_q_cols01_1;
-
-        // holds chunk of 8 vals from weight_q col2, followed by 8 vals from
-        // weight_q col3
-        int8x16_t weight_q_cols23_0;
-        int8x16_t weight_q_cols23_1;
-
-        // holds chunk of 8 vals from weight_q col4, followed by 8 vals from
-        // weight_q col5
-        int8x16_t weight_q_cols45_0;
-        int8x16_t weight_q_cols45_1;
-
-        // holds chunk of 8 vals from weight_q col6, followed by 8 vals from
-        // weight_q col7
-        int8x16_t weight_q_cols67_0;
-        int8x16_t weight_q_cols67_1;
-
-        for (int i = 0; i < group_size; i += 16) {
-          // Each chunk is 64 values of unpacked data (4 cols x 16 vals/col).
-          // This comes out to (64 * weight_nbit / 8) bits = 8 * weight_nbit
-          // bytes of bitpacked data
-          vec_unpack_128_lowbit_values<weight_nbit>(weight_q_cols01_0, weight_q_cols23_0, weight_q_cols45_0, weight_q_cols67_0,
-                                                    weight_q_cols01_1, weight_q_cols23_1, weight_q_cols45_1, weight_q_cols67_1,
-                                                    (uint8_t*)weight_data_byte_ptr);
-          weight_data_byte_ptr += bytes_per_128_weight_values;
-
-          // Load 16 activation values
-          act_q = vld1q_s8((int8_t*)activation_ptr);
-          activation_ptr += 16;
-
-          // Dot product of first 8 vals of activation data with first 8 vals of
-          // weight data.  Note the sequence of operations here imply the
-          // following order on weight_data stored in unpacked_buffer: (1st 8
-          // vals col0), (1st 8 vals col1), (1st 8 vals col2), (1st 8 vals
-          // col2).  This order is accomplished by valpacking
-          act_q_dup = vcombine_s8(vget_low_s8(act_q), vget_low_s8(act_q));
-          acc_cols0011 = vdotq_s32(acc_cols0011, weight_q_cols01_0, act_q_dup);
-          acc_cols2233 = vdotq_s32(acc_cols2233, weight_q_cols23_0, act_q_dup);
-          acc_cols4455 = vdotq_s32(acc_cols4455, weight_q_cols45_0, act_q_dup);
-          acc_cols6677 = vdotq_s32(acc_cols6677, weight_q_cols67_0, act_q_dup);
-
-          // Dot product of second 8 vals of activation data with second 8 vals
-          // of weight data.
-          act_q_dup = vcombine_s8(vget_high_s8(act_q), vget_high_s8(act_q));
-          acc_cols0011 = vdotq_s32(acc_cols0011, weight_q_cols01_1, act_q_dup);
-          acc_cols2233 = vdotq_s32(acc_cols2233, weight_q_cols23_1, act_q_dup);
-          acc_cols4455 = vdotq_s32(acc_cols4455, weight_q_cols45_1, act_q_dup);
-          acc_cols6677 = vdotq_s32(acc_cols6677, weight_q_cols67_1, act_q_dup);
-        }
-        // Reduce accumulators, so we have one dot product value per col
-        int32x4_t qval_dot_0123 = vpaddq_s32(acc_cols0011, acc_cols2233);
-        int32x4_t qval_dot_4567 = vpaddq_s32(acc_cols4455, acc_cols6677);
-
-        // Result is updated with:
-        // res += scale_factor * (qval_dot - term1 - term2 + term3), where
-        // * scale_factor = (weight_scale * activation_scale)
-        // * term1 = (activation_zero * weight_qvals_sum)
-        // * term2 = (weight_zero * activation_qvals_sum)
-        // * term3 = (group_size * weight_zero * activation_zero)
-        // If has_weight_zeros is false, terms 2 and 3 disappaer.
-
-        // Compute scale_factor
-        float32x4_t activation_scales = vdupq_n_f32(activation_scale);
-
-        float32x4_t weight_scales = vld1q_f32((float*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-
-        float32x4_t scale_factor_0123 = vmulq_f32(weight_scales, activation_scales);
-
-        weight_scales = vld1q_f32((float*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-
-        float32x4_t scale_factor_4567 = vmulq_f32(weight_scales, activation_scales);
-
-        // Compute term1
-        int32x4_t weight_qvals_sum = vld1q_s32((int32_t*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-
-        int32x4_t term1_0123 = vmulq_n_s32(weight_qvals_sum, activation_zero);
-
-        weight_qvals_sum = vld1q_s32((int32_t*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-
-        int32x4_t term1_4567 = vmulq_n_s32(weight_qvals_sum, activation_zero);
-
-        if constexpr (has_weight_zeros) {
-          // Compute term2 and term3
-
-          int32_t activation_qvals_sum = *((int32_t*)activation_ptr);
-          activation_ptr += sizeof(int32_t);
-
-          int32x4_t weight_zeros = vld1q_s32((int32_t*)weight_data_byte_ptr);
-          weight_data_byte_ptr += 16;
-
-          int32x4_t term2_0123 = vmulq_n_s32(weight_zeros, activation_qvals_sum);
-
-          int32x4_t term3_0123 = vmulq_n_s32(weight_zeros, group_size * activation_zero);
-
-          weight_zeros = vld1q_s32((int32_t*)weight_data_byte_ptr);
-          weight_data_byte_ptr += 16;
-
-          int32x4_t term2_4567 = vmulq_n_s32(weight_zeros, activation_qvals_sum);
-
-          int32x4_t term3_4567 = vmulq_n_s32(weight_zeros, group_size * activation_zero);
-
-          // Do updates
-          int32x4_t tmp = vsubq_s32(qval_dot_0123, term1_0123);
-          tmp = vsubq_s32(tmp, term2_0123);
-          tmp = vaddq_s32(tmp, term3_0123);
-          res_0123 = vmlaq_f32(res_0123, scale_factor_0123, vcvtq_f32_s32(tmp));
-
-          tmp = vsubq_s32(qval_dot_4567, term1_4567);
-          tmp = vsubq_s32(tmp, term2_4567);
-          tmp = vaddq_s32(tmp, term3_4567);
-          res_4567 = vmlaq_f32(res_4567, scale_factor_4567, vcvtq_f32_s32(tmp));
-        } else {
-          // Do updates
-          int32x4_t tmp = vsubq_s32(qval_dot_0123, term1_0123);
-          res_0123 = vmlaq_f32(res_0123, scale_factor_0123, vcvtq_f32_s32(tmp));
-
-          tmp = vsubq_s32(qval_dot_4567, term1_4567);
-          res_4567 = vmlaq_f32(res_4567, scale_factor_4567, vcvtq_f32_s32(tmp));
-        }
-
-      }  // k_idx
-      if constexpr (has_bias) {
-        float32x4_t bias;
-
-        bias = vld1q_f32((float32_t*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-        res_0123 = vaddq_f32(res_0123, bias);
-
-        bias = vld1q_f32((float32_t*)weight_data_byte_ptr);
-        weight_data_byte_ptr += 16;
-        res_4567 = vaddq_f32(res_4567, bias);
-      }
-      if constexpr (has_clamp) {
-        float32x4_t vec_min = vdupq_n_f32(clamp_min);
-        float32x4_t vec_max = vdupq_n_f32(clamp_max);
-        res_0123 = i8gemm_details::vec_clamp(res_0123, vec_min, vec_max);
-        res_4567 = i8gemm_details::vec_clamp(res_4567, vec_min, vec_max);
-      }
-
-      // Store result
-      int remaining = n - n_idx;
-      float* store_loc = output + m_idx * output_m_stride + n_idx;
-      if (remaining >= 8) {
-        vst1q_f32(store_loc, res_0123);
-        vst1q_f32(store_loc + 4, res_4567);
-      } else if (remaining >= 7) {
-        vst1q_f32(store_loc, res_0123);
-        vst1_f32(store_loc + 4, vget_low_f32(res_4567));
-        *(store_loc + 6) = res_4567[2];
-      } else if (remaining >= 6) {
-        vst1q_f32(store_loc, res_0123);
-        vst1_f32(store_loc + 4, vget_low_f32(res_4567));
-      } else if (remaining >= 5) {
-        vst1q_f32(store_loc, res_0123);
-        *(store_loc + 4) = res_4567[0];
-      } else if (remaining >= 4) {
-        vst1q_f32(store_loc, res_0123);
-      } else if (remaining >= 3) {
-        vst1_f32(store_loc, vget_low_f32(res_0123));
-        *(store_loc + 2) = res_0123[2];
-      } else if (remaining >= 2) {
-        vst1_f32(store_loc, vget_low_f32(res_0123));
-      } else {
-        *store_loc = res_0123[0];
-      }
-
-    }  // n_idx
-    activation_data_byte_ptr += (activation_ptr - activation_data_byte_ptr);
-  }  // m_idx
+    int output_m_stride, int m, int n, int k, int group_size, const void* packed_weights, const void* packed_activations,
+    // Ignored if has_clamp = false
+    float clamp_min, float clamp_max, bool has_weight_zeros, bool has_bias, bool has_clamp) {
+  kernel::kernel_1x1x32_f32_neondot<weight_nbit>(output, output_m_stride, m, n, k, group_size, packed_weights,
+                                                 packed_activations, clamp_min, clamp_max, has_weight_zeros, has_bias,
+                                                 has_clamp);
 }
 
-}  // namespace i8gemm_details
+template<int weight_nbit>
+void kernel_1x4x16_f32_neondot(
+    // Outputs
+    float32_t* output,
+    // Inputs
+    int output_m_stride, int m, int n, int k, int group_size, const void* packed_weights, const void* packed_activations,
+    // Ignored if has_clamp = false
+    float clamp_min, float clamp_max, bool has_weight_zeros, bool has_bias, bool has_clamp) {
+  kernel::kernel_1x4x16_f32_neondot<weight_nbit>(output, output_m_stride, m, n, k, group_size, packed_weights,
+                                                 packed_activations, clamp_min, clamp_max, has_weight_zeros, has_bias,
+                                                 has_clamp);
+}
+
+template<int weight_nbit, bool has_weight_zeros, bool has_lut>
+void kernel_1x8x16_f32_neondot(
+    // Outputs
+    float32_t* output,
+    // Inputs
+    int output_m_stride, int m, int n, int k, int group_size, const void* packed_weights, const void* packed_activations,
+    // Ignored if has_clamp = false
+    float clamp_min, float clamp_max, bool has_weight_zeros_, bool has_bias, bool has_clamp) {
+  (void)has_weight_zeros_;  // unused
+  kernel::kernel_1x8x16_f32_neondot<weight_nbit, has_weight_zeros, has_lut>(output, output_m_stride, m, n, k, group_size,
+                                                                            packed_weights, packed_activations, clamp_min,
+                                                                            clamp_max, has_bias, has_clamp);
+}
+
+}  // namespace fp32_channel_a8_weight_group_ux
+
 }  // namespace mllm::cpu::arm

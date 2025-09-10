@@ -12,6 +12,10 @@ find_package(mllm)
 
 file(GLOB_RECURSE MLLM_LAZY_VLM_MODELS ${CMAKE_CURRENT_LIST_DIR}/models/*.cpp)
 
-add_executable(lazy_vlm main.cpp HKVCache.cpp ${MLLM_ALGORITHM_FANCY_MODELS})
-target_link_libraries(lazy_vlm PRIVATE mllm::MllmRT mllm::MllmCPUBackend)
-target_include_directories(lazy_vlm PRIVATE ${MLLM_INCLUDE_DIR} ${CMAKE_CURRENT_LIST_DIR}/../)
+add_executable(lazy_vlm_qwen2_5vl LazyVLMQwen2_5VL.cpp HKVCache.cpp ${MLLM_ALGORITHM_FANCY_MODELS})
+target_link_libraries(lazy_vlm_qwen2_5vl PRIVATE mllm::MllmRT mllm::MllmCPUBackend)
+target_include_directories(lazy_vlm_qwen2_5vl PRIVATE ${MLLM_INCLUDE_DIR} ${CMAKE_CURRENT_LIST_DIR}/../)
+
+add_executable(lazy_vlm_qwen2vl LazyVLMQwen2VL.cpp HKVCache.cpp ${MLLM_ALGORITHM_FANCY_MODELS})
+target_link_libraries(lazy_vlm_qwen2vl PRIVATE mllm::MllmRT mllm::MllmCPUBackend)
+target_include_directories(lazy_vlm_qwen2vl PRIVATE ${MLLM_INCLUDE_DIR} ${CMAKE_CURRENT_LIST_DIR}/../)

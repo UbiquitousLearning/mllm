@@ -1,0 +1,159 @@
+{
+    "^model\\.layers\\.\\d+\\.self_attn\\.q_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                3584,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.self_attn\\.k_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                512,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.self_attn\\.v_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                512,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.self_attn\\.o_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                3584,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.mlp\\.gate_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                18944,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.mlp\\.up_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                18944,
+                3584
+            ],
+            "replace": true
+        }
+    },
+    "^model\\.layers\\.\\d+\\.mlp\\.down_proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                3584,
+                18944
+            ],
+            "replace": true
+        }
+    },
+    "^visual\\.blocks\\.\\d+\\.attn\\.proj.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                1280,
+                1280
+            ],
+            "replace": true
+        }
+    },
+    "^visual\\.blocks\\.\\d+\\.attn\\.qkv.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                3840,
+                1280
+            ],
+            "replace": true
+        }
+    },
+    "^visual\\.merger\\.mlp\\.0\\.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                5120,
+                5120
+            ],
+            "replace": true
+        }
+    },
+    "^visual\\.merger\\.mlp\\.2\\.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                3584,
+                5120
+            ],
+            "replace": true
+        }
+    },
+    "^lm_head\\.weight": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp4x8_qsi4c32p8x8_4x8x32",
+            "shape": [
+                152064,
+                3584
+            ],
+            "replace": true,
+            "rename": "model.lm_head.weight"
+        }
+    }
+}
