@@ -50,7 +50,7 @@
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
 
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)

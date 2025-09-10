@@ -8,8 +8,8 @@
 #include <cstring>
 
 #include "mllm/backends/cpu/kernels/arm/linear/ggml/gemm_aarch64.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize_q4.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Common.hpp"
