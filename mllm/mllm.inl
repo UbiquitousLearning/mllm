@@ -2,6 +2,69 @@
 // Print Stuff
 //===----------------------------------------------------------------------===//
 #include <fmt/ranges.h>
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Common.hpp"
+
+namespace MLLM_ANONYMOUS_NAMESPACE {
+// 辅助函数：反量化单个 Q4_K 块的前几个值用于打印
+#ifndef MLLM_FP16_TO_FP32
+#define MLLM_FP16_TO_FP32(x) ((float)(x))
+#endif
+
+#if QK_K == 256
+static inline void get_scale_min_k4_for_print(int j, const uint8_t* __restrict q, uint8_t* __restrict d,
+                                              uint8_t* __restrict m) {
+  if (j < 4) {
+    *d = q[j] & 63;
+    *m = q[j + 4] & 63;
+  } else {
+    *d = (q[j + 4] & 0xF) | ((q[j - 4] >> 6) << 4);
+    *m = (q[j + 4] >> 4) | ((q[j - 0] >> 6) << 4);
+  }
+}
+#endif
+
+// 反量化 Q4_K 块的前 8 个值用于打印
+std::array<float, 8> dequantize_q4k_for_print(const mllm::mllm_block_q4_K_t& block) {
+  std::array<float, 8> result;
+  const uint8_t* q = block.qs;
+
+#if QK_K == 256
+  const float d = MLLM_FP16_TO_FP32(block.d);
+  const float min = MLLM_FP16_TO_FP32(block.dmin);
+
+  uint8_t sc, m;
+  get_scale_min_k4_for_print(0, block.scales, &sc, &m);
+  const float d1 = d * sc;
+  const float m1 = min * m;
+
+  // 反量化前8个值
+  for (int i = 0; i < 8; ++i) {
+    if (i < 4) {
+      result[i] = d1 * (q[i] & 0xF) - m1;
+    } else {
+      result[i] = d1 * (q[i - 4] >> 4) - m1;
+    }
+  }
+#else
+  const float dall = MLLM_FP16_TO_FP32(block.d[0]);
+  const float mall = MLLM_FP16_TO_FP32(block.d[1]);
+  const float d1 = dall * (block.scales[0] & 0xF);
+  const float m1 = mall * (block.scales[0] >> 4);
+
+  // 反量化前8个值
+  for (int i = 0; i < 8; ++i) {
+    if (i < 4) {
+      result[i] = d1 * (q[i] & 0xF) - m1;
+    } else {
+      result[i] = d1 * (q[i - 4] >> 4) - m1;
+    }
+  }
+#endif
+
+  return result;
+}
+}  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 namespace fmt {
 template<>
@@ -178,6 +241,25 @@ struct formatter<mllm::Tensor> {
             out, "{:.{}e}{:+.{}e}j",
             tensor.constAt<mllm::mllm_complex_fp64_t>(const_cast<std::vector<int32_t>&>(indices)).real(), precision,
             tensor.constAt<mllm::mllm_complex_fp64_t>(const_cast<std::vector<int32_t>&>(indices)).imag(), precision);
+      case mllm::kGGUF_Q4_K: {
+        const auto& block = tensor.constAt<mllm::mllm_block_q4_K_t>(const_cast<std::vector<int32_t>&>(indices));
+
+        // 获取反量化的前8个值
+        auto dequant_values = dequantize_q4k_for_print(block);
+
+#ifdef MLLM_QKK_64
+        return fmt::format_to(out, "(d=[{:.{}e},{:.{}e}], scales=[{},{}], dequant=[{:.{}e},{:.{}e},{:.{}e},{:.{}e},...])",
+                              static_cast<float>(block.d[0]), precision, static_cast<float>(block.d[1]), precision,
+                              static_cast<int>(block.scales[0]), static_cast<int>(block.scales[1]), dequant_values[0],
+                              precision, dequant_values[1], precision, dequant_values[2], precision, dequant_values[3],
+                              precision);
+#else
+        return fmt::format_to(out, "(d={:.{}e}, dmin={:.{}e}, dequant=[{:.{}e},{:.{}e},{:.{}e},{:.{}e},...])",
+                              static_cast<float>(block.d), precision, static_cast<float>(block.dmin), precision,
+                              dequant_values[0], precision, dequant_values[1], precision, dequant_values[2], precision,
+                              dequant_values[3], precision);
+#endif
+      }
       default: return fmt::format_to(out, "?");
     }
   }
