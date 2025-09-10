@@ -64,6 +64,16 @@ std::array<float, 8> dequantize_q4k_for_print(const mllm::mllm_block_q4_K_t& blo
 
   return result;
 }
+
+// 反量化 Q8_K 块的前 8 个值用于打印
+std::array<float, 8> dequantize_q8k_for_print(const mllm::mllm_block_q8_K_t& block) {
+  std::array<float, 8> result;
+  const float d = block.d;
+
+  for (int i = 0; i < 8; ++i) { result[i] = d * static_cast<float>(block.qs[i]); }
+
+  return result;
+}
 }  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 namespace fmt {
@@ -259,6 +269,16 @@ struct formatter<mllm::Tensor> {
                               dequant_values[0], precision, dequant_values[1], precision, dequant_values[2], precision,
                               dequant_values[3], precision);
 #endif
+      }
+      case mllm::kGGUF_Q8_K: {
+        const auto& block = tensor.constAt<mllm::mllm_block_q8_K_t>(const_cast<std::vector<int32_t>&>(indices));
+
+        // 获取反量化的前8个值
+        auto dequant_values = dequantize_q8k_for_print(block);
+
+        return fmt::format_to(out, "(d={:.{}e}, dequant=[{:.{}e},{:.{}e},{:.{}e},{:.{}e},...])", block.d, precision,
+                              dequant_values[0], precision, dequant_values[1], precision, dequant_values[2], precision,
+                              dequant_values[3], precision);
       }
       default: return fmt::format_to(out, "?");
     }
