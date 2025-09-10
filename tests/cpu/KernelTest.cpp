@@ -773,6 +773,18 @@ TEST_F(ReduceKernelTest, SumFloat32) {
 // }
 #endif
 
+//===----------------------------------------------------------------------===//
+// Paged Attn
+//===----------------------------------------------------------------------===//
+#include "PagedAttnTest.hpp"
+TEST_F(PagedAttnTest, fwd_bshd) {
+  EXPECT_EQ(manyCases({
+                {mllm::Tensor::shape_t{1, 10, 28, 128}, mllm::Tensor::shape_t{1, 10, 2, 128}},
+                {mllm::Tensor::shape_t{1, 10, 28, 64}, mllm::Tensor::shape_t{1, 10, 28, 64}},
+            }),
+            true);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

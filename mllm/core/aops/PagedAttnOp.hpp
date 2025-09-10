@@ -17,7 +17,7 @@ struct PagedAttnOpOptions : public BaseOpOptions<PagedAttnOpOptions> {
   int32_t head_repeat_times = 1;
   bool high_precision_exp = false;
   bool fuse_rope = false;
-  bool custom_causal_mask = false;
+  bool need_attn_weights = false;
   PagedAttnImplType impl_type = PagedAttnImplType::kAllFp32;
 };
 
@@ -40,7 +40,6 @@ class PagedAttnOp : public BaseOp {
   inline const PagedAttnOpOptions& options() const { return options_; }
 
  protected:
-  Tensor weight_;
   PagedAttnOpOptions options_;
 };
 

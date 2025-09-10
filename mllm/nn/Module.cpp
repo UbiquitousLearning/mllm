@@ -73,6 +73,12 @@ void ModuleImpl::registerBuffer(const std::string& name, const Tensor& tensor) {
 
 Tensor ModuleImpl::getBuffer(const std::string& name) { return buffer_[name]; }
 
+Module::Module() {
+  impl_ = std::make_shared<ModuleImpl>();
+  impl()->setName("");
+  impl()->setAbsoluteName("");
+}
+
 Module::Module(const ModuleImpl::ptr_t& impl) : impl_(impl) {}
 
 Module::Module(const std::string& name) {

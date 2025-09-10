@@ -25,3 +25,4 @@
 #include "mllm/nn/layers/KVCache.hpp"         // IWYU pragma: export
 #include "mllm/nn/layers/Conv1D.hpp"          // IWYU pragma: export
 #include "mllm/nn/layers/STFT.hpp"            // IWYU pragma: export
+#include "mllm/nn/layers/PagedAttn.hpp"       // IWYU pragma: export

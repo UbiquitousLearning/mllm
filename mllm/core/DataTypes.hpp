@@ -271,8 +271,6 @@ typedef struct {         // NOLINT
 using mllm_block_iq2_xxs_t = block_iq2_xxs;
 static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(uint16_t), "wrong iq2_xxs block size/padding");
 
-#pragma pack(pop)
-
 //===----------------------------------------------------------------------===//
 // MXFP4
 //
@@ -285,6 +283,8 @@ typedef struct {     // NOLINT
   uint8_t scale;
 } mllm_mxfp4_t;
 static_assert(sizeof(mllm_mxfp4_t) == 17, "wrong mxfp4 size/padding");
+
+#pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
 // MLLM Types Enum

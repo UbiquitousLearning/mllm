@@ -12,7 +12,8 @@
 
 | Device | OS | CPU | GPU | NPU |
 | :---: | :---: | :---: | :---: | :---: |
-| PC-X86-w/oAVX512  | Ubuntu 22.04  | ![build-pending](https://img.shields.io/badge/build-pending-gray) | - | - |
+| PC-X86-w/oAVX512  | Ubuntu 22.04  | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |
+| Nvidia A40  | Ubuntu 22.04  | - | ![build-passing](https://img.shields.io/badge/build-passing-green) | - |
 | Xiaomi14-8Elite   | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 | OnePlus13-8Elite  | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 | MacMini-M4        | MacOS 15.5    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |

@@ -49,7 +49,7 @@ class ModuleListsSuffix;
 
 class Module {
  public:
-  Module() = default;
+  Module();
 
   explicit Module(const ModuleImpl::ptr_t& impl);
 

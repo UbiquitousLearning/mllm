@@ -8,7 +8,9 @@ namespace mllm {
 BaseOp::BaseOp(OpTypes op_type) : op_type_(op_type) {}
 
 void BaseOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  for (auto& t : outputs) { t.alloc(); }
+  for (auto& t : outputs) {
+    if (!t.isNil()) t.alloc();
+  }
 }
 
 std::string BaseOp::getName() const { return name_; }
