@@ -6,7 +6,7 @@
 #include "mllm/backends/cpu/ops/EmbeddingOp.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Parallel.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize_q4.hpp"
 
 namespace mllm::cpu {
 
