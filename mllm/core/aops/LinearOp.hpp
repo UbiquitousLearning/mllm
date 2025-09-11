@@ -41,7 +41,7 @@ inline LinearImplTypes str2LinearImplTypes(const std::string& str) {
   static const std::unordered_map<std::string, LinearImplTypes> map = {
       {"Default", LinearImplTypes::kDefault},
       {"BLAS", LinearImplTypes::kBLAS},
-      {"LLaMAFile", LinearImplTypes::kGGUF},
+      {"GGUF", LinearImplTypes::kGGUF},
       {"KaiLinear_fp16_fp16_fp16p_mxk_kxn", LinearImplTypes::kKaiLinear_fp16_fp16_fp16p_mxk_kxn},
       {"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32",
        LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32},
