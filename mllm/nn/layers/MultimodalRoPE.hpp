@@ -14,7 +14,8 @@ class MultimodalRoPE : public Layer {
 
   explicit MultimodalRoPE(const aops::MultimodalRoPEOpOptions& options);
 
-  explicit MultimodalRoPE(const aops::Qwen2VLMultimodalRoPEOpOptions& options);
+  explicit MultimodalRoPE(const aops::Qwen2VLMultimodalRoPEOpOptions& options,
+                          aops::MultimodalRoPEOpOptionsInputType input_type = aops::MultimodalRoPEOpOptionsInputType::kBHSD);
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };

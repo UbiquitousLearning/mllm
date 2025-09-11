@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <core/aops/MultimodalRoPEOp.hpp>
 #include <ranges>
 #include <unordered_set>
 
@@ -686,14 +687,18 @@ class Qwen2_5VLAttention final : public nn::Module {
     v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, true, cfg.linear_impl_type);
     o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, false, cfg.linear_impl_type);
 
-    q_rope_ = reg<nn::MultimodalRoPE>(
-        "q_rope", aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
-                                                       .max_position_embeddings = cfg.max_position_embeddings,
-                                                       .mrope_section = cfg.mrope_section});
-    k_rope_ = reg<nn::MultimodalRoPE>(
-        "k_rope", aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
-                                                       .max_position_embeddings = cfg.max_position_embeddings,
-                                                       .mrope_section = cfg.mrope_section});
+    q_rope_ =
+        reg<nn::MultimodalRoPE>("q_rope",
+                                aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
+                                                                     .max_position_embeddings = cfg.max_position_embeddings,
+                                                                     .mrope_section = cfg.mrope_section},
+                                aops::MultimodalRoPEOpOptionsInputType::kBSHD);
+    k_rope_ =
+        reg<nn::MultimodalRoPE>("k_rope",
+                                aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
+                                                                     .max_position_embeddings = cfg.max_position_embeddings,
+                                                                     .mrope_section = cfg.mrope_section},
+                                aops::MultimodalRoPEOpOptionsInputType::kBSHD);
 
     paged_attn_ = reg<nn::PagedAttn>("paged_attn", num_attention_heads_ / num_key_value_heads_, false, false, true);
   }
@@ -741,7 +746,7 @@ class Qwen2_5VLAttention final : public nn::Module {
     // Get KV Cache
     std::tie(key_states, value_states) = past_kv_cache->getKVCache(layer_idx_);
 
-    auto [attn, output] =
+    auto [output, attn] =
         paged_attn_(query_states, key_states, value_states,
                     mllm::Tensor::fromVector(lazy_vlm_state->chosen_pos_in_each[layer_idx_],
                                              {(int32_t)lazy_vlm_state->chosen_pos_in_each[layer_idx_].size()}, kInt32, kCPU),
@@ -777,12 +782,7 @@ class Qwen2_5VLAttention final : public nn::Module {
     key_states = key_states.view({B, S, num_key_value_heads_, head_dim_});
     value_states = value_states.view({B, S, num_key_value_heads_, head_dim_});
 
-    // [B, H, S, D]
-    query_states = query_states.transpose(1, 2);
-    key_states = key_states.transpose(1, 2);
-    value_states = value_states.transpose(1, 2);
-
-    // [B, H, S, D]
+    // [B, S, H, D]
     query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
@@ -796,7 +796,7 @@ class Qwen2_5VLAttention final : public nn::Module {
     // Get KV From current kv cache
     std::tie(key_states, value_states) = past_kv_cache->getKVCache(layer_idx_);
 
-    auto [attn, output] =
+    auto [output, attn] =
         paged_attn_(query_states, key_states, value_states,
                     mllm::Tensor::fromVector(lazy_vlm_state->chosen_pos_in_each[layer_idx_],
                                              {(int32_t)lazy_vlm_state->chosen_pos_in_each[layer_idx_].size()}, kInt32, kCPU),
@@ -876,7 +876,7 @@ class Qwen2_5VLDecoder final : public nn::Module {
     }
 
     // LAZY: Mark the processed visual tokens as visit
-    // TODO
+    kv_cache->visitHiddenStateCache(layer_idx_, lazy_vlm_state->chosen_pos_in_each[layer_idx_]);
 
     return {hidden_states};
   }
@@ -923,7 +923,7 @@ class Qwen2_5VLDecoder final : public nn::Module {
     }
 
     // LAZY: Mark the processed visual tokens as visit
-    // TODO
+    kv_cache->visitHiddenStateCache(layer_idx_, lazy_vlm_state->chosen_pos_in_each[layer_idx_]);
 
     return {hidden_states};
   }
@@ -1053,10 +1053,9 @@ class Qwen2_5VLText final : public nn::Module {
     }
 
     // Due to insert method kv cache update in lazy_vlm prefill stage, we need to update the cache length manually.
-    // TODO
-    // for (auto [layer_idx, _] : enumerate(decode_blocks_.list())) {
-    //   kv_cache.get<HKVCacheFast*>()->manualCacheLengthUpdate(layer_idx, original_kv_cache_len);
-    // }
+    for (auto [layer_idx, _] : enumerate(decode_blocks_.list())) {
+      kv_cache.get<HKVCacheFast*>()->manualCacheLengthUpdate(layer_idx, original_kv_cache_len);
+    }
 
     hidden_states = norm_(hidden_states);
     // Clip x to one seq length
@@ -1087,7 +1086,6 @@ class Qwen2_5VLText final : public nn::Module {
     lazy_vlm_state->chosen_pos_in_each.resize(decode_blocks_.list().size() + 1, {});
     lazy_vlm_state->chosen_pos_to_delay_compute.resize(decode_blocks_.list().size() + 1, {});
 
-    // TODO
     std::ranges::copy(std::views::iota(0, hidden_states.shape()[1] + kv_cache->getCurrentSeqCnt(0)),
                       std::back_inserter(lazy_vlm_state->chosen_pos_in_each[0]));
 
@@ -1111,7 +1109,6 @@ class Qwen2_5VLText final : public nn::Module {
         auto& next_layer_pos = lazy_vlm_state->chosen_pos_in_each[layer_idx + 1];
 
         // NOTE: !!! is layer_idx + 1, we need to check the kv cache in the next layer.
-        // TODO
         auto& next_layer_kv_cache_not_filled_pos = kv_cache->kv_not_filled_pos_[layer_idx + 1];
         auto need_to_delay_compute_in_next_layer_pos = mappingThis2NextPos(next_layer_pos, next_layer_kv_cache_not_filled_pos);
         std::ranges::sort(need_to_delay_compute_in_next_layer_pos);

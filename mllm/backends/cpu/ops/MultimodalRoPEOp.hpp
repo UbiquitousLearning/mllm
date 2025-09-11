@@ -9,7 +9,8 @@
 namespace mllm::cpu {
 
 struct Qwen2VLMultimodalRoPEOpImpl {
-  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos);
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos,
+               aops::MultimodalRoPEOpOptionsInputType input_type = aops::MultimodalRoPEOpOptionsInputType::kBHSD);
 };
 
 class CPUMultimodalRoPEOp final : public aops::MultimodalRoPEOp {

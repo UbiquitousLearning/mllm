@@ -10,7 +10,9 @@ MultimodalRoPE::MultimodalRoPE() : Layer(OpTypes::kMultimodalRoPE, aops::Multimo
 
 MultimodalRoPE::MultimodalRoPE(const aops::MultimodalRoPEOpOptions& options) : Layer(OpTypes::kMultimodalRoPE, options) {}
 
-MultimodalRoPE::MultimodalRoPE(const aops::Qwen2VLMultimodalRoPEOpOptions& options)
-    : Layer(OpTypes::kMultimodalRoPE, aops::MultimodalRoPEOpOptions{aops::MultimodalRoPEOpOptionsType::kQwen2VL, options}) {}
+MultimodalRoPE::MultimodalRoPE(const aops::Qwen2VLMultimodalRoPEOpOptions& options,
+                               aops::MultimodalRoPEOpOptionsInputType input_type)
+    : Layer(OpTypes::kMultimodalRoPE,
+            aops::MultimodalRoPEOpOptions{aops::MultimodalRoPEOpOptionsType::kQwen2VL, options, input_type}) {}
 
 }  // namespace mllm::nn
