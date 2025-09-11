@@ -5,11 +5,10 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/utils/Common.hpp"
-#include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"
 #include "mllm/backends/cpu/kernels/common/blas.hpp"
-#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 
 namespace mllm::cpu {
 
@@ -51,8 +50,9 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mt = aops::MatMulOpType::kBLAS;
 #else
     if (!transpose_a && transpose_b && M >= 4) {
-      // FIXME: kLLamaFile is not supported for M < 4
-      mt = aops::MatMulOpType::kLlamaFile;
+      // mt = aops::MatMulOpType::kGGUF;
+      // gguf matmul still can not use, use default mllm blas
+      mt = aops::MatMulOpType::kMllmBlas;
     } else
     // All fallback to mllm blas
     {
@@ -66,53 +66,16 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       NYI("Auto matmul type inference failed");
       break;
     }
-    case aops::MatMulOpType::kLlamaFile: {
+    case aops::MatMulOpType::kGGUF: {
       // llamafile implementation
       // only supports specific transpose options
       MLLM_RT_ASSERT(transpose_a == false && transpose_b == true);
 
       // llamafile uses column-major order, so we actually perform K^T x Q
       if (lhs.isContiguousN(0)) {
-        auto thread_count = options_.getThreads();
-
-        auto src1_type_size = bytesOfType(rhs.dtype());
-        auto src1_blck_size = lanesOfType(rhs.dtype());
-        auto src0_type_size = bytesOfType(lhs.dtype());
-        auto src0_blck_size = lanesOfType(lhs.dtype());
-
-        const int ld0 = transpose_a ? M : K;
-        const int ld1 = transpose_b ? K : N;
-        const int ldc = o.shape()[o.shape().size() - 1];
-
-        if (lhs_shape.size() > 2) {
-          for (int b = 0; b < batch_count; ++b) {
-            MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
-              auto offset = (rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size);
-              if (!llamafile_sgemm(
-                      N, M, K / src1_blck_size,
-                      rhs.ptr<mllm_byte_t>() + rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size,
-                      ld1 / src1_blck_size,
-                      lhs.ptr<mllm_byte_t>() + lhs.stride()[lhs_shape.size() - 3] * b / src0_blck_size * src0_type_size,
-                      ld0 / src0_blck_size,
-                      o.ptr<mllm_byte_t>()
-                          + o.stride()[o.shape().size() - 3] * b / lanesOfType(o.dtype()) * bytesOfType(o.dtype()),
-                      ldc / lanesOfType(o.dtype()), id, thread_count, rhs.dtype(), lhs.dtype(), o.dtype())) {
-                MLLM_WARN("LlamaFile matmul failed N: {}, M: {}, K: {}", N, M, K);
-              }
-            });
-          }
-        } else {
-          MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
-            if (!llamafile_sgemm(N, M, K / src1_blck_size, rhs.ptr<mllm_byte_t>(), ld1 / src1_blck_size, lhs.ptr<mllm_byte_t>(),
-                                 ld0 / src0_blck_size, o.ptr<mllm_byte_t>(), ldc / lanesOfType(o.dtype()), id, thread_count,
-                                 rhs.dtype(), lhs.dtype(), o.dtype())) {
-              MLLM_WARN("LlamaFile matmul failed N: {}, M: {}, K: {}", N, M, K);
-            }
-          });
-        }
+        mllm::cpu::ggml::mat_mul(lhs, rhs, o, false, nullptr, transpose_a, transpose_b, options_.getThreads());
       } else {
-        MLLM_WARN("LlamaFile matmul requires contiguous tensors, falling back to default implementation.");
-        NYI("Default implementation for non-contiguous tensors not yet implemented");
+        NYI("GGUF implementation for non-contiguous tensors not yet implemented");
       }
       break;
     }

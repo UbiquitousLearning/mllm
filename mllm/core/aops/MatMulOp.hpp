@@ -10,7 +10,7 @@ namespace mllm::aops {
 
 enum class MatMulOpType {
   kDefault = 0,
-  kLlamaFile = 1,
+  kGGUF = 1,
 
   // BLAS
   kBLAS = 2,
@@ -27,7 +27,7 @@ struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {
 
 inline MatMulOpType str2MatMulOpType(const std::string& str) {
   static const std::unordered_map<std::string, MatMulOpType> map = {{"Default", MatMulOpType::kDefault},
-                                                                    {"LlamaFile", MatMulOpType::kLlamaFile},
+                                                                    {"LlamaFile", MatMulOpType::kGGUF},
                                                                     {"BLAS", MatMulOpType::kBLAS},
                                                                     {"MllmBlas", MatMulOpType::kMllmBlas}};
 
@@ -38,7 +38,7 @@ inline MatMulOpType str2MatMulOpType(const std::string& str) {
 
 inline std::string MatMulOpType2Str(MatMulOpType type) {
   static const std::unordered_map<MatMulOpType, std::string> map = {{MatMulOpType::kDefault, "Default"},
-                                                                    {MatMulOpType::kLlamaFile, "LlamaFile"},
+                                                                    {MatMulOpType::kGGUF, "LlamaFile"},
                                                                     {MatMulOpType::kBLAS, "BLAS"},
                                                                     {MatMulOpType::kMllmBlas, "MllmBlas"}};
 
