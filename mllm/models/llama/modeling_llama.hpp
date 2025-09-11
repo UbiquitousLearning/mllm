@@ -285,7 +285,9 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     );
 
     model = reg<LlamaText>("model", cfg);
-    if (!cfg.tie_word_embeddings) { lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false); }
+    if (!cfg.tie_word_embeddings) {
+      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+    }
     tie_word_embeddings_ = cfg.tie_word_embeddings;
   }
 
