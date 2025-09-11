@@ -1123,6 +1123,7 @@ class Qwen2_5VLText final : public nn::Module {
   nn::ModuleList<Qwen2_5VLDecoder> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Linear lm_head_;
+  bool kv_cache_reordered_ = false;
   bool tie_word_embeddings_;
 
  public:
@@ -1164,6 +1165,11 @@ class Qwen2_5VLText final : public nn::Module {
       if (lazy_vlm_cfg->decode_callback && lazy_vlm_state->cur_step <= 3) {
         return forward_lazy_vlm_decode(inputs, args);
       } else {
+        if (!kv_cache_reordered_ && lazy_vlm_cfg->pruning_settings.size()) {
+          // Reorder kv cache is needed.
+          args[0].get<HKVCache*>()->reorderKVCache();
+          kv_cache_reordered_ = true;
+        }
         return forward_normal_decode(inputs, args);
       }
     }
@@ -1476,7 +1482,7 @@ class Qwen2_5VLForCausalLM : public models::ARGeneration {
                          kCPU,                                       // device_type
                          false                                       // use_fa2
     );
-    eos_token_id_ = cfg.end_of_text_token_id;
+    eos_token_id_ = cfg.eos_token_id;
     max_length_ = cfg.max_cache_length;
   }
 

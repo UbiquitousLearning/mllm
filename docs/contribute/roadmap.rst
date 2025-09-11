@@ -25,6 +25,7 @@ Transform models supported by v1 to v2.
 - Qwen3 Series
 - Qwen2 Series
 - Llama3 Series
+- TinyLlama
 
 Performance Optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -68,9 +69,9 @@ Using 1. Manually memory planning 2. Fused kernels 3. Inplace Operators etc. To 
 Arm Kernel support
 ^^^^^^^^^^^^^^^^^^
 
-- MLLM-BLAS fp32 GEMM Kernels (transpose_a=False, transpose_b=True)
+- ✅ MLLM-BLAS fp32 GEMM Kernels (transpose_a=False, transpose_b=True) [@chenghua]
 - Element-wise Kernels has slightly performance issues
-- Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack)
+- Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack) [@chenghua]
 - Arm U1-7 Group Quantized Embedding Kernels. (Co-works with bitspack)
 - More KleidiAI Kernels (SME Supports)
 - Optimizing MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM Kernels, for Shapes in LLM Scenarios.
@@ -99,7 +100,7 @@ Quantization
 - Model Convertor & Quantizer
 - Shared weight Embedding(For tie-embedding scenario).
 
-Applications
+Applications & Productions
 ^^^^^^^^^^^^^
 
 - Multi-turn Chat
@@ -110,7 +111,7 @@ P1
 
 pymllm API
 ^^^^^^^^^^^
-
+- Use mllm self-hosted FFI instead of Pybind11
 - C++ Tensor and Python Tensor lifetime conflict in some test cases.
 
 

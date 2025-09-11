@@ -32,7 +32,11 @@ if __name__ == "__main__":
     adb = mllm.utils.ADBToolkit()
     print(adb.get_devices())
     adb.push_file(
-        "./build-android/lazy_vlm",
+        "./build-android/lazy_vlm_qwen2vl",
+        "/data/local/tmp/mllm-v2/bin/algorithms/",
+    )
+    adb.push_file(
+        "./build-android/lazy_vlm_qwen2_5vl",
         "/data/local/tmp/mllm-v2/bin/algorithms/",
     )
     exit(0)

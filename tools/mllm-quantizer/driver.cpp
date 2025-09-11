@@ -63,8 +63,10 @@ void QuantizeDriver::operator()() {
             if (!desc.hints["replace"].is_null() && !desc.hints["replace"]) {
               params_->push(desc.hints["rename"], nt.second);
             } else {
+              auto name = nt.first;
+              if (!desc.hints["rename"].is_null()) { name = desc.hints["rename"]; }
               params_->remove(nt.first);
-              params_->push(nt.first, nt.second);
+              params_->push(name, nt.second);
             }
           }
           // E.g.: kai will pack bias and weight into weight. We need to remove bias.

@@ -2,14 +2,18 @@
 // Licensed under the MIT License.
 
 #include <mllm/mllm.hpp>
-#include <mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp>
+#include <mllm/models/qwen2vl/configuration_qwen2vl.hpp>
 #include <mllm/models/qwen2vl/tokenization_qwen2vl.hpp>
 #include <mllm/models/qwen2vl/image_preprocessor_qwen2vl.hpp>
 
-#include "./models/qwen2_5vl/modeling_qwen2_5vl.hpp"
-#include "lazy_vlm/models/qwen2_5vl/lazy_vlm_cfg.hpp"
+#include "./models/qwen2vl/modeling_qwen2vl.hpp"
+#include "lazy_vlm/models/qwen2vl/lazy_vlm_cfg.hpp"
+
+using namespace mllm;  // NOLINT
 
 MLLM_MAIN({
+  mllm::setLogLevel(mllm::LogLevel::kError);
+
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& model_version = Argparse::add<std::string>("-mv|--model_version").help("Model version").required(true);
@@ -61,28 +65,28 @@ MLLM_MAIN({
       };
     }
 
-    auto qwen2_5vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
-    auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
-    auto qwen2_5vl = Qwen2_5VLForCausalLM(qwen2_5vl_cfg, lazy_cfg);
+    auto qwen2vl_cfg = mllm::models::qwen2vl::Qwen2VLConfig(config_path.get());
+    auto qwen2vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get(), 56 * 56, 28 * 28 * 2048);
+    auto qwen2vl = Qwen2VLForCausalLM(qwen2vl_cfg, lazy_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);
-    qwen2_5vl.llm.load(param);
-    qwen2_5vl.visual.load(param);
+    qwen2vl.llm.load(param);
+    qwen2vl.visual.load(param);
 
     try {
       fmt::print("🔄 Processing...\n");
-      auto inputs = qwen2_5vl_tokenizer.convertMessage({.prompt = prompt.get(), .img_file_path = image_path.get()});
+      auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt.get(), .img_file_path = image_path.get()});
 
       fmt::print("\n🤖 Response: ");
 
-      for (auto& step : qwen2_5vl.chat(inputs, {
-                                                   {"do_sample", mllm::AnyValue(false)},
-                                                   {"max_length", mllm::AnyValue(qwen2_5vl_cfg.max_cache_length)},
-                                               })) {
-        std::wcout << qwen2_5vl_tokenizer.detokenize(step.cur_token_id) << std::flush;
+      for (auto& step : qwen2vl.chat(inputs, {
+                                                 {"do_sample", mllm::AnyValue(false)},
+                                                 {"max_length", mllm::AnyValue(qwen2vl_cfg.max_cache_length)},
+                                             })) {
+        std::wcout << qwen2vl_tokenizer.detokenize(step.cur_token_id) << std::flush;
       }
 
-      qwen2_5vl.perfSummary();
+      qwen2vl.perfSummary();
 
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
