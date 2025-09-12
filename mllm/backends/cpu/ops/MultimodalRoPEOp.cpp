@@ -22,10 +22,27 @@ void Qwen2VLMultimodalRoPEOpImpl::forward(const std::vector<Tensor>& inputs, std
   // Activation must in BHSD layout
   MLLM_RT_ASSERT_EQ(activation.shape().size(), 4);
 
-  auto B = activation.shape()[0];
-  auto H = activation.shape()[1];
-  auto S = activation.shape()[2];
-  auto D = activation.shape()[3];
+  int32_t B = 0;
+  int32_t S = 0;
+  int32_t H = 0;
+  int32_t D = 0;
+
+  switch (input_type) {
+    case aops::MultimodalRoPEOpOptionsInputType::kBHSD: {
+      B = activation.shape()[0];
+      H = activation.shape()[1];
+      S = activation.shape()[2];
+      D = activation.shape()[3];
+      break;
+    }
+    case aops::MultimodalRoPEOpOptionsInputType::kBSHD: {
+      B = activation.shape()[0];
+      S = activation.shape()[1];
+      H = activation.shape()[2];
+      D = activation.shape()[3];
+      break;
+    }
+  }
 
   int32_t partial_dimension = D;
   int32_t half = D / 2;

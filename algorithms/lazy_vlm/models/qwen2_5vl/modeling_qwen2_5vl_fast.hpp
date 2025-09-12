@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <core/aops/MultimodalRoPEOp.hpp>
 #include <ranges>
 #include <unordered_set>
 
@@ -1182,6 +1181,9 @@ class Qwen2_5VLText final : public nn::Module {
       } else {
         lazy_vlm_state->chosen_pos_to_delay_compute[layer_idx + 1] = lazy_vlm_state->chosen_pos_to_delay_compute[layer_idx];
       }
+
+      // NOTE!!!: Add cache length
+      kv_cache->manualCacheLengthUpdate(layer_idx, 1);
     }
 
     hidden_states = norm_(hidden_states);

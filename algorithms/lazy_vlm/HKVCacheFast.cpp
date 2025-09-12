@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cstring>
 #include <mllm/mllm.hpp>
 #include <mllm/core/Tensor.hpp>
 #include <mllm/utils/Common.hpp>
@@ -55,9 +56,25 @@ void HKVCacheFast::updateKVCache(int32_t layer_idx, mllm::Tensor k, mllm::Tensor
   // Get current length
   auto c_len = current_seq_cnt_[layer_idx];
 
+  // Get shape
+  auto B = k.shape()[0];
+  auto H = k.shape()[2];
+  auto D = k.shape()[3];
+
+  MLLM_RT_ASSERT_EQ(pos.size(), k_s_len);
+
+  // [B, S, H, D]
   // There is no need to repeat many times at head dim.
-  k.copy2(k_cache_[layer_idx][{{mllm::kAll}, {c_len, c_len + k_s_len}, {mllm::kAll}, {mllm::kAll}}]);
-  v.copy2(v_cache_[layer_idx][{{mllm::kAll}, {c_len, c_len + v_s_len}, {mllm::kAll}, {mllm::kAll}}]);
+  for (int b = 0; b < B; ++b) {
+    for (int s = 0; s < k_s_len; ++s) {
+      auto k_ptr = k.offsettedPtr<mllm::mllm_fp32_t>({b, s, 0, 0});
+      auto v_ptr = v.offsettedPtr<mllm::mllm_fp32_t>({b, s, 0, 0});
+      auto cache_k_ptr = k_cache_[layer_idx].offsettedPtr<mllm::mllm_fp32_t>({b, pos[s], 0, 0});
+      auto cache_v_ptr = v_cache_[layer_idx].offsettedPtr<mllm::mllm_fp32_t>({b, pos[s], 0, 0});
+      std::memcpy(cache_k_ptr, k_ptr, H * D * sizeof(mllm::mllm_fp32_t));
+      std::memcpy(cache_v_ptr, v_ptr, H * D * sizeof(mllm::mllm_fp32_t));
+    }
+  }
 }
 __MLLM_UNSAFE_OPT_END
 
