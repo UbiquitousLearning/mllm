@@ -2,13 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-namespace mllm::ffi {
+#include "mllm/ffi/C.hpp"
 
-class MllmAny;
-
-class MllmAnyView {
- protected:
-  friend class MllmAny;
-};
-
-}  // namespace mllm::ffi
+namespace mllm::ffi {}  // namespace mllm::ffi
