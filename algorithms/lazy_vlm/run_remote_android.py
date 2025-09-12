@@ -39,6 +39,14 @@ if __name__ == "__main__":
         "./build-android/lazy_vlm_qwen2_5vl",
         "/data/local/tmp/mllm-v2/bin/algorithms/",
     )
+    adb.push_file(
+        "./build-android/lazy_vlm_qwen2vl_fast",
+        "/data/local/tmp/mllm-v2/bin/algorithms/",
+    )
+    adb.push_file(
+        "./build-android/lazy_vlm_qwen2_5vl_fast",
+        "/data/local/tmp/mllm-v2/bin/algorithms/",
+    )
     exit(0)
     with adb.get_shell_context() as shell:
         shell.execute("cd /data/local/tmp/mllm/bin/algorithms/")

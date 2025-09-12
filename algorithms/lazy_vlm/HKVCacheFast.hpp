@@ -33,7 +33,17 @@ class HKVCacheFast {
 
   void updateHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos, mllm::Tensor hs_cache);
 
+  void manualCacheLengthUpdate(int32_t layer_idx, int32_t cache_length_to_add);
+
+  void visitHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos);
+
+  int getCurrentSeqCnt(int32_t layer_idx);
+
+  // To record all KV positions
   std::vector<std::vector<int>> occupied_kv_pos_;
+
+  // To record only vision positions
+  std::vector<std::vector<int>> kv_not_filled_pos_;
 
  private:
   int32_t q_heads_;

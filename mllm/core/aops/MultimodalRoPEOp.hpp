@@ -16,6 +16,11 @@ enum class MultimodalRoPEOpOptionsType : uint8_t {
   kEnd,
 };
 
+enum class MultimodalRoPEOpOptionsInputType : uint8_t {
+  kBHSD = 0,
+  kBSHD = 1,
+};
+
 struct DefaultMultimodalRoPEOpOptions {};
 
 struct Qwen2VLMultimodalRoPEOpOptions {
@@ -31,7 +36,11 @@ struct MultimodalRoPEOpOptions : public BaseOpOptions<MultimodalRoPEOpOptions> {
     Qwen2VLMultimodalRoPEOpOptions qwen2vl_options;
   };
 
-  MultimodalRoPEOpOptions(MultimodalRoPEOpOptionsType t, const Qwen2VLMultimodalRoPEOpOptions& o) : type(t) {
+  MultimodalRoPEOpOptionsInputType input_type = MultimodalRoPEOpOptionsInputType::kBHSD;
+
+  MultimodalRoPEOpOptions(MultimodalRoPEOpOptionsType t, const Qwen2VLMultimodalRoPEOpOptions& o,
+                          MultimodalRoPEOpOptionsInputType i_type)
+      : type(t), input_type(i_type) {
     new (&qwen2vl_options) Qwen2VLMultimodalRoPEOpOptions(o);
   }
 
@@ -47,7 +56,7 @@ struct MultimodalRoPEOpOptions : public BaseOpOptions<MultimodalRoPEOpOptions> {
     if (type == MultimodalRoPEOpOptionsType::kQwen2VL) { qwen2vl_options.~Qwen2VLMultimodalRoPEOpOptions(); }
   }
 
-  MultimodalRoPEOpOptions(const MultimodalRoPEOpOptions& other) : type(other.type) {
+  MultimodalRoPEOpOptions(const MultimodalRoPEOpOptions& other) : type(other.type), input_type(other.input_type) {
     // placement new.
     switch (type) {
       case MultimodalRoPEOpOptionsType::kQwen2VL:

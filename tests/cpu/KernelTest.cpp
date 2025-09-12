@@ -779,8 +779,11 @@ TEST_F(ReduceKernelTest, SumFloat32) {
 #include "PagedAttnTest.hpp"
 TEST_F(PagedAttnTest, fwd_bshd) {
   EXPECT_EQ(manyCases({
+                // Query Shape, KV Shape
                 {mllm::Tensor::shape_t{1, 10, 28, 128}, mllm::Tensor::shape_t{1, 10, 2, 128}},
                 {mllm::Tensor::shape_t{1, 10, 28, 64}, mllm::Tensor::shape_t{1, 10, 28, 64}},
+                {mllm::Tensor::shape_t{1, 1, 28, 64}, mllm::Tensor::shape_t{1, 10, 2, 64}},
+                {mllm::Tensor::shape_t{1, 3, 28, 64}, mllm::Tensor::shape_t{1, 10, 2, 64}},
             }),
             true);
 }

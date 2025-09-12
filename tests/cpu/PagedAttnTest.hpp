@@ -64,12 +64,14 @@ class PagedAttnTest : public KernelTest {
     auto mask = mllm::Tensor::zeros({S_Q, S_KV}, mllm::kFloat32, mllm::kCPU);
     auto mask_data = mask.ptr<mllm::mllm_fp32_t>();
 
-    for (int i = 0; i < S_Q; ++i) {
-      for (int j = 0; j < S_KV; ++j) {
-        if (j > i) {
-          mask_data[i * S_KV + j] = mllm::DataTypeInfo<mllm::mllm_fp32_t>::min();
-        } else {
-          mask_data[i * S_KV + j] = 0.0f;
+    if (S_Q != 1) {
+      for (int i = 0; i < S_Q; ++i) {
+        for (int j = 0; j < S_KV; ++j) {
+          if (j > i) {
+            mask_data[i * S_KV + j] = mllm::DataTypeInfo<mllm::mllm_fp32_t>::min();
+          } else {
+            mask_data[i * S_KV + j] = 0.0f;
+          }
         }
       }
     }

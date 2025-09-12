@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cstring>
 #include <mllm/mllm.hpp>
 #include <mllm/core/Tensor.hpp>
 #include <mllm/utils/Common.hpp>
@@ -40,6 +41,9 @@ HKVCacheFast::HKVCacheFast(int32_t max_cache_length, int32_t layer_nums, int32_t
                               .alloc());
     current_seq_cnt_.push_back(0);
   }
+
+  // Reserve to avoid realloc
+  occupied_kv_pos_.reserve(layer_nums_ + 1);
 }
 
 __MLLM_UNSAFE_OPT_BEGIN_O3
@@ -52,9 +56,25 @@ void HKVCacheFast::updateKVCache(int32_t layer_idx, mllm::Tensor k, mllm::Tensor
   // Get current length
   auto c_len = current_seq_cnt_[layer_idx];
 
+  // Get shape
+  auto B = k.shape()[0];
+  auto H = k.shape()[2];
+  auto D = k.shape()[3];
+
+  MLLM_RT_ASSERT_EQ(pos.size(), k_s_len);
+
+  // [B, S, H, D]
   // There is no need to repeat many times at head dim.
-  k.copy2(k_cache_[layer_idx][{{mllm::kAll}, {c_len, c_len + k_s_len}, {mllm::kAll}, {mllm::kAll}}]);
-  v.copy2(v_cache_[layer_idx][{{mllm::kAll}, {c_len, c_len + v_s_len}, {mllm::kAll}, {mllm::kAll}}]);
+  for (int b = 0; b < B; ++b) {
+    for (int s = 0; s < k_s_len; ++s) {
+      auto k_ptr = k.offsettedPtr<mllm::mllm_fp32_t>({b, s, 0, 0});
+      auto v_ptr = v.offsettedPtr<mllm::mllm_fp32_t>({b, s, 0, 0});
+      auto cache_k_ptr = k_cache_[layer_idx].offsettedPtr<mllm::mllm_fp32_t>({b, pos[s], 0, 0});
+      auto cache_v_ptr = v_cache_[layer_idx].offsettedPtr<mllm::mllm_fp32_t>({b, pos[s], 0, 0});
+      std::memcpy(cache_k_ptr, k_ptr, H * D * sizeof(mllm::mllm_fp32_t));
+      std::memcpy(cache_v_ptr, v_ptr, H * D * sizeof(mllm::mllm_fp32_t));
+    }
+  }
 }
 __MLLM_UNSAFE_OPT_END
 
@@ -91,4 +111,17 @@ void HKVCacheFast::updateHiddenStateCache(int32_t layer_idx, const std::vector<i
     std::memcpy(cache_ptr, now_ptr, D * sizeof(float32_t));
   }
 }
+__MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_O3
+void HKVCacheFast::manualCacheLengthUpdate(int32_t layer_idx, int32_t cache_length_to_add) {
+  current_seq_cnt_[layer_idx] += cache_length_to_add;
+}
+
+void HKVCacheFast::visitHiddenStateCache(int32_t layer_idx, const std::vector<int32_t>& pos) {
+  std::unordered_set<int> set_to_remove(pos.begin(), pos.end());
+  std::erase_if(kv_not_filled_pos_[layer_idx], [&set_to_remove](int value) { return set_to_remove.contains(value); });
+}
+
+int HKVCacheFast::getCurrentSeqCnt(int32_t layer_idx) { return current_seq_cnt_[layer_idx]; }
 __MLLM_UNSAFE_OPT_END
