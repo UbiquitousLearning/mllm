@@ -273,7 +273,7 @@ class LlamaText final : public nn::Module {
 class LlamaForCausalLM : public nn::Module, public ARGeneration {
  public:
   LlamaForCausalLM() = default;
-  explicit LlamaForCausalLM(const LLaMAConfig& cfg) : cfg(cfg), nn::Module("") {
+  explicit LlamaForCausalLM(const std::string& name, const LLaMAConfig& cfg) : cfg(cfg), nn::Module(name) {
     kv_cache_ = nn::StaticCache(cfg.max_position_embeddings, cfg.num_hidden_layers,
                                 cfg.num_attention_heads,                    // q_heads
                                 cfg.num_key_value_heads,                    // kv_heads
@@ -341,7 +341,7 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     };
   }
 
-  const LLaMAConfig cfg;
+  LLaMAConfig cfg;
   LlamaText model;
   nn::Linear lm_head_;
   bool tie_word_embeddings_;
