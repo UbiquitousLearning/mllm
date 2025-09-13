@@ -6,7 +6,6 @@ file(GLOB_RECURSE MLLM_RT_MODELS_SRC ${CMAKE_CURRENT_LIST_DIR}/models/*.cpp)
 file(GLOB_RECURSE MLLM_RT_COMPILE_SRC ${CMAKE_CURRENT_LIST_DIR}/compile/*.cpp)
 file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocessor/*.cpp)
 file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/auto_tune/*.cpp)
-file(GLOB_RECURSE MLLM_RT_FFI_SRC ${CMAKE_CURRENT_LIST_DIR}/ffi/*.cpp)
 # TODO: add build audio config
 file(GLOB WENET_AUDIO_SOURCES ${PROJECT_SOURCE_DIR}/third_party/wenet_audio/*)
 
@@ -24,7 +23,6 @@ add_library(
   ${MLLM_RT_COMPILE_SRC}
   ${MLLM_RT_AUTO_TUNE_SRC}
   ${WENET_AUDIO_SOURCES} # TODO: add build audio config
-  ${MLLM_RT_FFI_SRC}
 )
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
@@ -80,6 +78,7 @@ endif()
 
 # Host backend will be build by default
 add_subdirectory(backends/cpu)
+add_subdirectory(ffi)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)
