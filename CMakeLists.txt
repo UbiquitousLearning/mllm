@@ -192,8 +192,7 @@ endif()
 
 # Handle SDK C Bindings
 if (MLLM_BUILD_SDK_C_BINDING)
-  add_library(MllmSdkC SHARED mllm/mllm-c.cpp)
-  target_link_libraries(MllmSdkC PRIVATE MllmRT MllmCPUBackend)
+  # TODO
   # FIXME:
   # Link other backends if possible
 endif()
@@ -221,12 +220,7 @@ install(
   RUNTIME DESTINATION bin)
 
 if(MLLM_BUILD_SDK_C_BINDING)
-  install(
-    TARGETS MllmSdkC
-    EXPORT MllmTargets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin)
+  # TODO
 endif()
 
 install(
