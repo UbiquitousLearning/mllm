@@ -84,6 +84,9 @@ if(MLLM_BUILD_EXPERIMENTS)
 # TODO
 endif()
 
+# MLLM's FFI Extension
+add_subdirectory(ffi)
+
 if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)
 endif()

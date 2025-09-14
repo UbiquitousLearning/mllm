@@ -21,3 +21,6 @@
 	path = mllm/backends/cuda/vendors/cutlass
 	url = https://github.com/NVIDIA/cutlass.git
 	update = none
+[submodule "mllm/ffi/vendors/tvm-ffi"]
+	path = mllm/ffi/vendors/tvm-ffi
+	url = https://github.com/apache/tvm-ffi
