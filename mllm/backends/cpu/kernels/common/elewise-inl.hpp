@@ -12,6 +12,9 @@ namespace mllm::cpu::common {  // NOLINT
 namespace HWY_NAMESPACE {
 namespace hn = hwy::HWY_NAMESPACE;
 
+//===----------------------------------------------------------------------===//
+// Elementwise + - * / By Matrix
+//===----------------------------------------------------------------------===//
 template<typename T, typename Op>
 HWY_INLINE void __elementwise(const T* HWY_RESTRICT x, const T* HWY_RESTRICT y, T* HWY_RESTRICT out, size_t count, Op&& op) {
   const hn::ScalableTag<T> d;
@@ -80,6 +83,21 @@ template<typename T>
 HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_div(T* x, const T* y, size_t n) {
   __elementwise(x, y, n, DivOp{});
 }
+
+//===----------------------------------------------------------------------===//
+// Elementwise + - * / By Const
+//===----------------------------------------------------------------------===//
+
+// TODO
+
+//===----------------------------------------------------------------------===//
+// Inplace Elementwise + - * /
+//
+// 1. AddFrom
+// 2. MulFrom
+// 3. MulByConst
+//===----------------------------------------------------------------------===//
+// TODO
 
 }  // namespace HWY_NAMESPACE
 }  // namespace mllm::cpu::common

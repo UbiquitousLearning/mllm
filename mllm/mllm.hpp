@@ -28,6 +28,7 @@
 #include "mllm/nn/Nn.hpp"                       // IWYU pragma: export
 #include "mllm/engine/ConfigFile.hpp"           // IWYU pragma: export
 #include "mllm/utils/ScopedRedirect.hpp"        // IWYU pragma: export
+#include "mllm/utils/Ignore.hpp"                // IWYU pragma: export
 
 namespace mllm::test {
 
@@ -256,7 +257,7 @@ inline void safe_write(const char* msg, size_t len) {
   DWORD bytesWritten;
   WriteFile(hStderr, msg, static_cast<DWORD>(len), &bytesWritten, NULL);
 #else
-  (void)write(STDERR_FILENO, msg, len);
+  IGNORE(write(STDERR_FILENO, msg, len));
 #endif
 }
 

@@ -20,6 +20,7 @@ option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
+option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
 # CPU Backend: BLAS
 option(MLLM_USE_BLAS "Enable BLAS" OFF)

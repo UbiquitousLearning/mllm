@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <cassert>
+
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
@@ -66,7 +68,7 @@ template<>
 struct VectorDotProduct<x86_arch_tag, kFloat32, kFloat32, kFloat32> {
   static MLLM_FORCE_INLINE void run(const mllm_fp32_t* __restrict__ __lhs, const mllm_fp32_t* __restrict__ __rhs,
                                     mllm_fp32_t* __restrict__ __out, size_t len) {
-    assert(false, "not impl");
+    assert(false && "not impl");
   }
 };
 #else
@@ -165,7 +167,7 @@ struct Softmax<arm_arch_tag, kFloat32, false> {
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 template<>
 struct Softmax<x86_arch_tag, kFloat32, false> {
-  static MLLM_FORCE_INLINE void run(mllm_fp32_t* __in, size_t len) { assert(false, "not impl"); }
+  static MLLM_FORCE_INLINE void run(mllm_fp32_t* __in, size_t len) { assert(false && "not impl"); }
 };
 #else
 #error "Use highway to impl your own softmax"
