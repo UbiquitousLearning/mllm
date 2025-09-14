@@ -130,7 +130,7 @@ P1
 FFI ABI
 ^^^^^^^^^^^
 
-- One C_api for all languages
+- One C_api for all languages(Using tvm-ffi, thanks @tianqi)
 
 ARM PMU Tools Workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^
