@@ -41,7 +41,7 @@ Using 1. Manually memory planning 2. Fused kernels 3. Inplace Operators etc. To 
     - Sigmoid
     - GeLU
     - QuickGeLU
-    - SiLU
+    - ✅ SiLU
     - ReLU, ReLU2
   - LayerNorm
   - RMSNorm
@@ -71,12 +71,13 @@ Arm Kernel support
 
 - ✅ MLLM-BLAS fp32 GEMM Kernels (transpose_a=False, transpose_b=True) [@chenghua]
 - Element-wise Kernels has slightly performance issues
-- Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack) [@chenghua]
+- ✅ Arm I8-Gemm and I8-Gemv Kernels. (Co-works with bitspack) [@chenghua]
 - Arm U1-7 Group Quantized Embedding Kernels. (Co-works with bitspack)
 - More KleidiAI Kernels (SME Supports)
 - Optimizing MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM Kernels, for Shapes in LLM Scenarios.
 - Full coverage of the correctness of current Arm operators
 - MXFP4 Linear Kernels
+- ✅ Paged Attention Kernels (Attentions as one of outputs)
 
 X86 Backend support
 ^^^^^^^^^^^^^^^^^^^^
@@ -111,7 +112,7 @@ P1
 
 pymllm API
 ^^^^^^^^^^^
-- Use mllm self-hosted FFI instead of Pybind11
+
 - C++ Tensor and Python Tensor lifetime conflict in some test cases.
 
 
@@ -119,3 +120,21 @@ Tests
 ^^^^^^
 
 - PPL Tests
+
+Long term 2025
+---------------------
+
+P1
+~~~
+
+FFI ABI
+^^^^^^^^^^^
+
+- One C_api for all languages
+
+ARM PMU Tools Workflow
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+- A Kernel Benchmark workflow that using PMU in ARM Arch.
+- Software Pipeline & multi-issue will be benefited.
+
