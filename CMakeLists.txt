@@ -161,6 +161,7 @@ set(MLLM_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include>
     $<INSTALL_INTERFACE:include/mllm>
     $<INSTALL_INTERFACE:include/third_party/>)
 set(MLLM_JSON_INCLUDE_DIR
@@ -251,6 +252,13 @@ install(
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include/
   DESTINATION include/third_party/
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp")
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include/dlpack/
+  DESTINATION include/dlpack/
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp")

@@ -81,7 +81,7 @@ endif()
 add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_EXPERIMENTS)
-  add_subdirectory(experiments/ffi)
+# TODO
 endif()
 
 if(MLLM_BUILD_OPENCL_BACKEND)
