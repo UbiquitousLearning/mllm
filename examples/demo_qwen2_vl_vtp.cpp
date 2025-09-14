@@ -10,11 +10,12 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-kai_q4_0.mllm");
     cmdParser.add<string>("billion", 'b', "[2B | 7B |]", false, "2B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 800);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add("premerge", 'p', "enable pre-ViT image token merging");
+    cmdParser.add("premerge", 'g', "enable pre-ViT image token merging", false, false);
+    cmdParser.add("pruning", 'p', "enable pruning", false, false);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -25,6 +26,10 @@ int main(int argc, char **argv) {
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
     use_pre_vit_merge = cmdParser.exist("premerge");
+    bool use_pruning = cmdParser.exist("pruning");
+    if (!use_pruning) {
+        WHERE_TOKEN_PRUNING.pruning_place_cfg = {};
+    }
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);

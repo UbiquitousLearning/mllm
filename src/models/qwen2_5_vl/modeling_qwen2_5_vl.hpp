@@ -69,7 +69,6 @@ public:
         q = q.view(-1, head_size_, -1, head_dim_);
         k = k.view(-1, head_size_, -1, head_dim_);
         v = v.view(-1, head_size_, -1, head_dim_);
-        k.saveData<float>();
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
         Tensor o;

@@ -3,6 +3,7 @@
 #include "Types.hpp"
 #include <cstddef>
 #include <iostream>
+#include <vector>
 #include "../compute/GemmKleidiai.hpp"
 #include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
 
@@ -171,18 +172,53 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         if (weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             // KLEIDIAI_Q4_0 is a packed type, we need to use a special function to handle it
-            for (int b = 0; b < inputs[0]->batch(); b++) {
-                auto M = inputs[0]->sequence();
-                auto N = outputs[0]->dimension(); // out_features_
-                auto K = inputs[0]->dimension();  // in_features_
-                if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-                    mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(b, 0, 0, 0),
-                                                   inputs[0]->ptrAt<float>(b, 0, 0, 0),
-                                                   (const uint8_t *)weight_.rawHostPtr(), M, N, K);
-                } else {
-                    mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(b, 0, 0, 0),
-                                           inputs[0]->ptrAt<float>(b, 0, 0, 0),
-                                           (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+            if (outputs[0]->ctype() == BHDS) { //&& outputs[0]->masterTensor() != nullptr && outputs[0]->masterTensor()->ctype() == BHDS) {
+                for (int b = 0; b < inputs[0]->batch(); b++) {
+                    auto M = inputs[0]->sequence();
+                    auto N = outputs[0]->dimension(); // out_features_
+                    auto K = inputs[0]->dimension();  // in_features_
+                    if (outputs[0]->dtype() == MLLM_TYPE_F16) {
+                        // auto out_ptr = outputs[0]->ptrAt<mllm_fp16_t>(b, 0, 0, 0);
+                        vector<mllm_fp16_t> out_vec(M * N);
+                        auto out_ptr = out_vec.data();
+                        mllm_kleidai_gemm_qsi4_to_fp16(out_ptr,
+                                                       inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+#pragma omp parallel for num_threads(thread_count)
+                        for (int s = 0; s < M; s++) {
+                            for (int d = 0; d < N; d++) {
+                                outputs[0]->setDataAt<mllm_fp16_t>(b, 0, s, d, out_ptr[s * N + d]);
+                            }
+                        }
+                    } else {
+                        // auto out_ptr = outputs[0]->ptrAt<float>(b, 0, 0, 0);
+                        vector<float> out_vec(M * N);
+                        auto out_ptr = out_vec.data();
+                        mllm_kleidai_gemm_qsi4(out_ptr,
+                                               inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+#pragma omp parallel for num_threads(thread_count)
+                        for (int s = 0; s < M; s++) {
+                            for (int d = 0; d < N; d++) {
+                                outputs[0]->setDataAt<float>(b, 0, s, d, out_ptr[s * N + d]);
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (int b = 0; b < inputs[0]->batch(); b++) {
+                    auto M = inputs[0]->sequence();
+                    auto N = outputs[0]->dimension(); // out_features_
+                    auto K = inputs[0]->dimension();  // in_features_
+                    if (outputs[0]->dtype() == MLLM_TYPE_F16) {
+                        mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(b, 0, 0, 0),
+                                                       inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                    } else {
+                        mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                               inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                    }
                 }
             }
             return MLLM_NO_ERROR;
@@ -192,7 +228,6 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             return NOT_SUPPORT;
 #endif
         }
-
         mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
     }
     return Op::execute(inputs, outputs);

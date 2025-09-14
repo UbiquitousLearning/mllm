@@ -3,6 +3,7 @@
 
 #include "GemmKleidiai.hpp"
 #include "FeatureCheck.hpp"
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -235,20 +236,16 @@ void mllm_kleidai_pack_b_and_bias_qsi4(
     for (int n = 0; n < N; ++n) {
         for (size_t kb = 0; kb < num_blocks_k; ++kb) {
             float amax = 0.0f;
-            float max_with_sign = 0.0f;
             int start_k = kb * block_len;
             int end_k = std::min(start_k + block_len, K);
             for (int k = start_k; k < end_k; ++k) {
                 const float val = b_ptr[k * N + n];
                 const float abs_val = std::abs(val);
-                if (abs_val > amax) {
-                    amax = abs_val;
-                    max_with_sign = val;
-                }
+                amax = std::max(abs_val, amax);
             }
-            const float scale = max_with_sign / -8.0f;
+            const float scale = amax / 7.0f;
             const float inv_scale = scale != 0.0f ? 1.0f / scale : 0.0f;
-            temp_scales[n * num_blocks_k + kb] = kai_cast_bf16_f32(scale);
+            temp_scales[(n * num_blocks_k) + kb] = kai_cast_bf16_f32(scale);
             for (int k = start_k; k < end_k; ++k) {
                 const float val = b_ptr[k * N + n];
                 int32_t q_val = static_cast<int32_t>(round(val * inv_scale));
@@ -270,6 +267,65 @@ void mllm_kleidai_pack_b_and_bias_qsi4(
     kai_run_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0(
         1, N, K, ukernel.get_nr(), ukernel.get_kr(), ukernel.get_sr(), block_len,
         temp_quantized_b.data(), N / 2, bias_to_use, (const uint8_t *)temp_scales.data(), num_blocks_k * sizeof(uint16_t),
+        packed_b_ptr, 0, &params);
+}
+/**
+ * @brief Packs pre-quantized 4-bit weights, scales, and bias into the format required by the QSI4 GEMM kernel.
+ *
+ * This function takes weights that are already quantized to 4-bit values (represented as uint8_t in the range [0, 15]),
+ * their corresponding floating-point scales, and an optional bias vector. It then transforms and packs this data
+ * into a single buffer (`packed_b_ptr`) for efficient use in `mllm_kleidai_gemm_qsi4`.
+ *
+ * @param packed_b_ptr    [out] Pointer to the destination buffer for the packed data.
+ * @param b_qweight_ptr   [in]  Pointer to the pre-quantized 4-bit weights. Assumed layout is KxN row-major, with each uint8_t holding one 4-bit value.
+ * @param b_scale_ptr     [in]  Pointer to the quantization scales. Assumed layout is Nx(K/32) row-major.
+//  * @param b_zero_ptr      [in]  Pointer to the quantization zero points. This parameter is currently IGNORED because the underlying kernel supports only a single, symmetric zero point, which is hardcoded to 8.
+ * @param bias_ptr        [in]  Pointer to the bias vector of size N. Can be nullptr if no bias is to be added.
+ * @param N               The N dimension of the weight matrix (number of columns/output channels).
+ * @param K               The K dimension of the weight matrix (number of rows/input channels).
+ */
+void mllm_kleidai_pack_b_and_bias_qsi4_quant(
+    uint8_t *packed_b_ptr,
+    const uint8_t *b_qweight_ptr,
+    const float *b_scale_ptr,
+    // const uint8_t *b_zero_ptr,
+    const float *bias_ptr,
+    int N,
+    int K) {
+    const auto tile_cfg = kleidiai_get_best_qsi4_tile_config();
+    const auto &ukernel = qsi4_ukernels.at(tile_cfg);
+    const float *bias_to_use = bias_ptr;
+    std::vector<float> fake_bias;
+    if (bias_to_use == nullptr) {
+        fake_bias.assign(N, 0.0f);
+        bias_to_use = fake_bias.data();
+    }
+    const int block_len = 32; // Corresponds to the 'c32p' part of the qsi4c32p scheme.
+    const size_t num_blocks_k = (K + block_len - 1) / block_len;
+    std::vector<uint8_t> temp_quantized_b(K * N / 2);
+    std::vector<uint16_t> temp_scales(N * num_blocks_k);
+#pragma omp parallel for
+    for (size_t i = 0; i < N * num_blocks_k; ++i) {
+        temp_scales[i] = kai_cast_bf16_f32(b_scale_ptr[i]);
+    }
+#pragma omp parallel for
+    for (int k = 0; k < K; ++k) {
+        for (int n = 0; n < N; n += 2) {
+            size_t byte_idx = (size_t)k * (N / 2) + (n / 2);
+            uint8_t val1 = b_qweight_ptr[(size_t)k * N + n];
+            uint8_t val2 = b_qweight_ptr[(size_t)k * N + n + 1];
+            temp_quantized_b[byte_idx] = val1 | (val2 << 4);
+        }
+    }
+    kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0_params params = {};
+    params.lhs_zero_point = 1;
+    params.rhs_zero_point = 8;
+    params.scale_dt = kai_dt_bf16;
+    kai_run_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0(
+        1, N, K, ukernel.get_nr(), ukernel.get_kr(), ukernel.get_sr(), block_len,
+        temp_quantized_b.data(), N / 2,
+        bias_to_use,
+        (const uint8_t *)temp_scales.data(), num_blocks_k * sizeof(uint16_t),
         packed_b_ptr, 0, &params);
 }
 

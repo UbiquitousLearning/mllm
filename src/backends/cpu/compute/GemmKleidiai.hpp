@@ -12,6 +12,14 @@ static int kai_thread_count = 4;
 // --- 实现 1: float * qsi4c32 -> float---
 size_t mllm_kleidai_get_packed_b_qsi4_size(int N, int K);
 void mllm_kleidai_pack_b_and_bias_qsi4(uint8_t *packed_b_ptr, const float *b_ptr, const float *bias_ptr, int N, int K);
+void mllm_kleidai_pack_b_and_bias_qsi4_quant(
+    uint8_t *packed_b_ptr,
+    const uint8_t *b_qweight_ptr,
+    const float *b_scale_ptr,
+    // const uint8_t *b_zero_ptr,
+    const float *bias_ptr,
+    int N,
+    int K);
 void mllm_kleidai_gemm_qsi4(float *c_ptr, const float *a_ptr, const uint8_t *packed_b_ptr, int M, int N, int K);
 
 // --- 实现 1.5: float * qsi4c32 -> fp16---

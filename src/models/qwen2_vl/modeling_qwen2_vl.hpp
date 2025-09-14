@@ -4,6 +4,7 @@
 #ifndef MODELING_QWEN2VL_HPP
 #define MODELING_QWEN2VL_HPP
 
+#include "DataType.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
@@ -11,6 +12,7 @@
 #include "configuration_qwen2_vl.hpp"
 // #include "models/qwen/modeling_qwen.hpp"
 #include <cassert>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -237,8 +239,8 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, attn_impl, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, attn_impl, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 

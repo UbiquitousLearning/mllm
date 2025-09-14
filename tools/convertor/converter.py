@@ -45,6 +45,8 @@ class Writer:
             return 1
         elif dtype == torch.int8 or dtype == torch.bool:
             return 16
+        elif dtype == torch.uint8:
+            return 31
         elif dtype == torch.int32:
             return 18
         else:
@@ -69,8 +71,10 @@ class Writer:
         offset = self.writer.tell()
         if tensor.dtype == torch.bfloat16:  # to float 16
             tensor_numpy = tensor.detach().to(torch.float32).numpy()
-        elif tensor.dtype == torch.bool or tensor.dtype == torch.int8:  # exported model for QNN int8
+        elif tensor.dtype == torch.bool or tensor.dtype == torch.int8:
             tensor_numpy = tensor.detach().to(torch.int8).numpy()
+        elif tensor.dtype == torch.uint8:
+            tensor_numpy = tensor.detach().to(torch.uint8).numpy()
         else:
             # print(f"Write tensor {name} with dtype {tensor.dtype}")
             tensor_numpy = tensor.detach().to(torch.float32).numpy()
@@ -81,7 +85,7 @@ class Writer:
         return offset, size
 
     def write_tensor_index(
-            self,
+        self,
     ):
         self.writer.seek(4 + 8)
         for tensor_name in self.tensors_name:
@@ -95,7 +99,9 @@ class Writer:
             self.write_u64(tensor.size)
             self.write_u64(tensor.offset)
             self.write_int(tensor.dtype)
-            print(f"Write tensor {tensor.name} to {tensor.offset} with size {tensor.size}")
+            print(
+                f"Write tensor {tensor.name} to {tensor.offset} with size {tensor.size}"
+            )
 
     def write_tensor_index_padding(self, tensors_name: [str]):
         if len(tensors_name) > 0:
@@ -117,7 +123,11 @@ class Writer:
 
 
 def get_tensor(model: dict, key: str, index_: dict):
-    if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+    if (
+        index_ is not None
+        and isinstance(index_, dict)
+        and "weight_map" in index_.keys()
+    ):
         if key in index_["weight_map"].keys():
             model_ = file_map[index_["weight_map"][key]]
             if args.type == "torch":
@@ -138,9 +148,13 @@ def get_tensor(model: dict, key: str, index_: dict):
 def all_keys(model: dict, index_: dict):
     global file_map
     all_keys_name = []
-    if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+    if (
+        index_ is not None
+        and isinstance(index_, dict)
+        and "weight_map" in index_.keys()
+    ):
         json_pwd = os.path.dirname(args.input_model.name)
-        for (key, val) in index_["weight_map"].items():
+        for key, val in index_["weight_map"].items():
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
                 # JOIN PATH
@@ -166,16 +180,17 @@ def all_keys(model: dict, index_: dict):
     return all_keys_name
 
 
-def process_str(name: str, type: str='dense'):
-    if type == 'dense' or ('down_proj.weight' not in name):
+def process_str(name: str, type: str = "dense"):
+    if type == "dense" or ("down_proj.weight" not in name):
         return name
-    return name.replace('weight', 'weight_T')
+    return name.replace("weight", "weight_T")
 
-def process(name: str, ten: torch.Tensor, type: str='dense'):
-    if type == 'dense' or ('down_proj.weight' not in name):
+
+def process(name: str, ten: torch.Tensor, type: str = "dense"):
+    if type == "dense" or ("down_proj.weight" not in name):
         return name, ten
 
-    new_name = name.replace('weight', 'weight_T')
+    new_name = name.replace("weight", "weight_T")
     transposed_tensor = ten.transpose(-2, -1).contiguous()
     return new_name, transposed_tensor
 
@@ -202,7 +217,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.type == "torch":
         if args.input_model.name.endswith(".json"):
-            if os.path.basename(args.input_model.name) != "pytorch_model.bin.index.json":
+            if (
+                os.path.basename(args.input_model.name)
+                != "pytorch_model.bin.index.json"
+            ):
                 raise Exception("Only support pytorch_model.bin.index.json")
             index_ = json.load(args.input_model)
         else:
@@ -224,12 +242,18 @@ if __name__ == "__main__":
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
     model_keys = all_keys(model, index_)
-    writer.write_tensor_index_padding([process_str(name, args.model_type) for name in model_keys])
+    writer.write_tensor_index_padding(
+        [process_str(name, args.model_type) for name in model_keys]
+    )
 
     for key in model_keys:
         tensor = get_tensor(model, key, index_)
         key, tensor = process(key, tensor, args.model_type)
-        if tensor.dtype != torch.bool or tensor.dtype != torch.int8:
+        if (
+            tensor.dtype != torch.bool
+            or tensor.dtype != torch.int8
+            or tensor.dtype != torch.uint8
+        ):
             tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Get tensor {key} to {offset} with size {size}")

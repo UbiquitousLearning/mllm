@@ -208,7 +208,7 @@ struct QWenConfig : public TransformerConfig {
             rms_norm_eps = 1e-6;
             rope_theta = 1000000.0;
             sliding_window = 32768;
-            vocab_size = 151936;
+            vocab_size = 152064;
             tie_embedding_words = false;
         } else {
             throw std::runtime_error("Unsupported model size");

@@ -48,14 +48,16 @@ class VisionAttention final : public Module {
     int head_size_{};
     int kv_head_size_{};
     int head_dim_{};
+    string attn_impl;
 
 public:
     VisionAttention() = default;
-    VisionAttention(int hidden_dim, int head_size, int kv_head_size, int head_dim, bool bias,
+    VisionAttention(int hidden_dim, int head_size, int kv_head_size, int head_dim, bool bias, string attn_implementation,
                     const TransformerNameConfig &names, const string &base_name) {
         head_dim_ = head_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
+        attn_impl = attn_implementation;
 
         qkv_proj = Linear(hidden_dim, head_size * head_dim * 3, bias, base_name + names._qkv_proj_name);
         softmax = Softmax(DIMENSION, false, base_name + "softmax");
@@ -76,12 +78,17 @@ public:
         v = v.view(-1, head_size_, -1, head_dim_);
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(head_dim_);
-        // mask
-        qk = softmax(qk);
-        auto o = Tensor::mm(qk, v);
+        Tensor o;
+        if (attn_impl == "flash_attention_2") {
+            o = Tensor::flash_attention2_forward(q, k, v, false);
+        } else { // eager implementation
+            k = k.transpose(SEQUENCE, DIMENSION);
+            auto qk = Tensor::mm(q, k);
+            qk = qk / std::sqrt(head_dim_);
+            // mask
+            qk = softmax(qk);
+            o = Tensor::mm(qk, v);
+        }
         o = o.view(-1, 1, -1, head_dim_ * head_size_);
         o = o_proj(o);
         return {o};
@@ -116,8 +123,8 @@ class VisionBlock final : public Module {
 
 public:
     VisionBlock() = default;
-    VisionBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, const ViTNameConfig &names, const string &base_name) {
-        attention = VisionAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, true, names, base_name + names._attn_base_name);
+    VisionBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, string attn_implementation, const ViTNameConfig &names, const string &base_name) {
+        attention = VisionAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, true, attn_implementation, names, base_name + names._attn_base_name);
         mlp = VisionMLP(hidden_dim, ffn_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
@@ -167,10 +174,10 @@ class Qwen2VisionModel final : public Module {
 
 public:
     Qwen2VisionModel() = default;
-    Qwen2VisionModel(int hidden_dim, int vision_embed_dim, int head_size, int mlp_hidden_dim, const string &act_fn_type, int patch, int img_hw, int block_num, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
+    Qwen2VisionModel(int hidden_dim, int vision_embed_dim, int head_size, int mlp_hidden_dim, const string &act_fn_type, int patch, int img_hw, int block_num, int spatial_merge_size, string attn_implementation, const Qwen2VLNameConfig &names, const string &base_name) {
         patch_embed = Qwen2PatchEmbed(vision_embed_dim, patch, img_hw, names, base_name + names.patch_embed_name);
         rot_pos_emb = VisionRoPE((vision_embed_dim / head_size) / 2, spatial_merge_size, base_name + ".rot_pos_emb");
-        blocks = List<VisionBlock>(block_num, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<VisionBlock>(block_num, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, attn_implementation, names, base_name + names._layer_name);
         patch_merger = PatchMerger(hidden_dim, vision_embed_dim, spatial_merge_size, names, base_name + names._merger_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -419,7 +426,7 @@ public:
         vision_start_token_id = config.vision_start_token_id;
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
-        visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
+        visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, config.attn_implementation, vision_names, vision_names.vison_model_name);
 
         blocks = List<QWen2Decoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);

@@ -191,9 +191,12 @@ class NdcContext {
     int num_head = 0;
     int original_kv_length = 0;
     int chunk_size = 4;
+
+public:
     // map<int, float> pruning_place_cfg = {{3, 0.2}, {9, 0.2}, {12, 0.6}, {15, 0.6}, {18, 0.8}, {26, 0.8}};
     // map<int, float> pruning_place_cfg = {{3, 0.2}, {6, 0.8}, {12, 0.8}, {15, 0.8}, {18, 0.8}, {26, 0.8}};
-    map<int, float> pruning_place_cfg = {{3, 0.2}, {6, 0.2}, {12, 0.8}, {15, 0.8}, {18, 0.8}, {26, 0.8}};
+    // map<int, float> pruning_place_cfg = {{3, 0.8}, {6, 0.8}, {12, 0.8}, {15, 0.8}, {18, 0.8}, {26, 0.8}};
+    map<int, float> pruning_place_cfg = {{6, 0.8}, {12, 0.8}, {18, 0.8}};
     // map<int, float> pruning_place_cfg = {{3, 0.2}, {9, 0.2}};
 
 public:
