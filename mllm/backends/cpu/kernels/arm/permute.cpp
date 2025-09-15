@@ -143,6 +143,54 @@ void permute_fp16(const mllm_fp16_t* __restrict__ input, mllm_fp16_t* __restrict
   }
 }
 
+template<typename T>
+void permute_generic(const T* __restrict__ input, T* __restrict__ output, const int* __restrict__ in_shape,
+                     const int* __restrict__ perm, int ndim) {
+  std::vector<int> out_shape(ndim);
+  for (int i = 0; i < ndim; ++i) { out_shape[i] = in_shape[perm[i]]; }
+
+  std::vector<int> in_strides(ndim), out_strides(ndim);
+  compute_strides(in_shape, ndim, in_strides.data());
+  compute_strides(out_shape.data(), ndim, out_strides.data());
+
+  int total_elements = 1;
+  for (int i = 0; i < ndim; ++i) { total_elements *= in_shape[i]; }
+
+  // Use simple element-by-element copy for generic types
+  std::vector<int> out_coord(ndim);
+  std::vector<int> in_coord(ndim);
+  for (int i = 0; i < total_elements; ++i) {
+    int temp_idx = i;
+    for (int d = ndim - 1; d >= 0; --d) {
+      out_coord[d] = temp_idx % out_shape[d];
+      temp_idx /= out_shape[d];
+    }
+    for (int d = 0; d < ndim; ++d) { in_coord[perm[d]] = out_coord[d]; }
+    int in_offset = 0;
+    for (int d = 0; d < ndim; ++d) { in_offset += in_coord[d] * in_strides[d]; }
+
+    output[i] = input[in_offset];
+  }
+}
+
+// Explicit template instantiations for commonly used types
+template void permute_generic<mllm_int8_t>(const mllm_int8_t* __restrict__ input, mllm_int8_t* __restrict__ output,
+                                           const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_uint8_t>(const mllm_uint8_t* __restrict__ input, mllm_uint8_t* __restrict__ output,
+                                            const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_int16_t>(const mllm_int16_t* __restrict__ input, mllm_int16_t* __restrict__ output,
+                                            const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_uint16_t>(const mllm_uint16_t* __restrict__ input, mllm_uint16_t* __restrict__ output,
+                                             const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_int32_t>(const mllm_int32_t* __restrict__ input, mllm_int32_t* __restrict__ output,
+                                            const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_uint32_t>(const mllm_uint32_t* __restrict__ input, mllm_uint32_t* __restrict__ output,
+                                             const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_int64_t>(const mllm_int64_t* __restrict__ input, mllm_int64_t* __restrict__ output,
+                                            const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+template void permute_generic<mllm_uint64_t>(const mllm_uint64_t* __restrict__ input, mllm_uint64_t* __restrict__ output,
+                                             const int* __restrict__ in_shape, const int* __restrict__ perm, int ndim);
+
 }  // namespace mllm::cpu::arm
 
 #endif

@@ -19,6 +19,11 @@ void permute_fp32(const mllm_fp32_t* __restrict__ input, mllm_fp32_t* __restrict
 void permute_fp16(const mllm_fp16_t* __restrict__ input, mllm_fp16_t* __restrict__ output, const int* __restrict__ in_shape,
                   const int* __restrict__ perm, int ndim);
 
+// Generic permute function for other data types
+template<typename T>
+void permute_generic(const T* __restrict__ input, T* __restrict__ output, const int* __restrict__ in_shape,
+                     const int* __restrict__ perm, int ndim);
+
 }  // namespace mllm::cpu::arm
 
 #endif

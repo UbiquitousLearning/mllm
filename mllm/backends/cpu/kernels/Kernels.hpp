@@ -31,4 +31,5 @@
 #include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"  // IWYU pragma: export
 #endif
 
-#include "mllm/backends/cpu/kernels/common/blas.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/blas.hpp"         // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
