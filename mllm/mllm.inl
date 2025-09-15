@@ -2,11 +2,7 @@
 // Print Stuff
 //===----------------------------------------------------------------------===//
 #include <fmt/ranges.h>
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/utils/Common.hpp"
-
 namespace MLLM_ANONYMOUS_NAMESPACE {
-// 辅助函数：反量化单个 Q4_K 块的前几个值用于打印
 #ifndef MLLM_FP16_TO_FP32
 #define MLLM_FP16_TO_FP32(x) ((float)(x))
 #endif
@@ -24,7 +20,6 @@ static inline void get_scale_min_k4_for_print(int j, const uint8_t* __restrict q
 }
 #endif
 
-// 反量化 Q4_K 块的前 8 个值用于打印
 std::array<float, 8> dequantize_q4k_for_print(const mllm::mllm_block_q4_K_t& block) {
   std::array<float, 8> result;
   const uint8_t* q = block.qs;
@@ -64,8 +59,6 @@ std::array<float, 8> dequantize_q4k_for_print(const mllm::mllm_block_q4_K_t& blo
 
   return result;
 }
-
-// 反量化 Q8_K 块的前 8 个值用于打印
 std::array<float, 8> dequantize_q8k_for_print(const mllm::mllm_block_q8_K_t& block) {
   std::array<float, 8> result;
   const float d = block.d;
@@ -273,7 +266,6 @@ struct formatter<mllm::Tensor> {
 
   template<typename OutputIt>
   OutputIt printTensorValue(const mllm::Tensor& tensor, OutputIt out, const std::vector<int32_t>& indices) const {
-    // 获取Context中设置的打印精度
     int precision = mllm::Context::instance().getPrintPrecision();
 
     switch (tensor.dtype()) {
@@ -315,8 +307,6 @@ struct formatter<mllm::Tensor> {
             tensor.constAt<mllm::mllm_complex_fp64_t>(const_cast<std::vector<int32_t>&>(indices)).imag(), precision);
       case mllm::kGGUF_Q4_K: {
         const auto& block = tensor.constAt<mllm::mllm_block_q4_K_t>(const_cast<std::vector<int32_t>&>(indices));
-
-        // 获取反量化的前8个值
         auto dequant_values = dequantize_q4k_for_print(block);
 
 #ifdef MLLM_QKK_64
@@ -334,8 +324,6 @@ struct formatter<mllm::Tensor> {
       }
       case mllm::kGGUF_Q8_K: {
         const auto& block = tensor.constAt<mllm::mllm_block_q8_K_t>(const_cast<std::vector<int32_t>&>(indices));
-
-        // 获取反量化的前8个值
         auto dequant_values = dequantize_q8k_for_print(block);
 
         return fmt::format_to(out, "(d={:.{}e}, dequant=[{:.{}e},{:.{}e},{:.{}e},{:.{}e},...])", block.d, precision,

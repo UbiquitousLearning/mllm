@@ -7,9 +7,6 @@
 [submodule "third_party/benchmark"]
 	path = third_party/benchmark
 	url = https://github.com/google/benchmark.git
-[submodule "third_party/pybind11"]
-	path = third_party/pybind11
-	url = https://github.com/pybind/pybind11.git
 [submodule "mllm/backends/cpu/vendors/kleidiai"]
 	path = mllm/backends/cpu/vendors/kleidiai
 	url = https://git.gitlab.arm.com/kleidi/kleidiai.git
@@ -21,3 +18,6 @@
 	path = mllm/backends/cuda/vendors/cutlass
 	url = https://github.com/NVIDIA/cutlass.git
 	update = none
+[submodule "mllm/ffi/vendors/tvm-ffi"]
+	path = mllm/ffi/vendors/tvm-ffi
+	url = https://github.com/apache/tvm-ffi

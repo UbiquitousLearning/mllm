@@ -71,6 +71,9 @@ enum class OpTypes : int32_t {
   kGraphBegin,
   kGraphEnd,
 
+  // High-level Op or Fused Op
+  kPagedAttn,
+
   kOpType_End,
 };
 

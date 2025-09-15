@@ -20,6 +20,7 @@ option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
+option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
 # CPU Backend: BLAS
 option(MLLM_USE_BLAS "Enable BLAS" OFF)
@@ -40,6 +41,24 @@ message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
 if(MLLM_ENABLE_PY_MLLM)
   add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
+  if(APPLE)
+    set(MLLM_BUILD_ARM_BACKEND ON CACHE BOOL "Build ARM backend" FORCE)
+    set(MLLM_CPU_BACKEND_COMPILE_OPTIONS "-march=native+fp16+fp16fml+dotprod+i8mm+sme" CACHE STRING "CPU compile options" FORCE)
+    set(MLLM_USE_BLAS ON CACHE BOOL "Use BLAS" FORCE)
+    set(MLLM_BLAS_VENDOR_ACCELERATE ON CACHE BOOL "Use Apple Accelerate framework" FORCE)
+    set(MLLM_KERNEL_USE_THREADS ON CACHE BOOL "Enable Threads" FORCE)
+    set(MLLM_KERNEL_THREADS_VENDOR_OPENMP OFF CACHE BOOL "Disable OpenMP Threads" FORCE)
+    set(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD ON CACHE BOOL "Enable Apple GCD Threads" FORCE)
+    set(MLLM_BUILD_EXPERIMENTS ON CACHE BOOL "Build experimental features" FORCE)
+  else() # Other system. Linux or windows that run on X86\RISC, etc. (ARM is not considered in this scope.)
+    set(HWY_ENABLE_TESTS OFF CACHE BOOL "Disable HWY tests" FORCE)
+    set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "Disable HWY examples" FORCE)
+    set(HWY_ENABLE_CONTRIB OFF CACHE BOOL "Disable HWY contrib" FORCE)
+    set(MLLM_CPU_BACKEND_COMPILE_OPTIONS "-march=native" CACHE STRING "CPU compile options for x86" FORCE)
+    set(MLLM_KERNEL_USE_THREADS ON CACHE BOOL "Enable Threads" FORCE)
+    set(MLLM_KERNEL_THREADS_VENDOR_OPENMP ON CACHE BOOL "Enable OpenMP Threads" FORCE)
+    set(MLLM_BUILD_EXPERIMENTS ON CACHE BOOL "Build experimental features" FORCE)
+  endif()
 endif()
 
 include(cmake/CPM.cmake)
@@ -160,6 +179,7 @@ set(MLLM_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include>
     $<INSTALL_INTERFACE:include/mllm>
     $<INSTALL_INTERFACE:include/third_party/>)
 set(MLLM_JSON_INCLUDE_DIR
@@ -190,8 +210,7 @@ endif()
 
 # Handle SDK C Bindings
 if (MLLM_BUILD_SDK_C_BINDING)
-  add_library(MllmSdkC SHARED mllm/mllm-c.cpp)
-  target_link_libraries(MllmSdkC PRIVATE MllmRT MllmCPUBackend)
+  # TODO
   # FIXME:
   # Link other backends if possible
 endif()
@@ -219,12 +238,7 @@ install(
   RUNTIME DESTINATION bin)
 
 if(MLLM_BUILD_SDK_C_BINDING)
-  install(
-    TARGETS MllmSdkC
-    EXPORT MllmTargets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin)
+  # TODO
 endif()
 
 install(
@@ -250,6 +264,13 @@ install(
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include/
   DESTINATION include/third_party/
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp")
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include/dlpack/
+  DESTINATION include/dlpack/
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp")
@@ -292,35 +313,3 @@ write_basic_package_version_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mllmConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/mllmConfigVersion.cmake
         DESTINATION lib/cmake/)
-
-# Pymllm install
-if(MLLM_ENABLE_PY_MLLM)
-  add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
-  target_compile_options(MllmRT PRIVATE -fPIC -fvisibility=default)
-
-  find_package(Python3 COMPONENTS Interpreter Development)
-  include_directories(${Python3_INCLUDE_DIRS})
-  add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
-
-  set(_py_dep_libs MllmRT MllmCPUBackend)
-
-  # pybind compile options
-  set(_py_compile_opts
-      # Override depends on RTTI.
-      # -frtti
-      # -fexceptions
-      -fPIC)
-
-  # pybind portable lib _C
-  pybind11_add_module(
-    _C
-    MODULE
-    ${PROJECT_SOURCE_DIR}/pymllm/_C/PyWrap.cpp
-    ${PROJECT_SOURCE_DIR}/pymllm/_C/Nn.cpp
-    ${PROJECT_SOURCE_DIR}/pymllm/_C/Core.cpp
-    ${PROJECT_SOURCE_DIR}/pymllm/_C/Engine.cpp)
-  target_compile_options(_C PUBLIC ${_py_compile_opts})
-  target_link_libraries(_C PRIVATE ${_py_dep_libs})
-
-  install(TARGETS _C MllmRT MllmCPUBackend LIBRARY DESTINATION pymllm/)
-endif()

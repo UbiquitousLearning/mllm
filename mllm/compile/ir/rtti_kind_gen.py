@@ -271,6 +271,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("ExpOp"))
     op.derive(Cls("SinOp"))
     op.derive(Cls("CosOp"))
+    op.derive(Cls("PagedAttnOp"))
 
     # value
 

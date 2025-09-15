@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "mllm/mllm.hpp"
 #include "mllm/compile/symbolic_expr/Eval.hpp"
 #include "mllm/compile/symbolic_expr/Parser.hpp"
 

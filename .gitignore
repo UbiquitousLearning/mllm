@@ -19,6 +19,7 @@ stubs/
 py-build-out/
 pymllm.egg-info/
 _C.cpython-*.so
+dist/
 
 # Python related
 __pycache__/

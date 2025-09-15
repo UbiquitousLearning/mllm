@@ -112,10 +112,10 @@ using mllm_complex_fp64_t = std::complex<mllm_fp64_t>;
  *
  * Each block contains 32 4-bit quantized values.
  */
-using block_q4_0 = struct {
+typedef struct {         // NOLINT
   mllm_fp16_t d;         /**< The delta (scaling factor) for this block. */
   uint8_t qs[QK4_0 / 2]; /**< The 32 quantized values, packed as 4-bit nibbles. */
-};
+} block_q4_0;
 using mllm_block_q4_0_t = block_q4_0;
 
 /**
@@ -126,20 +126,20 @@ using mllm_block_q4_0_t = block_q4_0;
  * Effectively uses 4.5 bits per weight.
  */
 #ifdef MLLM_QKK_64
-using block_q4_K = struct {
+typedef struct {        // NOLINT
   mllm_fp16_t d[2];     /**< Super-block scales/mins. */
   uint8_t scales[2];    /**< 4-bit block scales/mins. */
   uint8_t qs[QK_K / 2]; /**< 4-bit quantized values. */
-};
+} block_q4_K;
 using mllm_block_q4_K_t = block_q4_K;
 static_assert(sizeof(block_q4_K) == 2 * sizeof(uint16_t) + QK_K / 2 + 2, "wrong q4_K block size/padding");
 #else
-using block_q4_K = struct {
+typedef struct {                // NOLINT
   mllm_fp16_t d;                /**< Super-block scale for quantized scales. */
   mllm_fp16_t dmin;             /**< Super-block scale for quantized mins. */
   uint8_t scales[K_SCALE_SIZE]; /**< Scales and mins, quantized with 6 bits. */
   uint8_t qs[QK_K / 2];         /**< 4-bit quantized values. */
-};
+} block_q4_K;
 using mllm_block_q4_K_t = block_q4_K;
 static_assert(sizeof(block_q4_K) == 2 * sizeof(mllm_fp16_t) + K_SCALE_SIZE + QK_K / 2, "wrong q4_K block size/padding");
 #endif
@@ -148,12 +148,12 @@ static_assert(sizeof(block_q4_K) == 2 * sizeof(mllm_fp16_t) + K_SCALE_SIZE + QK_
  * @struct block_q6_K
  * @brief 6-bit quantization block with K-level quantization.
  */
-using block_q6_K = struct {
+typedef struct {            // NOLINT
   uint8_t ql[QK_K / 2];     /**< Lower 4 bits of the quantized values. */
   uint8_t qh[QK_K / 4];     /**< Upper 2 bits of the quantized values. */
   int8_t scales[QK_K / 16]; /**< Scales, quantized with 8 bits. */
   mllm_fp16_t d;            /**< Super-block scale. */
-};
+} block_q6_K;
 using mllm_block_q6_K_t = block_q6_K;
 static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3 * QK_K / 4, "wrong q6_K block size/padding");
 
@@ -161,10 +161,10 @@ static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3 * QK_K /
  * @struct block_q8_0
  * @brief 8-bit quantization block.
  */
-using block_q8_0 = struct {
+typedef struct {    // NOLINT
   mllm_fp16_t d;    /**< The delta (scaling factor) for this block. */
   int8_t qs[QK8_0]; /**< The 32 quantized values as 8-bit signed integers. */
-};
+} block_q8_0;
 using mllm_block_q8_0_t = block_q8_0;
 
 /**
@@ -172,9 +172,9 @@ using mllm_block_q8_0_t = block_q8_0;
  * @brief Per-tensor 8-bit quantization block.
  * @note Used in `vecdot_i8_i8`. TODO: remove this structure if possible.
  */
-using block_q8_per_tensor = struct {
+typedef struct {    // NOLINT
   int8_t qs[QK8_0]; /**< The 32 quantized values as 8-bit signed integers. */
-};
+} block_q8_per_tensor;
 using mllm_block_q8_per_tensor_t = block_q8_per_tensor;
 
 /**
@@ -182,11 +182,11 @@ using mllm_block_q8_per_tensor_t = block_q8_per_tensor;
  * @brief 8-bit quantization block with K-level quantization.
  * @note This is only used for intermediate quantization and dot products.
  */
-using block_q8_K = struct {
+typedef struct {            // NOLINT
   float d;                  /**< The delta (scaling factor) for this block as a 32-bit float. */
   int8_t qs[QK_K];          /**< The quantized values as 8-bit signed integers. */
   int16_t bsums[QK_K / 16]; /**< Sum of quants in groups of 16, used for speeding up calculations. */
-};
+} block_q8_K;
 using mllm_block_q8_K_t = block_q8_K;
 static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K / 16 * sizeof(int16_t), "wrong q8_K block size/padding");
 
@@ -194,10 +194,10 @@ static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K / 16 * sizeof(in
  * @struct block_q4_0x4
  * @brief A group of four `block_q4_0` blocks.
  */
-using block_q4_0x4 = struct {
+typedef struct {         // NOLINT
   mllm_fp16_t d[4];      /**< Deltas for 4 q4_0 blocks. */
   uint8_t qs[QK4_0 * 2]; /**< Quantized values for 4 q4_0 blocks. */
-};
+} block_q4_0x4;
 using mllm_block_q4_0x4_t = block_q4_0x4;
 static_assert(sizeof(block_q4_0x4) == 4 * sizeof(mllm_fp16_t) + QK4_0 * 2, "wrong q4_0x4 block size/padding");
 
@@ -205,10 +205,10 @@ static_assert(sizeof(block_q4_0x4) == 4 * sizeof(mllm_fp16_t) + QK4_0 * 2, "wron
  * @struct block_q4_0x8
  * @brief A group of eight `block_q4_0` blocks.
  */
-using block_q4_0x8 = struct {
+typedef struct {         // NOLINT
   mllm_fp16_t d[8];      /**< Deltas for 8 q4_0 blocks. */
   uint8_t qs[QK4_0 * 4]; /**< Quantized values for 8 q4_0 blocks. */
-};
+} block_q4_0x8;
 using mllm_block_q4_0x8_t = block_q4_0x8;
 static_assert(sizeof(block_q4_0x8) == 8 * sizeof(mllm_fp16_t) + QK4_0 * 4, "wrong q4_0x8 block size/padding");
 
@@ -216,10 +216,10 @@ static_assert(sizeof(block_q4_0x8) == 8 * sizeof(mllm_fp16_t) + QK4_0 * 4, "wron
  * @struct block_q8_0x4
  * @brief A group of four `block_q8_0` blocks.
  */
-using block_q8_0x4 = struct {
+typedef struct {        // NOLINT
   mllm_fp16_t d[4];     /**< Deltas for 4 q8_0 blocks. */
   int8_t qs[QK8_0 * 4]; /**< Quantized values for 4 q8_0 blocks. */
-};
+} block_q8_0x4;
 using mllm_block_q8_0x4_t = block_q8_0x4;
 static_assert(sizeof(block_q8_0x4) == 4 * sizeof(mllm_fp16_t) + QK8_0 * 4, "wrong q8_0x4 block size/padding");
 
@@ -227,10 +227,10 @@ static_assert(sizeof(block_q8_0x4) == 4 * sizeof(mllm_fp16_t) + QK8_0 * 4, "wron
  * @struct block_q8_0x8
  * @brief A group of eight `block_q8_0` blocks.
  */
-using block_q8_0x8 = struct {
+typedef struct {        // NOLINT
   mllm_fp16_t d[8];     /**< Deltas for 8 q8_0 blocks. */
   int8_t qs[QK8_0 * 8]; /**< Quantized values for 8 q8_0 blocks. */
-};
+} block_q8_0x8;
 using mllm_block_q8_0x8_t = block_q8_0x8;
 static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wrong q8_0x8 block size/padding");
 
@@ -238,12 +238,12 @@ static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wron
  * @struct block_q2_K
  * @brief 2-bit quantization block with K-level quantization.
  */
-using block_q2_K = struct {
+typedef struct {             // NOLINT
   uint8_t scales[QK_K / 16]; /**< Scales and mins, quantized with 4 bits. */
   uint8_t qs[QK_K / 4];      /**< Quantized values (2 bits per value). */
   mllm_fp16_t d;             /**< Super-block scale for quantized scales. */
   mllm_fp16_t dmin;          /**< Super-block scale for quantized mins. */
-};
+} block_q2_K;
 using mllm_block_q2_K_t = block_q2_K;
 static_assert(sizeof(block_q2_K) == 2 * sizeof(mllm_fp16_t) + QK_K / 16 + QK_K / 4, "wrong q2_K block size/padding");
 
@@ -251,12 +251,12 @@ static_assert(sizeof(block_q2_K) == 2 * sizeof(mllm_fp16_t) + QK_K / 16 + QK_K /
  * @struct block_q3_K
  * @brief 3-bit quantization block with K-level quantization.
  */
-using block_q3_K = struct {
+typedef struct {           // NOLINT
   uint8_t hmask[QK_K / 8]; /**< High bit of the quantized values. */
   uint8_t qs[QK_K / 4];    /**< Low 2 bits of the quantized values. */
   uint8_t scales[12];      /**< Scales, quantized with 6 bits. */
   mllm_fp16_t d;           /**< Super-block scale. */
-};
+} block_q3_K;
 using mllm_block_q3_K_t = block_q3_K;
 static_assert(sizeof(block_q3_K) == sizeof(mllm_fp16_t) + QK_K / 4 + QK_K / 8 + 12, "wrong q3_K block size/padding");
 
@@ -264,14 +264,12 @@ static_assert(sizeof(block_q3_K) == sizeof(mllm_fp16_t) + QK_K / 4 + QK_K / 8 + 
  * @struct block_iq2_xxs
  * @brief 2-bit "imbalanced" quantization block.
  */
-using block_iq2_xxs = struct {
+typedef struct {         // NOLINT
   mllm_fp16_t d;         /**< The delta (scaling factor) for this block. */
   uint16_t qs[QK_K / 8]; /**< Quantized values. */
-};
+} block_iq2_xxs;
 using mllm_block_iq2_xxs_t = block_iq2_xxs;
 static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(uint16_t), "wrong iq2_xxs block size/padding");
-
-#pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
 // MXFP4
@@ -280,11 +278,13 @@ static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(u
 //
 // 4 bits (1 sign, 2 exponent, 1 mantissa) plus 1 shared power-of-two scale per 32 value block
 //===----------------------------------------------------------------------===//
-using mllm_mxfp4_t = struct {
+typedef struct {     // NOLINT
   uint8_t data[16];  // 32 x fp4, 128 bits, 16 bytes
   uint8_t scale;
-};
+} mllm_mxfp4_t;
 static_assert(sizeof(mllm_mxfp4_t) == 17, "wrong mxfp4 size/padding");
+
+#pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
 // MLLM Types Enum

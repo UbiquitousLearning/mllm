@@ -99,5 +99,6 @@ LINALG_AOPS_DECL(OpTypes::kIndex, IndexOp);
 LINALG_AOPS_DECL(OpTypes::kTopK, TopKOp);
 LINALG_AOPS_DECL(OpTypes::kMean, MeanOp);
 LINALG_AOPS_DECL(OpTypes::kClip, ClipOp);
+LINALG_AOPS_DECL(OpTypes::kPagedAttn, PagedAttnOp);
 
 }  // namespace mllm::ir::linalg

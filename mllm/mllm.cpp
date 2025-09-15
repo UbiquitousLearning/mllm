@@ -85,6 +85,8 @@ AllCloseResult allClose(const Tensor& a, const Tensor& b, float rtol, float atol
 
   if (a.shape() != b.shape()) {
     MLLM_WARN("shape not match");
+    MLLM_WARN("a shape: {}", a.shape());
+    MLLM_WARN("b shape: {}", b.shape());
     return result;
   }
 

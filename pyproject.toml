@@ -1,11 +1,8 @@
 [build-system]
 requires = [
-  "cmake",  # For building binary targets in the wheel.
-  "pip>=23",  # For building the pip package.
-  "setuptools>=63",  # For building the pip package contents.
-  "wheel",  # For building the pip package archive.
+  "scikit-build-core>=0.10.0", "apache-tvm-ffi"
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pymllm"
@@ -27,9 +24,8 @@ dependencies=[
   "packaging",
   "pytest",
   "pytest-html",
-  "pybind11-stubgen>=2.5.1",
+  "apache-tvm-ffi",
   "pyyaml >= 6.0.2",
-  "cmake-format >= 0.6.13"
 ]
 
 [project.scripts]
@@ -44,3 +40,11 @@ first_party_detection = false
 
 [tool.black]
 target-version = ["py310", "py311", "py312"]
+
+[tool.scikit-build]
+# ABI-agnostic wheel
+wheel.py-api = "py3"
+cmake.args = [
+  "-DCMAKE_BUILD_TYPE=Release",
+  "-DMLLM_ENABLE_PY_MLLM=on"
+]

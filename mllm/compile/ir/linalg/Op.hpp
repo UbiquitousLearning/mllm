@@ -63,6 +63,7 @@ class ClipOp;
 class ExpOp;
 class SinOp;
 class CosOp;
+class PagedAttnOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -209,5 +210,6 @@ LINALG_AOPS_DEFINE(IndexOp, INDEXOP);
 LINALG_AOPS_DEFINE(TopKOp, TOPKOP);
 LINALG_AOPS_DEFINE(MeanOp, MEANOP);
 LINALG_AOPS_DEFINE(ClipOp, CLIPOP);
+LINALG_AOPS_DEFINE(PagedAttnOp, PAGEDATTNOP);
 
 }  // namespace mllm::ir::linalg
