@@ -6,7 +6,7 @@ file(GLOB_RECURSE MLLM_RT_MODELS_SRC ${CMAKE_CURRENT_LIST_DIR}/models/*.cpp)
 file(GLOB_RECURSE MLLM_RT_COMPILE_SRC ${CMAKE_CURRENT_LIST_DIR}/compile/*.cpp)
 file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocessor/*.cpp)
 if(MLLM_BUILD_EXPERIMENTS)
-  file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/auto_tune/*.cpp)
+  file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/experiments/auto_tune/*.cpp)
 endif()
 file(GLOB WENET_AUDIO_SOURCES ${PROJECT_SOURCE_DIR}/third_party/wenet_audio/*)
 
@@ -81,9 +81,11 @@ endif()
 add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_EXPERIMENTS)
-  # MLLM's FFI Extension
-  add_subdirectory(ffi)
+  # FIXME: Add experiments sub project here.
 endif()
+
+# MLLM's FFI Extension
+add_subdirectory(ffi)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)

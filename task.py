@@ -391,83 +391,6 @@ class BuildDocTask(Task):
         )
 
 
-class BuildPythonCLibTask(Task):
-    def __init__(self, config):
-        super().__init__(config)
-
-    def run(self):
-        repo_root = os.path.abspath(os.getcwd())
-
-        base_cmake_root = os.path.join(repo_root, "py-build-out")
-        if not os.path.exists(base_cmake_root):
-            os.mkdir(base_cmake_root)
-
-        is_arm = platform.machine().startswith(("arm", "aarch"))
-        is_x86 = platform.machine().startswith(("x86", "amd", "X86"))
-
-        if is_x86:
-            CMAKE_CFG_ARGS = [
-                f"-DPYTHON_EXECUTABLE={sys.executable}",
-                f"-DCMAKE_BUILD_TYPE=Release",
-                "-DMLLM_ENABLE_PY_MLLM=ON",
-                "-D_GLIBCXX_USE_CXX11_ABI=1",
-                # FIXME: Use clang and gcc is all ok.
-                # "-DCMAKE_C_COMPILER=clang",
-                # "-DCMAKE_CXX_COMPILER=clang++",
-                # FIXME: Highway may not be used.
-                "-DHWY_ENABLE_TESTS=OFF",
-                "-DHWY_ENABLE_EXAMPLES=OFF",
-                "-DHWY_ENABLE_CONTRIB=OFF",
-                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
-                "-DMLLM_ENABLE_TOOLS=ON",  # Enable tools build
-            ]
-        elif is_arm:
-            # Most likely on Apple Silicon
-            # We do not consider Android or iOS right now
-            CMAKE_CFG_ARGS = [
-                f"-DPYTHON_EXECUTABLE={sys.executable}",
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DMLLM_ENABLE_PY_MLLM=ON",
-                "-D_GLIBCXX_USE_CXX11_ABI=1",
-                "-DHWY_ENABLE_TESTS=OFF",
-                "-DHWY_ENABLE_EXAMPLES=OFF",
-                "-DHWY_ENABLE_CONTRIB=OFF",
-                "-DMLLM_BUILD_ARM_BACKEND=ON",
-                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"',
-                "-DMLLM_USE_BLAS=ON",
-                "-DMLLM_BLAS_VENDOR_ACCELERATE=ON",
-                "-DMLLM_KERNEL_USE_THREADS=ON",
-                "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF",
-                "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON",
-                "-DMLLM_ENABLE_TOOLS=ON",  # Enable tools build
-            ]
-
-        BUILD_ARGS = [
-            "--config",
-            "Release",
-            f"-j{max(1, int(os.cpu_count() / 2))}",
-            "--target",
-            "_C",
-            "--target",
-            "mllm-quantizer",
-        ]
-        cmake_cache_dir = os.path.join(base_cmake_root, "cmake-out")
-        if not os.path.exists(cmake_cache_dir):
-            os.mkdir(cmake_cache_dir)
-
-        # run cmake cfg
-        os.system(
-            self.make_command_str(
-                ["cmake", "-S", repo_root, "-B", cmake_cache_dir] + CMAKE_CFG_ARGS
-            )
-        )
-
-        # build/compile
-        os.system(
-            self.make_command_str(["cmake", "--build", cmake_cache_dir] + BUILD_ARGS)
-        )
-
-
 class HexagonMakeTask(Task):
     def __init__(self, config):
         super().__init__(config)
@@ -517,37 +440,6 @@ class HexagonMakeTask(Task):
 
         # Change back to the original directory
         os.chdir(current_dir)
-
-
-class PymllmInstallTask(Task):
-    def __init__(self, config):
-        super().__init__(config)
-
-    def run(self):
-        type = self.config["type"]
-        assert type in ["editable", "release"]
-        if type == "editable":
-            os.system(
-                self.make_command_str(
-                    [
-                        "pip",
-                        "install",
-                        "-e",
-                        ".",
-                        "-v",
-                    ]
-                )
-            )
-        else:
-            os.system(
-                self.make_command_str(
-                    [
-                        "pip",
-                        "install",
-                        ".",
-                    ]
-                )
-            )
 
 
 class MllmCliBuildTask(Task):
@@ -624,11 +516,8 @@ TASKS = {
     "CMakeInstallTask": CMakeInstallTask,
     "AdbPushTask": AdbPushTask,
     "ArmKernelBenchmarkTask": ArmKernelBenchmarkTask,
-    "GenPybind11StubsTask": GenPybind11StubsTask,
     "BuildDocTask": BuildDocTask,
-    "BuildPythonCLibTask": BuildPythonCLibTask,
     "HexagonMakeTask": HexagonMakeTask,
-    "PymllmInstallTask": PymllmInstallTask,
     "MllmCliBuildTask": MllmCliBuildTask,
 }
 
