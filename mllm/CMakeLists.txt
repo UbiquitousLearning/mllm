@@ -81,7 +81,8 @@ endif()
 add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_EXPERIMENTS)
-  add_subdirectory(experiments/ffi)
+  # MLLM's FFI Extension
+  add_subdirectory(ffi)
 endif()
 
 if(MLLM_BUILD_OPENCL_BACKEND)

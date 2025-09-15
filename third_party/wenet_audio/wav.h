@@ -25,6 +25,8 @@
 #include <string>
 #include <iostream>
 
+#include "mllm/utils/Ignore.hpp"
+
 // #include "utils/log.h"
 
 namespace wenet {
@@ -58,7 +60,7 @@ class WavReader {
     }
 
     WavHeader header;
-    fread(&header, 1, sizeof(header), fp);
+    IGNORE(fread(&header, 1, sizeof(header), fp));
     if (header.fmt_size < 16) {
       fprintf(stderr, "WaveData: expect PCM format data "
                       "to have fmt chunk of at least size 16.\n");
@@ -66,7 +68,7 @@ class WavReader {
     } else if (header.fmt_size > 16) {
       int offset = 44 - 8 + header.fmt_size - 16;
       fseek(fp, offset, SEEK_SET);
-      fread(header.data, 8, sizeof(char), fp);
+      IGNORE(fread(header.data, 8, sizeof(char), fp));
     }
     // check "riff" "WAVE" "fmt " "data"
 
@@ -77,7 +79,7 @@ class WavReader {
       // We will just ignore the data in these chunks.
       fseek(fp, header.data_size, SEEK_CUR);
       // read next subchunk
-      fread(header.data, 8, sizeof(char), fp);
+      IGNORE(fread(header.data, 8, sizeof(char), fp));
     }
 
     num_channel_ = header.channels;
@@ -91,19 +93,19 @@ class WavReader {
       switch (bits_per_sample_) {
         case 8: {
           char sample;
-          fread(&sample, 1, sizeof(char), fp);
+          IGNORE(fread(&sample, 1, sizeof(char), fp));
           data_[i] = static_cast<float>(sample);
           break;
         }
         case 16: {
           int16_t sample;
-          fread(&sample, 1, sizeof(int16_t), fp);
+          IGNORE(fread(&sample, 1, sizeof(int16_t), fp));
           data_[i] = static_cast<float>(sample);
           break;
         }
         case 32: {
           int sample;
-          fread(&sample, 1, sizeof(int), fp);
+          IGNORE(fread(&sample, 1, sizeof(int), fp));
           data_[i] = static_cast<float>(sample);
           break;
         }
