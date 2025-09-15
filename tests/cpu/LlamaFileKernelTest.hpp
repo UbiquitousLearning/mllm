@@ -117,7 +117,7 @@ class LlamaFileKernelTest : public KernelTest {
     auto A = mllm::Tensor::random(a_shape);
     auto B = mllm::Tensor::random(b_shape);
 
-    auto result = mllm::nn::functional::matmul(A, B, transpose_a, transpose_b, mllm::aops::MatMulOpType::kLlamaFile);
+    auto result = mllm::nn::functional::matmul(A, B, transpose_a, transpose_b, mllm::aops::MatMulOpType::kGGUF);
 
     auto ref_output = matmulReference(A, B, transpose_a, transpose_b);
 

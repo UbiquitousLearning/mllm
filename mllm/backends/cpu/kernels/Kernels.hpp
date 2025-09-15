@@ -35,6 +35,7 @@
 #endif
 
 // Platform free Kernels
+#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/blas.hpp"                 // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/paged_attn/fwd_bshd.hpp"  // IWYU pragma: export

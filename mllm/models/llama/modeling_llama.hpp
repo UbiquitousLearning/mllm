@@ -143,7 +143,8 @@ class LlamaAttention final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+    const auto& causal_mask = inputs[3];
+    auto past_kv_cache = args[0].get<nn::AbstractStaticCache*>();
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
@@ -178,12 +179,21 @@ class LlamaAttention final : public nn::Module {
       // attention weight
       // [B, H, S, S]
       attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
+      if (causal_mask) {
+        attn = attn + causal_mask;
+      } else {
+        attn = mask_(attn);
+      }
       attn = softmax_(attn);
     } else if (key_states.dtype() == kFloat16) {
       attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
       attn = mask_(attn);
       attn = softmax_(attn);
+      if (causal_mask) {
+        attn = attn + causal_mask;
+      } else {
+        attn = mask_(attn);
+      }
       attn = attn.to(kFloat16);
     }
 
@@ -218,11 +228,12 @@ class LlamaDecoder final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
+    auto causal_mask = inputs[3];
     auto& kv_cache = args[0];
 
     auto x = input_layer_norm_(inputs[0]);
 
-    x = self_attn_(x, kv_cache, llm_embedding_sin, llm_embedding_cos)[0];
+    x = self_attn_(x, kv_cache, llm_embedding_sin, llm_embedding_cos, causal_mask)[0];
     auto tmp = x + inputs[0];
     x = post_attention_layer_norm_(tmp);
     x = mlp_(x)[0];
@@ -259,9 +270,10 @@ class LlamaText final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
+    auto causal_mask = inputs[3];
     auto& kv_cache = args[0];
 
-    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, causal_mask, kv_cache)[0]; }
     x = norm_(x);
 
     return {x};
@@ -273,7 +285,8 @@ class LlamaText final : public nn::Module {
 class LlamaForCausalLM : public nn::Module, public ARGeneration {
  public:
   LlamaForCausalLM() = default;
-  explicit LlamaForCausalLM(const LLaMAConfig& cfg) : cfg(cfg), nn::Module("") {
+  explicit LlamaForCausalLM(const std::string& name, const LLaMAConfig& cfg, bool mask_by_tensor = false)
+      : cfg(cfg), nn::Module(name), mask_by_tensor_(mask_by_tensor) {
     kv_cache_ = nn::StaticCache(cfg.max_position_embeddings, cfg.num_hidden_layers,
                                 cfg.num_attention_heads,                    // q_heads
                                 cfg.num_key_value_heads,                    // kv_heads
@@ -285,7 +298,9 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     );
 
     model = reg<LlamaText>("model", cfg);
-    if (!cfg.tie_word_embeddings) { lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false); }
+    if (!cfg.tie_word_embeddings) {
+      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+    }
     tie_word_embeddings_ = cfg.tie_word_embeddings;
   }
 
@@ -319,10 +334,26 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     // Generate RoPE embeddings using the inv_freq buffer
     auto [llm_embedding_sin, llm_embedding_cos] = makeRotaryPosEmbedding(position_ids, model.getBuffer("inv_freq"), 1.0f);
 
+    // Create Causal Mask.
+    Tensor causal_mask = Tensor::nil();
+    // Initialize Causal Mask.
+    if (mask_by_tensor_) {
+      auto h_len = sequence.shape()[1];
+      causal_mask = Tensor::zeros({1, 1, h_len, h_len}, kFloat32, kCPU);
+      auto mask_data = causal_mask.ptr<mllm_fp32_t>();
+      float min_value = -1e12;
+      auto indices =
+          std::views::iota(0, h_len) | std::views::transform([h_len](int64_t i) {
+            return std::views::iota(i + 1, h_len) | std::views::transform([i, h_len](int64_t j) { return i * h_len + j; });
+          })
+          | std::views::join;
+      std::ranges::for_each(indices, [mask_data, min_value](int64_t index) { mask_data[index] = min_value; });
+    }
+
     // Calculate the text embeddings
     auto input_embeddings = model.embedding_(sequence);
 
-    auto hidden_states = model(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    auto hidden_states = model(input_embeddings, llm_embedding_sin, llm_embedding_cos, causal_mask, AnyValue(&kv_cache_))[0];
 
     // clip hidden_states to one seq length
     {
@@ -339,10 +370,11 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     };
   }
 
-  const LLaMAConfig cfg;
+  LLaMAConfig cfg;
   LlamaText model;
   nn::Linear lm_head_;
   bool tie_word_embeddings_;
+  bool mask_by_tensor_;
 
  private:
   nn::StaticCache kv_cache_;

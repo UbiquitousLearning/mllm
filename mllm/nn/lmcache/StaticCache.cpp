@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include <cstring>
+#include <stdexcept>
 
 #include "mllm/nn/lmcache/StaticCache.hpp"
 #include "mllm/core/Tensor.hpp"
@@ -140,5 +141,64 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
   return {Tensor::nil(), Tensor::nil()};
 }
 __MLLM_UNSAFE_OPT_END
+
+int32_t SubStaticCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_sub_seq_cnt_[layer_idx]; }
+
+std::array<Tensor, 2> SubStaticCache::updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {
+  // 输入应该是 [B, H, S, D] 格式
+  auto inputs_seq_len = k.shape()[2];
+
+  // 检查是否超出子缓存边界
+  if (current_sub_seq_cnt_[layer_idx] + inputs_seq_len > sub_max_cache_length_) {
+    throw std::runtime_error("SubStaticCache: sequence length exceeds sub-cache capacity");
+  }
+
+  // The input should be [B, H, S, D]
+  MLLM_RT_ASSERT_EQ(k.shape()[1], cache_.kv_heads_);
+  MLLM_RT_ASSERT_EQ(v.shape()[1], cache_.kv_heads_);
+
+  auto repeat_times = cache_.q_heads_ / cache_.kv_heads_;
+
+  switch (cache_.device_type_) {
+    case kCPU: {
+      for (int h = 0; h < cache_.kv_heads_; ++h) {
+        for (int r = 0; r < repeat_times; ++r) {
+          // clang-format off
+            auto k_cache_ptr = sub_k_cache_[layer_idx].offsettedPtr<mllm_byte_t>({0, h * repeat_times + r, current_sub_seq_cnt_[layer_idx], 0});
+            auto v_cache_ptr = sub_v_cache_[layer_idx].offsettedPtr<mllm_byte_t>({0, h * repeat_times + r, current_sub_seq_cnt_[layer_idx], 0});
+          // clang-format on
+          auto k_ptr = k.offsettedPtr<mllm_byte_t>({0, h, 0, 0});
+          auto v_ptr = v.offsettedPtr<mllm_byte_t>({0, h, 0, 0});
+          // Copy
+          std::memcpy(k_cache_ptr, k_ptr,
+                      inputs_seq_len * cache_.kv_dims_ * bytesOfType(cache_.k_dtype_) / lanesOfType(cache_.k_dtype_));
+          std::memcpy(v_cache_ptr, v_ptr,
+                      inputs_seq_len * cache_.kv_dims_ * bytesOfType(cache_.v_dtype_) / lanesOfType(cache_.v_dtype_));
+        }
+      }
+
+      break;
+    }
+    default: {
+      for (int h = 0; h < cache_.kv_heads_; ++h) {
+        for (int r = 0; r < repeat_times; ++r) {
+          // clang-format off
+            k[{kAll, h, kAll, kAll}].copy2(sub_k_cache_[layer_idx][{kAll, h * repeat_times + r, {current_sub_seq_cnt_[layer_idx], current_sub_seq_cnt_[layer_idx] + inputs_seq_len}, kAll}]);
+            v[{kAll, h, kAll, kAll}].copy2(sub_v_cache_[layer_idx][{kAll, h * repeat_times + r, {current_sub_seq_cnt_[layer_idx], current_sub_seq_cnt_[layer_idx] + inputs_seq_len}, kAll}]);
+          // clang-format on
+        }
+      }
+      break;
+    }
+  }
+
+  // Update sequence length.
+  current_sub_seq_cnt_[layer_idx] += inputs_seq_len;
+
+  return {
+      sub_k_cache_[layer_idx][{kAll, kAll, {kAll, current_sub_seq_cnt_[layer_idx]}, kAll}],
+      sub_v_cache_[layer_idx][{kAll, kAll, {kAll, current_sub_seq_cnt_[layer_idx]}, kAll}],
+  };
+}
 
 }  // namespace mllm::nn

@@ -136,6 +136,43 @@ struct formatter<mllm::Tensor> {
     if (dim >= (int)shape.size()) { return printTensorValue(tensor, out, indices); }
 
     int32_t dim_size = shape[dim];
+
+    // 对于 per group pack 的量化数据类型，在最后一个维度需要考虑逻辑元素数量
+    // 每个量化块包含多个逻辑元素，需要正确展示这些元素
+    bool is_quantized_type = false;
+    size_t lanes = 1;
+
+    // 检查是否为量化数据类型
+    switch (tensor.dtype()) {
+      case mllm::kGGUF_Q4_0:
+      case mllm::kGGUF_Q4_K:
+      case mllm::kGGUF_Q6_K:
+      case mllm::kGGUF_Q8_0:
+      case mllm::kGGUF_Q8_K:
+      case mllm::kGGUF_Q8_Pertensor:
+      case mllm::kGGUF_Q4_0_4_4:
+      case mllm::kGGUF_Q4_0_4_8:
+      case mllm::kGGUF_Q8_0_4_4:
+      case mllm::kGGUF_Q3_K:
+      case mllm::kGGUF_Q2_K:
+      case mllm::kGGUF_IQ2_XXS:
+      case mllm::kMXFP4:
+        is_quantized_type = true;
+        lanes = mllm::lanesOfType(tensor.dtype());
+        break;
+      default: break;
+    }
+
+    // 对于量化类型的最后一个维度，调整显示的元素数量
+    if (is_quantized_type && dim == (int)shape.size() - 1 && lanes > 1) {
+      // 实际的逻辑元素数量是 dim_size * lanes
+      // 但为了避免显示过多元素，我们限制显示数量
+      size_t logical_elements = static_cast<size_t>(dim_size) * lanes;
+      // 限制显示的元素数量，避免输出过长
+      int max_show_elements = mllm::Context::instance().getPrintMaxElementsPerDim() * 2;
+      dim_size = static_cast<int32_t>(std::min(logical_elements, static_cast<size_t>(max_show_elements)));
+    }
+
     *out++ = '[';
 
     int max_elements_per_dim = mllm::Context::instance().getPrintMaxElementsPerDim();
@@ -152,7 +189,18 @@ struct formatter<mllm::Tensor> {
           }
         }
         std::vector<int32_t> new_indices = indices;
-        new_indices.push_back(i);
+
+        // 对于量化数据类型的最后一个维度，需要特殊处理索引
+        if (is_quantized_type && dim == (int)shape.size() - 1 && lanes > 1) {
+          // 计算块索引，这是实际存储的索引
+          int32_t block_idx = i / static_cast<int32_t>(lanes);
+          new_indices.push_back(block_idx);
+          // 对于量化块，我们显示块级别的信息而不是单个元素
+          // 块内的不同位置会在 printTensorValue 中处理
+        } else {
+          new_indices.push_back(i);
+        }
+
         out = printTensorData(tensor, out, dim + 1, new_indices);
       }
     } else {
@@ -169,7 +217,14 @@ struct formatter<mllm::Tensor> {
           }
         }
         std::vector<int32_t> new_indices = indices;
-        new_indices.push_back(i);
+
+        if (is_quantized_type && dim == (int)shape.size() - 1 && lanes > 1) {
+          int32_t block_idx = i / static_cast<int32_t>(lanes);
+          new_indices.push_back(block_idx);
+        } else {
+          new_indices.push_back(i);
+        }
+
         out = printTensorData(tensor, out, dim + 1, new_indices);
       }
 
@@ -193,7 +248,14 @@ struct formatter<mllm::Tensor> {
           *out++ = ' ';
         }
         std::vector<int32_t> new_indices = indices;
-        new_indices.push_back(i);
+
+        if (is_quantized_type && dim == (int)shape.size() - 1 && lanes > 1) {
+          int32_t block_idx = i / static_cast<int32_t>(lanes);
+          new_indices.push_back(block_idx);
+        } else {
+          new_indices.push_back(i);
+        }
+
         out = printTensorData(tensor, out, dim + 1, new_indices);
       }
     }

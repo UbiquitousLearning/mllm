@@ -29,6 +29,7 @@
 
 #include <cstddef>
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Log.hpp"
 
 #define MLLM_RESTRICT __restrict
 
@@ -120,6 +121,79 @@ inline int blck_size() {
 template<DataTypes DT>
 inline size_t row_size(int64_t ne) {
   return type_size<DT>() * ne / blck_size<DT>();
+}
+
+// get TypeTraits information at runtime
+struct RuntimeTypeTraits {
+  size_t size;
+  int blck_size;
+  int blck_size_interleave;
+  mllm_to_float_func to_float;
+  mllm_from_float_func from_float;
+  mllm_from_float_to_mat_func from_float_to_mat;
+  mllm_vec_dot_func vec_dot;
+  DataTypes vec_dot_type;
+  mllm_vec_add_row_func add_row_to;
+  mllm_gemv_func gemv;
+  mllm_gemm_func gemm;
+};
+
+#define SET_RUNTIME_TYPE_TRAITS(DT)                                     \
+  case DT:                                                              \
+    traits.size = TypeTraits<DT>::size;                                 \
+    traits.blck_size = TypeTraits<DT>::blck_size;                       \
+    traits.blck_size_interleave = TypeTraits<DT>::blck_size_interleave; \
+    traits.to_float = TypeTraits<DT>::to_float;                         \
+    traits.from_float = TypeTraits<DT>::from_float;                     \
+    traits.from_float_to_mat = TypeTraits<DT>::from_float_to_mat;       \
+    traits.vec_dot = TypeTraits<DT>::vec_dot;                           \
+    traits.vec_dot_type = TypeTraits<DT>::vec_dot_type;                 \
+    traits.add_row_to = TypeTraits<DT>::add_row_to;                     \
+    traits.gemv = TypeTraits<DT>::gemv;                                 \
+    traits.gemm = TypeTraits<DT>::gemm;
+
+inline RuntimeTypeTraits getRuntimeTypeTraits(DataTypes dt) {
+  RuntimeTypeTraits traits{};
+
+  switch (dt) {
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_F32)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_F16)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q4_0)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q4_K)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q6_K)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q8_0)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q8_K)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q2_K)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_Q3_K)
+    break;
+    SET_RUNTIME_TYPE_TRAITS(MLLM_TYPE_IQ2_XXS)
+    break;
+    default:
+      // For unsupported types, return default values
+      MLLM_WARN("Unsupported DataType {}", nameOfType(dt));
+      traits.size = 0;
+      traits.blck_size = 1;
+      traits.blck_size_interleave = 1;
+      traits.to_float = nullptr;
+      traits.from_float = nullptr;
+      traits.from_float_to_mat = nullptr;
+      traits.vec_dot = nullptr;
+      traits.vec_dot_type = dt;
+      traits.add_row_to = nullptr;
+      traits.gemv = nullptr;
+      traits.gemm = nullptr;
+      break;
+  }
+
+  return traits;
 }
 
 }  // namespace mllm::cpu::ggml

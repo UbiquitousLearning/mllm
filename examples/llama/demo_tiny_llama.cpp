@@ -37,7 +37,7 @@ MLLM_MAIN({
   {
     auto llama_cfg = mllm::models::llama::LLaMAConfig(config_path.get());
     auto llama_tokenizer = mllm::models::llama::TinyLlamaTokenizer(tokenizer_path.get());
-    auto llama = mllm::models::llama::LlamaForCausalLM(llama_cfg);
+    auto llama = mllm::models::llama::LlamaForCausalLM("", llama_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);
     llama.load(param);
