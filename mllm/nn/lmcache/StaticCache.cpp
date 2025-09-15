@@ -145,10 +145,8 @@ __MLLM_UNSAFE_OPT_END
 int32_t SubStaticCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_sub_seq_cnt_[layer_idx]; }
 
 std::array<Tensor, 2> SubStaticCache::updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {
-  // 输入应该是 [B, H, S, D] 格式
   auto inputs_seq_len = k.shape()[2];
 
-  // 检查是否超出子缓存边界
   if (current_sub_seq_cnt_[layer_idx] + inputs_seq_len > sub_max_cache_length_) {
     throw std::runtime_error("SubStaticCache: sequence length exceeds sub-cache capacity");
   }

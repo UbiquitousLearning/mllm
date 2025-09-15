@@ -1,11 +1,14 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <cassert>
 #include <iostream>
 #include "mllm/core/DataTypes.hpp"
-#include "vec_dot.hpp"
-#include "vec_dot_type.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/vec_dot.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/vec_dot_type.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize_q2.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize_q3.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize_q4.hpp"
@@ -45,8 +48,6 @@ void fp32_add_row_to(int n, const float* MLLM_RESTRICT src, float* MLLM_RESTRICT
   int i = 0;
 #ifdef __AVX2__
   __m256 alpha_vec = _mm256_set1_ps(alpha);  // load alpha into 8 float register
-
-  // 主循环处理8的倍数个元素
   for (; i <= n - 8; i += 8) {
     __m256 src_vec = _mm256_loadu_ps(src + i);                      // load 8 float from src
     __m256 dst_vec = _mm256_loadu_ps(dst + i);                      // load 8 float from dst
@@ -64,8 +65,6 @@ void fp32_add_row_to(int n, const float* MLLM_RESTRICT src, float* MLLM_RESTRICT
     vst1q_f32(dst + i, res_vec);                                   // store result back to dst
   }
 #endif
-
-  // 处理剩余的元素
   for (; i < n; ++i) { dst[i] = dst[i] + alpha * src[i]; }
 }
 
@@ -73,8 +72,6 @@ void fp_16_add_row_to(int n, const mllm::mllm_fp16_t* MLLM_RESTRICT src, float* 
   int i = 0;
 #ifdef __AVX2__
   __m256 alpha_vec = _mm256_set1_ps(alpha);  // load alpha into 8 float register
-
-  // 主循环处理8的倍数个元素
   for (; i <= n - 8; i += 8) {
     __m128i src_fp16 = _mm_loadu_si128((__m128i const*)(src + i));  // load 8 fp16 from src
     __m256 src_vec = _mm256_cvtph_ps(src_fp16);                     // convert to 8 fp32
@@ -85,8 +82,6 @@ void fp_16_add_row_to(int n, const mllm::mllm_fp16_t* MLLM_RESTRICT src, float* 
 #elif defined(__ARM_NEON)
   std::cout << "not support now\n";
 #endif
-
-  // 处理剩余的元素
   for (; i < n; ++i) { dst[i] = dst[i] + alpha * MLLM_FP16_TO_FP32(src[i]); }
 }
 

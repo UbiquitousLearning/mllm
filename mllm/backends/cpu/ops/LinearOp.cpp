@@ -65,6 +65,8 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   if (impl_type == aops::LinearImplTypes::kDefault) {
 #if defined(MLLM_USE_BLAS)
     impl_type = aops::LinearImplTypes::kBLAS;
+#else
+    impl_type = aops::LinearImplTypes::kGGUF;
 #endif
   }
 

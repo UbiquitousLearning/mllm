@@ -314,6 +314,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   cache/index
+
+.. toctree::
+   :maxdepth: 2
+
    cpu_backend/index
 
 .. toctree::

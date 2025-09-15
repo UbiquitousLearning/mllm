@@ -102,7 +102,7 @@ Quantization
 - Shared weight Embedding(For tie-embedding scenario).
 
 Applications & Productions
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Multi-turn Chat
 - mllm-cli's modelscope integration

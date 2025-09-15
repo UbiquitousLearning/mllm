@@ -27,7 +27,7 @@ struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {
 
 inline MatMulOpType str2MatMulOpType(const std::string& str) {
   static const std::unordered_map<std::string, MatMulOpType> map = {{"Default", MatMulOpType::kDefault},
-                                                                    {"LlamaFile", MatMulOpType::kGGUF},
+                                                                    {"GGUF", MatMulOpType::kGGUF},
                                                                     {"BLAS", MatMulOpType::kBLAS},
                                                                     {"MllmBlas", MatMulOpType::kMllmBlas}};
 
@@ -38,7 +38,7 @@ inline MatMulOpType str2MatMulOpType(const std::string& str) {
 
 inline std::string MatMulOpType2Str(MatMulOpType type) {
   static const std::unordered_map<MatMulOpType, std::string> map = {{MatMulOpType::kDefault, "Default"},
-                                                                    {MatMulOpType::kGGUF, "LlamaFile"},
+                                                                    {MatMulOpType::kGGUF, "GGUF"},
                                                                     {MatMulOpType::kBLAS, "BLAS"},
                                                                     {MatMulOpType::kMllmBlas, "MllmBlas"}};
 

@@ -45,8 +45,9 @@ class StaticCache : public AbstractStaticCache {
 
   std::array<Tensor, 2> updateKVCache(int32_t layer_idx, Tensor k, Tensor v) override;
 
-  [[nodiscard]] Tensor getKCache(int32_t layer_idx) const { return k_cache_[layer_idx]; };
-  [[nodiscard]] Tensor getVCache(int32_t layer_idx) const { return v_cache_[layer_idx]; };
+  [[nodiscard]] inline Tensor getKCache(int32_t layer_idx) const { return k_cache_[layer_idx]; };
+
+  [[nodiscard]] inline Tensor getVCache(int32_t layer_idx) const { return v_cache_[layer_idx]; };
 
  private:
   DeviceTypes device_type_;
