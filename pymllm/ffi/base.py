@@ -5,6 +5,7 @@ import sys
 
 def _load_lib():
     file_dir = os.path.dirname(os.path.realpath(__file__))
+    parent_dir = os.path.dirname(file_dir)
 
     # Platform-specific library names
     if sys.platform.startswith("win32"):
@@ -14,7 +15,7 @@ def _load_lib():
     else:
         lib_name = "MllmFFIExtension.so"
 
-    lib_path = os.path.join(file_dir, lib_name)
+    lib_path = os.path.join(parent_dir, "lib", lib_name)
     return tvm_ffi.load_module(lib_path)
 
 

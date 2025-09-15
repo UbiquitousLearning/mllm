@@ -14,4 +14,20 @@ add_library(MllmFFIExtension SHARED
 target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_header)
 target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_shared MllmRT)
 set_target_properties(MllmFFIExtension PROPERTIES PREFIX "")
-install(TARGETS MllmFFIExtension DESTINATION .)
+
+# Set the depend search path. Windows do not need this, it will search dlls in the same directory first.
+if(APPLE)
+    set_target_properties(MllmFFIExtension PROPERTIES
+        INSTALL_RPATH "@loader_path"
+        MACOSX_RPATH ON)
+elseif(UNIX)   # Linux
+    set_target_properties(MllmFFIExtension PROPERTIES
+        INSTALL_RPATH "$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
+install(
+  TARGETS MllmFFIExtension tvm_ffi_header tvm_ffi_shared
+  EXPORT MllmTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)

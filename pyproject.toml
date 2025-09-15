@@ -6,10 +6,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pymllm"
-dynamic = [
-  # version is in setup.py file
-  'version',
-]
+version = "0.1.0"
 description = "Fast and lightweight multimodal LLM inference engine for mobile and edge devices"
 readme = "README.md"
 authors = [
@@ -48,3 +45,19 @@ cmake.args = [
   "-DCMAKE_BUILD_TYPE=Release",
   "-DMLLM_ENABLE_PY_MLLM=on"
 ]
+minimum-version = "build-system.requires"
+
+# Build configuration
+build-dir = "build"
+build.verbose = true
+
+# CMake configuration
+cmake.version = "CMakeLists.txt"
+cmake.build-type = "RelWithDebugInfo"
+
+# Logging
+logging.level = "INFO"
+
+# Wheel configuration
+wheel.packages = ["pymllm"]
+wheel.install-dir = "pymllm"
