@@ -144,7 +144,7 @@ class LlamaAttention final : public nn::Module {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
     const auto& causal_mask = inputs[3];
-    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+    auto past_kv_cache = args[0].get<nn::AbstractStaticCache*>();
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
