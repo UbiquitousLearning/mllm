@@ -505,7 +505,7 @@ class ConditionalChatTTS : public nn::Module {
     for (int idx = 0; idx < batch_size; idx++) {
       // Extract tensors for current batch item
       // input_ids_ has shape [seq_len_max]
-      auto input_ids_ = input_ids[{static_cast<size_t>(idx), kAll}];
+      auto input_ids_ = input_ids[{idx, kAll}];
 
       // Find positions where input_ids_ equals spk_emb_token_id
       int32_t spk_emb_token_start = -1;
@@ -524,12 +524,11 @@ class ConditionalChatTTS : public nn::Module {
       // Replace the embeddings in input_embeds at positions [spk_emb_token_start : spk_emb_token_start + num_spk_embs]
       // with the speaker embeddings from spk_emb_
       // spk_emb_ has shape [num_spk_emb, hidden_dim]
-      auto spk_emb_ = spk_emb[{static_cast<size_t>(idx), kAll}];
+      auto spk_emb_ = spk_emb[{idx, kAll}];
       auto hidden_dim = spk_emb_.shape()[1];
 
       // Copy speaker embeddings to input embeddings
-      spk_emb_.copy2(
-          input_embeds[{static_cast<size_t>(idx), {spk_emb_token_start, spk_emb_token_start + num_spk_embs, 1}, kAll}]);
+      spk_emb_.copy2(input_embeds[{idx, {spk_emb_token_start, spk_emb_token_start + num_spk_embs, 1}, kAll}]);
     }
   }
 

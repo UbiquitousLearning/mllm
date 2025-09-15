@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
-#include <iostream>
+#include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/vec_dot.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/vec_dot_type.hpp"
@@ -80,7 +80,7 @@ void fp_16_add_row_to(int n, const mllm::mllm_fp16_t* MLLM_RESTRICT src, float* 
     _mm256_storeu_ps(dst + i, res_vec);                             // store back to dst
   }
 #elif defined(__ARM_NEON)
-  std::cout << "not support now\n";
+  MLLM_ERROR_EXIT(ExitCode::kCoreError, "not support now");
 #endif
   for (; i < n; ++i) { dst[i] = dst[i] + alpha * MLLM_FP16_TO_FP32(src[i]); }
 }

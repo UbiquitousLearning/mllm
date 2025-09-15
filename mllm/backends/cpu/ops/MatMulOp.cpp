@@ -52,6 +52,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     if (!transpose_a && transpose_b && M >= 4) {
       // mt = aops::MatMulOpType::kGGUF;
       // gguf matmul still can not use, use default mllm blas
+      // FIXME: When gguf's bug fixed. We should run gguf's impl by default?
       mt = aops::MatMulOpType::kMllmBlas;
     } else
     // All fallback to mllm blas

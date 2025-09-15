@@ -31,12 +31,13 @@
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"                 // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"  // IWYU pragma: export
 #else
-#include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"     // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
 #endif
 
 // Platform free Kernels
-#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/blas.hpp"                 // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"          // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/paged_attn/fwd_bshd.hpp"  // IWYU pragma: export
 

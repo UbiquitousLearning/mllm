@@ -33,8 +33,6 @@
 #include <sys/prctl.h>
 #endif
 
-#include <chrono>
-
 namespace mllm::cpu::ggml {
 #ifdef __ARM_NEON
 #include <arm_neon.h>
