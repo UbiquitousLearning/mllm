@@ -629,8 +629,24 @@ TEST_F(MllmBlasArmSgemmKernelTest, test_mllm_blas_matmul_fp32_gemm_nt_nt) {
                 {{"D", 64}, {"S_Q", 3}, {"S_KV", 4}},
                 {{"D", 64}, {"S_Q", 4}, {"S_KV", 16}},
                 {{"D", 64}, {"S_Q", 8}, {"S_KV", 16}},
+                {{"D", 125}, {"S_Q", 5}, {"S_KV", 15}},
                 {{"D", 128}, {"S_Q", 1}, {"S_KV", 20}},  // Fallback to  test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv
                 {{"D", 100}, {"S_Q", 464}, {"S_KV", 513}},
+            }),
+            true);
+}
+
+TEST_F(MllmBlasArmSgemmKernelTest, test_mllm_blas_matmul_fp32_gemm_nt_t) {
+  EXPECT_EQ(test_mllm_blas_matmul_fp32_gemm_nt_t({
+                {{"batch", 2},
+                 {"in_channels", 128},
+                 {"out_channels", 128}},  // Fallback to  test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv
+                {{"batch", 1}, {"in_channels", 64}, {"out_channels", 128}},
+                {{"batch", 1}, {"in_channels", 5}, {"out_channels", 125}},
+                {{"batch", 2}, {"in_channels", 5}, {"out_channels", 125}},
+                {{"batch", 2}, {"in_channels", 5}, {"out_channels", 15}},
+                {{"batch", 680}, {"in_channels", 1280}, {"out_channels", 3420}},
+                {{"batch", 680}, {"in_channels", 3420}, {"out_channels", 1280}},
             }),
             true);
 }
