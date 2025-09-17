@@ -210,9 +210,9 @@ endif()
 
 # Handle SDK C Bindings
 if (MLLM_BUILD_SDK_C_BINDING)
-  # TODO
-  # FIXME:
-  # Link other backends if possible
+  file(GLOB_RECURSE MLLM_C_API_SRC ${CMAKE_CURRENT_LIST_DIR}/mllm/c_api/*.cpp)
+  add_library(MllmSdkC SHARED ${MLLM_C_API_SRC})
+  target_link_libraries(MllmSdkC PRIVATE MllmRT MllmCPUBackend)
 endif()
 
 # Install mllm main library: Config.
@@ -238,7 +238,12 @@ install(
   RUNTIME DESTINATION bin)
 
 if(MLLM_BUILD_SDK_C_BINDING)
-  # TODO
+  install(
+    TARGETS MllmSdkC
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
 endif()
 
 install(

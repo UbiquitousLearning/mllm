@@ -12,7 +12,7 @@ add_library(MllmFFIExtension SHARED
   ${CMAKE_CURRENT_LIST_DIR}/Object.cc
 )
 target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_header)
-target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_shared MllmRT)
+target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_shared MllmRT MllmCPUBackend)
 set_target_properties(MllmFFIExtension PROPERTIES PREFIX "")
 
 # Set the depend search path. Windows do not need this, it will search dlls in the same directory first.
