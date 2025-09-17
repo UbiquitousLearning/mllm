@@ -1,40 +1,29 @@
-#include "matmul.hpp"
-#include <sys/ucred.h>
-#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
-#include "mllm/mllm.hpp"
-#include "vec_dot_type.hpp"
-#include "mllm/core/Parallel.hpp"
-#include "mllm/core/DataTypes.hpp"
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 #include <cassert>
 #include <cstdint>
+
+#include "mllm/core/Parallel.hpp"
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/vec_dot_type.hpp"
+#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 
 // For arithmetic functions
 void mllm_add_fp32(float* a, float* b, float* c, int n) {
   int i = 0;
-  // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
 #if defined(__ARM_NEON)
-  // 使用NEON寄存器进行4个浮点数的批量处理
   for (i = 0; i <= n - 4; i += 4) {
-    // 加载向量
     float32x4_t vec_a = vld1q_f32(&a[i]);
     float32x4_t vec_b = vld1q_f32(&b[i]);
-
-    // 向量加法
     float32x4_t vec_c = vaddq_f32(vec_a, vec_b);
-
-    // 存储结果
     vst1q_f32(&c[i], vec_c);
   }
 #elif defined(__AVX2__) || defined(__AVX__)
   for (i = 0; i <= n - 8; i += 8) {
-    // 加载向量
     __m256 vec_a = _mm256_loadu_ps(&a[i]);
     __m256 vec_b = _mm256_loadu_ps(&b[i]);
-
-    // 向量加法
     __m256 vec_c = _mm256_add_ps(vec_a, vec_b);
-
-    // 存储结果
     _mm256_storeu_ps(&c[i], vec_c);
   }
 #endif

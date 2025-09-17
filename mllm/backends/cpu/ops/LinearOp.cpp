@@ -3,7 +3,6 @@
 
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
-#include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"
 #include "mllm/core/aops/LinearOp.hpp"
 
 namespace mllm::cpu {
@@ -17,6 +16,7 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
       switch (options_.impl_type) {
         case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kGGUF:
+        case aops::LinearImplTypes::kMllmBlas:
         case aops::LinearImplTypes::kDefault: {
           weight_ = weight_.view({options_.out_channels, options_.in_channels});
           if (options_.bias) {
@@ -38,6 +38,8 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
       weight_ = ploader->pull(getName() + ".weight");
       switch (options_.impl_type) {
         case aops::LinearImplTypes::kBLAS:
+        case aops::LinearImplTypes::kGGUF:
+        case aops::LinearImplTypes::kMllmBlas:
         case aops::LinearImplTypes::kDefault: {
           if (options_.bias) {
             bias_ = ploader->pull(getName() + ".bias");
@@ -65,6 +67,8 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   if (impl_type == aops::LinearImplTypes::kDefault) {
 #if defined(MLLM_USE_BLAS)
     impl_type = aops::LinearImplTypes::kBLAS;
+#else
+    impl_type = aops::LinearImplTypes::kMllmBlas;
 #endif
   }
 
@@ -219,6 +223,27 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       auto thread_count = options_.getThreads();
       auto* bias_ptr = options_.bias ? &bias_ : nullptr;
       mllm::cpu::ggml::mat_mul(input, weight_, o, options_.bias, bias_ptr, false, true, thread_count);
+      break;
+    }
+    case aops::LinearImplTypes::kMllmBlas: {
+      MLLM_RT_ASSERT_EQ(input.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(weight_.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(o.dtype(), kFloat32);
+      if (bias_) { MLLM_RT_ASSERT_EQ(bias_.dtype(), kFloat32); }
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      if (batch_count == 1) {
+        arm::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
+                                   options_.bias ? bias_.ptr<mllm_fp32_t>() : nullptr, false, true, options_.getThreads());
+      } else {
+        arm::mllm_blas_batch_matmul_fp32(batch_count, M, K, N, o.stride()[o.shape().size() - 3],
+                                         input.stride()[input.rank() - 3], 0, 0, o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(),
+                                         weight_.ptr<mllm_fp32_t>(), options_.bias ? bias_.ptr<mllm_fp32_t>() : nullptr, false,
+                                         true, options_.getThreads());
+      }
+#else
+// TODO Other arch
+#endif
       break;
     }
     default: {

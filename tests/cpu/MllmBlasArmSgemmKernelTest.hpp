@@ -41,4 +41,31 @@ class MllmBlasArmSgemmKernelTest : public KernelTest {
     }
     return true;
   }
+
+  bool cmp_mllm_blas_matmul_fp32_gemm_nt_t(std::unordered_map<std::string, int32_t>& vars) {
+    int in_channels = vars["in_channels"];
+    int out_channels = vars["out_channels"];
+    int batch = vars["batch"];
+
+    auto A = mllm::Tensor::random({batch, in_channels}, mllm::kFloat32, mllm::kCPU);
+    auto B = mllm::Tensor::random({out_channels, in_channels}, mllm::kFloat32, mllm::kCPU);
+
+    auto DST = mllm::nn::functional::matmul(A, B, false, true, mllm::aops::MatMulOpType::kBLAS);
+    auto RefDST = mllm::nn::functional::matmul(A, B, false, true, mllm::aops::MatMulOpType::kMllmBlas);
+
+    auto result = mllm::test::allClose(DST, RefDST);
+    if (!result.is_close) {
+      mllm::print(result);
+      mllm::print("in_channel: ", in_channels, ", out_channels: ", out_channels, ", batch: ", batch);
+      return false;
+    }
+    return true;
+  }
+
+  bool test_mllm_blas_matmul_fp32_gemm_nt_t(const std::vector<std::unordered_map<std::string, int32_t>>& vars) {
+    for (auto v : vars) {
+      if (!cmp_mllm_blas_matmul_fp32_gemm_nt_t(v)) { return false; }
+    }
+    return true;
+  }
 };

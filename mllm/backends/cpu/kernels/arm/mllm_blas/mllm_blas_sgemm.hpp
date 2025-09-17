@@ -418,6 +418,22 @@ struct MicroKernel_NT_T_Bias {
   }
 };
 
+// template<>
+// struct MicroKernel_NT_T_Bias<8, 16> {
+//   static inline void accumulate(const float* __restrict a, int64_t lda, const float* __restrict b, int64_t ldb,
+//                                 float* __restrict c, int64_t ldc, int64_t k, const float* __restrict bias) noexcept {
+//     // TODO
+//   }
+// };
+
+// template<>
+// struct MicroKernel_NT_T_Bias<4, 4> {
+//   static inline void accumulate(const float* a, int64_t lda, const float* b, int64_t ldb, float* c, int64_t ldc, int64_t k,
+//                                 const float* bias) noexcept {
+//     // TODO
+//   }
+// };
+
 bool __mllm_blas_sgemm_nt_t(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb, float* C,
                             int64_t ldc, int ith, const float* bias, int thread_count);
 

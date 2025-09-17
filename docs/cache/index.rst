@@ -45,7 +45,7 @@ Pre-allocates fixed-size cache, suitable for performance optimization during inf
    int32_t seq_len = cache.getCurrentSeqCnt(layer_idx);
 
 Constructor Parameters
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+----------------+-------------------------------+
 | Parameter         | Type           | Description                   |
@@ -188,7 +188,7 @@ Dynamic Cache Example
    }
 
 Performance Optimization
-=======================
+=============================
 
 Memory Layout Optimization
 ---------------------------

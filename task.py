@@ -23,6 +23,11 @@ task_config = yaml.safe_load(Path(args.task_file).read_text())
 PROJECT_ROOT_PATH = Path(os.path.dirname(os.path.abspath(__file__)))
 
 
+def throw_error_if_failed(is_ok):
+    if is_ok != 0:
+        raise RuntimeError("FAILED!")
+
+
 def wildcard_to_regex(pattern):
     escaped = re.escape(pattern)
     processed = escaped.replace(r"\*", ".*").replace(r"\?", ".")
@@ -134,7 +139,7 @@ class CMakeConfigTask(Task):
 
         commands = self.make_command_str(self.CMAKE_COMMAND)
         logging.info(f"{commands}")
-        os.system(commands)
+        throw_error_if_failed(os.system(commands))
 
         logging.warning(
             f'If you are using vscode to develop. Pls set `"clangd.arguments": ["--compile-commands-dir={os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path)}"]`'
@@ -143,15 +148,17 @@ class CMakeConfigTask(Task):
         show_ninja_targets = self.config.get("show_ninja_targets", False)
         if show_ninja_targets:
             logging.info("Finding targets in Ninja Builder:")
-            os.system(
-                self.make_command_str(
-                    [
-                        "ninja",
-                        "-C",
-                        os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path),
-                        "-t",
-                        "targets",
-                    ]
+            throw_error_if_failed(
+                os.system(
+                    self.make_command_str(
+                        [
+                            "ninja",
+                            "-C",
+                            os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path),
+                            "-t",
+                            "targets",
+                        ]
+                    )
                 )
             )
 
@@ -169,7 +176,7 @@ class CMakeFormatTask(Task):
         )
         for file in cmake_files:
             logging.info(f"cmake-format {file} -o {file}")
-            os.system(f"cmake-format {file} -o {file}")
+            throw_error_if_failed(os.system(f"cmake-format {file} -o {file}"))
 
 
 class CMakeBuildTask(Task):
@@ -190,11 +197,11 @@ class CMakeBuildTask(Task):
                     self.CMAKE_COMMAND.extend(["--target", target])
                 )
                 logging.info(sub_command)
-                os.system(sub_command)
+                throw_error_if_failed(os.system(sub_command))
         else:
             sub_command = self.make_command_str(self.CMAKE_COMMAND)
             logging.info(sub_command)
-            os.system(sub_command)
+            throw_error_if_failed(os.system(sub_command))
 
 
 class CMakeInstallTask(Task):
@@ -210,7 +217,7 @@ class CMakeInstallTask(Task):
         logging.info("Ninja install Task Start...")
         sub_command = self.make_command_str(self.CMAKE_COMMAND)
         logging.info(sub_command)
-        os.system(sub_command)
+        throw_error_if_failed(os.system(sub_command))
 
 
 class AdbPushTask(Task):
@@ -229,7 +236,7 @@ class AdbPushTask(Task):
                 push_path,
             ]
             logging.info(self.make_command_str(command))
-            os.system(self.make_command_str(command))
+            throw_error_if_failed(os.system(self.make_command_str(command)))
 
 
 class ArmKernelBenchmarkTask(Task):
@@ -257,7 +264,7 @@ class ArmKernelBenchmarkTask(Task):
                 f"'{self.make_command_str(subcommand)}'",
             ]
             logging.info(self.make_command_str(command))
-            os.system(self.make_command_str(command))
+            throw_error_if_failed(os.system(self.make_command_str(command)))
             logging.info("Waiting 16 seconds for device to calm down...")
             time.sleep(16)
 
@@ -274,7 +281,7 @@ class ArmKernelBenchmarkTask(Task):
                 (PROJECT_ROOT_PATH / Path("temp")).as_posix(),
             ]
             logging.info(self.make_command_str(command))
-            os.system(self.make_command_str(command))
+            throw_error_if_failed(os.system(self.make_command_str(command)))
 
             md_headers = [
                 "Name",
@@ -342,7 +349,7 @@ class GenPybind11StubsTask(Task):
             "pybind11-stubgen",
             "pymllm._C",
         ]
-        os.system(self.make_command_str(COMMANDS))
+        throw_error_if_failed(os.system(self.make_command_str(COMMANDS)))
         logging.info(self.make_command_str(COMMANDS))
         tmp_C_path = PROJECT_ROOT_PATH / "stubs" / "pymllm"
         _C_path = PROJECT_ROOT_PATH / "pymllm"
@@ -384,7 +391,7 @@ class BuildDocTask(Task):
         )
 
         command = " ".join(command_parts)
-        os.system(command)
+        throw_error_if_failed(os.system(command))
         logging.info(command)
         logging.info(
             f"Run `cd {PROJECT_ROOT_PATH / 'docs' / 'build'} && python -m http.server` to view the change."
@@ -410,7 +417,7 @@ class HexagonMakeTask(Task):
         for target in self.targets:
             command = f"make {target}"
             logging.info(f"Running command: {command}")
-            os.system(command)
+            throw_error_if_failed(os.system(command))
 
         # Check if has htp_aarch64 in targets
         if "htp_aarch64" in self.targets:
@@ -475,7 +482,9 @@ class MllmCliBuildTask(Task):
         original_cwd = os.getcwd()
         try:
             os.chdir(work_dir)
-            result = os.system(self.make_command_str(go_build_cmd))
+            result = throw_error_if_failed(
+                os.system(self.make_command_str(go_build_cmd))
+            )
             if result != 0:
                 logging.error("Go build failed")
                 return

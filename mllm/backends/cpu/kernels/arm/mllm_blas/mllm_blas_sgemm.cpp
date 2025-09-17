@@ -391,7 +391,7 @@ bool __mllm_blas_sgemm_nt_nt(int64_t m, int64_t n, int64_t k, const float* A, in
 bool __mllm_blas_sgemm_nt_t(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb, float* C,
                             int64_t ldc, int ith, const float* bias, int thread_count) {
   if (m <= 0 || n <= 0 || k <= 0) return false;
-  if (lda < k || ldb < n || ldc < n) return false;
+  if (lda < k || ldb < k || ldc < n) return false;
   if (thread_count <= 0 || ith < 0 || ith >= thread_count) return false;
   /* dynamic tiling */
   int64_t mc = 8, nc = 16;
@@ -406,7 +406,7 @@ bool __mllm_blas_sgemm_nt_t(int64_t m, int64_t n, int64_t k, const float* A, int
     int64_t jj = (job % xt) * nc;
     int64_t rm = std::min(mc, m - ii);
     int64_t rn = std::min(nc, n - jj);
-    dispatch_tile_nt_t(rm, rn, &A[ii * lda], lda, &B[jj], ldb, &C[ii * ldc + jj], ldc, k, bias);
+    dispatch_tile_nt_t(rm, rn, &A[ii * lda], lda, &B[jj * ldb], ldb, &C[ii * ldc + jj], ldc, k, bias ? &bias[jj] : bias);
   });
   return true;
 }
@@ -430,7 +430,7 @@ void mllm_blas_matmul_fp32(const int M, const int K, const int N, mllm_fp32_t* _
   // MxK, NxK
   {
     // gemv
-    if (M == 1) {
+    if (M == 1 && K % 32 == 0) {
       __mllm_blas_matmul_fp32_gemv(M, K, N, dst, A, B, C, transpose_a, transpose_b, thread_count);
     } else
     // gemm
@@ -469,7 +469,7 @@ void mllm_blas_batch_matmul_fp32(const int BATCH, const int M, const int K, cons
   // MxK, NxK
   {
     // gemv
-    if (M == 1) {
+    if (M == 1 && K % 32 == 0) {
       __mllm_blas_batch_matmul_fp32_gemv(BATCH, M, K, N, Dst_batch_stride, A_batch_stride, B_batch_stride, C_batch_stride, dst,
                                          A, B, C, transpose_a, transpose_b, thread_count);
     } else

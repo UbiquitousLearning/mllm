@@ -17,6 +17,8 @@ enum class LinearImplTypes {
 
   kGGUF,
 
+  kMllmBlas,
+
   kKleidiai_Start,
   kKaiLinear_fp16_fp16_fp16p_mxk_kxn,
   kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32,
@@ -42,6 +44,7 @@ inline LinearImplTypes str2LinearImplTypes(const std::string& str) {
       {"Default", LinearImplTypes::kDefault},
       {"BLAS", LinearImplTypes::kBLAS},
       {"GGUF", LinearImplTypes::kGGUF},
+      {"MllmBlas", LinearImplTypes::kMllmBlas},
       {"KaiLinear_fp16_fp16_fp16p_mxk_kxn", LinearImplTypes::kKaiLinear_fp16_fp16_fp16p_mxk_kxn},
       {"KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32",
        LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32},
@@ -74,6 +77,7 @@ inline std::string LinearImplTypes2Str(LinearImplTypes type) {
       {LinearImplTypes::kDefault, "Default"},
       {LinearImplTypes::kBLAS, "BLAS"},
       {LinearImplTypes::kGGUF, "GGUF"},
+      {LinearImplTypes::kMllmBlas, "MllmBlas"},
       {LinearImplTypes::kKaiLinear_fp16_fp16_fp16p_mxk_kxn, "KaiLinear_fp16_fp16_fp16p_mxk_kxn"},
       {LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32,
        "KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32"},

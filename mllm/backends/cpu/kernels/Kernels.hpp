@@ -29,16 +29,21 @@
 #include "mllm/backends/cpu/kernels/arm/gelu.hpp"                       // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/conv3d.hpp"                     // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"                 // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/relu.hpp"                       // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"  // IWYU pragma: export
 #else
-#include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"     // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
 #endif
 
-// Platform free Kernels
-#include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
-#include "mllm/backends/cpu/kernels/common/blas.hpp"                 // IWYU pragma: export
+// Platform free Kernels.
+
+// NOTE: common/blas.hpp should be include after all kernels. That because in apple platform.
+// Tensor::nil()'s nil keyword has been defined in apple's system head.
+#include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"          // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/paged_attn/fwd_bshd.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/blas.hpp"                 // IWYU pragma: export
 
 // TODO
 // Provide all quantize methods in one function or class here.

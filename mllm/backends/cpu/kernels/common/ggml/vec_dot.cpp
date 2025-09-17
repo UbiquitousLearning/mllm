@@ -25,7 +25,7 @@
  * SOFTWARE.
  */
 
-#include "vec_dot.hpp"
+#include "mllm/backends/cpu/kernels/common/ggml/vec_dot.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
 
 namespace mllm::cpu::ggml {

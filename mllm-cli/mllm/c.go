@@ -10,18 +10,19 @@ package mllm
 #cgo LDFLAGS: -lMllmSdkC
 #cgo LDFLAGS: -Wl,-rpath ${SRCDIR}/SDK/lib
 
-#include <mllm/mllm-c.hpp>
+#include <mllm/mllm-c.h>
 #include <stdlib.h>
 */
 import "C"
 
-func InitContext() {
-	ret := C.mllm_ret_is_success(C.mllm_init_context())
-	if ret != 0 {
-		panic("Failed to initialize MLLM context")
-	}
+func isOk(any C.MllmCAny) bool {
+	return C.isOk(any) == 0
 }
 
-func ShutdownContext() {
-	C.mllm_shutdown_context()
+func InitializeContext() bool {
+	return isOk(C.initializeContext())
+}
+
+func ShutdownContext() bool {
+	return isOk(C.shutdownContext())
 }
