@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tvm_ffi
 import atexit
 from .base import _LIB
@@ -27,11 +28,17 @@ class Device(tvm_ffi.Object):
     def __init__(self):
         super().__init__()
 
+    def to_pod(self) -> int:
+        return tvm_ffi.get_global_func("mllm.Device.to_pod")(self)
+
 
 @tvm_ffi.register_object("mllm.DType")
 class DType(tvm_ffi.Object):
     def __init__(self):
         super().__init__()
+
+    def to_pod(self) -> int:
+        return tvm_ffi.get_global_func("mllm.DType.to_pod")(self)
 
 
 def float32_() -> DType:
@@ -66,8 +73,143 @@ class Tensor(tvm_ffi.Object):
     def __str__(self) -> str:
         return tvm_ffi.get_global_func("mllm.Tensor.str")(self)
 
+    @property
     def shape(self) -> tvm_ffi.Shape:
         return tvm_ffi.get_global_func("mllm.Tensor.shape")(self)
+
+    @property
+    def dtype(self) -> DType:
+        return tvm_ffi.get_global_func("mllm.Tensor.dtype")(self)
+
+    @property
+    def device(self) -> Device:
+        return tvm_ffi.get_global_func("mllm.Tensor.device")(self)
+
+    def tobytes(self) -> tvm_ffi.Array:
+        tvm_bytes: tvm_ffi.Array = tvm_ffi.get_global_func("mllm.Tensor.tobytes")(self)
+        return tvm_bytes
+
+    def __add__(self, other) -> Tensor:
+        if isinstance(other, Tensor):
+            return tvm_ffi.get_global_func("mllm.Tensor.add")(self, other)
+        elif isinstance(other, (int, float)):
+            return tvm_ffi.get_global_func("mllm.Tensor.add_scalar")(self, other)
+        else:
+            raise TypeError(
+                "Addition is not supported between Tensor and {}".format(type(other))
+            )
+
+    def __sub__(self, other):
+        if isinstance(other, Tensor):
+            return tvm_ffi.get_global_func("mllm.Tensor.sub")(self, other)
+        elif isinstance(other, (int, float)):
+            return tvm_ffi.get_global_func("mllm.Tensor.sub_scalar")(self, other)
+        else:
+            raise TypeError(
+                "Subtraction is not supported between Tensor and {}".format(type(other))
+            )
+
+    def __mul__(self, other) -> Tensor:
+        if isinstance(other, Tensor):
+            return tvm_ffi.get_global_func("mllm.Tensor.mul")(self, other)
+        elif isinstance(other, (int, float)):
+            return tvm_ffi.get_global_func("mllm.Tensor.mul_scalar")(self, other)
+        else:
+            raise TypeError(
+                "Multiplication is not supported between Tensor and {}".format(
+                    type(other)
+                )
+            )
+
+    def __div__(self, other) -> Tensor:
+        if isinstance(other, Tensor):
+            return tvm_ffi.get_global_func("mllm.Tensor.div")(self, other)
+        elif isinstance(other, (int, float)):
+            return tvm_ffi.get_global_func("mllm.Tensor.div_scalar")(self, other)
+        else:
+            raise TypeError(
+                "Division is not supported between Tensor and {}".format(type(other))
+            )
+
+    def __neg__(self, other) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.neg")(self, other)
+
+    def abs(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.abs")(self)
+
+    def clip(self, min_val: float, max_val: float) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.clip")(self, min_val, max_val)
+
+    def min(self, dim: int = -1, keep_dim: bool = False) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.min")(self, dim, keep_dim)
+
+    def max(self, dim: int = -1, keep_dim: bool = False) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.max")(self, dim, keep_dim)
+
+    def sum(self, dim: int = -1, keep_dim: bool = False) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.sum")(self, dim, keep_dim)
+
+    def mean(self, dim: int = -1, keep_dim: bool = False) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.mean")(self, dim, keep_dim)
+
+    def transpose(self, dim0: int, dim1: int) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.transpose")(self, dim0, dim1)
+
+    @property
+    def T(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.T")(self)
+
+    def view(self, shape) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.view")(self, shape)
+
+    def unsqueeze(self, dim: int) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.unsqueeze")(self, dim)
+
+    def squeeze(self, dim: int) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.squeeze")(self, dim)
+
+    def permute(self, dims) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.permute")(self, dims)
+
+    def contiguous(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.contiguous")(self)
+
+    def clone(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.clone")(self)
+
+    def repeat(self, multiplier, dim) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.repeat")(self, multiplier, dim)
+
+    def to(self, dd: Union[Device, DType]) -> Tensor:
+        if isinstance(dd, DType):
+            return tvm_ffi.get_global_func("mllm.Tensor.to_dtype")(self, dd)
+        elif isinstance(dd, Device):
+            return tvm_ffi.get_global_func("mllm.Tensor.to_device")(self, dd)
+        else:
+            raise ValueError("Invalid device or dtype")
+
+    def cpu(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.cpu")(self)
+
+    def cuda(self) -> Tensor:
+        return tvm_ffi.get_global_func("mllm.Tensor.cuda")(self)
+
+    @property
+    def name(self):
+        return tvm_ffi.get_global_func("mllm.Tensor.get_name")(self)
+
+    def set_name(self, name):
+        tvm_ffi.get_global_func("mllm.Tensor.set_name")(self, name)
+
+    def numel(self):
+        return tvm_ffi.get_global_func("mllm.Tensor.numel")(self)
+
+    @property
+    def rank(self):
+        return tvm_ffi.get_global_func("mllm.Tensor.rank")(self)
+
+    def is_contiguous(self):
+        return tvm_ffi.get_global_func("mllm.Tensor.is_contiguous")(self)
 
 
 # Global dtypes
@@ -96,6 +238,46 @@ def empty(
     if isinstance(device_type, str):
         device_type = device(device_type)
     return _ffi_api.empty(shape, dtype, device_type)
+
+
+def zeros(
+    shape: tvm_ffi.Shape, dtype: DType = float32, device_type: Union[Device, str] = cpu
+) -> Tensor:
+    if isinstance(device_type, str):
+        device_type = device(device_type)
+    return _ffi_api.zeros(shape, dtype, device_type)
+
+
+def ones(
+    shape: tvm_ffi.Shape, dtype: DType = float32, device_type: Union[Device, str] = cpu
+) -> Tensor:
+    if isinstance(device_type, str):
+        device_type = device(device_type)
+    return _ffi_api.ones(shape, dtype, device_type)
+
+
+def arange(
+    start: float,
+    end: float,
+    step: float = 1,
+    dtype: DType = float32,
+    device_type: Union[Device, str] = cpu,
+) -> Tensor:
+    if isinstance(device_type, str):
+        device_type = device(device_type)
+    return _ffi_api.arange(start, end, step, dtype, device_type)
+
+
+def random(
+    shape: tvm_ffi.Shape,
+    start: float = -1.0,
+    end: float = 1.0,
+    dtype: DType = float32,
+    device_type: Union[Device, str] = cpu,
+) -> Tensor:
+    if isinstance(device_type, str):
+        device_type = device(device_type)
+    return _ffi_api.random(shape, start, end, dtype, device_type)
 
 
 def is_torch_available() -> bool:
