@@ -70,6 +70,10 @@ TVM_FFI_STATIC_INIT_BLOCK() {
     return ::mllm::ffi::Tensor(mllm::ffi::__from_dlpack(dl_pack));
   });
 
+  refl::GlobalDef().def("mllm.Device.to_pod",
+                        [](const mllm::ffi::Device& obj) -> int32_t { return (int32_t)obj.get()->device; });
+  refl::GlobalDef().def("mllm.DType.to_pod", [](const mllm::ffi::DType& obj) -> int32_t { return (int32_t)obj.get()->dtype; });
+
   refl::ObjectDef<mllm::ffi::TensorObj>().def_static(
       "__create__", []() -> mllm::ffi::Tensor { return ::mllm::ffi::Tensor(mllm::Tensor::nil()); });
   refl::GlobalDef().def("mllm.Tensor.str", [](const mllm::ffi::Tensor& obj) -> std::string {
@@ -82,5 +86,14 @@ TVM_FFI_STATIC_INIT_BLOCK() {
     std::vector<int64_t> shape_int64(mllm_shape.begin(), mllm_shape.end());
     tvm::ffi::Shape ret(shape_int64);
     return ret;
+  });
+  refl::GlobalDef().def("mllm.Tensor.dtype", [](const mllm::ffi::Tensor& obj) -> ::mllm::ffi::DType {
+    return ::mllm::ffi::DType(obj.get()->mllm_tensor_.dtype());
+  });
+  refl::GlobalDef().def("mllm.Tensor.device", [](const mllm::ffi::Tensor& obj) -> ::mllm::ffi::Device {
+    return ::mllm::ffi::Device(obj.get()->mllm_tensor_.device());
+  });
+  refl::GlobalDef().def("mllm.Tensor.tobytes", [](const mllm::ffi::Tensor& obj) -> ::tvm::ffi::Bytes {
+    return {obj.get()->mllm_tensor_.ptr<char>(), obj.get()->mllm_tensor_.bytes()};
   });
 }

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from . import ffi
+from . import convertor
+from . import utils
+from . import quantize
+from . import nn
 from .ffi import (
     float32,
     float16,

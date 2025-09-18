@@ -27,11 +27,17 @@ class Device(tvm_ffi.Object):
     def __init__(self):
         super().__init__()
 
+    def to_pod(self) -> int:
+        return tvm_ffi.get_global_func("mllm.Device.to_pod")(self)
+
 
 @tvm_ffi.register_object("mllm.DType")
 class DType(tvm_ffi.Object):
     def __init__(self):
         super().__init__()
+
+    def to_pod(self) -> int:
+        return tvm_ffi.get_global_func("mllm.DType.to_pod")(self)
 
 
 def float32_() -> DType:
@@ -66,8 +72,21 @@ class Tensor(tvm_ffi.Object):
     def __str__(self) -> str:
         return tvm_ffi.get_global_func("mllm.Tensor.str")(self)
 
+    @property
     def shape(self) -> tvm_ffi.Shape:
         return tvm_ffi.get_global_func("mllm.Tensor.shape")(self)
+
+    @property
+    def dtype(self) -> DType:
+        return tvm_ffi.get_global_func("mllm.Tensor.dtype")(self)
+
+    @property
+    def device(self) -> Device:
+        return tvm_ffi.get_global_func("mllm.Tensor.device")(self)
+
+    def tobytes(self) -> tvm_ffi.Array:
+        tvm_bytes: tvm_ffi.Array = tvm_ffi.get_global_func("mllm.Tensor.tobytes")(self)
+        return tvm_bytes
 
 
 # Global dtypes

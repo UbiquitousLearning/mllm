@@ -65,6 +65,7 @@ Using 1. Manually memory planning 2. Fused kernels 3. Inplace Operators etc. To 
   - Thread numbers
 
 - Quantized KVCache
+- MllmBlas used in Qwen2.5-VL is slow, use ggml's matmul(llama file) in the feature. 
 
 Arm Kernel support
 ^^^^^^^^^^^^^^^^^^

@@ -17,6 +17,38 @@ struct ComplexIndexingBlob;
 
 using ComplexIndexingList = std::vector<ComplexIndexingBlob>;
 
+class __LinkedTensor {
+ public:
+  __LinkedTensor(char* ptr, size_t ele_size) : ptr_(ptr), ele_size_(ele_size) {}
+
+  template<typename T>
+  inline __LinkedTensor& operator,(T v) && {
+    __step(v);
+    return *this;
+  }
+
+  template<typename T>
+  inline __LinkedTensor& operator,(T v) & {
+    __step(v);
+    return *this;
+  }
+
+  template<typename T>
+  inline void __step(T v) {
+    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
+    MLLM_RT_ASSERT_EQ(ele_size_, sizeof(T));
+    std::memcpy(ptr_ + offset_, &v, sizeof(T));
+    offset_ += sizeof(T);
+  }
+
+  [[nodiscard]] size_t offset() const { return offset_; }
+
+ private:
+  char* ptr_;
+  size_t ele_size_;
+  size_t offset_ = 0;
+};
+
 class Tensor {
  public:
   using shape_t = TensorViewImpl::shape_t;
@@ -556,9 +588,20 @@ class Tensor {
   }
 
  private:
+  template<typename T>
+  friend __LinkedTensor operator<<(const Tensor& t, T first);
+
   std::shared_ptr<TensorViewImpl> impl_ = nullptr;
   std::unordered_map<std::string, TensorViewImpl::ptr_t> attached_views_;
 };
+
+template<typename T>
+inline __LinkedTensor operator<<(const Tensor& t, T first) {
+  static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
+  __LinkedTensor lt(t.ptr<char>(), bytesOfType(t.dtype()));
+  lt.__step(first);
+  return lt;
+}
 
 struct ComplexIndexingBlob {
   ComplexIndexingBlob(SliceIndicesPair p);  // NOLINT
