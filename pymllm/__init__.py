@@ -5,6 +5,7 @@ from . import convertor
 from . import utils
 from . import quantize
 from . import nn
+from . import compile
 from .ffi import (
     float32,
     float16,
@@ -20,4 +21,10 @@ from .ffi import (
     is_numpy_available,
     from_torch,
     from_numpy,
+    empty,
+    zeros,
+    ones,
+    arange,
+    random,
 )
+from .nn.functional import matmul

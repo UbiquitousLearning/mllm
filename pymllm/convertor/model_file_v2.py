@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from typing import List, Union, Dict
 from ..ffi import Tensor
-from mllm_type_mapping import MLLM_TYPE_MAPPING
+from .mllm_type_mapping import MLLM_TYPE_MAPPING
 
 
 MLLM_MODEL_FILE_V2_MAGIC_NUMBER = 0x519A
@@ -135,7 +135,7 @@ class ModelFileV2:
             # Mllm Tensor
             shape = list(tensor_obj.shape)
             tensor_data = tensor_obj.tobytes()
-            true_dtype = tensor_obj.dtype
+            true_dtype = tensor_obj.dtype.to_pod()
         else:
             raise TypeError(
                 "Unsupported tensor type. Only torch.Tensor and np.ndarray are supported."
@@ -170,7 +170,7 @@ class ModelFileV2:
         # Back to tail.
         self.file_handler.seek(0, os.SEEK_END)
 
-    def static_write(self, tensor_obj: Dict[str : Union[torch.tensor, np.ndarray]]):
+    def static_write(self, tensor_obj: Dict[str, Union[torch.tensor, np.ndarray]]):
         # Calculate total size needed for parameter descriptors
         total_params = len(tensor_obj)
 
@@ -205,7 +205,7 @@ class ModelFileV2:
                 # Mllm Tensor
                 shape = list(tensor.shape)
                 tensor_data = tensor.tobytes()
-                true_dtype = tensor.dtype
+                true_dtype = tensor.dtype.to_pod()
             else:
                 raise TypeError(
                     "Unsupported tensor type. Only torch.Tensor, np.ndarray and Tensor are supported."
