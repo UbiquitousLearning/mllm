@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <memory>
 #include "mllm/mllm.hpp"
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
@@ -19,8 +20,8 @@ inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
-                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
+inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
+    -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -287,14 +288,14 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
   LlamaForCausalLM() = default;
   explicit LlamaForCausalLM(const std::string& name, const LLaMAConfig& cfg, bool mask_by_tensor = false)
       : cfg(cfg), nn::Module(name), mask_by_tensor_(mask_by_tensor) {
-    kv_cache_ = nn::StaticCache(cfg.max_position_embeddings, cfg.num_hidden_layers,
-                                cfg.num_attention_heads,                    // q_heads
-                                cfg.num_key_value_heads,                    // kv_heads
-                                cfg.hidden_size / cfg.num_attention_heads,  // kv_dims
-                                kFloat32,                                   // k_dtype
-                                kFloat32,                                   // v_dtype
-                                kCPU,                                       // device_type
-                                false                                       // use_fa2
+    kv_cache_ = std::make_unique<nn::StaticCache>(cfg.max_position_embeddings, cfg.num_hidden_layers,
+                                                  cfg.num_attention_heads,                    // q_heads
+                                                  cfg.num_key_value_heads,                    // kv_heads
+                                                  cfg.hidden_size / cfg.num_attention_heads,  // kv_dims
+                                                  kFloat32,                                   // k_dtype
+                                                  kFloat32,                                   // v_dtype
+                                                  kCPU,                                       // device_type
+                                                  false                                       // use_fa2
     );
 
     model = reg<LlamaText>("model", cfg);
@@ -353,7 +354,8 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
     // Calculate the text embeddings
     auto input_embeddings = model.embedding_(sequence);
 
-    auto hidden_states = model(input_embeddings, llm_embedding_sin, llm_embedding_cos, causal_mask, AnyValue(&kv_cache_))[0];
+    auto hidden_states =
+        model(input_embeddings, llm_embedding_sin, llm_embedding_cos, causal_mask, AnyValue(kv_cache_.get()))[0];
 
     // clip hidden_states to one seq length
     {
@@ -377,7 +379,7 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
   bool mask_by_tensor_;
 
  private:
-  nn::StaticCache kv_cache_;
+  std::unique_ptr<nn::AbstractStaticCache> kv_cache_;
 };
 
 }  // namespace mllm::models::llama
