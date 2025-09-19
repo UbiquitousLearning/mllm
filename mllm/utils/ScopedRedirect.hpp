@@ -78,6 +78,11 @@ concept OutputStream = requires(T stream) {
   };
 };
 
+template<typename T>
+concept Callable = requires(T&& callable) {
+  { std::forward<T>(callable)() };
+};
+
 class ScopedRedirect {
  private:
   std::streambuf* original_buf;
@@ -165,23 +170,23 @@ class ScopedFileRedirect {
   }
 };
 
-template<OutputStream Stream, typename Callable>
-decltype(auto) redirect(Stream& stream, Callable&& callable) {
+template<OutputStream Stream, Callable Func>
+decltype(auto) redirect(Stream& stream, Func&& callable) {
   ScopedRedirect redirector(std::cout, stream);
-  return std::forward<Callable>(callable)();
+  return std::forward<Func>(callable)();
 }
 
-template<typename Callable>
-auto redirect(Callable&& callable) {
+template<Callable Callable>
+auto redirect(Callable&& Func) {
   std::stringstream ss;
-  auto result = redirect(ss, std::forward<Callable>(callable));
+  auto result = redirect(ss, std::forward<Callable>(Func));
   return std::make_pair(std::move(result), ss.str());
 }
 
-template<typename Callable>
-auto redirect(const std::string& filename, Callable&& callable) {
+template<Callable Func>
+auto redirect(const std::string& filename, Func&& callable) {
   ScopedFileRedirect redirector(filename);
-  return std::forward<Callable>(callable)();
+  return std::forward<Func>(callable)();
 }
 
 }  // namespace mllm

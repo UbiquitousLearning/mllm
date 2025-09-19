@@ -35,6 +35,12 @@ void Tensor::delete_() noexcept {
   for (auto& [a, _] : this->attached_views_) { this->attached_views_[a].reset(); }
 }
 
+/**
+ * @brief Slices the tensor along the specified dimensions.
+ *
+ * You can use tensor[{1, 2, 3}] or tensor[make_slice(1), 2, 3] to achieve the same effect.
+ * (WOW! amazing syntax sugar!)
+ */
 Tensor Tensor::operator[](const SliceIndices& slice_index) const {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
                                                   aops::SliceOpOptions{
