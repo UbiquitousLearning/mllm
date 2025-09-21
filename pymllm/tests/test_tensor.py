@@ -1,3 +1,6 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
 import pymllm as torch
 
 

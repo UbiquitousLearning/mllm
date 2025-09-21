@@ -1,201 +1,78 @@
-#!/usr/bin/env python3
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
 
-import argparse
+import os
 import sys
+import json
+import argparse
 from pathlib import Path
+from typing import Dict, List
 
-# Add the parent directory to sys.path to import convertor module
-sys.path.append(str(Path(__file__).parent.parent))
-
-from convertor import (
-    convert_torch_model_to_mllm,
-    convert_safetensors_model_to_mllm,
-    _detect_mllm_version,
-    load_torch_model,
-    load_safetensors_model,
-    store_model_file_v1,
-    store_model_file_v2,
-)
-from convertor.params_dict import ParamsDict
-
-
-def cast_params_to_fp32(params_dict: ParamsDict) -> ParamsDict:
-    """
-    Cast all parameters in the ParamsDict to FP32.
-
-    Args:
-        params_dict: ParamsDict containing the model parameters
-
-    Returns:
-        ParamsDict with all parameters cast to FP32
-    """
-    fp32_params_dict = ParamsDict()
-
-    # Try to import required libraries
-    try:
-        import torch
-
-        TORCH_AVAILABLE = True
-    except ImportError:
-        TORCH_AVAILABLE = False
-
-    try:
-        import numpy as np
-
-        NUMPY_AVAILABLE = True
-    except ImportError:
-        NUMPY_AVAILABLE = False
-
-    for key, value in params_dict.items():
-        if hasattr(value, "dtype"):  # Check if the value has a dtype attribute
-            # For PyTorch tensors
-            if TORCH_AVAILABLE and isinstance(value, torch.Tensor):
-                # Cast to FP32 if not already
-                if value.dtype != torch.float32:
-                    fp32_value = value.to(dtype=torch.float32)
-                    fp32_params_dict[key] = fp32_value
-                else:
-                    fp32_params_dict[key] = value
-            # For NumPy arrays
-            elif NUMPY_AVAILABLE and isinstance(value, np.ndarray):
-                # Cast to FP32 if not already
-                if value.dtype != np.float32:
-                    fp32_value = value.astype(np.float32)
-                    fp32_params_dict[key] = fp32_value
-                else:
-                    fp32_params_dict[key] = value
-            else:
-                # If we can't determine how to cast, keep the original value
-                fp32_params_dict[key] = value
-        else:
-            # If the value doesn't have a dtype, keep it as is
-            fp32_params_dict[key] = value
-
-    return fp32_params_dict
-
-
-def convert_model_with_options(
-    input_path: str,
-    output_path: str,
-    format: str,
-    model_name: str = "",
-    cast_to_fp32: bool = False,
-):
-    """
-    Convert model with various options.
-
-    Args:
-        input_path: Input model file path
-        output_path: Output MLLM model file path
-        format: Output format (mllm-v1 or mllm-v2)
-        model_name: Model name (used for MLLM V2 format)
-        cast_to_fp32: Whether to cast all parameters to FP32
-    """
-    # Determine input format based on file extension
-    if (
-        input_path.endswith(".pth")
-        or input_path.endswith(".pt")
-        or input_path.endswith(".bin")
-    ):
-        print(f"Loading PyTorch model from {input_path}...")
-        params_dict = load_torch_model(input_path)
-    elif input_path.endswith(".safetensors") or input_path.endswith(
-        ".safetensors.index.json"
-    ):
-        print(f"Loading Safetensors model from {input_path}...")
-        params_dict = load_safetensors_model(input_path)
-    else:
-        raise ValueError(
-            f"Unsupported input format for file: {input_path}. "
-            f"Supported formats are: .pth, .pt, .bin, .safetensors"
-        )
-
-    # Cast to FP32 if requested
-    if cast_to_fp32:
-        print("Casting all parameters to FP32...")
-        params_dict = cast_params_to_fp32(params_dict)
-
-    # Store model in the specified MLLM format
-    print(f"Converting model to {format} format...")
-    if format == "mllm-v1":
-        store_model_file_v1(params_dict, output_path)
-    elif format == "mllm-v2":
-        store_model_file_v2(params_dict, output_path, model_name)
-
-    print(f"Successfully converted model to {output_path}")
+from .. import convertor
+from ..convertor.model_file_v2 import ModelFileV2
+from ..quantize.solver import QuantizeSolver
+from ..quantize.pipeline import BUILTIN_QUANTIZE_PIPELINE
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="MLLM Model Converter",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  mllm-convertor --input model.pth --output model.mllm --format mllm-v2
-  mllm-convertor --input model.safetensors --output model.mllm --format mllm-v1
-  mllm-convertor --input model.pth --output model.mllm --format mllm-v2 --model-name "my-model"
-  mllm-convertor --input model.pth --output model.mllm --format mllm-v2 --cast-all-to-fp32
-        """,
-    )
-
+    parser = argparse.ArgumentParser(description="MLLM Model Converter")
     parser.add_argument(
-        "--input",
-        "-i",
-        type=str,
-        required=True,
-        help="Input model file path (.pth or .safetensors)",
+        "--input_path", type=str, help="Path to input model file", required=True
     )
-
     parser.add_argument(
-        "--output", "-o", type=str, required=True, help="Output MLLM model file path"
+        "--output_path", type=str, help="Path to output model file", required=True
     )
-
+    parser.add_argument("--model_name", type=str, help="Model name", required=True)
+    parser.add_argument("--cfg_path", type=str, help="Quantization config file path")
     parser.add_argument(
         "--format",
-        "-f",
         type=str,
-        choices=["mllm-v1", "mllm-v2"],
-        default="mllm-v2",
-        help="Output MLLM format version (default: mllm-v2)",
+        default="v2",
+        choices=["v1", "v2"],
+        help="Output format version (default: v2)",
     )
-
     parser.add_argument(
-        "--model-name",
-        "-n",
+        "--pipeline",
         type=str,
-        default="",
-        help="Model name (used for MLLM V2 format)",
+        help=f"Choose builtin pipeline in {BUILTIN_QUANTIZE_PIPELINE.keys()}",
     )
-
-    parser.add_argument(
-        "--cast-all-to-fp32",
-        action="store_true",
-        help="Cast all parameters to FP32",
-    )
+    parser.add_argument("--passes", type=List, help="Passes that performs on params")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
     args = parser.parse_args()
+    if args.verbose:
+        print(f"Converting {args.input_path} to {args.output_path}")
+        print(f"Output format: {args.format}")
 
-    input_path = Path(args.input)
-    output_path = Path(args.output)
+    # Get params
+    params = convertor.load_model(args.input_path)
 
-    if not input_path.exists():
-        print(f"Error: Input file '{input_path}' does not exist.", file=sys.stderr)
-        sys.exit(1)
+    # Build pipeline
+    if args.cfg_path is None:
+        # TODO just convert to mllm file
+        pass
+    elif (
+        args.cfg_path is not None and args.pipeline is not None and args.format == "v2"
+    ):
+        cfg = None
+        with open(args.cfg_path) as f:
+            cfg = json.load(f)
+        pipeline: QuantizeSolver = BUILTIN_QUANTIZE_PIPELINE[args.pipeline]()
 
-    try:
-        convert_model_with_options(
-            str(input_path),
-            str(output_path),
-            args.format,
-            args.model_name,
-            args.cast_all_to_fp32,
+        old_param_size = len(params)
+        new_param_size = pipeline.stream_quantize_params_size(cfg, params)
+
+        print(f"Params Num: Before: {old_param_size}, After: {new_param_size}")
+
+        pipeline.stream_quantize(
+            cfg,
+            params,
+            writer=ModelFileV2(
+                args.output_path,
+                args.model_name,
+                "Streaming",
+                max_params_descriptor_buffer_num=new_param_size,
+            ),
+            cast_left_2_fp32=True,
+            verbose=args.verbose,
         )
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

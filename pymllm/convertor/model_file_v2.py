@@ -1,3 +1,6 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
 import os
 import struct
 import torch
@@ -88,7 +91,7 @@ class ModelFileV2:
         self.model_name = model_name
         assert update_mode in ["Static", "Streaming"]
         self.update_mode = update_mode
-        if update_mode == "Dynamic":
+        if update_mode == "Streaming":
             self.max_params_descriptor_buffer_num = kwargs.get(
                 "max_params_descriptor_buffer_num", 1024
             )
@@ -143,6 +146,7 @@ class ModelFileV2:
 
         tensor_size = len(tensor_data)
 
+        assert len(self.v2_param_descriptor) <= self.max_params_descriptor_buffer_num
         desc = ModelFileV2ParamsDescriptor(
             param_id=len(self.v2_param_descriptor),
             param_type=true_dtype,
