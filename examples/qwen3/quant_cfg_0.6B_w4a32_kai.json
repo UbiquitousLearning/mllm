@@ -5,6 +5,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                2048,
+                1024
+            ],
             "replace": true
         }
     },
@@ -14,6 +18,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                1024,
+                1024
+            ],
             "replace": true
         }
     },
@@ -23,6 +31,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                1024,
+                1024
+            ],
             "replace": true
         }
     },
@@ -32,6 +44,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                1024,
+                2048
+            ],
             "replace": true
         }
     },
@@ -41,6 +57,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                3072,
+                1024
+            ],
             "replace": true
         }
     },
@@ -50,6 +70,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                3072,
+                1024
+            ],
             "replace": true
         }
     },
@@ -59,6 +83,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                1024,
+                3072
+            ],
             "replace": true
         }
     },
@@ -68,6 +96,10 @@
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
             "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+            "shape": [
+                151936,
+                1024
+            ],
             "replace": false,
             "rename": "lm_head_out.weight"
         }

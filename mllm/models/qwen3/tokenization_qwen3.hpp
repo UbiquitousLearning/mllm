@@ -147,18 +147,15 @@ inline bool qwen3Regex(const std::string& str, std::vector<std::wstring>& splitt
   return true;
 }
 
-struct qwen3Message {
+struct Qwen3Message {
   std::string prompt;
-  std::string img_file_path;
   static inline std::string message_template =
-      "<|im_start|>system\nYou are a helpful "
-      "assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|vision_pad|><|vision_end|>{{{"
-      "prompt}}}<|im_end|>\n<|im_start|>assistant\n";
+      "<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
 };
 
-class qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
+class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
-  explicit qwen3Tokenizer(const std::string& file_path) {
+  explicit Qwen3Tokenizer(const std::string& file_path) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
@@ -177,6 +174,8 @@ class qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<|vision_pad|>");
     special_tokens_trie_.add(L"<|image_pad|>");
     special_tokens_trie_.add(L"<|video_pad|>");
+    special_tokens_trie_.add(L"<think>");
+    special_tokens_trie_.add(L"</think>");
   }
 
   std::vector<std::wstring> _tokenize(const std::string& str) override {
@@ -234,9 +233,9 @@ class qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  ARGenerationOutputPast convertMessage(const qwen3Message& message) {
+  ARGenerationOutputPast convertMessage(const Qwen3Message& message) {
     // process prompt
-    auto applied_string = qwen3Message::message_template;
+    auto applied_string = Qwen3Message::message_template;
     size_t pos = applied_string.find("{{{prompt}}}");
     applied_string.replace(pos, 12, message.prompt);
 
