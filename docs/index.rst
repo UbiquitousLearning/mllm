@@ -237,6 +237,31 @@ You can build the documentation using the following commands:
 
 If you need to generate Doxygen documentation, please ensure that Doxygen is installed on your system. Then, set the ``enable_doxygen`` option to ``true`` in the ``tasks/build_doc.yaml`` configuration file. Running ``python task.py tasks/build_doc.yaml`` afterward will generate the C++ API documentation.
 
+Model Convert
+---------------
+
+mllm provides a set of model converters to convert models from other popular model formats to MLLM. Before you start, please make sure you have installed the **pymllm** !!!
+
+.. code-block:: shell
+
+   bash ./scripts/install_pymllm.sh
+
+**future:**
+
+Once PyPI approves the creation of the mllm organization, we will publish it there. Afterwards, you can use the command below to install it in the future.
+
+.. code-block:: shell
+
+   pip install pymllm
+
+After installing pymllm, you can use the following command to convert the model:
+
+.. code-block:: shell
+
+   mllm-convertor --input_path <your_model> --output_path <your_output_model> --cfg_path <your_config> --pipeline <builtin_pipeline>
+
+For more usage instructions, please refer to ``mllm-convertor --help``.
+
 Tools
 -----
 
@@ -345,6 +370,12 @@ Documents
    :maxdepth: 2
 
    qa/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Pymllm API
+
+   autoapi/pymllm/index
 
 .. toctree::
    :maxdepth: 2
