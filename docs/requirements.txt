@@ -9,3 +9,5 @@ uvicorn
 myst-parser
 breathe
 exhale
+sphinx-autoapi
+astroid

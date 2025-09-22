@@ -1,3 +1,6 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
 # _ffi_api.py
 import tvm_ffi
 from .base import _LIB

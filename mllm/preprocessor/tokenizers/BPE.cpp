@@ -55,11 +55,17 @@ bool BPE::initFromSentencePieceJson(const std::string& file_path) {
 
   int64_t cnt = 0;
   for (auto& merge_item : json_data["model"]["merges"]) {
-    auto wide_merge_item = utf8string2WideString(merge_item);
-    auto blank_pos = wide_merge_item.find(L' ');
-    auto first = wide_merge_item.substr(0, blank_pos);
-    auto second = wide_merge_item.substr(blank_pos + 1);
-    bpe_ranks_.insert({{first, second}, cnt++});
+    if (merge_item.is_string()) {
+      auto wide_merge_item = utf8string2WideString(merge_item);
+      auto blank_pos = wide_merge_item.find(L' ');
+      auto first = wide_merge_item.substr(0, blank_pos);
+      auto second = wide_merge_item.substr(blank_pos + 1);
+      bpe_ranks_.insert({{first, second}, cnt++});
+    } else if (merge_item.is_array()) {
+      auto first = utf8string2WideString(merge_item[0]);
+      auto second = utf8string2WideString(merge_item[1]);
+      bpe_ranks_.insert({{first, second}, cnt++});
+    }
   }
 
   return true;

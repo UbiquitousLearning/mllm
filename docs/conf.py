@@ -21,9 +21,24 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
-    "sphinx.ext.autosummary",
+    "autoapi.extension",
     "myst_parser",
 ]
+
+# API Doc Info
+autoapi_type = "python"
+autoapi_dirs = ["../pymllm"]
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+]
+autoapi_keep_files = False  # Useful for debugging the generated rst files
+autoapi_generate_api_docs = True
+autodoc_typehints = "description"
+autoapi_ignore = []
 
 if enable_doxygen:
     extensions.extend(["breathe", "exhale"])
