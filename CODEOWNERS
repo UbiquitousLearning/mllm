@@ -28,8 +28,22 @@
 /mllm/backends/cpu/kernels/common/ggml/quantize @yirongjie
 /mllm/backends/cpu/kernels/arm/linear/ggml @yirongjie
 /mllm/backends/cpu/kernels/arm/linear/mkernel @chenghuaWang
-/mllm/backends/cpu/kernels/arm/fa2 @chenghuaWang
+/mllm/backends/cpu/kernels/common/fa2 @chenghuaWang
+/mllm/backends/cpu/kernels/common/paged_attn @chenghuaWang
 
 # Compiler
 
 /mllm/compile/ @chenghuaWang
+
+# KVCache
+
+/mllm/nn/lmcache/ @chenghuaWang @oreomaker
+/mllm/nn/lmcache/aux_page @chenghuaWang
+
+# models
+/mllm/models/qwen3 @chenghuaWang
+/mllm/models/qwen2vl @chenghuaWang
+/mllm/models/qwen2_5vl @chenghuaWang
+/mllm/models/llama @oreomaker
+/mllm/models/vocos @oreomaker
+/mllm/models/minicpm_o2_6 @oreomaker
