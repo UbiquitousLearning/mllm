@@ -180,6 +180,7 @@ set(MLLM_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/xxHash/include>
     $<INSTALL_INTERFACE:include/mllm>
     $<INSTALL_INTERFACE:include/third_party/>)
 set(MLLM_JSON_INCLUDE_DIR
@@ -187,6 +188,7 @@ set(MLLM_JSON_INCLUDE_DIR
     $<INSTALL_INTERFACE:include/third_party/>)
 
 add_subdirectory(third_party/fmt)
+add_subdirectory(third_party/xxHash)
 add_subdirectory(mllm)
 
 if(MLLM_ENABLE_TEST)
@@ -237,6 +239,13 @@ install(
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin)
 
+install(
+  TARGETS xxhash_static
+  EXPORT MllmTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)
+
 if(MLLM_BUILD_SDK_C_BINDING)
   install(
     TARGETS MllmSdkC
@@ -276,6 +285,13 @@ install(
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include/dlpack/
   DESTINATION include/dlpack/
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp")
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/xxHash/include/xxHash/
+  DESTINATION include/xxHash/
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp")

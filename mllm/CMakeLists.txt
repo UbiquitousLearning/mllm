@@ -27,7 +27,7 @@ add_library(
 )
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
-target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
+target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash)
 
 # stdexec will use Pack indexing feature. 
 #
