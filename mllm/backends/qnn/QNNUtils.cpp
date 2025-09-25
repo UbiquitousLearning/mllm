@@ -2,7 +2,6 @@
 #include "QnnTypeMacros.hpp"
 #include "mllm/utils/Log.hpp"
 #include <cstdint>
-#include <memory>
 #include <dlfcn.h>
 
 namespace mllm::qnn {

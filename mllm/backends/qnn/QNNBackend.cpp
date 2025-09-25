@@ -2,9 +2,66 @@
 #include <cassert>
 #include <fstream>
 #include "QNNUtils.hpp"
+#include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
+
+QNNBackend::QNNBackend() : Backend(kQNN, nullptr) {
+  // register ops
+  regOpFactory<>();
+
+  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
+  profilingLevel_ = ProfilingLevel::OFF;
+  debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
+
+  loadQNNSymbol();
+  loadQNNSystemSymbol();
+
+  runtime_ = QNNRuntime::create(profilingLevel_, qnnLogLevel);
+  if (!runtime_) { MLLM_ERROR_EXIT(1, "Failed to create QNN Runtime"); }
+
+  // check QNN capability, detect QNN features for future use
+  char* backendBuildId{nullptr};
+  if (QNN_SUCCESS != runtime_->qnnInterface.backendGetBuildId((const char**)&backendBuildId)) {
+    MLLM_ERROR("Unable to get build Id from the backend.");
+  }
+  MLLM_INFO("QNN Backend Build Id: {}", backendBuildId == nullptr ? "" : backendBuildId);
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports tensor sparsity");
+  }
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_DYNAMIC_DIMENSIONS) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports dynamic dimensions");
+  }
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports early termination");
+  }
+
+  bool contextStatus = false;
+  // check if the qnn_context.bin file exists
+  if (!std::filesystem::exists("qnn_context.bin")) {
+    contextStatus = runtime_->createContext(context_, nullptr);
+  } else {
+    contextStatus = runtime_->retrieveContext(context_, graphsInfo_, nullptr);
+    // set the flag to indicate that the context is loaded from cache
+    isFromCache_ = true;
+    // fill qnnModelIndexMap_ info according to graphsInfo_
+    for (size_t i = 0; i < graphsInfo_.size(); i++) {
+      auto graphName = graphsInfo_[i]->graphName;
+      qnnModelIndexMap_.insert(std::make_pair(graphName, i));
+    }
+  }
+  if (!contextStatus) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
+
+  // init QNN Allocator
+  auto allocator = std::make_shared<QNNAllocator>(context_, runtime_->qnnInterface);
+  this->allocator_ = allocator;
+
+  // set performance parameters for better performance on HTP
+  perf_ = QNNPerf::create(&runtime_->qnnInterface);
+  perf_->setPowerConfigBurst();
+  perf_->setRpcLatencyAndPolling();
+}
 
 QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
   assert(qnnInterface != nullptr);
@@ -149,8 +206,8 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   // Create Log
   Qnn_LogHandle_t logHandle = nullptr;
   {
-    QnnLog_Callback_t logCallback = nullptr;
-    if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, QNN_LOG_LEVEL_ERROR, &logHandle)) != QNN_SUCCESS)
+    QnnLog_Callback_t logCallback = &__mllmQnnLoggerCallback;
+    if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, qnnLogLevel, &logHandle)) != QNN_SUCCESS)
         || (logHandle == nullptr)) {
       MLLM_ERROR("Failed to initialize logging in the backend.");
       return nullptr;
@@ -189,7 +246,7 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   Qnn_ProfileHandle_t profileHandle = nullptr;
   {
     if (ProfilingLevel::OFF != profilingLevel) {
-      MLLM_INFO("Profiling turned on; level = %d", (int)profilingLevel);
+      MLLM_INFO("Profiling turned on; level = {}", (int)profilingLevel);
       if (ProfilingLevel::BASIC == profilingLevel) {
         MLLM_INFO("Basic profiling requested. Creating Qnn Profile object.");
         if (QNN_PROFILE_NO_ERROR != qnnInterface.profileCreate(backendHandle, QNN_PROFILE_LEVEL_BASIC, &profileHandle)) {
@@ -226,11 +283,11 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
       if (QNN_BACKEND_NO_ERROR
           != qnnInterface.backendRegisterOpPackage(backendHandle, pkg.path.c_str(), pkg.interfaceProvider.c_str(),
                                                    pkg.target.c_str())) {
-        MLLM_ERROR("Could not register Op Package: %s and interface provider: %s", pkg.path.c_str(),
+        MLLM_ERROR("Could not register Op Package: {} and interface provider: {}", pkg.path.c_str(),
                    pkg.interfaceProvider.c_str());
         return nullptr;
       }
-      MLLM_INFO("Registered Op Package: %s and interface provider: %s", pkg.path.c_str(), pkg.interfaceProvider.c_str());
+      MLLM_INFO("Registered Op Package: {} and interface provider: {}", pkg.path.c_str(), pkg.interfaceProvider.c_str());
     }
   }
 
@@ -327,4 +384,5 @@ bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<Graph
   MLLM_INFO("QNN context retrieved from qnn_context.bin");
   return true;
 }
+
 }  // namespace mllm::qnn

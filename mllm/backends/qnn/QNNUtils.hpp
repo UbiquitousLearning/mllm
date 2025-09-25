@@ -19,13 +19,13 @@
 
 namespace mllm::qnn {
 
-#define CALL_QNN(apiCall)                                                                      \
-  do {                                                                                         \
-    int errorCode = ((apiCall) & 0xFFFF);                                                      \
-    if (errorCode != QNN_SUCCESS) {                                                            \
-      MLLM_ERROR("Error in file %s, line %d: error code %d\n", __FILE__, __LINE__, errorCode); \
-      assert(errorCode == QNN_SUCCESS);                                                        \
-    }                                                                                          \
+#define CALL_QNN(apiCall)                                                                    \
+  do {                                                                                       \
+    int errorCode = ((apiCall) & 0xFFFF);                                                    \
+    if (errorCode != QNN_SUCCESS) {                                                          \
+      MLLM_ERROR("Error in file {}, line {}, error code {}", __FILE__, __LINE__, errorCode); \
+      assert(errorCode == QNN_SUCCESS);                                                      \
+    }                                                                                        \
   } while (0)
 
 // --------------- Begin of QNN symbols loading ---------------
@@ -110,5 +110,24 @@ bool deepCopyQnnTensorInfo(Qnn_Tensor_t* dst, const Qnn_Tensor_t* src);
 bool freeQnnTensor(Qnn_Tensor_t& tensor);
 
 bool freeQnnTensors(Qnn_Tensor_t*& tensors, uint32_t numTensors);
+
+inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp) {
+  const char* level_str = "";
+  switch (level) {
+    case QNN_LOG_LEVEL_ERROR: level_str = "[ERROR]"; break;
+    case QNN_LOG_LEVEL_WARN: level_str = "[WARN]"; break;
+    case QNN_LOG_LEVEL_INFO: level_str = "[INFO]"; break;
+    case QNN_LOG_LEVEL_DEBUG: level_str = "[DEBUG]"; break;
+    case QNN_LOG_LEVEL_VERBOSE: level_str = "[VERBOSE]"; break;
+    case QNN_LOG_LEVEL_MAX: level_str = "[UNKNOWN]"; break;
+  }
+
+  double ms = (double)times_tamp / 1000000.0;
+
+  {
+    fprintf(stdout, "%s (%.1fms, %ld) ", level_str, ms, times_tamp);
+    vfprintf(stdout, fmt, argp);
+  }
+}
 
 }  // namespace mllm::qnn

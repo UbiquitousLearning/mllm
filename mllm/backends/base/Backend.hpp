@@ -33,7 +33,7 @@ class Backend {
 
   [[nodiscard]] inline Allocator::ptr_t allocator() const { return allocator_; }
 
- private:
+ protected:
   template<typename T>
   void _reg_one_op_factory() {
     auto ptr = std::make_shared<T>();

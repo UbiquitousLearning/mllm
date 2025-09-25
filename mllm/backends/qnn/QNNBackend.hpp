@@ -1,12 +1,15 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "HTP/QnnHtpDevice.h"
 #include "System/QnnSystemInterface.h"
+#include "mllm/backends/base/Backend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
+#include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
@@ -74,6 +77,21 @@ class QNNRuntime {
   }
 
   static QNNRuntime* initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_t qnnLogLevel);
+};
+
+class QNNBackend final : public Backend {
+ public:
+  QNNBackend();
+
+ private:
+  bool debug_, isFromCache_ = false;
+  ProfilingLevel profilingLevel_;
+  Qnn_ContextHandle_t context_ = nullptr;
+  std::unique_ptr<QNNRuntime> runtime_;
+  std::unique_ptr<QNNPerf> perf_;
+
+  std::vector<GraphInfo_t*> graphsInfo_;
+  std::map<std::string, int> qnnModelIndexMap_;
 };
 
 }  // namespace mllm::qnn
