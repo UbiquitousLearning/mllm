@@ -16,7 +16,7 @@ package mllm
 import "C"
 
 func isOk(any C.MllmCAny) bool {
-	return C.isOk(any) == 0
+	return C.isOk(any) == 1
 }
 
 func InitializeContext() bool {
