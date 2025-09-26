@@ -27,7 +27,14 @@ using RpcMemToFdFn_t = int (*)(void*);
 
 class QNNAllocator final : public Allocator {
  public:
+  QNNAllocator();  // need to setQNNPointer afterward
   QNNAllocator(QNN_INTERFACE_VER_TYPE qnnInterface, void* context);
+
+  void setQNNPointer(QNN_INTERFACE_VER_TYPE qnnInterface, void* context) {
+    this->qnnInterface_ = qnnInterface;
+    this->context_ = context;
+  }
+
   inline bool ctrlByMemManager() override { return false; }
 
   bool alloc(Storage* storage) override;

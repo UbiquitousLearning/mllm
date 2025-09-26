@@ -1,13 +1,15 @@
 #include "QNNBackend.hpp"
 #include <cassert>
 #include <fstream>
+#include <memory>
 #include "QNNUtils.hpp"
+#include "QnnLog.h"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
 
-QNNBackend::QNNBackend() : Backend(kQNN, nullptr) {
+QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
   regOpFactory<>();
 
@@ -54,8 +56,7 @@ QNNBackend::QNNBackend() : Backend(kQNN, nullptr) {
   if (!contextStatus) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
 
   // init QNN Allocator
-  auto allocator = std::make_shared<QNNAllocator>(context_, runtime_->qnnInterface);
-  this->allocator_ = allocator;
+  static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
 
   // set performance parameters for better performance on HTP
   perf_ = QNNPerf::create(&runtime_->qnnInterface);
