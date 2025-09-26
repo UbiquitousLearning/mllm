@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 #include "mllm/compile/ir/tensor/Op.hpp"
+#include <cstdint>
 #include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::ir::tensor {
