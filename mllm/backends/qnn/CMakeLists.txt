@@ -11,7 +11,7 @@ file(GLOB MLLM_QNN_SRC
 )
 
 add_library(
-    MLLM_QNN
+    MllmQNNBackend
     SHARED
     ${MLLM_QNN_SRC}
 )
@@ -26,4 +26,4 @@ message(STATUS "QNN SDK root: $ENV{QNN_SDK_ROOT}")
 get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories
 
-target_link_libraries(MLLM_QNN PUBLIC MllmRT)
+target_link_libraries(MllmQNNBackend PUBLIC MllmRT)
