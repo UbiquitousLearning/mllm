@@ -33,6 +33,9 @@ class Backend {
 
   [[nodiscard]] inline Allocator::ptr_t allocator() const { return allocator_; }
 
+  // used when backend is not CPU, indicate whether to hold OP weights on CPU
+  [[nodiscard]] virtual bool isWeightOnDevice() { return true; }
+
  protected:
   template<typename T>
   void _reg_one_op_factory() {

@@ -83,6 +83,8 @@ class QNNBackend final : public Backend {
  public:
   QNNBackend();
 
+  bool isWeightOnDevice() override { return false; }
+
  private:
   bool debug_, isFromCache_ = false;
   ProfilingLevel profilingLevel_;
