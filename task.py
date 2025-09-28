@@ -482,12 +482,7 @@ class MllmCliBuildTask(Task):
         original_cwd = os.getcwd()
         try:
             os.chdir(work_dir)
-            result = throw_error_if_failed(
-                os.system(self.make_command_str(go_build_cmd))
-            )
-            if result != 0:
-                logging.error("Go build failed")
-                return
+            throw_error_if_failed(os.system(self.make_command_str(go_build_cmd)))
         finally:
             os.chdir(original_cwd)
 
