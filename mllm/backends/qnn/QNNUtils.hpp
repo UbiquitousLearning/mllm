@@ -6,6 +6,7 @@
 #include "QnnTypes.h"
 #include "mllm/core/Tensor.hpp"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,35 +48,13 @@ bool loadQNNSystemSymbol();
   (Qnn_QuantizeParams_t{        \
       QNN_DEFINITION_UNDEFINED, QNN_QUANTIZATION_ENCODING_UNDEFINED, {.scaleOffsetEncoding = {.scale = 0.0f, .offset = 0}}})
 
-class QNNTensorWrapper {
- public:
-  static std::shared_ptr<QNNTensorWrapper> create(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
-                                                  const std::vector<uint32_t>& dimensions,
-                                                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
-  static std::shared_ptr<QNNTensorWrapper> create(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
-                                                  const std::vector<int>& dimensions,
-                                                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
-  static std::shared_ptr<QNNTensorWrapper> createStaticFloatTensor(const std::string& name, Qnn_DataType_t dataType,
-                                                                   const std::vector<uint32_t>& dimensions, const float* buffer,
-                                                                   Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
-  static std::shared_ptr<QNNTensorWrapper> createStaticFloatTensor(const std::string& name, Qnn_DataType_t dataType,
-                                                                   const std::vector<int>& dimensions, const float* buffer,
-                                                                   Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
-  QNNTensorWrapper(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
-                   const std::vector<uint32_t>& dimensions, Qnn_QuantizeParams_t quantize);
-  ~QNNTensorWrapper();
-  Qnn_Tensor_t* getNativeTensor();
-  [[nodiscard]] const Qnn_Tensor_t* getNativeTensor() const;
-  void* alloc();
-  std::shared_ptr<Tensor> getDataContainer();
-  const std::vector<uint32_t>* getDimension();
-
- private:
-  std::string mName;
-  std::vector<uint32_t> mDimensions;
-  std::shared_ptr<Tensor> mDataContainer;
-  Qnn_Tensor_t mQnnTensor;
-  bool mIsAlloc = false;
+const std::map<Qnn_DataType_t, size_t> QNNDataTypeToSize = {
+    {QNN_DATATYPE_INT_8, 1},           {QNN_DATATYPE_INT_16, 2},          {QNN_DATATYPE_INT_32, 4},
+    {QNN_DATATYPE_INT_64, 8},          {QNN_DATATYPE_UINT_8, 1},          {QNN_DATATYPE_UINT_16, 2},
+    {QNN_DATATYPE_UINT_32, 4},         {QNN_DATATYPE_UINT_64, 8},         {QNN_DATATYPE_FLOAT_16, 2},
+    {QNN_DATATYPE_FLOAT_32, 4},        {QNN_DATATYPE_BOOL_8, 1},          {QNN_DATATYPE_SFIXED_POINT_8, 1},
+    {QNN_DATATYPE_SFIXED_POINT_16, 2}, {QNN_DATATYPE_SFIXED_POINT_32, 4}, {QNN_DATATYPE_UFIXED_POINT_8, 1},
+    {QNN_DATATYPE_UFIXED_POINT_16, 2}, {QNN_DATATYPE_UFIXED_POINT_32, 4},
 };
 
 // Utils for copying metadata to GraphInfo
@@ -129,5 +108,101 @@ inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint6
     vfprintf(stdout, fmt, argp);
   }
 }
+
+// --------------- get/set quant scale for mllm::Tensor ---------------
+// currently only consider per-tensor quantization
+inline float getQuantScale(Tensor& tensor) {
+  if (!tensor.attachedViews().contains("quant_scale")) { return 0.0f; }
+  return tensor.attachedViews()["quant_scale"]->ptr<float>()[0];
+}
+
+inline void setQuantScale(Tensor& tensor, float scale) {
+  if (!tensor.attachedViews().contains("quant_scale")) {
+    auto t = Tensor::empty({1}, kFloat32, kCPU).alloc();
+    t.at<float>({0}) = scale;
+    tensor.attach("quant_scale", t.impl());
+  } else {
+    tensor.attachedViews()["quant_scale"]->ptr<float>()[0] = scale;
+  }
+}
+
+// --------------- QNN Wrapper ---------------
+// QNN tensors' resource management is in C style. Wrap it in a C++ class
+// related issue: dimension vector can only be destroyed after QNN graph is finalized
+// reference from MNN (https://github.com/alibaba/MNN)
+
+class QNNTensorWrapper {
+ public:
+  QNNTensorWrapper(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
+                   const std::vector<uint32_t>& dimensions, Qnn_QuantizeParams_t quantize);
+  ~QNNTensorWrapper() = default;
+
+  // create a QNN empty tensor from mllm::Tensor (used for Op input/output tensor)
+  static std::shared_ptr<QNNTensorWrapper> create(const std::string& name, Qnn_TensorType_t type, const Tensor& tensor,
+                                                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+
+  // create a static QNN tensor from mllm::Tensor
+  static std::shared_ptr<QNNTensorWrapper> createStaticTensor(const std::string& name, const Tensor& tensor,
+                                                              Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+
+  Qnn_Tensor_t* getNativeTensor() { return &qnnTensor_; }
+  [[nodiscard]] const Qnn_Tensor_t* getNativeTensor() const { return &qnnTensor_; }
+
+  // alloc graph input/output tensor memory in QNN shared buffer
+  void alloc();
+  Tensor& getDataContainer() { return dataContainer_; }
+  const std::vector<uint32_t>* getDimension() { return &dimensions_; }
+
+ private:
+  std::string name_;
+  std::vector<uint32_t> dimensions_;
+  Tensor dataContainer_;
+  Qnn_Tensor_t qnnTensor_;
+  bool isAlloc_ = false;
+};
+
+class QNNParamTensorWrapper {
+ public:
+  static std::shared_ptr<QNNParamTensorWrapper> create(const std::string& paramName, const std::string& tensorName,
+                                                       Qnn_DataType_t dataType, const std::vector<int32_t>& dimensions) {
+    std::vector<uint32_t> vec(dimensions.size());
+    for (int i = 0; i < dimensions.size(); i++) { vec[i] = (uint32_t)dimensions[i]; }
+    return std::make_shared<QNNParamTensorWrapper>(paramName, tensorName, dataType, vec);
+  }
+
+  static std::shared_ptr<QNNParamTensorWrapper> create(const std::string& paramName, const std::string& tensorName,
+                                                       Qnn_DataType_t dataType, const std::vector<uint32_t>& dimensions);
+
+  QNNParamTensorWrapper(const std::string& paramName, const std::string& tensorName, Qnn_DataType_t dataType,
+                        const std::vector<uint32_t>& dimensions);
+
+  ~QNNParamTensorWrapper();
+
+  void* alloc();
+  Qnn_Param_t* getNativeParam() { return &qnnParam_; }
+  Qnn_Tensor_t* getNativeTensor() { return &qnnParam_.tensorParam; }
+
+ private:
+  std::string paramName_;
+  std::string tensorName_;
+  std::vector<uint32_t> dimensions_;
+  Qnn_Param_t qnnParam_{};
+};
+
+class QNNParamScalarWrapper {
+ public:
+  template<typename T>
+  static std::shared_ptr<QNNParamScalarWrapper> create(const std::string& name, T value) {
+    return std::make_shared<QNNParamScalarWrapper>(name, value);
+  };
+  QNNParamScalarWrapper(const std::string& name, bool value);
+  QNNParamScalarWrapper(const std::string& name, uint32_t value);
+  QNNParamScalarWrapper(const std::string& name, float value);
+  Qnn_Param_t* getNativeParam();
+
+ private:
+  std::string name_;
+  Qnn_Param_t qnnParam_{};
+};
 
 }  // namespace mllm::qnn
