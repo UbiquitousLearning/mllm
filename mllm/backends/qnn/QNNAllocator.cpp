@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include <dlfcn.h>
@@ -67,19 +68,20 @@ void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_
   // Make qnn memory descriptor. Set ION.
   Qnn_MemDescriptor_t mem_descriptor = QNN_MEM_DESCRIPTOR_INIT;
   mem_descriptor.memShape = {
-      .numDim = qnn_tensor.v2.rank,
-      .dimSize = qnn_tensor.v2.dimensions,
+      .numDim = QNN_TENSOR_GET_RANK(qnn_tensor),
+      .dimSize = QNN_TENSOR_GET_DIMENSIONS(qnn_tensor),
       .shapeConfig = nullptr,
   };
-  mem_descriptor.dataType = qnn_tensor.v2.dataType;
+  mem_descriptor.dataType = QNN_TENSOR_GET_DATA_TYPE(qnn_tensor);
   mem_descriptor.memType = QNN_MEM_TYPE_ION;
   mem_descriptor.ionInfo.fd = mem_fd;
-  qnn_tensor.v2.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
+  QNN_TENSOR_SET_MEM_TYPE(qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
 
   // Register to QNN memory
-  MLLM_RT_ASSERT_EQ(QNN_SUCCESS, qnnInterface_.memRegister(context_, &mem_descriptor, 1u, &(qnn_tensor.v2.memHandle)));
+  Qnn_MemHandle_t mem_handle = QNN_TENSOR_GET_MEM_HANDLE(qnn_tensor);
+  MLLM_RT_ASSERT_EQ(QNN_SUCCESS, qnnInterface_.memRegister(context_, &mem_descriptor, 1u, &mem_handle));
 
-  ptrToFdAndMemHandleMap_.insert({ptr, {mem_fd, qnn_tensor.v2.memHandle}});
+  ptrToFdAndMemHandleMap_.insert({ptr, {mem_fd, mem_handle}});
 }
 
 void QNNAllocator::deRegisterQnnTensorFromSharedBuffer(void* ptr) {
