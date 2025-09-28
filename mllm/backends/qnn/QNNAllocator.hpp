@@ -30,6 +30,15 @@ class QNNAllocator final : public Allocator {
   QNNAllocator();  // need to setQNNPointer afterward
   QNNAllocator(QNN_INTERFACE_VER_TYPE qnnInterface, void* context);
 
+  ~QNNAllocator() {
+    for (auto iter = ptrToFdAndMemHandleMap_.begin(); iter != ptrToFdAndMemHandleMap_.end();) {
+      Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&iter->second.second, 1);
+      if (QNN_SUCCESS != deregisterRet) { MLLM_ERROR("~QNNAllocator: qnnInterface_.memDeRegister failed"); }
+      rpcmem_free(iter->first);
+      iter = ptrToFdAndMemHandleMap_.erase(iter);
+    }
+  }
+
   void setQNNPointer(QNN_INTERFACE_VER_TYPE qnnInterface, void* context) {
     this->qnnInterface_ = qnnInterface;
     this->context_ = context;
@@ -69,8 +78,6 @@ class QNNAllocator final : public Allocator {
   void registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_tensor);
 
   void deRegisterQnnTensorFromSharedBuffer(void* ptr);
-
-  void deRegisterAllQnnTensorFromSharedBuffer();
 
  private:
   QNN_INTERFACE_VER_TYPE qnnInterface_;

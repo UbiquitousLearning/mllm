@@ -90,13 +90,6 @@ void QNNAllocator::deRegisterQnnTensorFromSharedBuffer(void* ptr) {
   ptrToFdAndMemHandleMap_.erase(ptr);
 }
 
-void QNNAllocator::deRegisterAllQnnTensorFromSharedBuffer() {
-  for (auto& kv : ptrToFdAndMemHandleMap_) {
-    MLLM_RT_ASSERT_EQ(QNN_SUCCESS, qnnInterface_.memDeRegister(&kv.second.second, 1));
-  }
-  ptrToFdAndMemHandleMap_.clear();
-}
-
 std::shared_ptr<QNNAllocator> createQNNAllocator() { return std::make_shared<QNNAllocator>(); }
 
 }  // namespace mllm::qnn
