@@ -145,6 +145,10 @@ class QNNTensorWrapper {
   static std::shared_ptr<QNNTensorWrapper> createStaticTensor(const std::string& name, const Tensor& tensor,
                                                               Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
 
+  // shadow copy from existing QNN tensor
+  // the src qnnTensor can be released after this
+  void initFromQnnTensor(Qnn_Tensor_t* qnnTensor);
+
   Qnn_Tensor_t* getNativeTensor() { return &qnnTensor_; }
   [[nodiscard]] const Qnn_Tensor_t* getNativeTensor() const { return &qnnTensor_; }
 

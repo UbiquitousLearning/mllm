@@ -61,6 +61,7 @@ bool loadQNNSystemSymbol() {
 
 // --------------- End of QNN symbols loading ---------------
 
+// --------------- QNN Graph Info Copying methods ---------------
 bool copyMetadataToGraphsInfo(const QnnSystemContext_BinaryInfo_t* binaryInfo, GraphInfo_t**& graphsInfo,
                               uint32_t& graphsCount) {
   if (nullptr == binaryInfo) {
@@ -372,6 +373,30 @@ void QNNTensorWrapper::alloc() {
       ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
 
   isAlloc_ = true;
+}
+
+void QNNTensorWrapper::initFromQnnTensor(Qnn_Tensor_t* qnnTensor) {
+  if (qnnTensor == nullptr) {
+    MLLM_ERROR("QNNTensorWrapper::setQnnTensor() received nullptr");
+    return;
+  }
+
+  // Update wrapper's internal state based on the provided tensor
+  name_ = QNN_TENSOR_GET_NAME(qnnTensor) ? QNN_TENSOR_GET_NAME(qnnTensor) : "";
+
+  // Update dimensions vector
+  dimensions_.clear();
+  uint32_t rank = QNN_TENSOR_GET_RANK(qnnTensor);
+  dimensions_.reserve(rank);
+  for (uint32_t i = 0; i < rank; ++i) { dimensions_.push_back(QNN_TENSOR_GET_DIMENSIONS(qnnTensor)[i]); }
+
+  // Instead of deep copying, we'll do a shallow copy and manage the critical fields ourselves
+  // This avoids unnecessary memory allocation and potential memory leaks
+  qnnTensor_ = *qnnTensor;  // Shallow copy
+
+  // Override the name and dimensions pointers to use our managed storage
+  qnnTensor_.v2.name = name_.c_str();
+  qnnTensor_.v2.dimensions = dimensions_.data();
 }
 
 std::shared_ptr<QNNParamTensorWrapper> QNNParamTensorWrapper::create(const std::string& paramName,
