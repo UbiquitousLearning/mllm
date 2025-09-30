@@ -90,7 +90,6 @@ class PagedAttnOp;
     auto op = std::make_shared<::mllm::ir::linalg::class_name>(aop);                                                        \
     for (auto& i : ins) { (*i)-- > op; }                                                                                    \
     for (auto& o : ous) { (*op)-- > o; }                                                                                    \
-    MLLM_INFO("{}", deviceTypes2Str(aop->getDevice()));                                                                     \
     op->setDevice(aop->getDevice());                                                                                        \
     return op;                                                                                                              \
   }                                                                                                                         \
