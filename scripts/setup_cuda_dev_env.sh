@@ -6,6 +6,7 @@ pip install -r docs/requirements.txt
 # Check GPU
 nvidia-smi
 
+git submodule update --init --recursive
 git submodule update --remote --merge ./mllm/backends/cuda/vendors/cccl
 git submodule update --remote --merge ./mllm/backends/cuda/vendors/cutlass
 cd mllm/backends/cuda/vendors/
