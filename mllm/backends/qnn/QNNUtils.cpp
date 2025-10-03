@@ -29,7 +29,7 @@ bool loadQNNSymbol() {
   QnnInterface_getProviders = (QnnInterfaceGetProvidersFn_t)dlsym(qnnLibHandle, "QnnInterface_getProviders");
   const char* errorSym = dlerror();
   if (!QnnInterface_getProviders) {
-    MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns %s.\n", errorSym);
+    MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(qnnLibHandle);
     return false;
   }
@@ -51,7 +51,7 @@ bool loadQNNSystemSymbol() {
       (QnnSystemInterfaceGetProvidersFn_t)dlsym(systemLibraryHandle, "QnnSystemInterface_getProviders");
   const char* errorSym = dlerror();
   if (!QnnSystemInterface_getProviders) {
-    MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns %s.\n", errorSym);
+    MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(systemLibraryHandle);
     return false;
   }
@@ -330,7 +330,7 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
     case kFloat16: dataType = QNN_DATATYPE_FLOAT_16; break;
     case kInt8: dataType = QNN_DATATYPE_SFIXED_POINT_8; break;
     case kInt16: dataType = QNN_DATATYPE_SFIXED_POINT_16; break;
-    default: MLLM_ERROR("Unsupported tensor element type for QNN: {}", tensor.dtype()); break;
+    default: MLLM_ERROR("Unsupported tensor element type for QNN: {}", (int)tensor.dtype()); break;
   }
 
   std::vector<uint32_t> dimensions(tensor.rank());
