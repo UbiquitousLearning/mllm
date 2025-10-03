@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "QNNUtils.hpp"
-#include "QnnInterface.h"
 
 namespace mllm::qnn {
 
@@ -46,14 +45,14 @@ class QNNModel {
                                      const Qnn_Tensor_t* outputTensors = nullptr, uint32_t numOutputTensors = 0);
 
   // Add tensor wrapper to the model
-  ModelError_t addTensorWrapper(const std::string& nodeName, const std::shared_ptr<QNNTensorWrapper>& tensorWrapper);
+  ModelError_t addTensorWrapper(const std::shared_ptr<QNNTensorWrapper>& tensorWrapper);
 
   // Add tensor using mllm::Tensor
-  ModelError_t addTensor(const std::string& nodeName, const std::string& tensorName, Qnn_TensorType_t type,
-                         const Tensor& tensor, Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+  ModelError_t addTensor(const std::string& tensorName, Qnn_TensorType_t type, const Tensor& tensor,
+                         Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
 
   // Add static tensor using mllm::Tensor
-  ModelError_t addStaticTensor(const std::string& nodeName, const std::string& tensorName, const Tensor& tensor,
+  ModelError_t addStaticTensor(const std::string& tensorName, const Tensor& tensor,
                                Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
 
   // Get tensor wrapper by name

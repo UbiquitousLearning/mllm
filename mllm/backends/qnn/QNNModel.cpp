@@ -147,7 +147,7 @@ ModelError_t QNNModel::loadGraphTensorInfo() {
   return MODEL_NO_ERROR;
 }
 
-ModelError_t QNNModel::addTensorWrapper(const std::string& nodeName, const std::shared_ptr<QNNTensorWrapper>& tensorWrapper) {
+ModelError_t QNNModel::addTensorWrapper(const std::shared_ptr<QNNTensorWrapper>& tensorWrapper) {
   if (!tensorWrapper) {
     MLLM_ERROR("QNNModel::addTensorWrapper() NULL tensor wrapper provided.");
     return MODEL_TENSOR_ERROR;
@@ -158,7 +158,7 @@ ModelError_t QNNModel::addTensorWrapper(const std::string& nodeName, const std::
 
   // Verify tensor being added is not a duplicate
   if (tensorWrapperMap_.find(tensorName) != tensorWrapperMap_.end()) {
-    MLLM_ERROR("QNNModel::addTensorWrapper() tensor {} for node {} already exists.", tensorName, nodeName);
+    MLLM_ERROR("QNNModel::addTensorWrapper() tensor {} already exists.", tensorName);
     return MODEL_TENSOR_ERROR;
   }
 
@@ -168,7 +168,7 @@ ModelError_t QNNModel::addTensorWrapper(const std::string& nodeName, const std::
   }
 
   if (qnnInterface_.tensorCreateGraphTensor(graph_, nativeTensor) != QNN_TENSOR_NO_ERROR) {
-    MLLM_ERROR("QNNModel::addTensorWrapper() error creating tensor for node {} tensorName: {}", nodeName, tensorName);
+    MLLM_ERROR("QNNModel::addTensorWrapper() error creating tensor {}", tensorName);
     return MODEL_TENSOR_ERROR;
   }
 
@@ -184,16 +184,15 @@ ModelError_t QNNModel::addTensorWrapper(const std::string& nodeName, const std::
   return MODEL_NO_ERROR;
 }
 
-ModelError_t QNNModel::addTensor(const std::string& nodeName, const std::string& tensorName, Qnn_TensorType_t type,
-                                 const Tensor& tensor, Qnn_QuantizeParams_t quantize) {
+ModelError_t QNNModel::addTensor(const std::string& tensorName, Qnn_TensorType_t type, const Tensor& tensor,
+                                 Qnn_QuantizeParams_t quantize) {
   auto tensorWrapper = QNNTensorWrapper::create(tensorName, type, tensor, quantize);
-  return addTensorWrapper(nodeName, tensorWrapper);
+  return addTensorWrapper(tensorWrapper);
 }
 
-ModelError_t QNNModel::addStaticTensor(const std::string& nodeName, const std::string& tensorName, const Tensor& tensor,
-                                       Qnn_QuantizeParams_t quantize) {
+ModelError_t QNNModel::addStaticTensor(const std::string& tensorName, const Tensor& tensor, Qnn_QuantizeParams_t quantize) {
   auto tensorWrapper = QNNTensorWrapper::createStaticTensor(tensorName, tensor, quantize);
-  return addTensorWrapper(nodeName, tensorWrapper);
+  return addTensorWrapper(tensorWrapper);
 }
 
 std::shared_ptr<QNNTensorWrapper> QNNModel::getTensorWrapper(const std::string& tensorName) {
@@ -234,14 +233,13 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version, const char* name, 
   uint32_t paramCounter = 0;
   for (auto& tensorParam : tensorParams) {
     // Add tensor parameter to graph
-    nodeError = addTensorWrapper(
-        name, std::make_shared<QNNTensorWrapper>(
-                  QNN_TENSOR_GET_NAME(tensorParam->getNativeTensor()), QNN_TENSOR_GET_TYPE(tensorParam->getNativeTensor()),
-                  QNN_TENSOR_GET_DATA_TYPE(tensorParam->getNativeTensor()),
-                  *(tensorParam->getNativeTensor()->v1.dimensions
-                        ? reinterpret_cast<const std::vector<uint32_t>*>(tensorParam->getNativeTensor()->v1.dimensions)
-                        : new std::vector<uint32_t>()),
-                  DEFAULT_QUANTIZE_PARAMS));
+    nodeError = addTensorWrapper(std::make_shared<QNNTensorWrapper>(
+        QNN_TENSOR_GET_NAME(tensorParam->getNativeTensor()), QNN_TENSOR_GET_TYPE(tensorParam->getNativeTensor()),
+        QNN_TENSOR_GET_DATA_TYPE(tensorParam->getNativeTensor()),
+        *(tensorParam->getNativeTensor()->v1.dimensions
+              ? reinterpret_cast<const std::vector<uint32_t>*>(tensorParam->getNativeTensor()->v1.dimensions)
+              : new std::vector<uint32_t>()),
+        DEFAULT_QUANTIZE_PARAMS));
 
     if (nodeError != MODEL_NO_ERROR) {
       MLLM_ERROR("QNNModel::addNode() addTensorWrapper() failed for tensor param on node {}", name);
@@ -270,7 +268,7 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version, const char* name, 
   size_t outputCounter = 0;
   modelOutputTensorMap_[name] = {};
   for (const auto& outputWrapper : outputTensorWrappers) {
-    nodeError = addTensorWrapper(name, outputWrapper);
+    nodeError = addTensorWrapper(outputWrapper);
     if (nodeError != MODEL_NO_ERROR) {
       MLLM_ERROR("QNNModel::addNode() addTensorWrapper() failed for output tensor on node {}", name);
       freeMultiPtr(nodeParams, inputs, outputs);
