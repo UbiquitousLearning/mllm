@@ -56,10 +56,10 @@ void QNNAllocator::free(Storage* storage) {
 
 void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_tensor) {
   // Make sure there has a memory that we can register to.
-  MLLM_RT_ASSERT_EQ(qnnMemPtrSet_.count(ptr), 1);
+  MLLM_RT_ASSERT(qnnMemPtrSet_.count(ptr));
 
   // Make sure this memory space is not registered yet.
-  MLLM_RT_ASSERT_EQ(ptrToFdAndMemHandleMap_.count(ptr), 0);
+  MLLM_RT_ASSERT(ptrToFdAndMemHandleMap_.count(ptr) == 0);
 
   // Get the file id of this memory space.
   int mem_fd = rpcmem_to_fd(ptr);
