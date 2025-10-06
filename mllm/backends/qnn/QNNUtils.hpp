@@ -11,6 +11,11 @@
 #include <string>
 #include <vector>
 
+// Forward declarations
+namespace mllm::ir::tensor {
+class TensorValue;
+}
+
 /**
  * @brief Utility functions for working with QNN tensors and QNN graphInfo structures.
  * @note It will NOT perform QNN checks, such as tensor version checks, etc.
@@ -125,6 +130,14 @@ inline void setQuantScale(Tensor& tensor, float scale) {
     tensor.attachedViews()["quant_scale"]->ptr<float>()[0] = scale;
   }
 }
+
+// --------------- QNN Graph Output Helper ---------------
+/**
+ * @brief Determines the appropriate QNN tensor type based on graph output attribute
+ * @param tensorValue The tensor value to check for graph output attribute
+ * @return QNN_TENSOR_TYPE_APP_WRITE if marked as graph output, QNN_TENSOR_TYPE_NATIVE otherwise
+ */
+Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue);
 
 // --------------- QNN Wrapper ---------------
 // QNN tensors' resource management is in C style. Wrap it in a C++ class

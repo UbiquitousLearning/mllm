@@ -5,7 +5,9 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
 #include <cstdint>
 #include <memory>
 #include <dlfcn.h>
@@ -320,9 +322,10 @@ QNNTensorWrapper::QNNTensorWrapper(const std::string& name, Qnn_TensorType_t typ
 
 std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& name, Qnn_TensorType_t type, const Tensor& tensor,
                                                            Qnn_QuantizeParams_t quantize) {
-  // in this case, the tensor is a placeholder
+  // in this case, the tensor may be a placeholder(input/output except for graph IO)
   // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
-  MLLM_RT_ASSERT(!name.empty() && tensor.device() == kQNN && tensor.isNil());
+  MLLM_RT_ASSERT(!name.empty());
+  if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
 
   Qnn_DataType_t dataType = QNN_DATATYPE_UNDEFINED;
   switch (tensor.dtype()) {
@@ -367,7 +370,7 @@ void QNNTensorWrapper::alloc() {
     return;
   }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
-  if (dataContainer_.isNil()) { dataContainer_.alloc(); }
+  dataContainer_.alloc();
 
   std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
       ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
@@ -465,5 +468,15 @@ QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, float valu
 }
 
 Qnn_Param_t* QNNParamScalarWrapper::getNativeParam() { return &(qnnParam_); }
+
+// --------------- QNN Graph Output Helper ---------------
+
+Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue) {
+  if (tensorValue->getAttr("is_graph_output")) {
+    MLLM_INFO("QNN output tensor {} is marked as graph output", tensorValue->name());
+    return QNN_TENSOR_TYPE_APP_READ;
+  }
+  return QNN_TENSOR_TYPE_NATIVE;
+}
 
 }  // namespace mllm::qnn
