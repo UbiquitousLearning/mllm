@@ -36,6 +36,8 @@ class TLB {
 
   void remove(vp_addr_t addr);
 
+  char* lookup(vp_addr_t addr);
+
  private:
   std::unordered_map<vp_addr_t, char*> addr_space_;
 };

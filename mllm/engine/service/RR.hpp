@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <memory>
-#include "mllm/models/ARGeneration.hpp"
+#include <nlohmann/json.hpp>
 
 namespace mllm::service {}  // namespace mllm::service

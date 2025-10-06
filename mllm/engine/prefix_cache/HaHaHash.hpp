@@ -9,6 +9,8 @@
 //  |  _  |/ ___ \  |  _  |/ ___ \  |  _  |/ ___ \ ___) |  _  |
 //  |_| |_/_/   \_\ |_| |_/_/   \_\ |_| |_/_/   \_\____/|_| |_|
 
+#include <vector>
+#include <string>
 #include <xxHash/xxhash.h>
 
 namespace mllm::prefix_cache::hash {
@@ -24,5 +26,11 @@ class ZenFSHashCode {
 
   bool operator==(const ZenFSHashCode& o) const noexcept;
 };
+
+XXH64_hash_t hashBytes(const void* data, size_t size) noexcept;
+
+XXH64_hash_t hashBytes(const std::vector<uint8_t>& data) noexcept;
+
+XXH64_hash_t hashBytes(const std::string& data) noexcept;
 
 }  // namespace mllm::prefix_cache::hash

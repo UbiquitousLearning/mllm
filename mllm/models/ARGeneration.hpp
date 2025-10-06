@@ -140,4 +140,10 @@ class ARGeneration {
       custom_event_time_;
 };
 
+/**
+ * @brief For service and session to use. States in ARGeneration should not be used.
+ *
+ */
+// class ARGenerationStateless final : public ARGeneration {};
+
 }  // namespace mllm::models

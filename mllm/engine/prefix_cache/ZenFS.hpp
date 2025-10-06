@@ -116,8 +116,8 @@ struct ZenFSBlob {
   std::vector<uint64_t> free_lanes_bits_map;  // 1024 bits, 16 uint64_t most likely.
 };
 
-struct ZfnFileSystemOptions {
-  bool record = true;
+struct ZenFileSystemOptions {
+  bool record = false;
   std::string working_dir;
   size_t blob_bits_size = 20;
   size_t page_bits = 7;  // 128 Pages per blob, 64 Page K, 64 Page V. K V K V K V.
@@ -139,7 +139,7 @@ class ZenFileSystem {
 
   char* access(vp_addr_t addr);
 
-  void initialize(const ZfnFileSystemOptions& options);
+  void initialize(const ZenFileSystemOptions& options);
 
   void finalize();
 
@@ -157,7 +157,7 @@ class ZenFileSystem {
   void _findFreeAddrInBlob(vp_blob_addr_t blob_addr, vp_addr_t* ret_addr);
 
   nlohmann::json index_;
-  ZfnFileSystemOptions options_;
+  ZenFileSystemOptions options_;
   size_t per_kv_token_mem_size_;
   std::unordered_map<vp_blob_addr_t, ZenFSBlob> blob_;
 };

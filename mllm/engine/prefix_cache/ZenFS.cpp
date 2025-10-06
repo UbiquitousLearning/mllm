@@ -199,12 +199,10 @@ bool ZenFSBlobMMAPFile::initAnonymous(size_t size, std::error_code& ec) {
   return true;
 }
 
-bool ZenFSBlobMMAPFile::initFileBacked(size_t size, ZenFSMMAPMode mode, std::error_code& ec) {
+bool ZenFSBlobMMAPFile::initFileBacked(size_t size, ZenFSMMAPMode mode, const std::string& fpath, std::error_code& ec) {
   size_ = size;
-  wchar_t tempPath[MAX_PATH];
-  wchar_t tempFile[MAX_PATH];
-  ::GetTempPathW(MAX_PATH, tempPath);
-  ::GetTempFileNameW(tempPath, L"zen", 0, tempFile);
+
+  std::wstring wfpath(fpath.begin(), fpath.end());
 
   DWORD desiredAccess = 0;
   DWORD flProtect = 0;
@@ -229,11 +227,12 @@ bool ZenFSBlobMMAPFile::initFileBacked(size_t size, ZenFSMMAPMode mode, std::err
     default: ec = std::make_error_code(std::errc::invalid_argument); return false;
   }
 
-  file_ = ::CreateFileW(tempFile, desiredAccess, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+  file_ = ::CreateFileW(wfpath.c_str(), desiredAccess, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (file_ == INVALID_HANDLE_VALUE) {
     ec = std::error_code(static_cast<int>(::GetLastError()), std::system_category());
     return false;
   }
+
   LARGE_INTEGER li;
   li.QuadPart = static_cast<LONGLONG>(size);
   if (!::SetFilePointerEx(file_, li, nullptr, FILE_BEGIN) || !::SetEndOfFile(file_)) {
@@ -293,7 +292,7 @@ void ZenFSBlobMMAPFile::adviseDontNeed() { ::DiscardVirtualMemory(addr_, size_);
 void ZenFSBlobMMAPFile::adviseOffline() { ::DiscardVirtualMemory(addr_, size_); }
 #endif
 
-void ZenFileSystem::initialize(const ZfnFileSystemOptions& options) {
+void ZenFileSystem::initialize(const ZenFileSystemOptions& options) {
   options_ = options;
   per_kv_token_mem_size_ = bytesOfType(options.k_dtype) * options.per_k_token_ele / lanesOfType(options.k_dtype);
 
@@ -326,7 +325,7 @@ void ZenFileSystem::initialize(const ZfnFileSystemOptions& options) {
   // X. Create the first block Tensor for KV
   {
     size_t total_bits = (1 << (options_.page_bits + options_.lane_bits));
-    size_t uint64_count = (total_bits + sizeof(uint64_t) - 1) / sizeof(uint64_t);
+    size_t uint64_count = (total_bits + 64 - 1) / 64;
 
     // The first blob is in memory
     blob_.insert({blob_.size(), ZenFSBlob{.data = Tensor::zeros({(1 << (options_.page_bits + options_.lane_bits)),
@@ -493,7 +492,7 @@ void ZenFileSystem::recover(const std::string& working_dir) {
 
       // Initialize free lanes bitmap
       size_t total_bits = (1 << (options_.page_bits + options_.lane_bits));
-      size_t uint64_count = (total_bits + sizeof(uint64_t) - 1) / sizeof(uint64_t);
+      size_t uint64_count = (total_bits + 64 - 1) / 64;
       blob.free_lanes_bits_map = std::vector<uint64_t>(uint64_count, ~0ULL);
 
       // Insert blob into map
@@ -708,9 +707,10 @@ void ZenFileSystem::_findFreeAddrInBlob(vp_blob_addr_t blob_addr, vp_addr_t* ret
   for (size_t i = 0; i < bitmap.size(); ++i) {
     uint64_t w = bitmap[i];
     if (w != 0) {
-      int where_is_this_bit = __builtin_ctzll(w);
-      bitmap[i] &= ~(1ULL << where_is_this_bit);
-      *ret_addr = blob_addr | int32_t(i * 64 + where_is_this_bit);
+      int bit_index = __builtin_ctzll(w);
+      bitmap[i] &= ~(1ULL << bit_index);
+      *ret_addr = (blob_addr << (options_.lane_bits + options_.page_bits)) | int32_t(i * 64 + bit_index);
+      return;
     }
   }
   *ret_addr = -1;

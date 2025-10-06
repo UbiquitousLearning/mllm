@@ -39,4 +39,10 @@ bool ZenFSHashCode::operator==(const ZenFSHashCode& o) const noexcept {
   return parent_hash_code == o.parent_hash_code && content_hash_code == o.content_hash_code
          && extra_hash_code == o.extra_hash_code;
 }
+
+XXH64_hash_t hashBytes(const void* data, size_t size) noexcept { return XXH64(data, size, 0); }
+
+XXH64_hash_t hashBytes(const std::vector<uint8_t>& data) noexcept { return XXH64(data.data(), data.size(), 0); }
+
+XXH64_hash_t hashBytes(const std::string& data) noexcept { return XXH64(data.data(), data.size(), 0); }
 }  // namespace mllm::prefix_cache::hash

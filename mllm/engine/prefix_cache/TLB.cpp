@@ -18,4 +18,18 @@ vp_lane_addr_t getLaneAddr(vp_addr_t addr, size_t page_bits, size_t lane_bits) {
   uint64_t mask = (1ULL << lane_bits) - 1;
   return addr & mask;
 }
+
+void TLB::insert(vp_addr_t addr, char* data) { addr_space_.emplace(addr, data); }
+
+void TLB::remove(vp_addr_t addr) { addr_space_.erase(addr); }
+
+char* TLB::lookup(vp_addr_t addr) {
+  auto it = addr_space_.find(addr);
+  if (it != addr_space_.end()) {
+    return it->second;
+  } else {
+    return nullptr;
+  }
+}
+
 }  // namespace mllm::prefix_cache
