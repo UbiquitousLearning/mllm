@@ -2,13 +2,14 @@
 // Licensed under the MIT License.
 
 #include "mllm/mllm.hpp"
-#include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
+#include "mllm/nn/Module.hpp"
 #include "mllm/nn/Functional.hpp"
 #include "mllm/nn/lmcache/StaticCache.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
 #include "mllm/utils/Enumerate.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/engine/service/Session.hpp"
 
 namespace mllm::models::qwen3 {
 
@@ -349,5 +350,10 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
   bool tie_word_embeddings_;
   nn::StaticCache kv_cache_;
 };
+
+// class Qwen3Session final : public ::mllm::service::Session {
+//  public:
+//  private:
+// };
 
 }  // namespace mllm::models::qwen3

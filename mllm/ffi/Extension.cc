@@ -372,5 +372,5 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 
         return mllm::ffi::Tensor(new_weights);
       });
-#endif
 }
+#endif

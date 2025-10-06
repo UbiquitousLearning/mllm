@@ -17,6 +17,10 @@ class PagedAttn : public Layer {
   explicit PagedAttn(int32_t head_repeat_times, bool high_precision_exp = false, bool fuse_rope = false,
                      bool need_attn_weights = false, aops::PagedAttnImplType impl_type = aops::PagedAttnImplType::kAllFp32);
 
+  // Prefixed Cache Paged Attn Constructor
+  explicit PagedAttn(void* ctx, bool high_precision_exp = false, bool fuse_rope = false,
+                     aops::PagedAttnImplType impl_type = aops::PagedAttnImplType::kPrefixCache);
+
   MLLM_LAYER_ANY_INPUTS_2_OUTPUTS_FORWARD
 };
 

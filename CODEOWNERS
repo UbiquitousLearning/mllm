@@ -38,7 +38,7 @@
 # KVCache
 
 /mllm/nn/lmcache/ @chenghuaWang @oreomaker
-/mllm/nn/lmcache/aux_page @chenghuaWang
+/mllm/engine/prefix_cache @chenghuaWang
 
 # models
 /mllm/models/qwen3 @chenghuaWang
