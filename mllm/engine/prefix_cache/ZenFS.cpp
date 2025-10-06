@@ -12,9 +12,9 @@
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
-#include "mllm/nn/lmcache/aux_page/ZenFS.hpp"
+#include "mllm/engine/prefix_cache/ZenFS.hpp"
 
-namespace mllm::nn::aux_page {
+namespace mllm::prefix_cache {
 
 ZenFSBlobMMAPFile::ptr_t ZenFSBlobMMAPFile::create(size_t size, ZenFSMMAPMode mode, const std::string& fpath,
                                                    std::error_code& ec) {
@@ -561,7 +561,7 @@ void ZenFileSystem::hintsPurge(vp_addr_t token_lane_addr) {
   }
 }
 
-vp_addr_t ZenFileSystem::malloc(size_t size) {
+vp_addr_t ZenFileSystem::malloc() {
   for (auto& [f, s] : blob_) {
     vp_addr_t ret = -1;
     _findFreeAddrInBlob(f, &ret);
@@ -716,4 +716,4 @@ void ZenFileSystem::_findFreeAddrInBlob(vp_blob_addr_t blob_addr, vp_addr_t* ret
   *ret_addr = -1;
 }
 
-}  // namespace mllm::nn::aux_page
+}  // namespace mllm::prefix_cache

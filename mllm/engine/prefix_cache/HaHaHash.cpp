@@ -6,9 +6,9 @@
 #include <xxHash/xxhash.h>
 
 #include "mllm/utils/Common.hpp"
-#include "mllm/nn/lmcache/aux_page/HaHaHash.hpp"
+#include "mllm/engine/prefix_cache/HaHaHash.hpp"
 
-namespace mllm::nn::aux_page {
+namespace mllm::prefix_cache::hash {
 
 namespace MLLM_ANONYMOUS_NAMESPACE {
 
@@ -24,7 +24,7 @@ inline void write_be32(unsigned char* dst, uint32_t v) {
 
 }  // namespace MLLM_ANONYMOUS_NAMESPACE
 
-XXH64_hash_t ZenFSHashCode::hash() const {
+XXH64_hash_t ZenFSHashCode::hash() const noexcept {
   unsigned char buf[sizeof(uint64_t) * 2 + sizeof(uint32_t)];
   size_t off = 0;
   write_be64(buf + off, parent_hash_code);
@@ -34,4 +34,9 @@ XXH64_hash_t ZenFSHashCode::hash() const {
   write_be32(buf + off, extra_hash_code);
   return XXH64(buf, sizeof(buf), 0);
 }
-}  // namespace mllm::nn::aux_page
+
+bool ZenFSHashCode::operator==(const ZenFSHashCode& o) const noexcept {
+  return parent_hash_code == o.parent_hash_code && content_hash_code == o.content_hash_code
+         && extra_hash_code == o.extra_hash_code;
+}
+}  // namespace mllm::prefix_cache::hash

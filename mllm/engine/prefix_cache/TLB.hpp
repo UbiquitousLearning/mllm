@@ -13,8 +13,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 
-namespace mllm::nn::aux_page {
+#define INVALID_VP_ADDR 0xFFFFFFFF
+
+namespace mllm::prefix_cache {
 
 using vp_addr_t = uint32_t;
 using vp_blob_addr_t = uint32_t;
@@ -27,4 +30,14 @@ vp_page_addr_t getPageAddr(vp_addr_t addr, size_t page_bits, size_t lane_bits);
 
 vp_lane_addr_t getLaneAddr(vp_addr_t addr, size_t page_bits, size_t lane_bits);
 
-}  // namespace mllm::nn::aux_page
+class TLB {
+ public:
+  void insert(vp_addr_t addr, char* data);
+
+  void remove(vp_addr_t addr);
+
+ private:
+  std::unordered_map<vp_addr_t, char*> addr_space_;
+};
+
+}  // namespace mllm::prefix_cache

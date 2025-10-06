@@ -1,9 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/nn/lmcache/aux_page/TLB.hpp"
+#include "mllm/engine/prefix_cache/TLB.hpp"
 
-namespace mllm::nn::aux_page {
+namespace mllm::prefix_cache {
 vp_blob_addr_t getBlobAddr(vp_addr_t addr, size_t page_bits, size_t lane_bits) {
   size_t blob_bits = sizeof(vp_addr_t) - page_bits - lane_bits;
   return addr >> (page_bits + lane_bits);
@@ -18,4 +18,4 @@ vp_lane_addr_t getLaneAddr(vp_addr_t addr, size_t page_bits, size_t lane_bits) {
   uint64_t mask = (1ULL << lane_bits) - 1;
   return addr & mask;
 }
-}  // namespace mllm::nn::aux_page
+}  // namespace mllm::prefix_cache

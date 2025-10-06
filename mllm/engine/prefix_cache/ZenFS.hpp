@@ -34,9 +34,9 @@
 
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/DataTypes.hpp"
-#include "mllm/nn/lmcache/aux_page/TLB.hpp"
+#include "mllm/engine/prefix_cache/TLB.hpp"
 
-namespace mllm::nn::aux_page {
+namespace mllm::prefix_cache {
 
 enum class ZenFSMMAPMode : int32_t {
   kReadOnly,
@@ -133,7 +133,7 @@ class ZenFileSystem {
  public:
   ZenFileSystem() = default;
 
-  vp_addr_t malloc(size_t size);
+  vp_addr_t malloc();
 
   void free(vp_addr_t addr);
 
@@ -162,4 +162,4 @@ class ZenFileSystem {
   std::unordered_map<vp_blob_addr_t, ZenFSBlob> blob_;
 };
 
-}  // namespace mllm::nn::aux_page
+}  // namespace mllm::prefix_cache
