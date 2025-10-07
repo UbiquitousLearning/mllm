@@ -4,11 +4,11 @@
 #pragma once
 
 #include "mllm/core/DataTypes.hpp"
-#include "mllm/backends/cpu/kernels/common/paged_attn_x/arch.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/arch.hpp"
 
 #include <arm_neon.h>
 
-namespace mllm::cpu::paged_attn_x::details {
+namespace mllm::cpu::radix_attn::details {
 template<>
 struct VectorDotProduct<__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t> {
   static MLLM_FORCE_INLINE void run(const mllm_fp32_t* __restrict__ __lhs, const mllm_fp32_t* __restrict__ __rhs,
@@ -97,4 +97,4 @@ struct FMAConstArray<__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t> {
   }
 };
 
-}  // namespace mllm::cpu::paged_attn_x::details
+}  // namespace mllm::cpu::radix_attn::details

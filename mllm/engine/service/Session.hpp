@@ -17,6 +17,8 @@ class Session {
   virtual void streamGenerate(const nlohmann::json& request,
                               const std::function<void(const nlohmann::json&, bool)>& callback) = 0;
 
+  virtual void fromPreTrain(const std::string& model_path);
+
  private:
   std::shared_ptr<mllm::models::ARGeneration> model_;
 };

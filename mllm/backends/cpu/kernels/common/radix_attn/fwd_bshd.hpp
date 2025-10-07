@@ -9,17 +9,16 @@
 #include <numbers>
 #include "mllm/core/Parallel.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
-#include "mllm/engine/prefix_cache/TLB.hpp"
-#include "mllm/backends/cpu/kernels/common/paged_attn_x/arch.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/arch.hpp"
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
-#include "mllm/backends/cpu/kernels/common/paged_attn_x/impl-arm.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/impl-arm.hpp"
 #else
-#include "mllm/backends/cpu/kernels/common/paged_attn_x/impl-any-simd.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/impl-any-simd.hpp"
 #endif
-#include "mllm/backends/cpu/kernels/common/paged_attn_x/impl-any.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/impl-any.hpp"
 
-namespace mllm::cpu::paged_attn_x {
+namespace mllm::cpu::radix_attn {
 
 // BHSD
 // K: [S_KV], address, not contiguous
@@ -30,8 +29,7 @@ namespace mllm::cpu::paged_attn_x {
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
          bool high_precession_exp = true>
 void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, int32_t D, const __QDType* __restrict__ __q,
-              const mllm::prefix_cache::vp_addr_t* __k, const mllm::prefix_cache::vp_addr_t* __v, __ODType* __restrict__ __out,
-              void* ctx, int32_t thread_count) {
+              const __KDType** __k, const __VDType** __v, __ODType* __restrict__ __out, int32_t thread_count) {
   int32_t head_repeat_times = H_Q / H_KV;
 
   __AccDType scale = scale = std::sqrt(1.0 / D) * (__AccDType)std::numbers::log2e;
@@ -47,7 +45,6 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         __QDType* q_token = __q + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
         __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
 
-        // FIXME: Boost with SIMD
         for (int d_idx = 0; d_idx < D; ++d_idx) { acc_o[d_idx] = 0; }
         __AccDType scores_max = std::numeric_limits<__AccDType>::lowest();
         __AccDType scores_max_prev = std::numeric_limits<__AccDType>::lowest();
@@ -59,13 +56,8 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         int S_KV_BOUND = std::min(__delta + s_q_idx + 1, S_KV);
 
         for (int s_kv_idx = 0; s_kv_idx < S_KV_BOUND; ++s_kv_idx) {
-          // TODO, prefetch next
-
-          // TODO using context.
-          // __KDType* k_token = (__KDType*)ctx->access(__k[s_kv_idx]);
-          // __VDType* v_token = (__VDType*)ctx->access(__v[s_kv_idx]);
-          __KDType* k_token = NULL;
-          __VDType* v_token = NULL;
+          __KDType* k_token = __k[s_kv_idx];
+          __VDType* v_token = __v[s_kv_idx];
 
           // Offset to one head.
           // k_token and v_token shape is [D]
@@ -90,8 +82,6 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
 
           // 4. MMA1.
           FMAConstArray<__ArchTag, __AccDType, __AccDType, __AccDType>(acc_o, acc_s, v_token, D);
-
-          // TODO, drop this mmap in the future.
         }
 
         // 5. Final Rescale.
@@ -101,4 +91,4 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
   }
 }
 
-}  // namespace mllm::cpu::paged_attn_x
+}  // namespace mllm::cpu::radix_attn

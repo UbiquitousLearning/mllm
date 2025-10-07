@@ -1,15 +1,25 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#pragma once
+
+#include <span>
+#include <memory>
+#include <ranges>
+#include <algorithm>
+#include <filesystem>
 
 #include "mllm/mllm.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Functional.hpp"
-#include "mllm/nn/lmcache/StaticCache.hpp"
-#include "mllm/models/qwen3/configuration_qwen3.hpp"
 #include "mllm/utils/Enumerate.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen3/tokenization_qwen3.hpp"
+#include "mllm/models/qwen3/configuration_qwen3.hpp"
+
+// Service related.
 #include "mllm/engine/service/Session.hpp"
+#include "mllm/engine/prefix_cache/Cache.hpp"
 
 namespace mllm::models::qwen3 {
 
@@ -103,8 +113,6 @@ class Qwen3Attention final : public nn::Module {
   nn::RMSNorm rms_norm_k_;
   nn::RoPE q_rope_;
   nn::RoPE k_rope_;
-  nn::CausalMask mask_;
-  nn::Softmax softmax_;
 
   int hidden_size_;
   int head_dim_;
@@ -136,16 +144,15 @@ class Qwen3Attention final : public nn::Module {
 
     q_rope_ = reg<nn::RoPE>("q_rope", cfg.rope_theta, cfg.max_position_embeddings);
     k_rope_ = reg<nn::RoPE>("k_rope", cfg.rope_theta, cfg.max_position_embeddings);
-
-    mask_ = reg<nn::CausalMask>("mask");
-    softmax_ = reg<nn::Softmax>("softmax", -1);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+    auto k_cache_addr = args[0].get<std::vector<std::vector<prefix_cache::vp_addr_t>>*>();
+    auto v_cache_addr = args[1].get<std::vector<std::vector<prefix_cache::vp_addr_t>>*>();
+    auto prefix_cache_context = args[2].get<prefix_cache::Cache*>();
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
@@ -167,39 +174,54 @@ class Qwen3Attention final : public nn::Module {
     // [B, H, S, D]
     query_states = query_states.transpose(1, 2);
     key_states = key_states.transpose(1, 2);
-    value_states = value_states.transpose(1, 2);
+    value_states = value_states.transpose(1, 2).to(kFloat16);
 
     // [B, H, S, D]
-    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
-    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
+    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos).to(kFloat16);
+    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos).to(kFloat16);
 
-    // [B, H, S, D]
-    auto [key_states_new, value_states_new] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
-    key_states = key_states_new;
-    value_states = value_states_new;
+    // FIXME: Think, if rope before cache is ok?
 
-    Tensor attn;
-    if (key_states.dtype() == kFloat32) {
-      // attention weight
-      // [B, H, S, S]
-      attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-    } else if (key_states.dtype() == kFloat16) {
-      attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-      attn = attn.to(kFloat16);
+    // Acquire cache
+    std::vector<prefix_cache::vp_addr_t> k_addr_wait_for_promote;
+    std::vector<prefix_cache::vp_addr_t> v_addr_wait_for_promote;
+    for (int s_idx; s_idx < S; ++s_idx) {
+      k_addr_wait_for_promote.push_back(prefix_cache_context->alloc(DeviceTypes::kCPU));
+      v_addr_wait_for_promote.push_back(prefix_cache_context->alloc(DeviceTypes::kCPU));
     }
 
-    // attn output
-    // [B, H, S, S] @ [B, H, S, D] -> [B, H, S, D]
-    auto output = nn::functional::matmul(attn, value_states);
-    // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
-    output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
-    output = o_proj_(output);
+    // Prepare indicies cache. sizeof(char*) == 8 == sizeof(int64_t)
+    std::vector<char*> k_phy_addr_wait_for_promote;
+    std::vector<char*> v_phy_addr_wait_for_promote;
+    for (int s_idx; s_idx < S; ++s_idx) {
+      k_phy_addr_wait_for_promote.push_back(prefix_cache_context->physicalAddr(k_addr_wait_for_promote[s_idx]));
+      v_phy_addr_wait_for_promote.push_back(prefix_cache_context->physicalAddr(v_addr_wait_for_promote[s_idx]));
+    }
+    auto k_wait_for_promote = Tensor::refVectorData(k_phy_addr_wait_for_promote, {S}, kInt64, kCPU);
+    auto v_wait_for_promote = Tensor::refVectorData(v_phy_addr_wait_for_promote, {S}, kInt64, kCPU);
 
-    return {output};
+    // Copy key_states and value_states to cache
+    nn::functional::scatter2Shards(key_states, k_wait_for_promote, 2);
+    nn::functional::scatter2Shards(value_states, v_wait_for_promote, 2);
+
+    // Gather all cache to indicies tensor
+    std::ranges::copy((*k_cache_addr)[layer_idx_], std::back_inserter(k_addr_wait_for_promote));
+    std::ranges::copy((*v_cache_addr)[layer_idx_], std::back_inserter(v_addr_wait_for_promote));
+    std::vector<char*> k_phy_cache_indicies;
+    std::vector<char*> v_phy_cache_indicies;
+    int32_t kv_cache_len = (*k_cache_addr)[layer_idx_].size();
+    k_phy_cache_indicies.reserve(kv_cache_len);
+    v_phy_cache_indicies.reserve(kv_cache_len);
+    for (int i = 0; i < kv_cache_len; ++i) {
+      k_phy_cache_indicies.push_back(prefix_cache_context->physicalAddr((*k_cache_addr)[layer_idx_][i]));
+      v_phy_cache_indicies.push_back(prefix_cache_context->physicalAddr((*k_cache_addr)[layer_idx_][i]));
+    }
+    auto k_cache = Tensor::refVectorData(k_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
+    auto v_cache = Tensor::refVectorData(v_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
+
+    // TODO Do Radix Attention
+
+    return {};
   }
 
   int layer_idx_;
@@ -224,10 +246,12 @@ class Qwen3Decoder final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto& kv_cache = args[0];
+    auto& k_cache_addr = args[0];
+    auto& v_cache_addr = args[1];
+    auto& prefix_cache_context = args[2];
 
     auto x = input_layer_norm_(inputs[0]);
-    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0];
+    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, k_cache_addr, v_cache_addr, prefix_cache_context)[0];
     auto tmp = x + inputs[0];
     x = post_attention_layer_norm_(tmp);
     x = mlp_(x)[0];
@@ -259,9 +283,13 @@ class Qwen3Text final : public nn::Module {
 
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto& kv_cache = args[0];
+    auto& k_cache_addr = args[0];
+    auto& v_cache_addr = args[1];
+    auto& prefix_cache_context = args[2];
 
-    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+    for (auto& block : blocks) {
+      x = block(x, llm_embedding_sin, llm_embedding_cos, k_cache_addr, v_cache_addr, prefix_cache_context)[0];
+    }
 
     x = norm_(x);
 
@@ -272,21 +300,13 @@ class Qwen3Text final : public nn::Module {
 class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
  public:
   explicit Qwen3ForCausalLM(const Qwen3Config& cfg) : cfg(cfg) {
-    kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
-                                cfg.num_attention_heads,  // q_heads
-                                cfg.num_key_value_heads,  // kv_heads
-                                cfg.head_dim,             // kv_dim
-                                kFloat32,                 // k_dtype
-                                kFloat32,                 // v_dtype
-                                kCPU,                     // device_type
-                                false                     // use_fa2
-    );
     eos_token_id_ = cfg.end_of_text_token_id;
     max_length_ = cfg.max_cache_length;
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
     llm = reg<Qwen3Text>("model", cfg);
 
+    // Qwen3 0.6B's lm_head is tied with embed_tokens. But ModelScope's official weights separate them.
     if (cfg.tie_word_embeddings) {
       // NOTE:
       // model.lm_head.weight is quantization weights of model.embed_tokens.weight
@@ -317,6 +337,9 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
         *position_ids.offsettedPtr<int64_t>({0, 0}) = last_pos + 1;
       }
     } else {
+      // NOTE: Service Session should not go into this branch !!!
+      MLLM_RT_ASSERT(false);
+
       // Generate position_ids for prefill phase
       position_ids = Tensor::empty({batch_size, seq_len}, kInt64, kCPU).alloc();
       auto position_ids_ptr = position_ids.ptr<int64_t>();
@@ -328,7 +351,8 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     // Generate RoPE embeddings using the inv_freq buffer
     auto [llm_embedding_sin, llm_embedding_cos] = makeRotaryPosEmbedding(position_ids, getBuffer("inv_freq"), 1.0f);
 
-    sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos, args.at("k_cache_addrs"), args.at("v_cache_addrs"),
+                   args.at("prefix_cache_context"))[0];
 
     // clip x to one seq length
     {
@@ -348,12 +372,238 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
   Qwen3Text llm;
   nn::Linear lm_head_;
   bool tie_word_embeddings_;
-  nn::StaticCache kv_cache_;
 };
 
-// class Qwen3Session final : public ::mllm::service::Session {
-//  public:
-//  private:
-// };
+class Qwen3Session final : public ::mllm::service::Session {
+ public:
+  Qwen3Session();
+
+  void streamGenerate(const nlohmann::json& request,
+                      const std::function<void(const nlohmann::json&, bool)>& callback) override {
+    const auto& messages = request["messages"];
+    auto inputs = applyChatTemplate(messages, nullptr, true, request.value("enable_thinking", false));
+
+    Dbg("prompt", inputs);
+
+    auto full_seq_idx = tokenizer_->convert2Ids(tokenizer_->tokenize(inputs)).toVector<int64_t>();
+    ARGenerationArgs args;
+    ARGenerationOutputPast input;
+
+    // Search in the radix cache. Find the tokens we really need to compute.
+    auto prefix_cache_result = cache_->find(full_seq_idx);
+    std::span<int64_t> reduced_seq_idx(full_seq_idx.data() + prefix_cache_result.matched_length,
+                                       full_seq_idx.size() - prefix_cache_result.matched_length);
+    std::vector<int64_t> position_ids;
+    {
+      auto start = prefix_cache_result.matched_length;
+      auto end = full_seq_idx.size();
+      position_ids.reserve(end - start);
+      std::ranges::copy(std::views::iota(static_cast<int64_t>(start), static_cast<int64_t>(end)),
+                        std::back_inserter(position_ids));
+    }
+    MLLM_RT_ASSERT_EQ(reduced_seq_idx.size(), position_ids.size());
+    input["sequence"] = Tensor::fromVector(reduced_seq_idx, {(int32_t)reduced_seq_idx.size()}, kInt64, kCPU);
+    input["position_ids"] = Tensor::fromVector(position_ids, {(int32_t)position_ids.size()}, kInt64, kCPU);
+
+    // Setup session context
+    k_cache_addrs_ = prefix_cache_result.k_cache_addresses;
+    v_cache_addrs_ = prefix_cache_result.v_cache_addresses;
+    args["k_cache_addrs"] = &k_cache_addrs_;
+    args["v_cache_addrs"] = &v_cache_addrs_;
+    args["prefix_cache_context"] = cache_.get();
+
+    // TODO other args for sampling should be read from request.
+
+    // Iteration start
+    model_->streamGenerate(input, args, [](int64_t idx) {
+      // TODO Callback
+    });
+
+    // TODO: process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
+
+    // Insert generated tokens to the cache.
+    cache_->promote(full_seq_idx, k_cache_addrs_, v_cache_addrs_);
+
+    // Cleanup session Context
+    k_cache_addrs_ = {};
+    v_cache_addrs_ = {};
+  }
+
+  void fromPreTrain(const std::string& model_path) override {
+    namespace fs = std::filesystem;
+    fs::path root = fs::path(model_path).lexically_normal();
+    fs::path config_file = root / "config.json";
+    fs::path model_file = root / "model.mllm";
+    fs::path tokenizer_file = root / "tokenizer.json";
+    if (!fs::exists(config_file)) throw std::runtime_error("config.json not found");
+    if (!fs::exists(model_file)) throw std::runtime_error("model.mllm not found");
+    if (!fs::exists(tokenizer_file)) throw std::runtime_error("tokenizer.json not found");
+
+    auto cfg = Qwen3Config(config_file.string());
+    model_ = std::make_shared<Qwen3ForCausalLM>(cfg);
+    model_->load(load(model_file.string()));
+    tokenizer_ = std::make_shared<Qwen3Tokenizer>(tokenizer_file.string());
+
+    cache_ = std::make_shared<prefix_cache::Cache>(prefix_cache::CacheOptions{
+        .radix_tree_options = {.enable_lru_eviction = false,
+                               .eviction_threshold = 0.9f,
+                               .enable_path_compression = false,
+                               .min_compression_length = 2,
+                               .transformer_blocks_num = cfg.num_hidden_layers},
+        .allocator_options = {// Normal things.
+                              .per_k_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
+                              .per_v_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
+                              .k_dtype = mllm::kFloat16,
+                              .v_dtype = mllm::kFloat16,
+
+                              // CUDA things.
+                              .enable_cuda = false,
+                              .cuda_mem_base = 0x100000,
+
+                              // CPU things.
+                              .enable_cpu_hierarchy_memory = true,
+                              .zen_fs_options = {
+                                  .record = false,
+                                  .working_dir = ".",
+                                  .blob_bits_size = 20,
+                                  .page_bits = 7,
+                                  .lane_bits = 5,
+                                  .per_k_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
+                                  .per_v_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
+                                  .k_dtype = mllm::kFloat16,
+                                  .v_dtype = mllm::kFloat16,
+                                  .mmap_type = mllm::prefix_cache::ZenFSBlobMMapType::kAnonymous,
+                              }}});
+  }
+
+  std::string trim(const std::string& s) {
+    auto beg = s.find_first_not_of(" \t\r\n");
+    if (beg == std::string::npos) return "";
+    auto end = s.find_last_not_of(" \t\r\n");
+    return s.substr(beg, end - beg + 1);
+  }
+
+  // [{"role": "user", "content": "Say this is a test!"}]
+  // [{"role": "assistant", "content": "This is a test!", "reasoning": "You are absolutely right!"}]
+  //
+  std::string applyChatTemplate(const json& messages, const json* tools = nullptr, bool add_generation_prompt = true,
+                                bool enable_thinking = true, const std::string& bos_token = "",
+                                const std::string& eos_token = "<|im_end|>") {
+    std::ostringstream out;
+
+    if (tools && tools->is_array() && !tools->empty()) {
+      out << "<|im_start|>system\n";
+      if (messages.is_array() && !messages.empty() && messages[0].contains("role") && messages[0]["role"] == "system") {
+        out << messages[0]["content"].get<std::string>() << "\n\n";
+      }
+      out << "# Tools\n\nYou may call one or more functions to assist with the user query.\n\n"
+             "You are provided with function signatures within <tools></tools> XML tags:\n<tools>";
+      for (auto& t : *tools) out << "\n" << t.dump();
+      out << "\n</tools>\n\n"
+             "For each function call, return a json object with function name and arguments "
+             "within <tool_call></tool_call> XML tags:\n<tool_call>\n"
+             "{\"name\": <function-name>, \"arguments\": <args-json-object>}\n"
+             "</tool_call><|im_end|>\n";
+    } else {
+      if (messages.is_array() && !messages.empty() && messages[0].contains("role") && messages[0]["role"] == "system") {
+        out << "<|im_start|>system\n" << messages[0]["content"].get<std::string>() << "<|im_end|>\n";
+      }
+    }
+
+    size_t last_query_index = messages.size() - 1;
+    bool multi_step_tool = true;
+    if (messages.is_array()) {
+      for (int i = static_cast<int>(messages.size()) - 1; i >= 0; --i) {
+        auto& m = messages[i];
+        if (multi_step_tool && m.contains("role") && m["role"] == "user" && m.contains("content") && m["content"].is_string()) {
+          std::string c = m["content"];
+          bool is_tr =
+              (c.starts_with("<tool_response>")) && (c.size() > 17 && c.compare(c.size() - 18, 18, "</tool_response>") == 0);
+          if (!is_tr) {
+            multi_step_tool = false;
+            last_query_index = i;
+          }
+        }
+      }
+    }
+
+    if (!messages.is_array()) return out.str();
+    for (size_t idx = 0; idx < messages.size(); ++idx) {
+      auto& m = messages[idx];
+      std::string role, content;
+      if (m.contains("role")) role = m["role"];
+      if (m.contains("content") && m["content"].is_string()) content = m["content"];
+
+      if (role == "user" || (role == "system" && idx != 0)) {
+        out << "<|im_start|>" << role << "\n" << content << eos_token << "\n";
+        continue;
+      }
+
+      if (role == "assistant") {
+        std::string reasoning_content;
+        if (m.contains("reasoning_content") && m["reasoning_content"].is_string()) {
+          reasoning_content = m["reasoning_content"];
+        } else {
+          size_t pos_end = content.find("</think>");
+          if (pos_end != std::string::npos) {
+            size_t pos_beg = content.rfind("<think>", pos_end);
+            if (pos_beg != std::string::npos) {
+              reasoning_content = trim(content.substr(pos_beg + 7, pos_end - pos_beg - 7));
+              content.erase(pos_beg, pos_end + 8);
+              content = trim(content);
+            }
+          }
+        }
+
+        bool in_last_turn = (idx > last_query_index);
+        bool need_think = in_last_turn && (idx + 1 == messages.size() || !reasoning_content.empty());
+
+        out << "<|im_start|>assistant\n";
+        if (need_think) { out << "<think>\n" << reasoning_content << "\n</think>\n\n"; }
+        out << content;
+
+        if (m.contains("tool_calls") && m["tool_calls"].is_array()) {
+          for (auto& tc : m["tool_calls"]) {
+            json fn = tc.contains("function") ? tc["function"] : tc;
+            std::string name = fn.value("name", "");
+            std::string args = fn.value("arguments", "");
+            if (fn["arguments"].is_object() || fn["arguments"].is_array()) args = fn["arguments"].dump();
+            out << "\n<tool_call>\n"
+                << R"({"name": ")" << name << R"(", "arguments": )" << args << "}\n"
+                << "</tool_call>";
+          }
+        }
+        out << eos_token << "\n";
+        continue;
+      }
+
+      if (role == "tool") {
+        bool first_tool = (idx == 0) || !messages[idx - 1].contains("role") || messages[idx - 1]["role"] != "tool";
+        bool last_tool =
+            (idx + 1 == messages.size()) || !messages[idx + 1].contains("role") || messages[idx + 1]["role"] != "tool";
+        if (first_tool) out << "<|im_start|>user";
+        out << "\n<tool_response>\n" << content << "\n</tool_response>";
+        if (last_tool) out << eos_token << "\n";
+      }
+    }
+
+    if (add_generation_prompt) {
+      out << "<|im_start|>assistant\n";
+      if (!enable_thinking) { out << "<think>\n\n</think>\n\n"; }
+    }
+
+    return out.str();
+  }
+
+ private:
+  // States
+  std::vector<std::vector<prefix_cache::vp_addr_t>> k_cache_addrs_;
+  std::vector<std::vector<prefix_cache::vp_addr_t>> v_cache_addrs_;
+
+  // Owned  data
+  std::shared_ptr<Qwen3ForCausalLM> model_;
+  std::shared_ptr<Qwen3Tokenizer> tokenizer_;
+  std::shared_ptr<prefix_cache::Cache> cache_;
+};
 
 }  // namespace mllm::models::qwen3

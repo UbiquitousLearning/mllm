@@ -4,6 +4,7 @@
 
 #include <queue>
 #include <mutex>
+#include <thread>
 #include <condition_variable>
 #include <nlohmann/json.hpp>
 

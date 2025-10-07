@@ -127,4 +127,6 @@ Tensor mean(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), 
 Tensor silu(const Tensor& x);
 Tensor silu_(const Tensor& x);
 
+void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim);
+
 }  // namespace mllm::nn::functional
