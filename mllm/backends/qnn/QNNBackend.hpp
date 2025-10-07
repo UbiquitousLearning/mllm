@@ -93,8 +93,7 @@ class QNNBackend final : public Backend {
   std::shared_ptr<QNNModel> createQnnGraph(const std::string& graphName);
 
   void graphAddNode(const std::string& graphName, const std::string& nodeName, const std::string& nodeType,
-                    const std::vector<std::string>& inputTensorNames,
-                    const std::vector<std::shared_ptr<QNNTensorWrapper>>& outputTensors,
+                    const std::vector<std::string>& inputTensorNames, const std::vector<std::string>& outputTensorNames,
                     const std::vector<std::shared_ptr<QNNParamTensorWrapper>>& tensorParams,
                     const std::vector<std::shared_ptr<QNNParamScalarWrapper>>& scalarParams,
                     const std::string& packageName = "qti.aisw");
@@ -102,6 +101,16 @@ class QNNBackend final : public Backend {
   bool graphFinalize(const std::string& graphName);
 
   void graphExecute(const std::string& graphName);
+
+  // Tensor management interfaces
+  bool addTensor(const std::string& graphName, const std::string& tensorName, Qnn_TensorType_t type, const Tensor& tensor,
+                 Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+
+  bool addStaticTensor(const std::string& graphName, const std::string& tensorName, const Tensor& tensor,
+                       Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+
+  // Get tensor wrapper by name from specific graph
+  std::shared_ptr<QNNTensorWrapper> getTensorWrapper(const std::string& graphName, const std::string& tensorName);
 
   // Getters for runtime components
   [[nodiscard]] const QNN_INTERFACE_VER_TYPE& qnnInterface() const { return runtime_->qnnInterface; }

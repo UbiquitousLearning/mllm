@@ -333,6 +333,8 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
     case kFloat16: dataType = QNN_DATATYPE_FLOAT_16; break;
     case kInt8: dataType = QNN_DATATYPE_SFIXED_POINT_8; break;
     case kInt16: dataType = QNN_DATATYPE_SFIXED_POINT_16; break;
+    case kInt32: dataType = QNN_DATATYPE_SFIXED_POINT_32; break;
+    case kUInt8: dataType = QNN_DATATYPE_UFIXED_POINT_8; break;
     default: MLLM_ERROR("Unsupported tensor element type for QNN: {}", (int)tensor.dtype()); break;
   }
 
@@ -351,7 +353,9 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std
   MLLM_RT_ASSERT(!name.empty() && tensor.rank() > 0 && !tensor.isNil());
 
   // mllm currently support float16/float32/sfixed8(int8) as static tensor (weight) data type
-  MLLM_RT_ASSERT(tensor.dtype() == kFloat16 || tensor.dtype() == kFloat32 || tensor.dtype() == kInt8);
+  // uint8 and int32 is caused by QNNLinear which uses Conv2d
+  MLLM_RT_ASSERT(tensor.dtype() == kFloat16 || tensor.dtype() == kFloat32 || tensor.dtype() == kInt8 || tensor.dtype() == kUInt8
+                 || tensor.dtype() == kInt32);
 
   std::shared_ptr<QNNTensorWrapper> tensorWrapper = QNNTensorWrapper::create(name, QNN_TENSOR_TYPE_STATIC, tensor, quantize);
 

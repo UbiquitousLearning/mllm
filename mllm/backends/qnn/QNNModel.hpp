@@ -59,10 +59,10 @@ class QNNModel {
   std::shared_ptr<QNNTensorWrapper> getTensorWrapper(const std::string& tensorName);
 
   // Add node using wrapper-based parameters
-  ModelError_t addNode(Qnn_OpConfigVersion_t version, const char* name, const char* packageName, const char* type,
-                       std::vector<std::shared_ptr<QNNParamTensorWrapper>>& tensorParams,
-                       std::vector<std::shared_ptr<QNNParamScalarWrapper>>& scalarParams, std::vector<std::string>& inputNames,
-                       std::vector<std::shared_ptr<QNNTensorWrapper>>& outputTensorWrappers);
+  ModelError_t addNode(Qnn_OpConfigVersion_t version, const std::string& name, const std::string& packageName,
+                       const std::string& type, const std::vector<std::shared_ptr<QNNParamTensorWrapper>>& tensorParams,
+                       const std::vector<std::shared_ptr<QNNParamScalarWrapper>>& scalarParams,
+                       const std::vector<std::string>& inputNames, const std::vector<std::string>& outputNames);
 
   ModelError_t finalizeGraph(Qnn_ProfileHandle_t profileHandle, Qnn_SignalHandle_t signalHandle);
 
@@ -102,6 +102,14 @@ class QNNModel {
   std::vector<std::shared_ptr<QNNParamScalarWrapper>> paramScalarWrappers_;
 
   std::map<std::string, std::vector<std::string>> modelOutputTensorMap_;
+
+  // Storage for node string parameters to ensure lifetime
+  struct NodeStringStorage {
+    std::string name;
+    std::string packageName;
+    std::string type;
+  };
+  std::vector<NodeStringStorage> nodeStringStorage_;
 
   // Qnn Backend Interface Api
   QNN_INTERFACE_VER_TYPE& qnnInterface_;

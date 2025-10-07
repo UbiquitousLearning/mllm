@@ -7,6 +7,7 @@
 #include "QNNUtils.hpp"
 #include "QnnLog.h"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/op/QNNGraphOp.hpp"
 #include "mllm/backends/qnn/op/QNNLinearOp.hpp"
 #include "mllm/utils/Log.hpp"
 
@@ -14,7 +15,7 @@ namespace mllm::qnn {
 
 QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
-  regOpFactory<QNNLinearOpFactory>();
+  regOpFactory<QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory>();
 
   QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
@@ -454,7 +455,7 @@ std::shared_ptr<QNNModel> QNNBackend::createQnnGraph(const std::string& graphNam
 
 void QNNBackend::graphAddNode(const std::string& graphName, const std::string& nodeName, const std::string& nodeType,
                               const std::vector<std::string>& inputTensorNames,
-                              const std::vector<std::shared_ptr<QNNTensorWrapper>>& outputTensors,
+                              const std::vector<std::string>& outputTensorNames,
                               const std::vector<std::shared_ptr<QNNParamTensorWrapper>>& tensorParams,
                               const std::vector<std::shared_ptr<QNNParamScalarWrapper>>& scalarParams,
                               const std::string& packageName) {
@@ -469,15 +470,9 @@ void QNNBackend::graphAddNode(const std::string& graphName, const std::string& n
 
   if (qnnModel->isGraphFinalized()) { return; }
 
-  // Convert wrapper vectors to raw parameter vectors
-  std::vector<std::shared_ptr<QNNParamTensorWrapper>> tensorParamsCopy = tensorParams;
-  std::vector<std::shared_ptr<QNNParamScalarWrapper>> scalarParamsCopy = scalarParams;
-  std::vector<std::string> inputNamesCopy = inputTensorNames;
-  std::vector<std::shared_ptr<QNNTensorWrapper>> outputTensorsCopy = outputTensors;
-
   // Add node to the model
-  ModelError_t err = qnnModel->addNode(QNN_OPCONFIG_VERSION_1, nodeName.c_str(), packageName.c_str(), nodeType.c_str(),
-                                       tensorParamsCopy, scalarParamsCopy, inputNamesCopy, outputTensorsCopy);
+  ModelError_t err = qnnModel->addNode(QNN_OPCONFIG_VERSION_1, nodeName, packageName, nodeType, tensorParams, scalarParams,
+                                       inputTensorNames, outputTensorNames);
 
   if (err != MODEL_NO_ERROR) {
     MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}", nodeName, nodeType, graphName,
@@ -531,6 +526,71 @@ void QNNBackend::graphExecute(const std::string& graphName) {
 
   CALL_QNN(runtime_->qnnInterface.graphExecute(model->getQnnGraph(), inputs.data(), inputs.size(), outputs.data(),
                                                outputs.size(), runtime_->profileHandle, nullptr));
+}
+
+bool QNNBackend::addTensor(const std::string& graphName, const std::string& tensorName, Qnn_TensorType_t type,
+                           const Tensor& tensor, Qnn_QuantizeParams_t quantize) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for adding tensor", graphName);
+    return false;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) {
+    MLLM_ERROR("Cannot add tensor {} to finalized graph {}", tensorName, graphName);
+    return false;
+  }
+
+  ModelError_t err = qnnModel->addTensor(tensorName, type, tensor, quantize);
+  if (err != MODEL_NO_ERROR) {
+    MLLM_ERROR("Failed to add tensor {} to graph {}: error code {}", tensorName, graphName, static_cast<int>(err));
+    return false;
+  }
+
+  MLLM_INFO("Added tensor {} to graph {}", tensorName, graphName);
+  return true;
+}
+
+bool QNNBackend::addStaticTensor(const std::string& graphName, const std::string& tensorName, const Tensor& tensor,
+                                 Qnn_QuantizeParams_t quantize) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for adding static tensor", graphName);
+    return false;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) {
+    MLLM_ERROR("Cannot add static tensor {} to finalized graph {}", tensorName, graphName);
+    return false;
+  }
+
+  ModelError_t err = qnnModel->addStaticTensor(tensorName, tensor, quantize);
+  if (err != MODEL_NO_ERROR) {
+    MLLM_ERROR("Failed to add static tensor {} to graph {}: error code {}", tensorName, graphName, static_cast<int>(err));
+    return false;
+  }
+
+  MLLM_INFO("Added static tensor {} to graph {}", tensorName, graphName);
+  return true;
+}
+
+std::shared_ptr<QNNTensorWrapper> QNNBackend::getTensorWrapper(const std::string& graphName, const std::string& tensorName) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for getting tensor wrapper", graphName);
+    return nullptr;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  return qnnModel->getTensorWrapper(tensorName);
 }
 
 void QNNBackend::extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle) {
