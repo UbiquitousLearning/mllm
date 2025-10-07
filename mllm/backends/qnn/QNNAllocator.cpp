@@ -81,6 +81,8 @@ void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_
   Qnn_MemHandle_t mem_handle = QNN_TENSOR_GET_MEM_HANDLE(qnn_tensor);
   MLLM_RT_ASSERT_EQ(QNN_SUCCESS, qnnInterface_.memRegister(context_, &mem_descriptor, 1u, &mem_handle));
 
+  QNN_TENSOR_SET_MEM_HANDLE(qnn_tensor, mem_handle);
+
   ptrToFdAndMemHandleMap_.insert({ptr, {mem_fd, mem_handle}});
 }
 
