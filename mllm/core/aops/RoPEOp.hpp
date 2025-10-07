@@ -8,12 +8,15 @@
 
 namespace mllm::aops {
 
+enum class RoPEOpOptionsInputType : uint8_t {
+  kBHSD = 0,
+  kBSHD = 1,
+};
+
 struct RoPEOpOptions : public BaseOpOptions<RoPEOpOptions> {
   float rope_theta = 10000.0F;
   int32_t max_position_embeddings = 16384;
-
-  RoPEOpOptions() = default;
-  explicit RoPEOpOptions(float theta, int32_t max_pos_embed) : rope_theta(theta), max_position_embeddings(max_pos_embed) {}
+  RoPEOpOptionsInputType input_type = RoPEOpOptionsInputType::kBHSD;
 };
 
 class RoPEOp : public BaseOp {

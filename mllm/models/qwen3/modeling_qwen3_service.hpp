@@ -113,6 +113,7 @@ class Qwen3Attention final : public nn::Module {
   nn::RMSNorm rms_norm_k_;
   nn::RoPE q_rope_;
   nn::RoPE k_rope_;
+  nn::RadixAttn attn_;
 
   int hidden_size_;
   int head_dim_;
@@ -130,20 +131,20 @@ class Qwen3Attention final : public nn::Module {
     head_dim_ = cfg.head_dim;
     num_key_value_groups_ = num_attention_heads_ / num_key_value_heads_;
 
-    q_proj_ =
-        reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    k_proj_ =
-        reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    v_proj_ =
-        reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    o_proj_ =
-        reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, cfg.attention_bias, cfg.linear_impl_type);
+    // clang-format off
+    q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    k_proj_ = reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, cfg.attention_bias, cfg.linear_impl_type);
+    // clang-format on
 
     rms_norm_q_ = reg<nn::RMSNorm>("q_norm", cfg.rms_norm_eps);
     rms_norm_k_ = reg<nn::RMSNorm>("k_norm", cfg.rms_norm_eps);
 
-    q_rope_ = reg<nn::RoPE>("q_rope", cfg.rope_theta, cfg.max_position_embeddings);
-    k_rope_ = reg<nn::RoPE>("k_rope", cfg.rope_theta, cfg.max_position_embeddings);
+    q_rope_ = reg<nn::RoPE>("q_rope", cfg.rope_theta, cfg.max_position_embeddings, aops::RoPEOpOptionsInputType::kBSHD);
+    k_rope_ = reg<nn::RoPE>("k_rope", cfg.rope_theta, cfg.max_position_embeddings, aops::RoPEOpOptionsInputType::kBSHD);
+
+    attn_ = reg<nn::RadixAttn>("attn", num_attention_heads_, num_key_value_heads_);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -171,12 +172,8 @@ class Qwen3Attention final : public nn::Module {
     query_states = rms_norm_q_(query_states);
     key_states = rms_norm_k_(key_states);
 
-    // [B, H, S, D]
-    query_states = query_states.transpose(1, 2);
-    key_states = key_states.transpose(1, 2);
-    value_states = value_states.transpose(1, 2);
-
-    // [B, H, S, D]
+    // Different from original [B, H, S, D] rope.
+    // [B, S, H, D]
     query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
@@ -186,8 +183,8 @@ class Qwen3Attention final : public nn::Module {
     std::vector<prefix_cache::vp_addr_t> k_addr_wait_for_promote;
     std::vector<prefix_cache::vp_addr_t> v_addr_wait_for_promote;
     for (int s_idx; s_idx < S; ++s_idx) {
-      k_addr_wait_for_promote.push_back(prefix_cache_context->alloc(DeviceTypes::kCPU));
-      v_addr_wait_for_promote.push_back(prefix_cache_context->alloc(DeviceTypes::kCPU));
+      k_addr_wait_for_promote.push_back(prefix_cache_context->alloc(kCPU));
+      v_addr_wait_for_promote.push_back(prefix_cache_context->alloc(kCPU));
     }
 
     // Prepare indicies cache. sizeof(char*) == 8 == sizeof(int64_t)
@@ -201,8 +198,8 @@ class Qwen3Attention final : public nn::Module {
     auto v_wait_for_promote = Tensor::refVectorData(v_phy_addr_wait_for_promote, {S}, kInt64, kCPU);
 
     // Copy key_states and value_states to cache
-    nn::functional::scatter2Shards(key_states, k_wait_for_promote, 2);
-    nn::functional::scatter2Shards(value_states, v_wait_for_promote, 2);
+    nn::functional::scatter2Shards(key_states, k_wait_for_promote, 1);
+    nn::functional::scatter2Shards(value_states, v_wait_for_promote, 1);
 
     // Gather all cache to indicies tensor
     std::ranges::copy((*k_cache_addr)[layer_idx_], std::back_inserter(k_addr_wait_for_promote));
@@ -219,9 +216,13 @@ class Qwen3Attention final : public nn::Module {
     auto k_cache = Tensor::refVectorData(k_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
     auto v_cache = Tensor::refVectorData(v_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
 
-    // TODO Do Radix Attention
+    // Do Radix Attention
+    // output is [B, S, H, D]
+    auto output = attn_(query_states, k_cache, v_cache);
+    output = output.view({B, S, num_attention_heads_ * head_dim_});
+    output = o_proj_(output);
 
-    return {};
+    return {output};
   }
 
   int layer_idx_;
@@ -486,9 +487,9 @@ class Qwen3Session final : public ::mllm::service::Session {
   // [{"role": "user", "content": "Say this is a test!"}]
   // [{"role": "assistant", "content": "This is a test!", "reasoning": "You are absolutely right!"}]
   //
-  std::string applyChatTemplate(const json& messages, const json* tools = nullptr, bool add_generation_prompt = true,
-                                bool enable_thinking = true, const std::string& bos_token = "",
-                                const std::string& eos_token = "<|im_end|>") {
+  std::string applyChatTemplate(const nlohmann::json& messages, const nlohmann::json* tools = nullptr,
+                                bool add_generation_prompt = true, bool enable_thinking = true,
+                                const std::string& bos_token = "", const std::string& eos_token = "<|im_end|>") {
     std::ostringstream out;
 
     if (tools && tools->is_array() && !tools->empty()) {

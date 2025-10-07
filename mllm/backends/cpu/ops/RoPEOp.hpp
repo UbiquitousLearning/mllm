@@ -9,7 +9,8 @@
 namespace mllm::cpu {
 
 struct RoPEOpImpl {
-  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos);
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos,
+               aops::RoPEOpOptionsInputType input_layout_type);
 };
 
 class CPURoPEOp final : public aops::RoPEOp {

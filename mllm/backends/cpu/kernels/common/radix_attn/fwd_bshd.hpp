@@ -23,7 +23,11 @@ namespace mllm::cpu::radix_attn {
 // BHSD
 // K: [S_KV], address, not contiguous
 // V: [S_KV], address, not contiguous
-// Q: [B, H_Q, S_Q, D], contiguous
+// Q: [B, S_Q, H_Q, D], contiguous
+//
+// After find KV Tokens, KV is [B, S_KV, H_KV, D]
+//
+// TODO This kernel's layout is error
 //
 // H_KV should <= H_Q
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
@@ -42,10 +46,12 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
 
       // FA2's Loop
       for (int s_q_idx = 0; s_q_idx < S_Q; ++s_q_idx) {
-        const __QDType* q_token = __q + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
-        __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
+        const __QDType* q_token = __q + b_idx * H_Q * S_Q * D + s_q_idx * H_Q * D + h_q_idx * D;
+        __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + s_q_idx * H_Q * D + h_q_idx * D;
 
+        // FIXME: Maybe we can make this loop faster.
         for (int d_idx = 0; d_idx < D; ++d_idx) { acc_o[d_idx] = 0; }
+
         __AccDType scores_max = std::numeric_limits<__AccDType>::lowest();
         __AccDType scores_max_prev = std::numeric_limits<__AccDType>::lowest();
         __AccDType logsum = 0;
@@ -56,6 +62,7 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         int S_KV_BOUND = std::min(__delta + s_q_idx + 1, S_KV);
 
         for (int s_kv_idx = 0; s_kv_idx < S_KV_BOUND; ++s_kv_idx) {
+          // k_token and v_token shape is [B, 1, H, D]
           __KDType* k_token = __k[s_kv_idx];
           __VDType* v_token = __v[s_kv_idx];
 
