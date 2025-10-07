@@ -174,11 +174,11 @@ class Qwen3Attention final : public nn::Module {
     // [B, H, S, D]
     query_states = query_states.transpose(1, 2);
     key_states = key_states.transpose(1, 2);
-    value_states = value_states.transpose(1, 2).to(kFloat16);
+    value_states = value_states.transpose(1, 2);
 
     // [B, H, S, D]
-    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos).to(kFloat16);
-    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos).to(kFloat16);
+    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
+    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
     // FIXME: Think, if rope before cache is ok?
 

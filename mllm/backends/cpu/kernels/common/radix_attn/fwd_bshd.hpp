@@ -29,7 +29,7 @@ namespace mllm::cpu::radix_attn {
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
          bool high_precession_exp = true>
 void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, int32_t D, const __QDType* __restrict__ __q,
-              const __KDType** __k, const __VDType** __v, __ODType* __restrict__ __out, int32_t thread_count) {
+              __KDType** __k, __VDType** __v, __ODType* __restrict__ __out, int32_t thread_count) {
   int32_t head_repeat_times = H_Q / H_KV;
 
   __AccDType scale = scale = std::sqrt(1.0 / D) * (__AccDType)std::numbers::log2e;
@@ -42,7 +42,7 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
 
       // FA2's Loop
       for (int s_q_idx = 0; s_q_idx < S_Q; ++s_q_idx) {
-        __QDType* q_token = __q + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
+        const __QDType* q_token = __q + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
         __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + h_q_idx * S_Q * D + s_q_idx * D;
 
         for (int d_idx = 0; d_idx < D; ++d_idx) { acc_o[d_idx] = 0; }
@@ -78,14 +78,14 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
           logsum = logsum * scores_scale + scores_sum;
 
           // 3. Scale
-          MulFromConst<__ArchTag, __AccDType, __AccDType>(acc_o, scores_scale, D);
+          details::MulFromConst<__ArchTag, __AccDType, __AccDType>::run(acc_o, scores_scale, D);
 
           // 4. MMA1.
-          FMAConstArray<__ArchTag, __AccDType, __AccDType, __AccDType>(acc_o, acc_s, v_token, D);
+          details::FMAConstArray<__ArchTag, __AccDType, __AccDType, __AccDType>::run(acc_o, acc_s, v_token, D);
         }
 
         // 5. Final Rescale.
-        MulFromConst<__ArchTag, __AccDType, __AccDType>(acc_o, (1.f / logsum), D);
+        details::MulFromConst<__ArchTag, __ODType, __AccDType>::run(acc_o, (1.f / logsum), D);
       }
     });
   }

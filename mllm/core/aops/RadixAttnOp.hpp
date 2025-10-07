@@ -8,7 +8,10 @@
 
 namespace mllm::aops {
 
-struct RadixAttnOpOptions : public BaseOpOptions<RadixAttnOpOptions> {};
+struct RadixAttnOpOptions : public BaseOpOptions<RadixAttnOpOptions> {
+  int32_t H_Q;
+  int32_t H_KV;
+};
 
 class RadixAttnOp : public BaseOp {
  public:
