@@ -97,19 +97,40 @@ bool freeQnnTensors(Qnn_Tensor_t*& tensors, uint32_t numTensors);
 
 inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp) {
   const char* level_str = "";
+  const char* color_start = "";
+  const char* color_end = "\033[0m";  // Reset color
+
   switch (level) {
-    case QNN_LOG_LEVEL_ERROR: level_str = "[ERROR]"; break;
-    case QNN_LOG_LEVEL_WARN: level_str = "[WARN]"; break;
-    case QNN_LOG_LEVEL_INFO: level_str = "[INFO]"; break;
-    case QNN_LOG_LEVEL_DEBUG: level_str = "[DEBUG]"; break;
-    case QNN_LOG_LEVEL_VERBOSE: level_str = "[VERBOSE]"; break;
-    case QNN_LOG_LEVEL_MAX: level_str = "[UNKNOWN]"; break;
+    case QNN_LOG_LEVEL_ERROR:
+      level_str = "[ERROR]";
+      color_start = "\033[91m";  // Light red
+      break;
+    case QNN_LOG_LEVEL_WARN:
+      level_str = "[WARN]";
+      color_start = "\033[93m";  // Light yellow
+      break;
+    case QNN_LOG_LEVEL_INFO:
+      level_str = "[INFO]";
+      color_start = "\033[96m";  // Light cyan
+      break;
+    case QNN_LOG_LEVEL_DEBUG:
+      level_str = "[DEBUG]";
+      color_start = "\033[95m";  // Light magenta
+      break;
+    case QNN_LOG_LEVEL_VERBOSE:
+      level_str = "[VERBOSE]";
+      color_start = "\033[94m";  // Light blue
+      break;
+    case QNN_LOG_LEVEL_MAX:
+      level_str = "[UNKNOWN]";
+      color_start = "\033[37m";  // Light gray
+      break;
   }
 
   double ms = (double)times_tamp / 1000000.0;
 
   {
-    fprintf(stdout, "%s (%.1fms, %ld) ", level_str, ms, times_tamp);
+    fprintf(stdout, "%s%s%s (%.1fms, %ld) ", color_start, level_str, color_end, ms, times_tamp);
     vfprintf(stdout, fmt, argp);
   }
 }
