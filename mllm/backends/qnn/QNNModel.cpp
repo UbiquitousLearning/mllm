@@ -233,15 +233,11 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version, const std::string&
     return MODEL_MEMORY_ALLOCATE_ERROR;
   }
 
-  MLLM_INFO("Adding node {} of type {} to graph {}", storedStrings.name, storedStrings.type, graphName_);
-
   // Populate parameters
   uint32_t paramCounter = 0;
   for (auto& tensorParam : tensorParams) {
     auto nativeTensor = tensorParam->getNativeTensor();
     auto tensorName = QNN_TENSOR_GET_NAME(nativeTensor);
-
-    MLLM_INFO("add param tensor {}", tensorName);
 
     if (qnnInterface_.tensorCreateGraphTensor(graph_, nativeTensor) != QNN_TENSOR_NO_ERROR) {
       MLLM_ERROR("QNNModel::addTensorWrapper() error creating tensor {}", tensorName);

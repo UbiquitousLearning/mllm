@@ -7,6 +7,9 @@ file(GLOB MLLM_QNN_SRC
 
     ${CMAKE_CURRENT_LIST_DIR}/op/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/*.hpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/passes/*.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/*.hpp
     
 )
 
