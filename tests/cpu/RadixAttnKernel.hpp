@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <limits>
 #include <unordered_map>
 
 #include "mllm/mllm.hpp"
@@ -27,10 +28,8 @@ class RadixAttnModule : public nn::Module {
 };
 
 class EagerModule : public nn::Module {
-  nn::CausalMask mask_;
-
  public:
-  EagerModule() : nn::Module() { mask_ = reg<nn::CausalMask>("mask"); }
+  EagerModule() : nn::Module() {}
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     // inputs is Q, K_indices, V_indices
@@ -51,8 +50,23 @@ class EagerModule : public nn::Module {
     // Attention Weight
     // [B, H, S, S]
     auto attn = nn::functional::matmul(Q, K, false, true) * (1.f / sqrtf(head_dim));
-    attn = mask_(attn);
-    attn = nn::functional::softmax(attn, -1);
+
+    // Make mask
+    auto S_Q = Q.shape()[2];
+    auto S_KV = K.shape()[2];
+    auto mask = Tensor::zeros({1, 1, S_Q, S_KV});
+    {
+      auto ptr = mask.ptr<float>();
+      int __delta = S_KV - S_Q;
+      for (int s_q_idx = 0; s_q_idx < S_Q; s_q_idx++) {
+        int S_KV_BOUND = std::min(__delta + s_q_idx + 1, S_KV);
+        for (int s_kv_idx = S_KV_BOUND; s_kv_idx < S_KV; s_kv_idx++) {
+          ptr[s_q_idx * S_KV + s_kv_idx] = -std::numeric_limits<float>::infinity();
+        }
+      }
+    }
+
+    attn = nn::functional::softmax(attn + mask, -1);
     // [B, H, S, D]
     auto output = nn::functional::matmul(attn, V);
     // [B, S, H, D]
@@ -106,7 +120,7 @@ class RadixAttnKernelTest : public KernelTest {
                                   .mmap_type = mllm::prefix_cache::ZenFSBlobMMapType::kAnonymous,
                               }}};
     EagerModule eager_attn;
-    RadixAttnModule radix_attn;
+    RadixAttnModule radix_attn(H_Q, H_KV);
     prefix_cache::Cache cache(opt);
 
     // Create Q, K, V
@@ -131,17 +145,33 @@ class RadixAttnKernelTest : public KernelTest {
     auto v_cache_indices = Tensor::refVectorData(v_cache_ptrs, {S_KV}, kInt64);
 
     nn::functional::scatter2Shards(K, k_cache_indices, 1);
-    nn::functional::scatter2Shards(K, v_cache_indices, 1);
+    nn::functional::scatter2Shards(V, v_cache_indices, 1);
+
+    // loop check if shards is correct
+    for (int i = 0; i < S_KV; ++i) {
+      auto prd_ptr = (float*)k_cache_ptrs[i];
+      auto gt_ptr = K.offsettedPtr<float>({0, i, 0, 0});
+      for (int j = 0; j < H_KV * D; ++j) {
+        if (prd_ptr[j] != gt_ptr[j]) {
+          print("Error at: ", i, j);
+          print("prd: ", prd_ptr[j], " gt: ", gt_ptr[j]);
+          return false;
+        }
+      }
+    }
 
     // Compute eager
     Tensor gt = eager_attn(Q, K, V)[0];
     Tensor predict = radix_attn(Q, k_cache_indices, v_cache_indices)[0];
-    Dbg();
 
     // Compare
-    auto result = test::allClose(gt, predict);
+    // rtol and atol set to 1e-2f is because:
+    // 1. The eager softmax is approximate, but radix is not.
+    auto result = test::allClose(gt, predict, 1e-2f, 1e-2f);
     if (!result) {
       print(result);
+      print("S_Q and S_KV is", S_Q, S_KV);
+      print(predict);
       return false;
     }
     return true;

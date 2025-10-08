@@ -32,4 +32,9 @@ struct FMAConstArray {
   static MLLM_FORCE_INLINE void run(T* __restrict__ acc_o, const U acc_s, const V* __restrict__ v_token, size_t len) {}
 };
 
+template<typename ArchTag, typename T>
+struct FilledWithConst {
+  static MLLM_FORCE_INLINE void run(T* __restrict__ a, const T v, size_t len) {}
+};
+
 }  // namespace mllm::cpu::radix_attn::details

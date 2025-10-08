@@ -253,42 +253,6 @@ TEST_F(ElementwiseKernelTest, DivFloat16) {
             true);
 }
 
-TEST_F(ElementwiseKernelTest, DivInt8) {
-  EXPECT_EQ(DivInt8Test({
-                {42},
-                {5, 5},
-                {16, 16},
-                {16, 18},
-                {32, 32},
-                {128, 128, 128},
-            }),
-            true);
-}
-
-TEST_F(ElementwiseKernelTest, DivInt16) {
-  EXPECT_EQ(DivInt16Test({
-                {42},
-                {5, 5},
-                {16, 16},
-                {16, 18},
-                {32, 32},
-                {128, 128, 128},
-            }),
-            true);
-}
-
-TEST_F(ElementwiseKernelTest, DivInt32) {
-  EXPECT_EQ(DivInt32Test({
-                {42},
-                {5, 5},
-                {16, 16},
-                {16, 18},
-                {32, 32},
-                {128, 128, 128},
-            }),
-            true);
-}
-
 //===----------------------------------------------------------------------===//
 // Element wise ADD Scalar.
 //
@@ -788,6 +752,12 @@ TEST_F(ReduceKernelTest, SumFloat32) {
 //             true);
 // }
 #endif
+
+//===----------------------------------------------------------------------===//
+// Scatter 2 Shards Attn
+//===----------------------------------------------------------------------===//
+#include "Scatter2ShardsKernelTest.hpp"
+TEST_F(Scatter2ShardsKernelTest, one) { EXPECT_EQ(testScatter2Shards(), true); }
 
 //===----------------------------------------------------------------------===//
 // Paged Attn

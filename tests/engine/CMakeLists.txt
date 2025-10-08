@@ -17,3 +17,7 @@ target_include_directories(Mllm-Test-Engine-PrefixCache PRIVATE ${MLLM_INCLUDE_D
 add_executable(Mllm-Test-Engine-Service ServiceTest.cpp)
 target_link_libraries(Mllm-Test-Engine-Service PRIVATE MllmRT MllmCPUBackend)
 target_include_directories(Mllm-Test-Engine-Service PRIVATE ${MLLM_INCLUDE_DIR})
+
+add_executable(Mllm-Test-Engine-RandomStates RandomStatesTest.cpp)
+target_link_libraries(Mllm-Test-Engine-RandomStates PRIVATE MllmRT MllmCPUBackend)
+target_include_directories(Mllm-Test-Engine-RandomStates PRIVATE ${MLLM_INCLUDE_DIR})

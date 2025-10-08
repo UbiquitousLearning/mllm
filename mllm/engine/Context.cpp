@@ -94,9 +94,19 @@ SessionTCB::ptr_t Context::thisThread() {
 
 SessionTCB::ptr_t Context::mainThread() { return main_thread_; }
 
-void Context::setRandomSeed(uint64_t seed) { random_seed_ = seed; }
+void Context::setRandomSeed(uint64_t seed) {
+  random_seed_ = seed;
+  random_state_ = seed;
+}
 
 uint64_t Context::getRandomSeed() { return random_seed_; }
+
+uint64_t Context::getRandomState() {
+  auto ret = random_state_;
+  std::mt19937 gen(random_state_);
+  random_state_ = gen();
+  return ret;
+}
 
 uint64_t Context::curTime() {
   auto now = std::chrono::high_resolution_clock::now();
@@ -106,20 +116,12 @@ uint64_t Context::curTime() {
 
 std::unordered_map<std::thread::id, SessionTCB::ptr_t> Context::refSessionThreads() { return session_threads_; }
 
-void Context::setPrintPrecision(int precision) {
-  print_precision_ = precision;
-}
+void Context::setPrintPrecision(int precision) { print_precision_ = precision; }
 
-int Context::getPrintPrecision() const {
-  return print_precision_;
-}
+int Context::getPrintPrecision() const { return print_precision_; }
 
-void Context::setPrintMaxElementsPerDim(int max_elements) {
-  print_max_elements_per_dim_ = max_elements;
-}
+void Context::setPrintMaxElementsPerDim(int max_elements) { print_max_elements_per_dim_ = max_elements; }
 
-int Context::getPrintMaxElementsPerDim() const {
-  return print_max_elements_per_dim_;
-}
+int Context::getPrintMaxElementsPerDim() const { return print_max_elements_per_dim_; }
 
 }  // namespace mllm

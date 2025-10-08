@@ -19,9 +19,9 @@ void CPURadixAttnOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
 
   MLLM_RT_ASSERT(K_PTR.dtype() == kInt64 && V_PTR.dtype() == kInt64 && K_PTR.rank() == 1 && V_PTR.rank() == 1);
   auto B = Q.shape()[0];
-  auto H_Q = Q.shape()[1];
-  auto S_Q = Q.shape()[2];
-  auto D = K_PTR.shape()[3];
+  auto S_Q = Q.shape()[1];
+  auto H_Q = Q.shape()[2];
+  auto D = Q.shape()[3];
   MLLM_RT_ASSERT_EQ(H_Q, options_.H_Q);
   auto S_KV = K_PTR.shape()[0];
   MLLM_RT_ASSERT_EQ(S_KV, V_PTR.shape()[0]);

@@ -25,9 +25,7 @@ namespace mllm::cpu::radix_attn {
 // V: [S_KV], address, not contiguous
 // Q: [B, S_Q, H_Q, D], contiguous
 //
-// After find KV Tokens, KV is [B, S_KV, H_KV, D]
-//
-// TODO This kernel's layout is error
+// After find KV Tokens, KV is [B, 1, H_KV, D]
 //
 // H_KV should <= H_Q
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
@@ -50,13 +48,13 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + s_q_idx * H_Q * D + h_q_idx * D;
 
         // FIXME: Maybe we can make this loop faster.
-        for (int d_idx = 0; d_idx < D; ++d_idx) { acc_o[d_idx] = 0; }
+        details::FilledWithConst<__ArchTag, __ODType>::run(acc_o, 0, D);
 
-        __AccDType scores_max = std::numeric_limits<__AccDType>::lowest();
-        __AccDType scores_max_prev = std::numeric_limits<__AccDType>::lowest();
+        __AccDType scores_max = -std::numeric_limits<__AccDType>::infinity();
+        __AccDType scores_max_prev = -std::numeric_limits<__AccDType>::infinity();
         __AccDType logsum = 0;
-        __AccDType scores_scale = 0;
         __AccDType scores_sum = 0;
+        __AccDType scores_scale = 0;
 
         int __delta = S_KV - S_Q;
         int S_KV_BOUND = std::min(__delta + s_q_idx + 1, S_KV);
@@ -77,11 +75,10 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
 
           // 2. Do softmax stuff.
           scores_max_prev = scores_max;
-          scores_max = std::numeric_limits<__AccDType>::lowest();
-          scores_max = std::max(scores_max, acc_s);
+          scores_max = std::max(scores_max_prev, acc_s);
           scores_scale = std::exp2(scores_max_prev * scale - scores_max * scale);
           acc_s = std::exp2(acc_s * scale - scores_max * scale);
-          scores_sum += acc_s;  // TODO This line may be error.
+          scores_sum = acc_s;
           logsum = logsum * scores_scale + scores_sum;
 
           // 3. Scale
