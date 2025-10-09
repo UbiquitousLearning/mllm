@@ -203,8 +203,14 @@ class Qwen3Attention final : public nn::Module {
     nn::functional::scatter2Shards(value_states, v_wait_for_promote, 1);
 
     // Gather all cache to indicies tensor
-    std::ranges::copy((*k_cache_addr)[layer_idx_], std::back_inserter(k_addr_wait_for_promote));
-    std::ranges::copy((*v_cache_addr)[layer_idx_], std::back_inserter(v_addr_wait_for_promote));
+    {
+      auto& dst = (*k_cache_addr)[layer_idx_];
+      dst.insert(dst.end(), k_addr_wait_for_promote.begin(), k_addr_wait_for_promote.end());
+    }
+    {
+      auto& dst = (*v_cache_addr)[layer_idx_];
+      dst.insert(dst.end(), v_addr_wait_for_promote.begin(), v_addr_wait_for_promote.end());
+    }
     std::vector<char*> k_phy_cache_indicies;
     std::vector<char*> v_phy_cache_indicies;
     int32_t kv_cache_len = (*k_cache_addr)[layer_idx_].size();
@@ -212,7 +218,7 @@ class Qwen3Attention final : public nn::Module {
     v_phy_cache_indicies.reserve(kv_cache_len);
     for (int i = 0; i < kv_cache_len; ++i) {
       k_phy_cache_indicies.push_back(prefix_cache_context->physicalAddr((*k_cache_addr)[layer_idx_][i]));
-      v_phy_cache_indicies.push_back(prefix_cache_context->physicalAddr((*k_cache_addr)[layer_idx_][i]));
+      v_phy_cache_indicies.push_back(prefix_cache_context->physicalAddr((*v_cache_addr)[layer_idx_][i]));
     }
     auto k_cache = Tensor::refVectorData(k_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
     auto v_cache = Tensor::refVectorData(v_phy_cache_indicies, {kv_cache_len}, kInt64, kCPU);
