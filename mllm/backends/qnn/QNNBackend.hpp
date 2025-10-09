@@ -100,7 +100,7 @@ class QNNBackend final : public Backend {
 
   bool graphFinalize(const std::string& graphName);
 
-  void graphExecute(const std::string& graphName);
+  void graphExecute(const std::string& graphName, std::vector<Tensor>& inputs, std::vector<Tensor>& outputs);
 
   // Tensor management interfaces
   bool addTensor(const std::string& graphName, const std::string& tensorName, Qnn_TensorType_t type, const Tensor& tensor,
