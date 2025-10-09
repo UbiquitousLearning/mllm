@@ -10,11 +10,9 @@
 
 namespace mllm::service {
 
-Session::Session(std::shared_ptr<mllm::models::ARGeneration> model) : model_(std::move(model)) {}
-
 void Session::fromPreTrain(const std::string& model_path) { MLLM_EMPTY_SCOPE; }
 
-NoneSession::NoneSession() : Session(nullptr) {}
+NoneSession::NoneSession() : Session() {}
 
 void NoneSession::streamGenerate(const nlohmann::json& request,
                                  const std::function<void(const nlohmann::json&, bool)>& callback) {

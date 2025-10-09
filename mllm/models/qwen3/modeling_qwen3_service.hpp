@@ -14,6 +14,7 @@
 #include "mllm/nn/Functional.hpp"
 #include "mllm/utils/Enumerate.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
 
@@ -368,8 +369,9 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     };
   }
 
- private:
   const Qwen3Config& cfg;
+
+ private:
   Qwen3Text llm;
   nn::Linear lm_head_;
   bool tie_word_embeddings_;
@@ -377,7 +379,12 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
 
 class Qwen3Session final : public ::mllm::service::Session {
  public:
-  Qwen3Session();
+  Qwen3Session() = default;
+
+  std::size_t findThinkStartToken(const std::vector<int64_t>& output_ids) {
+    auto it = std::find(output_ids.begin(), output_ids.end(), model_->cfg.thinking_start_token_id);
+    return std::distance(output_ids.begin(), it);
+  }
 
   void streamGenerate(const nlohmann::json& request,
                       const std::function<void(const nlohmann::json&, bool)>& callback) override {
@@ -413,14 +420,61 @@ class Qwen3Session final : public ::mllm::service::Session {
     args["v_cache_addrs"] = &v_cache_addrs_;
     args["prefix_cache_context"] = cache_.get();
 
-    // TODO other args for sampling should be read from request.
+    // Has temperature, top_k, top_p, max_length, do_sample.
+    args["temperature"] = request.value("temperature", 1.0f);
+    args["top_k"] = request.value("top_k", 0);
+    args["top_p"] = request.value("top_p", 1.0f);
+    args["max_length"] = request.value("max_length", 1024);
+    args["do_sample"] = request.value("do_sample", true);
 
     // Iteration start
-    model_->streamGenerate(input, args, [](int64_t idx) {
-      // TODO Callback
+    int64_t package_cnt = 0;
+    model_->streamGenerate(input, args, [this, &full_seq_idx, &package_cnt, &callback](int64_t idx) {
+      bool finished = false;
+      std::string ret_token;
+      if (idx == model_->cfg.end_of_text_token_id) {
+        finished = true;
+        ret_token = "";
+      } else {
+        finished = false;
+        std::string t = preprocessor::wideString2Utf8String(tokenizer_->detokenize(idx));
+
+        // Update full_seq_idx to include the new token for Radix Tree to use.
+        full_seq_idx.push_back(idx);
+      }
+
+      // Callback will send this json to the response pool for user to consume.
+      callback(nlohmann::json{}, finished);
+
+      package_cnt++;
     });
 
-    // TODO: process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
+    // Post process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
+    //
+    // NOTE: We will drop everything after the thinking_start_token_idx(include it).
+    // Suppose: Only one <think> token in the sequence.
+    //
+    // e.g.:
+    // <|im_start|>user
+    // hello<|im_end|>
+    // <|im_start|>assistant
+    // <think>
+    //
+    // </think>
+    // hello!
+    // <|endoftext|>
+    //
+    // In radic tree, we will only save:
+    // <|im_start|>user
+    // hello<|im_end|>
+    // <|im_start|>assistant
+    //
+    // Explain: That because Qwen3 and other CoT model will remove thinking budget, which means the answer "hello"'s rope is
+    // changed in 2ed turn.
+    auto thinking_end_token_idx = findThinkStartToken(full_seq_idx);
+    full_seq_idx.resize(thinking_end_token_idx);
+    for (auto& k_vec : k_cache_addrs_) k_vec.resize(thinking_end_token_idx);
+    for (auto& v_vec : v_cache_addrs_) v_vec.resize(thinking_end_token_idx);
 
     // Insert generated tokens to the cache.
     cache_->promote(full_seq_idx, k_cache_addrs_, v_cache_addrs_);
@@ -436,13 +490,13 @@ class Qwen3Session final : public ::mllm::service::Session {
     fs::path config_file = root / "config.json";
     fs::path model_file = root / "model.mllm";
     fs::path tokenizer_file = root / "tokenizer.json";
-    if (!fs::exists(config_file)) throw std::runtime_error("config.json not found");
-    if (!fs::exists(model_file)) throw std::runtime_error("model.mllm not found");
-    if (!fs::exists(tokenizer_file)) throw std::runtime_error("tokenizer.json not found");
+    if (!fs::exists(config_file)) throw std::runtime_error(config_file.string() + " not found");
+    if (!fs::exists(model_file)) throw std::runtime_error(model_file.string() + " not found");
+    if (!fs::exists(tokenizer_file)) throw std::runtime_error(tokenizer_file.string() + " not found");
 
     auto cfg = Qwen3Config(config_file.string());
     model_ = std::make_shared<Qwen3ForCausalLM>(cfg);
-    model_->load(load(model_file.string()));
+    model_->load(load(model_file.string(), ModelFileVersion::kV2));
     tokenizer_ = std::make_shared<Qwen3Tokenizer>(tokenizer_file.string());
 
     cache_ = std::make_shared<prefix_cache::Cache>(prefix_cache::CacheOptions{

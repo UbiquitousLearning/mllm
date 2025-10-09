@@ -121,6 +121,14 @@ void Service::workerLoop() {
   }
 }
 
+void startService(size_t worker_threads) { Service::instance().start(worker_threads); }
+
+void stopService() { Service::instance().stop(); }
+
+void insertSession(const std::string& session_id, const std::shared_ptr<Session>& session) {
+  Service::instance().sessionPool().registerSession(session_id, session);
+}
+
 int sendRequest(const std::string& json_str) {
   if (json_str.empty()) return -1;
   try {

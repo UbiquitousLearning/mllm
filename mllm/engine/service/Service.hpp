@@ -107,8 +107,14 @@ class Service {
   std::vector<std::thread> workers_;
 };
 
-// Golang, Python SDK should bind those two function and provide high level Network API.
+// Golang, Python SDK should bind those 5 function and provide high level Network API.
 // We just focus on the server side.
+void startService(size_t worker_threads = 1);
+
+void stopService();
+
+void insertSession(const std::string& session_id, const std::shared_ptr<Session>& session);
+
 int sendRequest(const std::string& json_str);
 
 Response getResponse(const std::string& id);

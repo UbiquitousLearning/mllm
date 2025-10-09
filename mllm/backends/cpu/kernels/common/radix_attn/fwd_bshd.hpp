@@ -38,7 +38,10 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
 
   // Loop on batch size.
   for (int b_idx = 0; b_idx < B; ++b_idx) {
-    // Loop on head dim, should be made parallel
+    // FIXME: Loop on SEQUENCE may faster?
+    // seq_q [ head_q [ seq_kv ] ]
+
+    // Loop on HEAD dim, should be made parallel
     MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, h_q_idx, 0, H_Q, 1, {
       int h_kv_id = h_q_idx / head_repeat_times;
 
@@ -47,7 +50,6 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         const __QDType* q_token = __q + b_idx * H_Q * S_Q * D + s_q_idx * H_Q * D + h_q_idx * D;
         __ODType* acc_o = __out + b_idx * H_Q * S_Q * D + s_q_idx * H_Q * D + h_q_idx * D;
 
-        // FIXME: Maybe we can make this loop faster.
         details::FilledWithConst<__ArchTag, __ODType>::run(acc_o, 0, D);
 
         __AccDType scores_max = -std::numeric_limits<__AccDType>::infinity();
