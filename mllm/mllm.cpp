@@ -41,7 +41,9 @@ bool isOpenCLAvailable() {
 }
 
 bool isQnnAvailable() {
-  // TODO
+#ifdef MLLM_QNN_BACKEND
+  return true;
+#endif
   return false;
 }
 

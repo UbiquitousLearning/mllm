@@ -34,7 +34,7 @@ void mllm_add_fp32(float* a, float* b, float* c, int n) {
 namespace mllm::cpu::ggml {
 
 // FIXME: still have some issues with LLAMAFILE_SGEMM
-// #define LLAMAFILE_SGEMM
+#define LLAMAFILE_SGEMM
 
 /**
  * NOTE: This only considered Linear operation with gguf quantizated weights, where weight is a 2D matrix
@@ -120,6 +120,7 @@ void mat_mul(const Tensor& src0_, const Tensor& src1, Tensor& dst, bool support_
       });
     }
   }
+  return;
 
 #endif
 

@@ -23,6 +23,7 @@ TensorValue::ptr_t TensorValue::build(IRContext* ctx, const Tensor& tensor) {
   auto ret = std::make_shared<TensorValue>();
   ret->tensor_ = tensor;
   ret->name() = std::to_string(tensor.uuid());
+  ret->setDevice(tensor.device());
 
   // If this tensor is parameter tensor or global tensor which has name
   switch (tensor.memType()) {

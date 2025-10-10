@@ -1,10 +1,71 @@
 #include "QNNBackend.hpp"
 #include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <fstream>
+#include <memory>
 #include "QNNUtils.hpp"
+#include "QnnLog.h"
+#include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/op/QNNGraphOp.hpp"
+#include "mllm/backends/qnn/op/QNNLinearOp.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
+
+QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
+  // register ops
+  regOpFactory<QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory>();
+
+  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
+  profilingLevel_ = ProfilingLevel::OFF;
+  debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
+
+  loadQNNSymbol();
+  loadQNNSystemSymbol();
+
+  runtime_ = QNNRuntime::create(profilingLevel_, qnnLogLevel);
+  if (!runtime_) { MLLM_ERROR_EXIT(1, "Failed to create QNN Runtime"); }
+
+  // check QNN capability, detect QNN features for future use
+  char* backendBuildId{nullptr};
+  if (QNN_SUCCESS != runtime_->qnnInterface.backendGetBuildId((const char**)&backendBuildId)) {
+    MLLM_ERROR("Unable to get build Id from the backend.");
+  }
+  MLLM_INFO("QNN Backend Build Id: {}", backendBuildId == nullptr ? "" : backendBuildId);
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports tensor sparsity");
+  }
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_DYNAMIC_DIMENSIONS) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports dynamic dimensions");
+  }
+  if (runtime_->qnnInterface.propertyHasCapability(QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION) == QNN_PROPERTY_SUPPORTED) {
+    MLLM_INFO("QNN backend supports early termination");
+  }
+
+  bool contextStatus = false;
+  // check if the qnn_context.bin file exists
+  if (!std::filesystem::exists("qnn_context.bin")) {
+    contextStatus = runtime_->createContext(context_, nullptr);
+  } else {
+    contextStatus = runtime_->retrieveContext(context_, qnnModels_, nullptr);
+
+    // fill qnnModelIndexMap_ info according to qnnModels_
+    for (size_t i = 0; i < qnnModels_.size(); i++) {
+      auto graphName = qnnModels_[i]->getQnnGraphName();
+      qnnModelIndexMap_.insert(std::make_pair(graphName, i));
+    }
+  }
+  if (!contextStatus) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
+
+  // init QNN Allocator
+  static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
+
+  // set performance parameters for better performance on HTP
+  perf_ = QNNPerf::create(&runtime_->qnnInterface);
+  perf_->setPowerConfigBurst();
+  perf_->setRpcLatencyAndPolling();
+}
 
 QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
   assert(qnnInterface != nullptr);
@@ -149,8 +210,8 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   // Create Log
   Qnn_LogHandle_t logHandle = nullptr;
   {
-    QnnLog_Callback_t logCallback = nullptr;
-    if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, QNN_LOG_LEVEL_ERROR, &logHandle)) != QNN_SUCCESS)
+    QnnLog_Callback_t logCallback = &__mllmQnnLoggerCallback;
+    if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, qnnLogLevel, &logHandle)) != QNN_SUCCESS)
         || (logHandle == nullptr)) {
       MLLM_ERROR("Failed to initialize logging in the backend.");
       return nullptr;
@@ -189,7 +250,7 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   Qnn_ProfileHandle_t profileHandle = nullptr;
   {
     if (ProfilingLevel::OFF != profilingLevel) {
-      MLLM_INFO("Profiling turned on; level = %d", (int)profilingLevel);
+      MLLM_INFO("Profiling turned on; level = {}", (int)profilingLevel);
       if (ProfilingLevel::BASIC == profilingLevel) {
         MLLM_INFO("Basic profiling requested. Creating Qnn Profile object.");
         if (QNN_PROFILE_NO_ERROR != qnnInterface.profileCreate(backendHandle, QNN_PROFILE_LEVEL_BASIC, &profileHandle)) {
@@ -226,11 +287,11 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
       if (QNN_BACKEND_NO_ERROR
           != qnnInterface.backendRegisterOpPackage(backendHandle, pkg.path.c_str(), pkg.interfaceProvider.c_str(),
                                                    pkg.target.c_str())) {
-        MLLM_ERROR("Could not register Op Package: %s and interface provider: %s", pkg.path.c_str(),
+        MLLM_ERROR("Could not register Op Package: {} and interface provider: {}", pkg.path.c_str(),
                    pkg.interfaceProvider.c_str());
         return nullptr;
       }
-      MLLM_INFO("Registered Op Package: %s and interface provider: %s", pkg.path.c_str(), pkg.interfaceProvider.c_str());
+      MLLM_INFO("Registered Op Package: {} and interface provider: {}", pkg.path.c_str(), pkg.interfaceProvider.c_str());
     }
   }
 
@@ -274,10 +335,11 @@ bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t
   }
   return true;
 }
-bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<GraphInfo_t*>& graphsInfo,
+
+bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<std::shared_ptr<QNNModel>>& qnnModels,
                                  QnnContext_Config_t** contextConfig) {
   // Read the binary from qnn_context.bin and get the size in byte
-  std::ifstream file("qnn_context.bin", std::ios::binary | std::ios::ate);
+  std::ifstream file(QNN_Context_File, std::ios::binary | std::ios::ate);
   std::streamsize size = file.tellg();
   file.seekg(0, std::ios::beg);
 
@@ -301,9 +363,10 @@ bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<Graph
     return false;
   }
 
+  // Extract graph metadata to create QNNModels instead of GraphInfo_t
   GraphInfo_t** tmpGraphsInfo = nullptr;
   uint32_t graphNum;
-  // fill GraphInfo_t based on binary info
+  // fill GraphInfo_t based on binary info - temporarily needed for tensor extraction
   if (!copyMetadataToGraphsInfo(binaryInfo, tmpGraphsInfo, graphNum)) {
     MLLM_ERROR("Failed to copy metadata.");
     return false;
@@ -311,20 +374,252 @@ bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<Graph
   qnnSystemInterface.systemContextFree(sysCtxHandle);
   sysCtxHandle = nullptr;
 
-  graphsInfo.assign(tmpGraphsInfo, tmpGraphsInfo + graphNum);
-
+  // Create context from binary
   Qnn_ContextBinarySize_t writtenSize = 0;
   qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
                                        binaryBuffer.get(), size, &context, profileHandle);
 
-  for (auto& g : graphsInfo) {
-    if (QNN_SUCCESS != qnnInterface.graphRetrieve(context, g->graphName, &g->graph)) {
-      MLLM_ERROR("Unable to retrieve graph handle");
+  // Create QNNModels for each graph and initialize from context
+  qnnModels.clear();
+  qnnModels.reserve(graphNum);
+
+  for (uint32_t i = 0; i < graphNum; ++i) {
+    GraphInfo_t* graphInfo = tmpGraphsInfo[i];
+
+    // Retrieve the graph handle
+    Qnn_GraphHandle_t graph = nullptr;
+    if (QNN_SUCCESS != qnnInterface.graphRetrieve(context, graphInfo->graphName, &graph)) {
+      MLLM_ERROR("Unable to retrieve graph handle for graph: {}", graphInfo->graphName);
       return false;
     }
+
+    // Create QNNModel and initialize from context
+    auto qnnModel = std::make_shared<QNNModel>(qnnInterface, backendHandle);
+    ModelError_t err =
+        qnnModel->initializeFromContext(context, graphInfo->graphName, graph, graphInfo->inputTensors,
+                                        graphInfo->numInputTensors, graphInfo->outputTensors, graphInfo->numOutputTensors);
+
+    if (err != MODEL_NO_ERROR) {
+      MLLM_ERROR("Failed to initialize QNNModel from context for graph: {} with error: {}", graphInfo->graphName,
+                 static_cast<int>(err));
+      return false;
+    }
+
+    qnnModels.push_back(qnnModel);
+    MLLM_INFO("Successfully created QNNModel for graph: {}", graphInfo->graphName);
   }
 
-  MLLM_INFO("QNN context retrieved from qnn_context.bin");
+  // Clean up temporary GraphInfo_t structures
+  for (uint32_t i = 0; i < graphNum; ++i) {
+    if (tmpGraphsInfo[i]) {
+      if (tmpGraphsInfo[i]->graphName) { free(tmpGraphsInfo[i]->graphName); }
+      freeQnnTensors(tmpGraphsInfo[i]->inputTensors, tmpGraphsInfo[i]->numInputTensors);
+      freeQnnTensors(tmpGraphsInfo[i]->outputTensors, tmpGraphsInfo[i]->numOutputTensors);
+      free(tmpGraphsInfo[i]);
+    }
+  }
+  free(tmpGraphsInfo);
+
+  MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels", graphNum);
   return true;
 }
+
+std::shared_ptr<QNNModel> QNNBackend::createQnnGraph(const std::string& graphName) {
+  // If the graph already exists, return the existing model
+  if (qnnModelIndexMap_.find(graphName) != qnnModelIndexMap_.end()) {
+    currentQnnModelIndex_ = qnnModelIndexMap_[graphName];
+    return qnnModels_[currentQnnModelIndex_];
+  }
+
+  // Create a new QNNModel
+  currentQnnModelIndex_ = static_cast<int>(qnnModels_.size());
+  qnnModelIndexMap_.insert(std::make_pair(graphName, currentQnnModelIndex_));
+
+  auto qnnModel = std::make_shared<QNNModel>(runtime_->qnnInterface, runtime_->backendHandle);
+  qnnModels_.push_back(qnnModel);
+
+  // Initialize QNN graph info with basic configs
+  const QnnGraph_Config_t* graphConfigList[] = {nullptr};
+
+  ModelError_t err = MODEL_NO_ERROR;
+  if ((err = qnnModel->initialize(context_, graphName.c_str(), debug_, 1, graphConfigList)) != MODEL_NO_ERROR) {
+    MLLM_ERROR("QNN graph initialization failed for graph: {} with error code: {}", graphName, static_cast<int>(err));
+    qnnModels_.pop_back();
+    qnnModelIndexMap_.erase(graphName);
+    return nullptr;
+  }
+
+  MLLM_INFO("Created QNN graph: {}", graphName);
+  return qnnModel;
+}
+
+void QNNBackend::graphAddNode(const std::string& graphName, const std::string& nodeName, const std::string& nodeType,
+                              const std::vector<std::string>& inputTensorNames,
+                              const std::vector<std::string>& outputTensorNames,
+                              const std::vector<std::shared_ptr<QNNParamTensorWrapper>>& tensorParams,
+                              const std::vector<std::shared_ptr<QNNParamScalarWrapper>>& scalarParams,
+                              const std::string& packageName) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for adding node", graphName);
+    return;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) { return; }
+
+  // Add node to the model
+  ModelError_t err = qnnModel->addNode(QNN_OPCONFIG_VERSION_1, nodeName, packageName, nodeType, tensorParams, scalarParams,
+                                       inputTensorNames, outputTensorNames);
+
+  if (err != MODEL_NO_ERROR) {
+    MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}", nodeName, nodeType, graphName,
+               static_cast<int>(err));
+  } else {
+    MLLM_INFO("Added node {} of type {} to graph {}", nodeName, nodeType, graphName);
+  }
+}
+
+bool QNNBackend::graphFinalize(const std::string& graphName) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for finalization", graphName);
+    return false;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) {
+    MLLM_INFO("Graph {} is loaded from cache, skipping finalization", graphName);
+    return true;
+  }
+
+  // Graph finalize
+  if (MODEL_NO_ERROR != qnnModel->finalizeGraph(runtime_->profileHandle, nullptr)) {
+    MLLM_ERROR("Failed to finalize graph: {}", graphName);
+    return false;
+  }
+
+  qnnModel->freeCachedTensors();
+
+  // Extract profiling info if enabled
+  if (ProfilingLevel::OFF != profilingLevel_) { extractBackendProfilingInfo(runtime_->profileHandle); }
+
+  MLLM_INFO("Graph {} finalized successfully", graphName);
+  return true;
+}
+
+void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto model = qnnModels_[qnnModelIndexMap_[graphName]];
+
+  std::vector<Qnn_Tensor_t> qnn_inputs;
+  std::vector<Qnn_Tensor_t> qnn_outputs;
+  for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
+    // alloc and register qnn tensor
+    // TODO: check if the tensor is same(QNNModel may take intermediate tensor as input/output)
+    model->getGraphInputTensorWrappers()[i]->getDataContainer() = inputs[i];  // update data container
+
+    MLLM_INFO("in backend passed input tensor ptr: {}", inputs[i].ptr<void>());
+
+    model->getGraphInputTensorWrappers()[i]->alloc();
+    qnn_inputs.push_back(*(model->getGraphInputTensorWrappers()[i]->getNativeTensor()));
+  }
+  for (int j = 0; j < model->getGraphOutputTensorWrappers().size(); j++) {
+    // alloc and register qnn tensor
+    model->getGraphOutputTensorWrappers()[j]->alloc();
+    qnn_outputs.push_back(*(model->getGraphOutputTensorWrappers()[j]->getNativeTensor()));
+
+    // TODO: check if the tensor is same(QNNModel may take intermediate tensor as input/output)
+    outputs[j] = model->getGraphOutputTensorWrappers()[j]->getDataContainer();
+  }
+
+  CALL_QNN(runtime_->qnnInterface.graphExecute(model->getQnnGraph(), qnn_inputs.data(), qnn_inputs.size(), qnn_outputs.data(),
+                                               qnn_outputs.size(), runtime_->profileHandle, nullptr));
+
+  if (ProfilingLevel::OFF != profilingLevel_) { extractBackendProfilingInfo(runtime_->profileHandle); }
+}
+
+bool QNNBackend::addTensor(const std::string& graphName, const std::string& tensorName, Qnn_TensorType_t type,
+                           const Tensor& tensor, Qnn_QuantizeParams_t quantize) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for adding tensor", graphName);
+    return false;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) {
+    MLLM_ERROR("Cannot add tensor {} to finalized graph {}", tensorName, graphName);
+    return false;
+  }
+
+  ModelError_t err = qnnModel->addTensor(tensorName, type, tensor, quantize);
+  if (err != MODEL_NO_ERROR) {
+    MLLM_ERROR("Failed to add tensor {} to graph {}: error code {}", tensorName, graphName, static_cast<int>(err));
+    return false;
+  }
+
+  MLLM_INFO("Added tensor {} to graph {}", tensorName, graphName);
+  return true;
+}
+
+bool QNNBackend::addStaticTensor(const std::string& graphName, const std::string& tensorName, const Tensor& tensor,
+                                 Qnn_QuantizeParams_t quantize) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for adding static tensor", graphName);
+    return false;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  if (qnnModel->isGraphFinalized()) {
+    MLLM_ERROR("Cannot add static tensor {} to finalized graph {}", tensorName, graphName);
+    return false;
+  }
+
+  ModelError_t err = qnnModel->addStaticTensor(tensorName, tensor, quantize);
+  if (err != MODEL_NO_ERROR) {
+    MLLM_ERROR("Failed to add static tensor {} to graph {}: error code {}", tensorName, graphName, static_cast<int>(err));
+    return false;
+  }
+
+  MLLM_INFO("Added static tensor {} to graph {}", tensorName, graphName);
+  return true;
+}
+
+std::shared_ptr<QNNTensorWrapper> QNNBackend::getTensorWrapper(const std::string& graphName, const std::string& tensorName) {
+  auto it = qnnModelIndexMap_.find(graphName);
+  if (it == qnnModelIndexMap_.end()) {
+    MLLM_ERROR("Graph {} not found for getting tensor wrapper", graphName);
+    return nullptr;
+  }
+
+  int modelIndex = it->second;
+  auto& qnnModel = qnnModels_[modelIndex];
+
+  return qnnModel->getTensorWrapper(tensorName);
+}
+
+void QNNBackend::extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle) {
+  // Extract profiling information from QNN backend
+  // This is a placeholder implementation
+  if (profileHandle == nullptr) { return; }
+
+  const QnnProfile_EventId_t* profileEvents{nullptr};
+  uint32_t numEvents{0};
+  if (QNN_PROFILE_NO_ERROR != runtime_->qnnInterface.profileGetEvents(profileHandle, &profileEvents, &numEvents)) {
+    MLLM_WARN("Failed to get profile events");
+    return;
+  }
+
+  MLLM_INFO("Extracted {} profiling events", numEvents);
+}
+
 }  // namespace mllm::qnn

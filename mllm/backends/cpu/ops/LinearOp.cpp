@@ -63,15 +63,6 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto& input = inputs[0];
   auto& o = outputs[0];
 
-  auto impl_type = options_.impl_type;
-  if (impl_type == aops::LinearImplTypes::kDefault) {
-#if defined(MLLM_USE_BLAS)
-    impl_type = aops::LinearImplTypes::kBLAS;
-#else
-    impl_type = aops::LinearImplTypes::kMllmBlas;
-#endif
-  }
-
   auto input_shape = input.shape();
   MLLM_RT_ASSERT(input_shape.size() >= 2);
 
@@ -82,6 +73,21 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   int K = input_shape[input_shape.size() - 1];
   int N = options_.out_channels;
   MLLM_RT_ASSERT_EQ(K, options_.in_channels);
+
+  auto impl_type = options_.impl_type;
+  if (impl_type == aops::LinearImplTypes::kDefault) {
+#if defined(MLLM_USE_BLAS)
+    impl_type = aops::LinearImplTypes::kBLAS;
+#else
+    if (K >= 4) {
+      impl_type = aops::LinearImplTypes::kGGUF;
+    } else
+    // All fallback to mllm blas
+    {
+      impl_type = aops::LinearImplTypes::kMllmBlas;
+    }
+#endif
+  }
 
   int batch_count = 1;
   for (size_t i = 0; i < input_shape.size() - 2; ++i) { batch_count *= input_shape[i]; }

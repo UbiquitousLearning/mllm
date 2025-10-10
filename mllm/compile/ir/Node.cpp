@@ -238,6 +238,7 @@ node_ptr_t IRContext::lookupSymbolTable(const std::string& name) {
 
 void IRContext::setDevice(DeviceTypes device_type) { device_type_ = device_type; }
 
+// FIXME: deprecated, context has no device
 DeviceTypes IRContext::getDevice() { return device_type_; }
 
 bool IRContext::isCacheInputOutputTensor(uint32_t uuid) {
@@ -367,7 +368,7 @@ void IRWriter::insertOpAtLast(const op_ptr_t& new_op) {
   MLLM_RT_ASSERT(new_op != nullptr);
   auto& ops = cur_region_->ops();
   new_op->setBelongsTo(cur_region_->belongsTo());
-  new_op->setDevice(ctx_->getDevice());
+
   op_ptr_t last_op = ops.empty() ? nullptr : ops.back();
   if (last_op) {
     last_op->setNextOp(new_op);
@@ -385,7 +386,6 @@ void IRWriter::insertOpAtFront(const op_ptr_t& new_op) {
   MLLM_RT_ASSERT(new_op != nullptr);
   auto& ops = cur_region_->ops();
   new_op->setBelongsTo(cur_region_->belongsTo());
-  new_op->setDevice(ctx_->getDevice());
   op_ptr_t first_op = ops.empty() ? nullptr : ops.front();
   if (first_op) {
     first_op->setPrevOp(new_op);

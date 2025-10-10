@@ -170,6 +170,8 @@ bool isOpenCLAvailable();
 
 bool isQnnAvailable();
 
+extern void initQnnBackend();
+
 void cleanThisThread();
 
 SessionTCB::ptr_t thisThread();

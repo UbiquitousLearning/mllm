@@ -1,6 +1,13 @@
 #include "QNNUtils.hpp"
-#include "QnnTypeMacros.hpp"
+#include "QnnTypes.h"
+#include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/QNNTypeMacros.hpp"
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/core/DeviceTypes.hpp"
+#include "mllm/engine/Context.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
 #include <cstdint>
 #include <memory>
 #include <dlfcn.h>
@@ -24,7 +31,7 @@ bool loadQNNSymbol() {
   QnnInterface_getProviders = (QnnInterfaceGetProvidersFn_t)dlsym(qnnLibHandle, "QnnInterface_getProviders");
   const char* errorSym = dlerror();
   if (!QnnInterface_getProviders) {
-    MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns %s.\n", errorSym);
+    MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(qnnLibHandle);
     return false;
   }
@@ -46,7 +53,7 @@ bool loadQNNSystemSymbol() {
       (QnnSystemInterfaceGetProvidersFn_t)dlsym(systemLibraryHandle, "QnnSystemInterface_getProviders");
   const char* errorSym = dlerror();
   if (!QnnSystemInterface_getProviders) {
-    MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns %s.\n", errorSym);
+    MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(systemLibraryHandle);
     return false;
   }
@@ -56,6 +63,7 @@ bool loadQNNSystemSymbol() {
 
 // --------------- End of QNN symbols loading ---------------
 
+// --------------- QNN Graph Info Copying methods ---------------
 bool copyMetadataToGraphsInfo(const QnnSystemContext_BinaryInfo_t* binaryInfo, GraphInfo_t**& graphsInfo,
                               uint32_t& graphsCount) {
   if (nullptr == binaryInfo) {
@@ -286,6 +294,198 @@ bool freeQnnTensors(Qnn_Tensor_t*& tensors, uint32_t numTensors) {
   for (size_t i = 0; i < numTensors; i++) { freeQnnTensor(tensors[i]); }
   free(tensors);
   return true;
+}
+
+// --------------- QNN Wrapper ---------------
+QNNTensorWrapper::QNNTensorWrapper(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
+                                   const std::vector<uint32_t>& dimensions, Qnn_QuantizeParams_t quantize) {
+  name_ = name;
+  dimensions_ = dimensions;
+
+  // init QNN tensor
+  // QNN tensor v2 is binary compatible with v1, so we can use v2 directly
+  qnnTensor_.version = QNN_TENSOR_VERSION_2;
+
+  qnnTensor_.v2 = QNN_TENSOR_V2_INIT;
+
+  qnnTensor_.v2.name = name_.c_str();
+  qnnTensor_.v2.type = type;
+  qnnTensor_.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_DENSE;
+  qnnTensor_.v2.dataType = dataType;
+  qnnTensor_.v2.quantizeParams = quantize;
+  qnnTensor_.v2.rank = dimensions_.size();
+  qnnTensor_.v2.dimensions = dimensions_.data();
+  qnnTensor_.v2.memType = QNN_TENSORMEMTYPE_RAW;
+  qnnTensor_.v2.clientBuf.data = nullptr;
+  qnnTensor_.v2.clientBuf.dataSize = 0;
+}
+
+std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& name, Qnn_TensorType_t type, const Tensor& tensor,
+                                                           Qnn_QuantizeParams_t quantize) {
+  // in this case, the tensor may be a placeholder(input/output except for graph IO)
+  // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
+  MLLM_RT_ASSERT(!name.empty());
+  if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+
+  Qnn_DataType_t dataType = QNN_DATATYPE_UNDEFINED;
+  switch (tensor.dtype()) {
+    case kFloat32: dataType = QNN_DATATYPE_FLOAT_32; break;
+    case kFloat16: dataType = QNN_DATATYPE_FLOAT_16; break;
+    case kInt8: dataType = QNN_DATATYPE_SFIXED_POINT_8; break;
+    case kInt16: dataType = QNN_DATATYPE_SFIXED_POINT_16; break;
+    case kInt32: dataType = QNN_DATATYPE_SFIXED_POINT_32; break;
+    case kUInt8: dataType = QNN_DATATYPE_UFIXED_POINT_8; break;
+    default: MLLM_ERROR("Unsupported tensor element type for QNN: {}", (int)tensor.dtype()); break;
+  }
+
+  std::vector<uint32_t> dimensions(tensor.rank());
+  for (int i = 0; i < tensor.rank(); i++) { dimensions[i] = tensor.shape()[i]; }
+
+  auto tensorWrapper = std::make_shared<QNNTensorWrapper>(name, type, dataType, dimensions, quantize);
+
+  tensorWrapper->dataContainer_ = tensor;
+
+  return tensorWrapper;
+}
+
+std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std::string& name, const Tensor& tensor,
+                                                                       Qnn_QuantizeParams_t quantize) {
+  MLLM_RT_ASSERT(!name.empty() && tensor.rank() > 0 && !tensor.isNil());
+
+  // mllm currently support float16/float32/sfixed8(int8) as static tensor (weight) data type
+  // uint8 and int32 is caused by QNNLinear which uses Conv2d
+  MLLM_RT_ASSERT(tensor.dtype() == kFloat16 || tensor.dtype() == kFloat32 || tensor.dtype() == kInt8 || tensor.dtype() == kUInt8
+                 || tensor.dtype() == kInt32);
+
+  std::shared_ptr<QNNTensorWrapper> tensorWrapper = QNNTensorWrapper::create(name, QNN_TENSOR_TYPE_STATIC, tensor, quantize);
+
+  tensorWrapper->isAlloc_ = true;
+
+  uint32_t numElement = tensor.bytes();
+  Qnn_ClientBuffer_t clientBuffer = {.data = tensor.ptr<void>(), .dataSize = numElement};
+
+  QNN_TENSOR_SET_CLIENT_BUF(tensorWrapper->qnnTensor_, clientBuffer);
+  return tensorWrapper;
+}
+
+void QNNTensorWrapper::alloc() {
+  if (isAlloc_) {
+    MLLM_WARN("Tensor {} has already been allocated.", name_);
+    return;
+  }
+  MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
+
+  // if storage is not allocated, allocate it
+  // or, register the existing storage to QNN(passing allocated input to QNN)
+  if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
+
+  MLLM_INFO("tensor ptr: {}", dataContainer_.ptr<void>());
+
+  std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
+      ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
+
+  isAlloc_ = true;
+}
+
+void QNNTensorWrapper::initFromQnnTensor(Qnn_Tensor_t* qnnTensor) {
+  if (qnnTensor == nullptr) {
+    MLLM_ERROR("QNNTensorWrapper::setQnnTensor() received nullptr");
+    return;
+  }
+
+  // Update wrapper's internal state based on the provided tensor
+  name_ = QNN_TENSOR_GET_NAME(qnnTensor) ? QNN_TENSOR_GET_NAME(qnnTensor) : "";
+
+  // Update dimensions vector
+  dimensions_.clear();
+  uint32_t rank = QNN_TENSOR_GET_RANK(qnnTensor);
+  dimensions_.reserve(rank);
+  for (uint32_t i = 0; i < rank; ++i) { dimensions_.push_back(QNN_TENSOR_GET_DIMENSIONS(qnnTensor)[i]); }
+
+  // Instead of deep copying, we'll do a shallow copy and manage the critical fields ourselves
+  // This avoids unnecessary memory allocation and potential memory leaks
+  qnnTensor_ = *qnnTensor;  // Shallow copy
+
+  // Override the name and dimensions pointers to use our managed storage
+  qnnTensor_.v2.name = name_.c_str();
+  qnnTensor_.v2.dimensions = dimensions_.data();
+}
+
+std::shared_ptr<QNNParamTensorWrapper> QNNParamTensorWrapper::create(const std::string& paramName,
+                                                                     const std::string& tensorName, Qnn_DataType_t dataType,
+                                                                     const std::vector<uint32_t>& dimensions) {
+  return std::make_shared<QNNParamTensorWrapper>(paramName, tensorName, dataType, dimensions);
+}
+
+QNNParamTensorWrapper::QNNParamTensorWrapper(const std::string& paramName, const std::string& tensorName,
+                                             Qnn_DataType_t dataType, const std::vector<uint32_t>& dimensions) {
+  paramName_ = paramName;
+  tensorName_ = tensorName;
+  dimensions_ = dimensions;
+  // Fix parameters.
+  qnnParam_.paramType = QNN_PARAMTYPE_TENSOR;
+  qnnParam_.tensorParam.version = QNN_TENSOR_VERSION_2;
+  qnnParam_.tensorParam.v2 = QNN_TENSOR_V2_INIT;
+  qnnParam_.tensorParam.v2.type = QNN_TENSOR_TYPE_STATIC;
+  qnnParam_.tensorParam.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER;
+  qnnParam_.tensorParam.v2.quantizeParams = DEFAULT_QUANTIZE_PARAMS;
+  qnnParam_.tensorParam.v2.memType = QNN_TENSORMEMTYPE_RAW;
+  // Custom parameters.
+  qnnParam_.name = paramName_.c_str();
+  qnnParam_.tensorParam.v2.name = tensorName_.c_str();
+  qnnParam_.tensorParam.v2.dataType = dataType;
+  qnnParam_.tensorParam.v2.rank = dimensions_.size();
+  qnnParam_.tensorParam.v2.dimensions = dimensions_.data();
+  qnnParam_.tensorParam.v2.clientBuf = {.data = nullptr, .dataSize = 0};
+}
+
+QNNParamTensorWrapper::~QNNParamTensorWrapper() {
+  MLLM_RT_ASSERT(QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data != nullptr);
+  free(QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data);
+}
+void* QNNParamTensorWrapper::alloc() {
+  uint32_t dataSize = QNNDataTypeToSize.find(QNN_TENSOR_GET_DATA_TYPE(qnnParam_.tensorParam))->second;
+  for (int i = 0; i < QNN_TENSOR_GET_RANK(qnnParam_.tensorParam); i++) { dataSize *= qnnParam_.tensorParam.v2.dimensions[i]; }
+  Qnn_ClientBuffer_t clientBuffer = {.data = malloc(dataSize), .dataSize = dataSize};
+  QNN_TENSOR_SET_CLIENT_BUF(qnnParam_.tensorParam, clientBuffer);
+  MLLM_RT_ASSERT(QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data != nullptr);
+  return QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data;
+}
+
+QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, bool value) {
+  name_ = name;
+  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnnParam_.name = name_.c_str();
+  qnnParam_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
+  qnnParam_.scalarParam.bool8Value = static_cast<uint8_t>(value);
+}
+
+QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, uint32_t value) {
+  name_ = name;
+  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnnParam_.name = name_.c_str();
+  qnnParam_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
+  qnnParam_.scalarParam.uint32Value = value;
+}
+
+QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, float value) {
+  name_ = name;
+  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnnParam_.name = name_.c_str();
+  qnnParam_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
+  qnnParam_.scalarParam.floatValue = value;
+}
+
+Qnn_Param_t* QNNParamScalarWrapper::getNativeParam() { return &(qnnParam_); }
+
+// --------------- QNN Graph Output Helper ---------------
+
+Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue) {
+  if (tensorValue->getAttr("is_graph_output")) {
+    MLLM_INFO("QNN output tensor {} is marked as graph output", tensorValue->name());
+    return QNN_TENSOR_TYPE_APP_READ;
+  }
+  return QNN_TENSOR_TYPE_NATIVE;
 }
 
 }  // namespace mllm::qnn
