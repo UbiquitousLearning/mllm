@@ -3,4 +3,4 @@
 
 #pragma once
 
-#include "mllm/engine/prefix_cache/Cache.hpp"
+#include "mllm/engine/prefix_cache/Cache.hpp"  // IWYU pragma: export

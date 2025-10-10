@@ -51,6 +51,8 @@ struct Qwen3Config : protected ConfigFile {
   bool tie_word_embeddings = true;
   int32_t max_cache_length = 2048;
   int32_t end_of_text_token_id = 151645;
+  int32_t thinking_start_token_id = 151667;
+  int32_t thinking_end_token_id = 151668;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
 };

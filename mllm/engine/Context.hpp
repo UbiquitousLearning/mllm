@@ -46,6 +46,8 @@ class Context {
 
   uint64_t getRandomSeed();
 
+  uint64_t getRandomState();
+
   uint64_t curTime();
 
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> refSessionThreads();
@@ -64,6 +66,7 @@ class Context {
   Context();
 
   uint64_t random_seed_ = 42;
+  uint64_t random_state_ = 42;
   SessionTCB::ptr_t main_thread_;
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> session_threads_;
 

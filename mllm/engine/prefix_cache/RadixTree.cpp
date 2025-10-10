@@ -157,8 +157,8 @@ RadixSearchResult RadixTree::search(const RadixTreeNodeKey& key) {
     result.success = false;
     result.path = path;
     result.matched_length = 0;
-    result.k_cache_addresses = {};
-    result.v_cache_addresses = {};
+    result.k_cache_addresses.resize(options_.transformer_blocks_num);
+    result.v_cache_addresses.resize(options_.transformer_blocks_num);
   }
 
   return result;

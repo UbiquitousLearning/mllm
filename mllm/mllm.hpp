@@ -156,6 +156,8 @@ void setLogLevel(const LogLevel& level);
 
 void setRandomSeed(uint64_t seed);
 
+int64_t getRandomState();
+
 void setMaximumNumThreads(uint32_t num_threads);
 
 void setPrintPrecision(int precision);

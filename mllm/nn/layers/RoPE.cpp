@@ -8,7 +8,9 @@ namespace mllm::nn {
 
 RoPE::RoPE() : Layer(OpTypes::kRoPE, aops::RoPEOpOptions{}) {}
 
-RoPE::RoPE(float theta, int32_t max_position_embeddings)
-    : Layer(OpTypes::kRoPE, aops::RoPEOpOptions(theta, max_position_embeddings)) {}
+RoPE::RoPE(float theta, int32_t max_position_embeddings, aops::RoPEOpOptionsInputType input_type)
+    : Layer(OpTypes::kRoPE,
+            aops::RoPEOpOptions{
+                .rope_theta = theta, .max_position_embeddings = max_position_embeddings, .input_type = input_type}) {}
 
 }  // namespace mllm::nn
