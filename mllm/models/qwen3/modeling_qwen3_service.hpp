@@ -403,7 +403,8 @@ class Qwen3Session final : public ::mllm::service::Session {
 
     // Search in the radix cache. Find the tokens we really need to compute.
     auto prefix_cache_result = cache_->find(full_seq_idx);
-    fmt::print("Reuse Tokens: {} \n", prefix_cache_result.matched_length);
+    fmt::print("Reuse Tokens: {}, compute budget: {} tokens\n", prefix_cache_result.matched_length,
+               full_seq_idx.size() - prefix_cache_result.matched_length);
     std::span<int64_t> reduced_seq_idx(full_seq_idx.data() + prefix_cache_result.matched_length,
                                        full_seq_idx.size() - prefix_cache_result.matched_length);
     std::vector<int64_t> position_ids;
