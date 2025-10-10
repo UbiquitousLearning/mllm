@@ -11,6 +11,7 @@
 #include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DeviceTypes.hpp"
+#include "mllm/engine/service/Session.hpp"
 
 namespace mllm::ffi {
 //===----------------------------------------------------------------------===//
@@ -68,5 +69,26 @@ class Tensor : public tvm::ffi::ObjectRef {
 };
 
 ::mllm::Tensor __from_dlpack(DLManagedTensor* dl_tensor);
+
+//===----------------------------------------------------------------------===//
+// MLLM Session Define
+//===----------------------------------------------------------------------===//
+class SessionObj : public tvm::ffi::Object {
+ public:
+  ::mllm::service::Session::ptr_t session_ptr_ = nullptr;
+
+  explicit SessionObj(const ::mllm::service::Session::ptr_t& session_ptr) : session_ptr_(session_ptr) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.service.Session", TensorObj, tvm::ffi::Object);
+};
+
+class Session : public tvm::ffi::ObjectRef {
+ public:
+  explicit Session(const ::mllm::service::Session::ptr_t& session_ptr) {
+    data_ = tvm::ffi::make_object<TensorObj>(session_ptr);
+  }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(Session, tvm::ffi::ObjectRef, SessionObj);  // NOLINT
+};
 
 }  // namespace mllm::ffi

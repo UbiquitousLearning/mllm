@@ -17,6 +17,7 @@
 #include "mllm/nn/Functional.hpp"
 #include "mllm/ffi/Object.hh"
 #include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/engine/service/Service.hpp"
 
 namespace mllm::ffi {
 //===----------------------------------------------------------------------===//
@@ -315,6 +316,24 @@ TVM_FFI_STATIC_INIT_BLOCK() {
                           auto rr = rhs.get()->mllm_tensor_;
                           return ::mllm::ffi::Tensor{::mllm::nn::functional::matmul(ll, rr, transpose_A, transpose_B,
                                                                                     (::mllm::aops::MatMulOpType)type)};
+                        });
+}
+
+//===----------------------------------------------------------------------===//
+// REGISTER: Service Functions.
+//===----------------------------------------------------------------------===//
+TVM_FFI_STATIC_INIT_BLOCK() {
+  namespace refl = tvm::ffi::reflection;
+
+  refl::GlobalDef().def("mllm.service.startService",
+                        [](int work_threads = 1) -> void { ::mllm::service::startService(work_threads); });
+  refl::GlobalDef().def("mllm.service.stopService", []() -> void { ::mllm::service::stopService(); });
+  refl::GlobalDef().def("mllm.service.sendRequest",
+                        [](const std::string& json_str) -> void { ::mllm::service::sendRequest(json_str); });
+  refl::GlobalDef().def("mllm.service.getResponse", [](const std::string& id) -> void { ::mllm::service::sendRequest(id); });
+  refl::GlobalDef().def("mllm.service.insertSession",
+                        [](const std::string& session_id, const mllm::ffi::Session& session) -> void {
+                          ::mllm::service::insertSession(session_id, session.get()->session_ptr_);
                         });
 }
 

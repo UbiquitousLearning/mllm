@@ -9,6 +9,7 @@ from . import utils
 from . import quantize
 from . import nn
 from . import compile
+from . import service
 from .ffi import (
     float32,
     float16,
