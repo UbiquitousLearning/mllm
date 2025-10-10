@@ -23,10 +23,12 @@ dependencies=[
   "pytest-html",
   "apache-tvm-ffi",
   "pyyaml >= 6.0.2",
+  "openai",
 ]
 
 [project.scripts]
 mllm-convertor = "pymllm.utils.mllm_convertor:main"
+mllm-service = "pymllm.service.tools:main"
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc"]

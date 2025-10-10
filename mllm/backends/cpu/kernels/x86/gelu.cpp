@@ -8,7 +8,7 @@
 
 #include <hwy/highway.h>
 #include <cmath>
-#include "/root/mllm/mllm/backends/cpu/kernels/x86/math.hpp"
+#include "mllm/backends/cpu/kernels/x86/math.hpp"
 
 namespace mllm::cpu::x86 {
 namespace hn = hwy::HWY_NAMESPACE;

@@ -299,6 +299,12 @@ def from_numpy(numpy_tensor):
     return _ffi_api.from_numpy(numpy_tensor)
 
 
+@tvm_ffi.register_object("mllm.service.Session")
+class Session(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+
 # Initialize context
 initialize_context()
 
