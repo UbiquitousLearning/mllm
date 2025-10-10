@@ -36,8 +36,12 @@ class DispatcherManager {
 
   inline exec::static_thread_pool& getExecutor() { return thread_pool_; }
 
+  // Submit task directly and handled by specified backend dispatcher
+  // This will NOT launch a new thread
   void submit(dispatcher_id_t id, const Task::ptr_t& task);
 
+  // Submit task to specified backend dispatcher and handle by its asyncReceive
+  // In asyncReceive, a new thread will be launched to handle the task
   TaskResult::sender_t asyncSubmit(dispatcher_id_t id, const Task::ptr_t& task);
 
   void syncWait(dispatcher_id_t id);

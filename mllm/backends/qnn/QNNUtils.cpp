@@ -374,7 +374,12 @@ void QNNTensorWrapper::alloc() {
     return;
   }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
-  dataContainer_.alloc();
+
+  // if storage is not allocated, allocate it
+  // or, register the existing storage to QNN(passing allocated input to QNN)
+  if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
+
+  MLLM_INFO("tensor ptr: {}", dataContainer_.ptr<void>());
 
   std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
       ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);

@@ -15,4 +15,14 @@ Task::ptr_t Task::createExecuteOpTask(const BaseOp::ptr_t& op, const std::vector
   return task;
 }
 
+Task::ptr_t Task::createExecuteModuleTask(void* module_ptr, const std::vector<Tensor>& inputs,
+                                          const std::vector<AnyValue>& args) {
+  auto task = std::make_shared<Task>();
+  task->type = TaskTypes::kExecuteModule;
+  task->custom_context_ptr = module_ptr;
+  task->inputs = inputs;
+  task->args = args;
+  return task;
+}
+
 }  // namespace mllm

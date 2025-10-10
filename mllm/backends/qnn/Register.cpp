@@ -5,6 +5,7 @@
 
 #include "mllm/mllm.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
+#include "mllm/backends/qnn/QNNDispatcher.hpp"
 
 namespace mllm {
 
@@ -23,5 +24,8 @@ void initQnnBackend() {
                                              .really_large_tensor_threshold = 0,
                                              .using_buddy_mem_pool = false,
                                          });
+  // 3. Initialize dispatcher manager
+  ctx.dispatcherManager()->registerDispatcher(
+      createQNNDispatcher(ctx.dispatcherManager()->getExecutor(), qnn::QNNDispatcherOptions()));
 }
 }  // namespace mllm

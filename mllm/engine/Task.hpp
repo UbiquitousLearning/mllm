@@ -34,6 +34,8 @@ struct Task {
 
   static Task::ptr_t createExecuteOpTask(const BaseOp::ptr_t& op, const std::vector<Tensor>& inputs,
                                          const std::vector<Tensor>& outputs);
+  static Task::ptr_t createExecuteModuleTask(void* module_ptr, const std::vector<Tensor>& inputs,
+                                             const std::vector<AnyValue>& args);
 };
 
 struct TaskResult {
