@@ -85,7 +85,7 @@ class SessionObj : public tvm::ffi::Object {
 class Session : public tvm::ffi::ObjectRef {
  public:
   explicit Session(const ::mllm::service::Session::ptr_t& session_ptr) {
-    data_ = tvm::ffi::make_object<TensorObj>(session_ptr);
+    data_ = tvm::ffi::make_object<SessionObj>(session_ptr);
   }
 
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(Session, tvm::ffi::ObjectRef, SessionObj);  // NOLINT

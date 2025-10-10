@@ -23,6 +23,7 @@ dependencies=[
   "pytest-html",
   "apache-tvm-ffi",
   "pyyaml >= 6.0.2",
+  "openai",
 ]
 
 [project.scripts]

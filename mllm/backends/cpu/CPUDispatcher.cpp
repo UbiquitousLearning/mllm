@@ -17,6 +17,7 @@ CPUDispatcher::CPUDispatcher(exec::static_thread_pool& thread_pool, dispatcher_i
 
 void CPUDispatcher::receive(const Task::ptr_t& task) {
   switch (task->type) {
+    case TaskTypes::kExecuteModule:
     case TaskTypes::kExecuteOp: {
       process(task);
       break;
