@@ -7,15 +7,18 @@
 
 namespace mllm {
 
-enum DeviceTypes {
+enum DeviceTypes : int32_t {
   kDeviceTypes_Start = 0,
 
-  kCPU,
-  kCUDA,
-  kOpenCL,
-  kQNN,
+  kCPU = 1,
+  kCUDA = 2,
+  kOpenCL = 3,
+  kQNN = 4,
 
-  kDevicePlaceHolder,
+  // TODO This device type for pinned memory.
+  kCUDAHost = 5,
+
+  kDynamicDeviceType_Start = 4096,
 
   kDeviceTypes_End,
 };

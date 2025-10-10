@@ -33,14 +33,4 @@ class DynamicCache {
   std::vector<Tensor> v_cache_;
 };
 
-class PagedDynamicCache {
- public:
-  ~PagedDynamicCache() = default;
-
-  explicit PagedDynamicCache(const std::string& name);
-
- private:
-  // TODO A register buffer
-};
-
 }  // namespace mllm::nn

@@ -1,3 +1,6 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
 from __future__ import annotations
 import tvm_ffi
 import atexit

@@ -1,11 +1,5 @@
-/**
- * @file Backend.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-23
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 #include "mllm/backends/base/Backend.hpp"
 
 namespace mllm {
@@ -17,5 +11,7 @@ BaseOp::ptr_t Backend::createOp(OpTypes op_type, const BaseOpOptionsBase& base_o
   op->setDeviceType(device_);
   return op;
 }
+
+void Backend::regOpFactory(const std::shared_ptr<BaseOpFactory>& factory) { op_factories_.reg(factory->opType(), factory); }
 
 }  // namespace mllm

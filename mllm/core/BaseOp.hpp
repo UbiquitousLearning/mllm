@@ -183,17 +183,22 @@ struct BaseOpFactory {
   virtual ~BaseOpFactory() = default;
   virtual std::shared_ptr<BaseOp> create(const BaseOpOptionsBase& base_cargo) = 0;
   [[nodiscard]] virtual OpTypes opType() const = 0;
+  inline void __forceSetType(int32_t type) { type_ = type; }
+
+  int32_t type_;
 };
 
 template<OpTypes type, typename CargoT>
 class TypedOpFactory : public BaseOpFactory {
  public:
+  TypedOpFactory() { __forceSetType(static_cast<int32_t>(type)); }
+
   std::shared_ptr<BaseOp> create(const BaseOpOptionsBase& base_cargo) override {
     const auto& cargo = base_cargo.as<CargoT>();
     return createOpImpl(cargo);
   }
 
-  [[nodiscard]] OpTypes opType() const override { return type; }
+  [[nodiscard]] OpTypes opType() const override { return (OpTypes)type_; }
 
  protected:
   virtual std::shared_ptr<BaseOp> createOpImpl(const CargoT& cargo) = 0;

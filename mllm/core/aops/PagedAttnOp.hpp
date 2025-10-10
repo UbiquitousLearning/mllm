@@ -11,6 +11,7 @@ namespace mllm::aops {
 enum class PagedAttnImplType {
   kDefault = 0,
   kAllFp32 = 1,
+  kPrefixCache = 2,
 };
 
 struct PagedAttnOpOptions : public BaseOpOptions<PagedAttnOpOptions> {
@@ -19,6 +20,7 @@ struct PagedAttnOpOptions : public BaseOpOptions<PagedAttnOpOptions> {
   bool fuse_rope = false;
   bool need_attn_weights = false;
   PagedAttnImplType impl_type = PagedAttnImplType::kAllFp32;
+  void* prefix_cache_ctx = nullptr;
 };
 
 class PagedAttnOp : public BaseOp {

@@ -1,11 +1,5 @@
-/**
- * @file Backend.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-22
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 #pragma once
 
 #include <memory>
@@ -28,6 +22,8 @@ class Backend {
   void regOpFactory() {
     (..., (_reg_one_op_factory<Args>()));
   }
+
+  void regOpFactory(const std::shared_ptr<BaseOpFactory>& factory);
 
   [[nodiscard]] inline DeviceTypes device() const { return device_; }
 
