@@ -7,6 +7,7 @@
 #include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
+#include "mllm/core/aops/Scatter2ShardsOp.hpp"
 #include "mllm/core/aops/SoftmaxOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
@@ -110,6 +111,11 @@ Tensor silu_(const Tensor& x) {
   auto opt = aops::SiLUOpOptions{};
   opt.setInplace(true);
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSiLU, opt, {x})[0];
+}
+
+void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim) {
+  Context::instance().buildOpAndSubmitTask(OpTypes::kScatter2Shards, aops::Scatter2ShardsOpOptions{.dim = dim},
+                                           {src, shards_pointer});
 }
 
 }  // namespace mllm::nn::functional

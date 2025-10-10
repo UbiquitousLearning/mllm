@@ -23,6 +23,8 @@ void setLogLevel(const LogLevel& level) { ::mllm::Logger::level() = level; }
 
 void setRandomSeed(uint64_t seed) { Context::instance().setRandomSeed(seed); }
 
+int64_t getRandomState() { return Context::instance().getRandomState(); }
+
 void setMaximumNumThreads(uint32_t num_threads) {
   // TODO
 }

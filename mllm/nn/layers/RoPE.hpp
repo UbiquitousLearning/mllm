@@ -11,7 +11,9 @@ namespace mllm::nn {
 class RoPE : public Layer {
  public:
   RoPE();
-  explicit RoPE(float theta, int32_t max_position_embeddings);
+
+  RoPE(float theta, int32_t max_position_embeddings,
+       aops::RoPEOpOptionsInputType input_type = aops::RoPEOpOptionsInputType::kBHSD);
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 

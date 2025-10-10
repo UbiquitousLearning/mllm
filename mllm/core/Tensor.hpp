@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <span>
 #include <memory>
 #include <string>
 #include <optional>
@@ -90,6 +91,47 @@ class Tensor {
       return Tensor::nil();
     }
     std::copy(vec.begin(), vec.end(), tensor.ptr<T>());
+    return tensor;
+  }
+
+  template<typename T>
+  static inline Tensor fromVector(const std::span<T>& vec, const shape_t& shape, DataTypes dtype = kFloat32,
+                                  DeviceTypes device = kCPU) {
+    Tensor tensor = Tensor::empty(shape, dtype, device).alloc();
+    size_t tensor_size = tensor.numel();
+    if (vec.size() != tensor_size) {
+      MLLM_ERROR_EXIT(ExitCode::kShapeError, "Tensor size mismatch with std::vector size");
+      return Tensor::nil();
+    }
+    std::copy(vec.begin(), vec.end(), tensor.ptr<T>());
+    return tensor;
+  }
+
+  /**
+   * @brief Create a tensor from a std::vector, but reference the vector data, not copy it.
+   *
+   * @tparam T
+   * @param vec
+   * @param shape
+   * @param dtype
+   * @param device
+   * @return Tensor
+   */
+  template<typename T>
+  static inline Tensor refVectorData(const std::vector<T>& vec, const shape_t& shape, DataTypes dtype = kFloat32,
+                                     DeviceTypes device = kCPU) {
+    size_t expected_size = 1;
+    for (auto dim : shape) { expected_size *= dim; }
+
+    if (vec.size() != expected_size) {
+      MLLM_ERROR_EXIT(ExitCode::kShapeError, "Tensor shape mismatch with std::vector size");
+      return Tensor::nil();
+    }
+
+    Tensor tensor = Tensor::empty(shape, dtype, device);
+    tensor.impl_->storage()->ptr_ = const_cast<T*>(vec.data());
+    tensor.impl_->storage()->mem_type_ = kManual;
+
     return tensor;
   }
 
@@ -522,7 +564,7 @@ class Tensor {
    * @return Typed base pointer.
    */
   template<typename T>
-  T* ptr() const {
+  [[nodiscard]] T* ptr() const {
     return impl_->ptr<T>();
   }
 

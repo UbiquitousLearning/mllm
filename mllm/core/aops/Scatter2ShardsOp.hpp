@@ -8,23 +8,13 @@
 
 namespace mllm::aops {
 
-enum class PagedAttnImplType {
-  kDefault = 0,
-  kAllFp32 = 1,
+struct Scatter2ShardsOpOptions : public BaseOpOptions<Scatter2ShardsOpOptions> {
+  int dim = 0;
 };
 
-struct PagedAttnOpOptions : public BaseOpOptions<PagedAttnOpOptions> {
-  int32_t head_repeat_times = 1;
-  bool high_precision_exp = false;
-  bool fuse_rope = false;
-  bool need_attn_weights = false;
-  PagedAttnImplType impl_type = PagedAttnImplType::kAllFp32;
-  void* prefix_cache_ctx = nullptr;
-};
-
-class PagedAttnOp : public BaseOp {
+class Scatter2ShardsOp : public BaseOp {
  public:
-  explicit PagedAttnOp(const PagedAttnOpOptions& options);
+  explicit Scatter2ShardsOp(const Scatter2ShardsOpOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -36,12 +26,8 @@ class PagedAttnOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
-  ParameterFile::ptr_t getParams() override;
-
-  inline const PagedAttnOpOptions& options() const { return options_; }
-
  protected:
-  PagedAttnOpOptions options_;
+  Scatter2ShardsOpOptions options_;
 };
 
 }  // namespace mllm::aops

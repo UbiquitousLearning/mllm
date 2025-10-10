@@ -109,7 +109,7 @@ Tensor Tensor::random(const std::vector<int32_t>& shape, float start, float end,
   return Context::instance().buildOpAndSubmitTask(
       OpTypes::kFill,
       aops::FillOpOptions{
-          .type = aops::FillOpTypes::kRandom, .start = start, .end = end, .seed = Context::instance().getRandomSeed()},
+          .type = aops::FillOpTypes::kRandom, .start = start, .end = end, .seed = Context::instance().getRandomState()},
       {i})[0];
 }
 

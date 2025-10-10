@@ -672,13 +672,13 @@ void ZenFileSystem::_createBlobOnDisk() {
 void ZenFileSystem::_createBlobOnAnonymousFile() {
   // Calculate blob size.
   size_t total_bits = (1 << (options_.page_bits + options_.lane_bits));
-  size_t uint64_count = (total_bits + sizeof(uint64_t) - 1) / sizeof(uint64_t);
+  size_t uint64_count = (total_bits + 64 - 1) / 64;
 
   // Blob size is not K and V.
   // Is 1 << (options_.page_bits + options_.lane_bits) * elements * sizeof(dtype).
   // K and V shared one blob.
   size_t blob_size = (1 << (options_.page_bits + options_.lane_bits)) * options_.per_k_token_ele * bytesOfType(options_.k_dtype)
-                     / lanesOfType(options_.v_dtype);
+                     / lanesOfType(options_.k_dtype);
 
   std::error_code ec;
   auto mmap_file = ZenFSBlobMMAPFile::create(blob_size, ZenFSMMAPMode::kAnonymous, "", ec);
