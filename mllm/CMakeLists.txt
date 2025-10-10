@@ -93,6 +93,9 @@ endif()
 
 if(MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(backends/qnn)
+  add_compile_definitions(
+    MLLM_QNN_BACKEND
+  )
 endif()
 
 if(MLLM_BUILD_CUDA_BACKEND)

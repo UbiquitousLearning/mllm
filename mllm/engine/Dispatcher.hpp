@@ -42,6 +42,8 @@ class Dispatcher {
 
   virtual void receive(const Task::ptr_t& task);
 
+  // This method should be implemented by launching a new thread to handle the task using thread_pool_
+  // e.g. `stdexec::schedule(scheduler) | stdexec::then([this, task] { process(task); });`
   virtual TaskResult::sender_t asyncReceive(const Task::ptr_t& task) = 0;
 
   virtual void process(const Task::ptr_t& task);

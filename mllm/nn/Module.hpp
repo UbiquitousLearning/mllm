@@ -155,6 +155,8 @@ class Module {
 
   std::vector<Tensor> __main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args);
 
+  // __send_graph_begin and __send_graph_end are used to anotate the begin and end of a module execution in trace mode.
+  // During common execution, the module is called by submitting a TaskTypes::kExecuteModule task
   void __send_graph_begin(const std::vector<Tensor>& inputs);
 
   void __send_graph_end(const std::vector<Tensor>& inputs);

@@ -99,16 +99,21 @@ void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss);
 
 std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   auto& ctx = Context::instance();
-  __send_graph_begin(inputs);
+  __send_graph_begin(inputs);  // used for tracing
   std::vector<Tensor> o;
 
   // FIXME: We need to avoid trace_mode condition
   if (ctx.thisThread()->trace_mode) {
     o = __trace(inputs, args);
   } else {
-    o = forward(inputs, args);
+    auto task = Task::createExecuteModuleTask(this, inputs, args);
+
+    ctx.dispatcherManager()->submit(static_cast<int32_t>(impl_->getDevice()), task);
+
+    // Return what we need.
+    o = task->outputs;
   }
-  __send_graph_end(inputs);
+  __send_graph_end(inputs);  // used for tracing
   return o;
 }
 

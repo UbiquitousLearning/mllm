@@ -629,6 +629,10 @@ class Tensor {
     return *(const_cast<Tensor*>(this)->offsettedPtr<T>(offsets));
   }
 
+  [[nodiscard]] std::unordered_map<std::string, TensorViewImpl::ptr_t>& attachedViews() { return attached_views_; }
+
+  void attach(const std::string& name, const TensorViewImpl::ptr_t& view) { attached_views_[name] = view; }
+
  private:
   template<typename T>
   friend __LinkedTensor operator<<(const Tensor& t, T first);

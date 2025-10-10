@@ -59,7 +59,7 @@ void CPUDispatcher::process(const Task::ptr_t& task) {
       break;
     }
     case TaskTypes::kExecuteModule: {
-      task->outputs = ((nn::Module*)(task->custom_context_ptr))->__main(task->inputs, task->args);
+      task->outputs = ((nn::Module*)(task->custom_context_ptr))->forward(task->inputs, task->args);
       break;
     }
     default: NYI("CPUDispatcher::process not supported task type");

@@ -4,7 +4,6 @@
 #include "mllm/core/aops/Conv1DOp.hpp"
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
-#include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"

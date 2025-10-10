@@ -247,9 +247,6 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
     std::shared_ptr<T> created_node = T::build(_this.get(), std::forward<Args>(args)...);
 
-    // set device
-    created_node->template cast_<Val>()->setDevice(getDevice());
-
     if (created_node->template cast_<Val>()->name().empty()) {
       setValueName(created_node->template cast_<Val>(), getAutoIndexedValueName());
       created_node->template cast_<Val>()->name() = value_names_[created_node->template cast_<Val>()];
@@ -268,9 +265,6 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
     // Op: insert into region
     if (created_node->template isa_<Op>()) {
-      // set device
-      created_node->template cast_<Op>()->setDevice(getDevice());
-
       auto& ops = cur_insert_region_->ops();
       op_ptr_t prev_op = ops.empty() ? nullptr : ops.back();
 
@@ -288,9 +282,6 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
     // Value: add to symbol table. Giving them names.
     if (created_node->template isa_<Val>()) {
-      // set device
-      created_node->template cast_<Val>()->setDevice(getDevice());
-
       if (created_node->template cast_<Val>()->name().empty()) {
         setValueName(created_node->template cast_<Val>(), getAutoIndexedValueName());
         created_node->template cast_<Val>()->name() = value_names_[created_node->template cast_<Val>()];
@@ -312,6 +303,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
   void setDevice(DeviceTypes device_type);
 
+  // FIXME: deprecated, context has no device
   DeviceTypes getDevice();
 
   bool isCacheInputOutputTensor(uint32_t uuid);
@@ -328,7 +320,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   void popRegionFromInsertRegionStackAndSetRegion();
 
  private:
-  DeviceTypes device_type_ = kCPU;
+  DeviceTypes device_type_ = kCPU;  // FIXME: deprecated, context has no device
   std::unordered_map<std::string, node_ptr_t> symbol_table_;
   uint32_t auto_indexed_value_name_cnt_ = 0;
   std::unordered_map<val_ptr_t, std::string> value_names_;
@@ -376,9 +368,6 @@ class IRWriter {
 
     // Op: insert into region
     if (created_node->template isa_<Op>()) {
-      // set device
-      created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
-
       auto& ops = cur_region_->ops();
       op_ptr_t prev_op = ops.empty() ? nullptr : ops.back();
 
@@ -396,9 +385,6 @@ class IRWriter {
 
     // Value: add to symbol table. Giving them names.
     if (created_node->template isa_<Val>()) {
-      // set device
-      created_node->template cast_<Val>()->setDevice(ctx_->getDevice());
-
       auto name = ctx_->getAutoIndexedValueName();
       ctx_->setValueName(created_node->template cast_<Val>(), name);
       created_node->template cast_<Val>()->name() = name;
@@ -425,9 +411,6 @@ class IRWriter {
 
     // Op: insert into region
     if (created_node->template isa_<Op>()) {
-      // set device
-      created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
-
       switch (pos) {
         case AFTER: {
           auto pre_op = *pos_op_iter;
@@ -465,9 +448,6 @@ class IRWriter {
 
     // Value: add to symbol table. Giving them names.
     if (created_node->template isa_<Val>()) {
-      // set device
-      created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
-
       auto name = ctx_->getAutoIndexedValueName();
       ctx_->setValueName(created_node->template cast_<Val>(), name);
       created_node->template cast_<Val>()->name() = name;
@@ -498,9 +478,6 @@ class IRWriter {
 
     // Op: insert into region
     if (created_node->template isa_<Op>()) {
-      // set device
-      created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
-
       // Cut edge
       for (auto& input : old_op->inputs()) { input->outputs().remove(old_op); }
       for (auto& output : old_op->outputs()) { output->inputs().remove(old_op); }

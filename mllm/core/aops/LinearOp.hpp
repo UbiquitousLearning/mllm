@@ -36,6 +36,11 @@ enum class LinearImplTypes {
   // Add GGUF quantized linear
   kGGUF_End,
 
+  kQNN_Start,
+  kQNN_tensor_symm_w8a16,
+  kQNN_tensor_symm_w8a8,
+  kQNN_End,
+
   kLinearImplTypes_End,
 };
 
@@ -63,7 +68,9 @@ inline LinearImplTypes str2LinearImplTypes(const std::string& str) {
       {"KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4",
        LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4},
       {"KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm",
-       LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm}};
+       LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm},
+      {"QNN Linear per-tensor symmectrical W8A16", LinearImplTypes::kQNN_tensor_symm_w8a16},
+      {"QNN Linear per-tensor symmectrical W8A8", LinearImplTypes::kQNN_tensor_symm_w8a8}};
 
   auto it = map.find(str);
   if (it != map.end()) { return it->second; }
@@ -96,7 +103,9 @@ inline std::string LinearImplTypes2Str(LinearImplTypes type) {
       {LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4,
        "KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4"},
       {LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm,
-       "KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm"}};
+       "KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm"},
+      {LinearImplTypes::kQNN_tensor_symm_w8a16, "QNN Linear per-tensor symmectrical W8A16"},
+      {LinearImplTypes::kQNN_tensor_symm_w8a8, "QNN Linear per-tensor symmectrical W8A8"}};
 
   auto it = map.find(type);
   if (it != map.end()) return it->second;
@@ -108,6 +117,8 @@ struct LinearOpOptions : public BaseOpOptions<LinearOpOptions> {
   int32_t out_channels;
   bool bias;
   LinearImplTypes impl_type;
+
+  LinearImplTypes qnn_impl_type = LinearImplTypes::kQNN_tensor_symm_w8a16;  // specify Linear type when using QNN
 };
 
 class LinearOp : public BaseOp {
