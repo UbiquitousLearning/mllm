@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 #include <memory>
+#include <chrono>
+#include <optional>
+
 #include "mllm/engine/service/Session.hpp"
 #include "mllm/engine/service/Service.hpp"
 
@@ -18,10 +21,12 @@ void RequestPool::push(RequestItem item) {
   cv_.notify_one();
 }
 
-RequestItem RequestPool::pop() {
+std::optional<RequestItem> RequestPool::pop() {
   std::unique_lock lk(mtx_);
   cv_.wait(lk, [this] { return !queue_.empty() || stop_; });
-  if (stop_) { throw std::runtime_error("RequestPool stopped"); }
+
+  if (stop_ && queue_.empty()) { return std::nullopt; }
+
   auto item = std::move(queue_.front());
   queue_.pop();
   return item;
@@ -92,29 +97,52 @@ void Service::start(size_t worker_threads) {
 }
 
 void Service::stop() {
-  running_ = false;
   req_pool_.shutdown();
+  running_ = false;
+
+  for (auto& t : workers_) {
+    if (t.joinable()) { t.join(); }
+  }
+
   resp_pool_.shutdown();
-  for (auto& t : workers_) t.join();
 }
 
 RequestPool& Service::requestPool() { return req_pool_; }
+
 ResponsePool& Service::responsePool() { return resp_pool_; }
+
 SessionPool& Service::sessionPool() { return sess_pool_; }
 
 void Service::workerLoop() {
   while (running_) {
     try {
-      RequestItem req = req_pool_.pop();
-      auto session = sess_pool_.get(req.payload.value("model", "<none>"));
+      if (auto req_opt = req_pool_.pop(); req_opt) {
+        RequestItem& req = *req_opt;
+        auto session = sess_pool_.get(req.payload.value("model", "<none>"));
 
-      session->streamGenerate(req.payload, [this, req_id = req.id](const std::string& token, bool finished) {
-        ResponseItem item;
-        item.id = req_id;
-        item.finished = finished;
-        item.raw = token;
-        resp_pool_.push(req_id, std::move(item));
-      });
+        session->streamGenerate(
+            req.payload, [this, req_payload = req.payload, req_id = req.id](const std::string& token, bool finished) {
+              ResponseItem item;
+              item.id = req_id;
+              item.finished = finished;
+              item.raw = token;
+
+              std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+              // Make payload
+              item.payload = {
+                  {"model", req_payload["model"]},
+                  {"created", now},
+                  {"choices", nlohmann::json::array({{{"index", 0},
+                                                      {"delta", {{"content", token}}},
+                                                      {"finish_reason", finished ? "stop" : nlohmann::json(nullptr)}}})}};
+
+              resp_pool_.push(req_id, std::move(item));
+            });
+      } else {
+        // pop return empty, which means service is stopped and queue is empty.
+        break;
+      }
     } catch (...) {
       // TODO
     }
@@ -160,8 +188,9 @@ Response getResponse(const std::string& id) {
       j["finished"] = false;
       return j.dump();
     }
-    nlohmann::json j;
-    j["data"] = opt->raw;
+    nlohmann::json j = opt->payload;
+    j["id"] = opt->id;
+    j["object"] = "chat.completion.chunk";
     j["finished"] = opt->finished;
     std::string s = j.dump();
     return s;

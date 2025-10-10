@@ -183,7 +183,7 @@ class Qwen3Attention final : public nn::Module {
     // Acquire cache
     std::vector<prefix_cache::vp_addr_t> k_addr_wait_for_promote;
     std::vector<prefix_cache::vp_addr_t> v_addr_wait_for_promote;
-    for (int s_idx; s_idx < S; ++s_idx) {
+    for (int s_idx = 0; s_idx < S; ++s_idx) {
       k_addr_wait_for_promote.push_back(prefix_cache_context->alloc(kCPU));
       v_addr_wait_for_promote.push_back(prefix_cache_context->alloc(kCPU));
     }
@@ -191,7 +191,7 @@ class Qwen3Attention final : public nn::Module {
     // Prepare indicies cache. sizeof(char*) == 8 == sizeof(int64_t)
     std::vector<char*> k_phy_addr_wait_for_promote;
     std::vector<char*> v_phy_addr_wait_for_promote;
-    for (int s_idx; s_idx < S; ++s_idx) {
+    for (int s_idx = 0; s_idx < S; ++s_idx) {
       k_phy_addr_wait_for_promote.push_back(prefix_cache_context->physicalAddr(k_addr_wait_for_promote[s_idx]));
       v_phy_addr_wait_for_promote.push_back(prefix_cache_context->physicalAddr(v_addr_wait_for_promote[s_idx]));
     }
@@ -395,9 +395,7 @@ class Qwen3Session final : public ::mllm::service::Session {
   void streamGenerate(const nlohmann::json& request,
                       const std::function<void(const nlohmann::json&, bool)>& callback) override {
     const auto& messages = request["messages"];
-    auto inputs = applyChatTemplate(messages, nullptr, true, request.value("enable_thinking", false));
-
-    Dbg("prompt", inputs);
+    auto inputs = applyChatTemplate(messages, {}, true, request.value("enable_thinking", false));
 
     auto full_seq_idx = tokenizer_->convert2Ids(tokenizer_->tokenize(inputs)).toVector<int64_t>();
     ARGenerationArgs args;
@@ -416,8 +414,8 @@ class Qwen3Session final : public ::mllm::service::Session {
                         std::back_inserter(position_ids));
     }
     MLLM_RT_ASSERT_EQ(reduced_seq_idx.size(), position_ids.size());
-    input["sequence"] = Tensor::fromVector(reduced_seq_idx, {(int32_t)reduced_seq_idx.size()}, kInt64, kCPU);
-    input["position_ids"] = Tensor::fromVector(position_ids, {(int32_t)position_ids.size()}, kInt64, kCPU);
+    input["sequence"] = Tensor::fromVector(reduced_seq_idx, {1, (int32_t)reduced_seq_idx.size()}, kInt64, kCPU);
+    input["position_ids"] = Tensor::fromVector(position_ids, {1, (int32_t)position_ids.size()}, kInt64, kCPU);
 
     // Setup session context
     k_cache_addrs_ = prefix_cache_result.k_cache_addresses;
@@ -429,31 +427,33 @@ class Qwen3Session final : public ::mllm::service::Session {
     // Has temperature, top_k, top_p, max_length, do_sample.
     args["temperature"] = request.value("temperature", 1.0f);
     args["top_k"] = request.value("top_k", 0);
-    args["top_p"] = request.value("top_p", 1.0f);
+    args["top_p"] = request.value("top_p", 0.0f);
     args["max_length"] = request.value("max_length", 1024);
-    args["do_sample"] = request.value("do_sample", true);
+    args["do_sample"] = request.value("do_sample", false);
 
     // Iteration start
     int64_t package_cnt = 0;
-    model_->streamGenerate(input, args, [this, &full_seq_idx, &package_cnt, &callback](int64_t idx) {
+    model_->streamGenerate(input, args, [this, &request, &full_seq_idx, &package_cnt, &callback](int64_t idx) {
       bool finished = false;
       std::string ret_token;
-      if (idx == model_->cfg.end_of_text_token_id) {
+      if (idx == model_->cfg.eos_token_id) {
         finished = true;
         ret_token = "";
       } else {
         finished = false;
-        std::string t = preprocessor::wideString2Utf8String(tokenizer_->detokenize(idx));
+        ret_token = preprocessor::wideString2Utf8String(tokenizer_->detokenize(idx));
 
         // Update full_seq_idx to include the new token for Radix Tree to use.
         full_seq_idx.push_back(idx);
       }
 
       // Callback will send this json to the response pool for user to consume.
-      callback(nlohmann::json{}, finished);
+      callback(ret_token, finished);
 
       package_cnt++;
     });
+    // Callback a finish token
+    callback("", true);
 
     // Post process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
     //
@@ -514,8 +514,8 @@ class Qwen3Session final : public ::mllm::service::Session {
         .allocator_options = {// Normal things.
                               .per_k_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
                               .per_v_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
-                              .k_dtype = mllm::kFloat16,
-                              .v_dtype = mllm::kFloat16,
+                              .k_dtype = mllm::kFloat32,
+                              .v_dtype = mllm::kFloat32,
 
                               // CUDA things.
                               .enable_cuda = false,
@@ -531,129 +531,131 @@ class Qwen3Session final : public ::mllm::service::Session {
                                   .lane_bits = 5,
                                   .per_k_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
                                   .per_v_token_ele = static_cast<size_t>(cfg.head_dim * cfg.num_key_value_heads),
-                                  .k_dtype = mllm::kFloat16,
-                                  .v_dtype = mllm::kFloat16,
+                                  .k_dtype = mllm::kFloat32,
+                                  .v_dtype = mllm::kFloat32,
                                   .mmap_type = mllm::prefix_cache::ZenFSBlobMMapType::kAnonymous,
                               }}});
   }
 
-  std::string trim(const std::string& s) {
-    auto beg = s.find_first_not_of(" \t\r\n");
-    if (beg == std::string::npos) return "";
-    auto end = s.find_last_not_of(" \t\r\n");
-    return s.substr(beg, end - beg + 1);
+  std::string ltrim(const std::string& s) {
+    size_t start = s.find_first_not_of(" \n\r\t\f\v");
+    return (start == std::string::npos) ? "" : s.substr(start);
   }
 
-  // [{"role": "user", "content": "Say this is a test!"}]
-  // [{"role": "assistant", "content": "This is a test!", "reasoning": "You are absolutely right!"}]
-  //
-  std::string applyChatTemplate(const nlohmann::json& messages, const nlohmann::json* tools = nullptr,
-                                bool add_generation_prompt = true, bool enable_thinking = true,
-                                const std::string& bos_token = "", const std::string& eos_token = "<|im_end|>") {
-    std::ostringstream out;
+  std::string rtrim(const std::string& s) {
+    size_t end = s.find_last_not_of(" \n\r\t\f\v");
+    return (end == std::string::npos) ? "" : s.substr(0, end + 1);
+  }
 
-    if (tools && tools->is_array() && !tools->empty()) {
-      out << "<|im_start|>system\n";
-      if (messages.is_array() && !messages.empty() && messages[0].contains("role") && messages[0]["role"] == "system") {
-        out << messages[0]["content"].get<std::string>() << "\n\n";
-      }
-      out << "# Tools\n\nYou may call one or more functions to assist with the user query.\n\n"
-             "You are provided with function signatures within <tools></tools> XML tags:\n<tools>";
-      for (auto& t : *tools) out << "\n" << t.dump();
-      out << "\n</tools>\n\n"
-             "For each function call, return a json object with function name and arguments "
-             "within <tool_call></tool_call> XML tags:\n<tool_call>\n"
-             "{\"name\": <function-name>, \"arguments\": <args-json-object>}\n"
-             "</tool_call><|im_end|>\n";
+  std::string trim(const std::string& s) { return rtrim(ltrim(s)); }
+
+  std::string applyChatTemplate(const json& messages, const std::vector<json>& tools = {}, bool add_generation_prompt = true,
+                                bool enable_thinking = true, const std::string& bos_token = "",
+                                const std::string& eos_token = "<|im_end|>") {
+    std::ostringstream oss;
+
+    if (!tools.empty()) {
+      oss << "<|im_start|>system\n";
+      if (!messages.empty() && messages[0].value("role", "") == "system") { oss << messages[0].value("content", "") << "\n\n"; }
+      oss << "# Tools\n\nYou may call one or more functions to assist with the user query.\n";
+      oss << "You are provided with function signatures within <tools></tools> XML tags:\n<tools>";
+      for (const auto& tool : tools) { oss << "\n" << tool.dump(); }
+      oss << "\n</tools>\n\nFor each function call, return a json object with function name and arguments within "
+             "<tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": "
+             "<args-json-object>}\n</tool_call><|im_end|>\n";
     } else {
-      if (messages.is_array() && !messages.empty() && messages[0].contains("role") && messages[0]["role"] == "system") {
-        out << "<|im_start|>system\n" << messages[0]["content"].get<std::string>() << "<|im_end|>\n";
+      if (!messages.empty() && messages[0].value("role", "") == "system") {
+        oss << "<|im_start|>system\n" << messages[0].value("content", "") << "<|im_end|>\n";
       }
     }
 
-    size_t last_query_index = messages.size() - 1;
-    bool multi_step_tool = true;
-    if (messages.is_array()) {
-      for (int i = static_cast<int>(messages.size()) - 1; i >= 0; --i) {
-        auto& m = messages[i];
-        if (multi_step_tool && m.contains("role") && m["role"] == "user" && m.contains("content") && m["content"].is_string()) {
-          std::string c = m["content"];
-          bool is_tr =
-              (c.starts_with("<tool_response>")) && (c.size() > 17 && c.compare(c.size() - 18, 18, "</tool_response>") == 0);
-          if (!is_tr) {
-            multi_step_tool = false;
+    size_t last_query_index = messages.empty() ? 0 : messages.size() - 1;
+    bool found_last_query = false;
+    if (!messages.empty()) {
+      for (int i = messages.size() - 1; i >= 0; --i) {
+        const auto& msg = messages[i];
+        if (msg.value("role", "") == "user" && msg.contains("content") && msg["content"].is_string()) {
+          std::string content_str = msg["content"].get<std::string>();
+          if (!(content_str.starts_with("<tool_response>")
+                && content_str.find("</tool_response>") == content_str.length() - std::string("</tool_response>").length())) {
             last_query_index = i;
+            found_last_query = true;
+            break;
           }
         }
       }
     }
+    if (messages.empty()) { found_last_query = false; }
 
-    if (!messages.is_array()) return out.str();
-    for (size_t idx = 0; idx < messages.size(); ++idx) {
-      auto& m = messages[idx];
-      std::string role, content;
-      if (m.contains("role")) role = m["role"];
-      if (m.contains("content") && m["content"].is_string()) content = m["content"];
+    for (size_t i = 0; i < messages.size(); ++i) {
+      const auto& message = messages[i];
+      std::string role = message.value("role", "");
+      std::string content;
+      if (message.contains("content") && message["content"].is_string()) { content = message["content"].get<std::string>(); }
 
-      if (role == "user" || (role == "system" && idx != 0)) {
-        out << "<|im_start|>" << role << "\n" << content << eos_token << "\n";
-        continue;
-      }
-
-      if (role == "assistant") {
+      if (role == "user" || (role == "system" && i > 0)) {
+        oss << "<|im_start|>" << role << "\n" << content << "<|im_end|>\n";
+      } else if (role == "assistant") {
         std::string reasoning_content;
-        if (m.contains("reasoning_content") && m["reasoning_content"].is_string()) {
-          reasoning_content = m["reasoning_content"];
+        if (message.contains("reasoning_content") && message["reasoning_content"].is_string()) {
+          reasoning_content = message["reasoning_content"].get<std::string>();
         } else {
-          size_t pos_end = content.find("</think>");
-          if (pos_end != std::string::npos) {
-            size_t pos_beg = content.rfind("<think>", pos_end);
-            if (pos_beg != std::string::npos) {
-              reasoning_content = trim(content.substr(pos_beg + 7, pos_end - pos_beg - 7));
-              content.erase(pos_beg, pos_end + 8);
-              content = trim(content);
+          auto think_end_pos = content.find("</think>");
+          if (think_end_pos != std::string::npos) {
+            auto think_start_pos = content.rfind("<think>", think_end_pos);
+            if (think_start_pos != std::string::npos) {
+              reasoning_content = content.substr(think_start_pos + 7, think_end_pos - (think_start_pos + 7));
+              content = content.substr(think_end_pos + 8);
             }
           }
         }
 
-        bool in_last_turn = (idx > last_query_index);
-        bool need_think = in_last_turn && (idx + 1 == messages.size() || !reasoning_content.empty());
+        oss << "<|im_start|>" << role << "\n";
+        if (found_last_query && i > last_query_index) {
+          if ((i == messages.size() - 1) || !reasoning_content.empty()) {
+            oss << "<think>\n" << trim(reasoning_content) << "\n</think>\n\n" << ltrim(content);
+          } else {
+            oss << content;
+          }
+        } else {
+          oss << content;
+        }
 
-        out << "<|im_start|>assistant\n";
-        if (need_think) { out << "<think>\n" << reasoning_content << "\n</think>\n\n"; }
-        out << content;
+        if (message.contains("tool_calls")) {
+          bool is_first_tool = true;
+          for (const auto& tool_call_item : message["tool_calls"]) {
+            if ((is_first_tool && !content.empty()) || !is_first_tool) { oss << "\n"; }
+            is_first_tool = false;
 
-        if (m.contains("tool_calls") && m["tool_calls"].is_array()) {
-          for (auto& tc : m["tool_calls"]) {
-            json fn = tc.contains("function") ? tc["function"] : tc;
-            std::string name = fn.value("name", "");
-            std::string args = fn.value("arguments", "");
-            if (fn["arguments"].is_object() || fn["arguments"].is_array()) args = fn["arguments"].dump();
-            out << "\n<tool_call>\n"
-                << R"({"name": ")" << name << R"(", "arguments": )" << args << "}\n"
-                << "</tool_call>";
+            const json* tool_call_ptr = &tool_call_item;
+            if (tool_call_item.contains("function")) { tool_call_ptr = &tool_call_item["function"]; }
+            const json& tool_call = *tool_call_ptr;
+
+            oss << "<tool_call>\n{\"name\": \"" << tool_call.value("name", "") << R"(", "arguments": )";
+            const auto& args = tool_call["arguments"];
+            if (args.is_string()) {
+              oss << args.get<std::string>();
+            } else {
+              oss << args.dump();
+            }
+            oss << "}\n</tool_call>";
           }
         }
-        out << eos_token << "\n";
-        continue;
-      }
+        oss << "<|im_end|>\n";
 
-      if (role == "tool") {
-        bool first_tool = (idx == 0) || !messages[idx - 1].contains("role") || messages[idx - 1]["role"] != "tool";
-        bool last_tool =
-            (idx + 1 == messages.size()) || !messages[idx + 1].contains("role") || messages[idx + 1]["role"] != "tool";
-        if (first_tool) out << "<|im_start|>user";
-        out << "\n<tool_response>\n" << content << "\n</tool_response>";
-        if (last_tool) out << eos_token << "\n";
+      } else if (role == "tool") {
+        if (i == 0 || messages[i - 1].value("role", "") != "tool") { oss << "<|im_start|>user"; }
+        oss << "\n<tool_response>\n" << content << "\n</tool_response>";
+        if (i == messages.size() - 1 || messages[i + 1].value("role", "") != "tool") { oss << "<|im_end|>\n"; }
       }
     }
 
     if (add_generation_prompt) {
-      out << "<|im_start|>assistant\n";
-      if (!enable_thinking) { out << "<think>\n\n</think>\n\n"; }
+      oss << "<|im_start|>assistant\n";
+      if (!enable_thinking) { oss << "<think>\n\n</think>\n\n"; }
     }
 
-    return out.str();
+    return oss.str();
   }
 
  private:

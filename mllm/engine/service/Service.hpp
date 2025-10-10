@@ -38,7 +38,7 @@ class RequestPool {
  public:
   void push(RequestItem item);
 
-  RequestItem pop();
+  std::optional<RequestItem> pop();
 
   void shutdown();
 
