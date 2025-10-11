@@ -186,14 +186,17 @@ class Llama3Model final : public Module {
     vector<Llama3Block> blocks;
     Layer norm;
     Parameter lm_head;
+    Layer lm_head_layer;
+    bool tie_embedding_words_;
 
 public:
     explicit Llama3Model(const Llama3Config &config) :
         Llama3Model(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num,
-                    config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
+                    config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, config.tie_word_embeddings,
                     config.names_config, config, config.names_config.blk_name) {
     }
     Llama3Model(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
+                bool tie_embedding_words,
                 const Llama3NameConfig &names,
                 const Llama3Config &config,
                 const string &base_name) {
@@ -201,13 +204,21 @@ public:
         blocks = List<Llama3Block>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, config, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         // TODO: tie_word_embeddings
+        tie_embedding_words_ = tie_embedding_words;
         // this is a workaround
         // we just simply use the token embedding as the lm_head
         // but now we are not really tying the word embeddings
         auto lm_head_name = names.lm_head_name;
-        assert(config.tie_word_embeddings);
-        lm_head_name = names.token_embd_name;
-        lm_head = Parameter(1, vocab_size, 1, hidden_dim, lm_head_name + ".weight");
+        // assert(config.tie_word_embeddings);
+        if (tie_embedding_words) {
+            lm_head = Parameter(1, vocab_size, 1, hidden_dim,
+                                names.token_embd_name + ".weight");
+        } else {
+            lm_head_layer =
+                Linear(hidden_dim, vocab_size, false, names.lm_head_name);
+        }
+        // lm_head_name = names.token_embd_name;
+        // lm_head = Parameter(1, vocab_size, 1, hidden_dim, lm_head_name + ".weight");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs[0]);
@@ -215,7 +226,12 @@ public:
             x = block({x})[0];
         }
         x = norm(x);
-        x = Tensor::mm(x, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        if (tie_embedding_words_) {
+            x = Tensor::mm(x, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        } else {
+            x = lm_head_layer(x);
+        }
+        // x = Tensor::mm(x, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {x};
     }
 
