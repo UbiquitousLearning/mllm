@@ -168,6 +168,7 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
 
     int tmp_hidden_dim = -1;
     int vit_tmp_hidden_dim = -1;
+    int qw3_hidden_dim = 2048;
 
     // 预扫描以找到隐藏维度
     std::cout << "Pre-scanning to find hidden dimensions..." << std::endl;
@@ -226,6 +227,10 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
             if (final_quant_type == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
                 int H = find_in_layers(name, {"visual"}) ? vit_tmp_hidden_dim : tmp_hidden_dim;
+                if (find_in_layers(name, {"self_attn.o_proj.weight"}) && other_flag == "qw3") {
+                    H = qw3_hidden_dim;
+                    std::cout << "(QWen3 self_attn.o_proj.weight detected, using hidden dim: " << H << ") ";
+                }
                 if (H <= 0) {
                     std::cout << "FAIL! Hidden dimension not found for " << name << std::endl;
                     __exit(-1);
@@ -237,14 +242,14 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
                 if (find_in_layers(name, {"w2", "down_proj", "down", "fc2"})) {
                     N = H;
                     if (num_floats % N != 0) {
-                        std::cerr << "FAIL! num_floats not divisible by N for " << name << std::endl;
+                        std::cerr << "FAIL! num_floats " << num_floats << " not divisible by N for " << name << std::endl;
                         __exit(-1);
                     }
                     K = num_floats / N;
                 } else {
                     K = H;
                     if (num_floats % K != 0) {
-                        std::cerr << "FAIL! num_floats not divisible by K for " << name << std::endl;
+                        std::cerr << "FAIL! num_floats  " << num_floats << " not divisible by K for " << name << std::endl;
                         __exit(-1);
                     }
                     N = num_floats / K;

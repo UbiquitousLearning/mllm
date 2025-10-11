@@ -23,8 +23,8 @@ int main(int argc, char **argv) {
     std::string other_flag = "";
     if (argc == 5) {
         other_flag = std::string(argv[4]);
-        if (other_flag != "vl" && other_flag != "eager") {
-            std::cout << "Invalid other_flag. Use 'vl' or 'eager'.\n";
+        if (other_flag != "vl" && other_flag != "eager" && other_flag != "qw3") {
+            std::cout << "Invalid other_flag. Use 'vl' or 'eager' or 'qw3'.\n";
             return -1;
         }
     }
