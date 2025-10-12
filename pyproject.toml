@@ -24,11 +24,14 @@ dependencies=[
   "apache-tvm-ffi",
   "pyyaml >= 6.0.2",
   "openai",
+  "modelscope",
+  "fastapi",
+  "uvicorn",
 ]
 
 [project.scripts]
 mllm-convertor = "pymllm.utils.mllm_convertor:main"
-mllm-service = "pymllm.service.tools:main"
+mllm-service = "pymllm.service.tools:cli_app"
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc"]

@@ -375,7 +375,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     };
   }
 
-  const Qwen3Config& cfg;
+  const Qwen3Config cfg;
 
  private:
   Qwen3Text llm;

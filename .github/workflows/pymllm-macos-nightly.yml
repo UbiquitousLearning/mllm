@@ -1,0 +1,42 @@
+name: pymllm macOS Nightly
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build-and-publish:
+        runs-on: macos-latest
+        permissions:
+            id-token: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.10"
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install auditwheel
+
+            - name: Set nightly version
+              run: |
+                  NIGHTLY_VERSION="0.1.0.dev$(date +%Y%m%d)"
+                  sed -i '' "s/version = \"0.1.0\"/version = \"$NIGHTLY_VERSION\"/" ../pyproject.toml
+
+            - name: Build wheel
+              run: |
+                  pip wheel -v -w dist .
+
+            - name: Repair wheel with auditwheel
+              run: |
+                  auditwheel repair --exclude libtvm_ffi.so dist/*.whl
+
+            - name: Publish to mllmTeam channel
+              uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                  repository-url: https://upload.pypi.org/legacy/
+                  packages-dir: pymllm/wheelhouse/
