@@ -16,9 +16,7 @@ on:
 
 jobs:
   build:
-    if: |
-      github.event.pull_request.merged == true &&
-      github.repository == 'UbiquitousLearning/mllm'
+    if: github.repository == 'UbiquitousLearning/mllm'
     runs-on: macos-latest
     permissions:
       id-token: write
@@ -62,9 +60,7 @@ jobs:
           retention-days: 1
 
   publish:
-    if: |
-      github.event.pull_request.merged == true &&
-      github.repository == 'UbiquitousLearning/mllm'
+    if: github.repository == 'UbiquitousLearning/mllm'
     runs-on: ubuntu-latest
     needs: build
     permissions:
