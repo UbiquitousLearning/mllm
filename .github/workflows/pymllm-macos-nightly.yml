@@ -1,9 +1,22 @@
 name: pymllm macOS Nightly
 
-on: workflow_dispatch
+on:
+  pull_request:
+    branches:
+      - v2
+    paths:
+      - "pymllm/nightly.ini"
+      - ".github/workflows/pymllm-macos-nightly.yml"
+  push:
+    branches:
+      - v2
+    paths:
+      - "pymllm/nightly.ini"
+      - ".github/workflows/pymllm-macos-nightly.yml"
 
 jobs:
   build-and-publish:
+    if: github.repository == 'UbiquitousLearning/mllm'
     runs-on: macos-latest
     permissions:
       id-token: write
