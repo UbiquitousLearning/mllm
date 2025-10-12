@@ -21,13 +21,17 @@ MLLM_MAIN({
   std::vector<nlohmann::json> history;
   const std::string model_name = "mllmTeam/Qwen3-0.6B-w4a32kai";
 
-  std::cout << "Enter /exit or /quit to exit this program\n";
+  std::cout << "Enter /exit or /quit to exit this program. /clear for clear context.\n";
 
   while (true) {
     std::cout << "\nUser: ";
     std::string user_input;
     std::getline(std::cin, user_input);
     if (user_input == "/exit" || user_input == "/quit") break;
+    if (user_input == "/clear") {
+      history.clear();
+      continue;
+    }
 
     nlohmann::json user_msg;
     user_msg["role"] = "user";
