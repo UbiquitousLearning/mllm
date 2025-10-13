@@ -21,7 +21,7 @@ dependencies=[
   "packaging",
   "pytest",
   "pytest-html",
-  "apache-tvm-ffi",
+  "apache-tvm-ffi == 0.1.0b4",
   "pyyaml >= 6.0.2",
   "openai",
   "modelscope",
