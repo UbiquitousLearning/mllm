@@ -39,11 +39,11 @@ void QNNLinearOp::load(const ParameterFile::ptr_t& ploader) {
         bias_ = ploader->pull(getName() + ".bias");
         bias_ = bias_.view({options_.out_channels});
 
-        biasScale_ = ploader->pull(getName() + ".bias_scale");
+        biasScale_ = ploader->pull(getName() + ".bias.scale");
         biasScale_ = biasScale_.view({1});
       }
 
-      weightScale_ = ploader->pull(getName() + ".weight_scale");
+      weightScale_ = ploader->pull(getName() + ".weight.scale");
       weightScale_ = weightScale_.view({1});
 
       outputScale_ = ploader->pull(getName() + ".output_scale");
@@ -59,10 +59,10 @@ void QNNLinearOp::load(const ParameterFile::ptr_t& ploader) {
         bias_ = ploader->pull(getName() + ".bias");
         bias_ = bias_.view({options_.out_channels});
 
-        biasScale_ = ploader->pull(getName() + ".bias_scale");
+        biasScale_ = ploader->pull(getName() + ".bias.scale");
       }
 
-      weightScale_ = ploader->pull(getName() + ".weight_scale");
+      weightScale_ = ploader->pull(getName() + ".weight.scale");
 
       outputScale_ = ploader->pull(getName() + ".output_scale");
       break;
