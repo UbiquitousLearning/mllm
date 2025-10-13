@@ -3,10 +3,17 @@
 
 import os
 import struct
-import torch
-import numpy as np
 from typing import List, Union, Dict
-from ..ffi import Tensor
+from ..ffi import (
+    Tensor,
+    MLLM_FIND_NUMPY_AVAILABLE,
+    MLLM_FIND_TORCH_AVAILABLE,
+)
+
+if MLLM_FIND_TORCH_AVAILABLE:
+    import torch
+if MLLM_FIND_NUMPY_AVAILABLE:
+    import numpy as np
 from .mllm_type_mapping import MLLM_TYPE_MAPPING
 
 
