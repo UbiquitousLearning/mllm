@@ -6,7 +6,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pymllm"
-version = "2.0.1"
+version = "2.0.2"
 description = "Fast and lightweight multimodal LLM inference engine for mobile and edge devices"
 readme = "README.md"
 authors = [
@@ -27,6 +27,7 @@ dependencies=[
   "modelscope",
   "fastapi",
   "uvicorn",
+  "typer",
 ]
 
 [project.scripts]

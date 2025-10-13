@@ -52,7 +52,7 @@ jobs:
 
       - name: Bump to next beta
         run: |
-          sed -i.bak -E 's/^version\s*=.*/version = "${{ steps.beta.outputs.version }}"/' pyproject.toml
+          sed -i '' -E 's/^version = "[^"]+"/version = "${{ steps.beta.outputs.version }}"/' pyproject.toml
 
       - name: Build wheel
         run: |

@@ -159,9 +159,9 @@ class QuantizeSolver:
                 print(k)
             ttt = tensor_dict[k]
             if cast_left_2_fp32:
-                if isinstance(ttt, torch.Tensor):
+                if MLLM_FIND_TORCH_AVAILABLE and isinstance(ttt, torch.Tensor):
                     ttt = ttt.to(torch.float32)
-                elif isinstance(ttt, np.float32):
+                elif MLLM_FIND_NUMPY_AVAILABLE and isinstance(ttt, np.float32):
                     ttt = ttt.to(np.float32)
             writer.streaming_write(k, ttt)
 
