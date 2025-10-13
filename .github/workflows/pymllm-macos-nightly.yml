@@ -43,10 +43,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set nightly version
+      - name: Compute next beta version
+        id: beta
         run: |
-          NIGHTLY_VERSION="0.1.0.dev$(date +%Y%m%d)"
-          sed -i '' -E 's/^version = "[^"]+"/version = "'$NIGHTLY_VERSION'"/' pyproject.toml
+          BASE_VER=$(grep -m1 '^version\s*=' pyproject.toml \
+                    | sed -E 's/^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+
+          LAST_B=$(pip index versions pymllm 2>/dev/null \
+                  | grep -oP "${BASE_VER//./\\.}b\K[0-9]+" \
+                  | head -1 || true)
+
+          if [[ -z "$LAST_B" ]]; then
+            NEXT_B=0
+          else
+            NEXT_B=$((LAST_B + 1))
+          fi
+
+          NEXT_VER="${BASE_VER}b${NEXT_B}"
+          echo "version=$NEXT_VER" >> $GITHUB_OUTPUT
+          echo "Next beta version => $NEXT_VER"
+
+      - name: Bump to next beta
+        run: |
+          sed -i.bak -E 's/^version\s*=.*/version = "${{ steps.beta.outputs.version }}"/' pyproject.toml
 
       - name: Build wheel
         run: |
