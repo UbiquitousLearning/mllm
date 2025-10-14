@@ -168,6 +168,8 @@ void memoryReport();
 
 bool isOpenCLAvailable();
 
+extern void initCudaBackend();
+
 bool isQnnAvailable();
 
 extern void initQnnBackend();

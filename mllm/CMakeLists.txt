@@ -100,4 +100,7 @@ endif()
 
 if(MLLM_BUILD_CUDA_BACKEND)
   add_subdirectory(backends/cuda)
+  add_compile_definitions(
+    MLLM_CUDA_BACKEND
+  )
 endif()
