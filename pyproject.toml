@@ -30,6 +30,9 @@ dependencies=[
   "typer",
 ]
 
+[project.optional-dependencies]
+cuda = ["tilelang"]
+
 [project.scripts]
 mllm-convertor = "pymllm.utils.mllm_convertor:main"
 mllm-service = "pymllm.service.tools:cli_app"
