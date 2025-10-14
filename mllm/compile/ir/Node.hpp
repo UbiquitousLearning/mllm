@@ -222,6 +222,8 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
   std::string getAutoIndexedValueName();
 
+  std::string getUniqueModuleName(const std::string& base_name);
+
   void resetRegion(const region_ptr_t& region);
 
   const region_ptr_t& getCurInsertRegion();
@@ -323,6 +325,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   DeviceTypes device_type_ = kCPU;  // FIXME: deprecated, context has no device
   std::unordered_map<std::string, node_ptr_t> symbol_table_;
   uint32_t auto_indexed_value_name_cnt_ = 0;
+  std::unordered_map<std::string, uint32_t> module_name_counters_;
   std::unordered_map<val_ptr_t, std::string> value_names_;
   region_ptr_t cur_insert_region_;
   node_ptr_t top_level_op_;

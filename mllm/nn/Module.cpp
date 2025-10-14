@@ -135,14 +135,17 @@ void Module::__send_graph_end(const std::vector<Tensor>& inputs) {
 std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   auto ir_ctx = Context::instance().thisThread()->ir_context;
 
+  // Generate unique name for this module instance to avoid conflicts with same-name modules
+  std::string unique_module_name = ir_ctx->getUniqueModuleName(impl_->getAbsoluteName());
+
   // Create call graph.
-  auto call_op = ir_ctx->create<ir::graph::CallGraphOp>(ir_ctx->create<ir::SymbolAttr>(impl_->getAbsoluteName()));
+  auto call_op = ir_ctx->create<ir::graph::CallGraphOp>(ir_ctx->create<ir::SymbolAttr>(unique_module_name));
 
   // Create subgraph under ModuleOp
   ir::graph::SubGraphOp::ptr_t this_graph_ir = nullptr;
   {
     auto guard = ir::IRWriterGuard(ir_ctx, ir_ctx->topLevelOp()->cast_<ir::ModuleOp>()->getTopRegion());
-    this_graph_ir = ir_ctx->create<ir::graph::SubGraphOp>(ir_ctx->create<ir::SymbolAttr>(impl_->getAbsoluteName()), impl_);
+    this_graph_ir = ir_ctx->create<ir::graph::SubGraphOp>(ir_ctx->create<ir::SymbolAttr>(unique_module_name), impl_);
   }
   this_graph_ir->setDevice(impl_->getDevice());
 
