@@ -6,8 +6,6 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/backends/cpu/kernels/common/radix_attn/arch.hpp"
 
-#include <arm_neon.h>
-
 namespace mllm::cpu::radix_attn::details {
 template<>
 struct VectorDotProduct<__AnyArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t> {
