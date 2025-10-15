@@ -4,9 +4,21 @@
 
 #include "mllm/core/BaseOp.hpp"
 
+#define MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_VERSION 1
+#define MLLM_PLUGIN_OP_PACKAGE_NAME_LEN 256
+#define MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN 256
+
+#define MLLM_PLUGIN_OP_INTERFACE_DEFINE_BEGIN \
+  extern "C" {                                \
+  void* opPackageDescriptor();
+#define MLLM_PLUGIN_OP_INTERFACE_DEFINE_END }
+
 namespace mllm::plugin::interface {
 
-class CustomizedOp : BaseOp {};
+class CustomizedOp : public BaseOp {
+ public:
+  explicit CustomizedOp(const std::string& name) : BaseOp(OpTypes::kDynamicOp_Start) { setName(name); }
+};
 
 template<typename CargoT>
 class CustomizedOpFactory : protected TypedOpFactory<OpTypes::kDynamicOp_Start, CargoT> {
@@ -17,3 +29,20 @@ class CustomizedOpFactory : protected TypedOpFactory<OpTypes::kDynamicOp_Start, 
 };
 
 }  // namespace mllm::plugin::interface
+
+extern "C" {
+
+typedef void* (*OpFactoryCreateFunc)();    // NOLINT
+typedef void (*OpFactoryFreeFunc)(void*);  // NOLINT
+
+struct PluginOpPackageDescriptor {
+  int32_t version = MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_VERSION;
+  char name[MLLM_PLUGIN_OP_PACKAGE_NAME_LEN];
+
+  int32_t device_type;
+  int32_t op_factories_count = 0;
+  char op_factories_names[MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN][MLLM_PLUGIN_OP_PACKAGE_NAME_LEN];
+  OpFactoryCreateFunc op_factory_create_funcs[MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN];
+  OpFactoryFreeFunc op_factory_free_funcs[MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN];
+};
+}

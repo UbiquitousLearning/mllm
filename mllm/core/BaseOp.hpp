@@ -173,6 +173,8 @@ class BaseOp : public std::enable_shared_from_this<BaseOp> {
 
   OpTypes getOpType() const;
 
+  void setOpType(OpTypes op_type);
+
  private:
   DeviceTypes device_type_;
   std::string name_;
