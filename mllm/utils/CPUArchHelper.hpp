@@ -156,6 +156,7 @@ constexpr bool isUnknownArch() { return CURRENT_ARCH == CPUArch::UNKNOWN_ARCH; }
 
 #if defined(__AVX512F__)
 #define MLLM_HOST_FEATURE_AVX512F 1
+#define MLLM_HOST_FEATURE_FP16 1
 #endif
 
 #if defined(__AVX512BW__)
