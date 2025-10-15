@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <memory>
 #include <type_traits>
 #include <vector>
 #include <string>
@@ -161,14 +162,20 @@ class Argparse {
             if (param->isBoolean()) {
               param->handleFlag();
             } else {
-              if (i + 1 >= args.size()) { MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing value for {}", arg); }
+              if (i + 1 >= args.size()) {
+                printHelp();
+                MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing value for {}", arg);
+              }
               param->parse(args[++i]);
             }
             found = true;
             break;
           }
         }
-        if (!found) { MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unknown option: {}", arg); }
+        if (!found) {
+          printHelp();
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unknown option: {}", arg);
+        }
       } else {
         positional_args.push_back(arg);
       }
@@ -179,7 +186,10 @@ class Argparse {
     for (auto& param : inst.args_) {
       if (param->isPositional()) {
         if (pos_idx >= positional_args.size()) {
-          if (param->isRequired()) { MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing positional argument"); }
+          if (param->isRequired()) {
+            printHelp();
+            MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing positional argument");
+          }
           continue;
         }
         param->parse(positional_args[pos_idx++]);
@@ -189,6 +199,7 @@ class Argparse {
     // Check requirements
     for (auto& param : inst.args_) {
       if (param->isRequired() && !param->isSet()) {
+        printHelp();
         MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing required argument: {}", param->meta());
       }
     }
