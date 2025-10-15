@@ -16,9 +16,10 @@ MLLM_MAIN({
   auto& model_name = mllm::Argparse::add<std::string>("-n|--model_name").help("Model name");
   auto& model_path = mllm::Argparse::add<std::string>("-m|--model_path").help("Model path");
   auto& config_path = mllm::Argparse::add<std::string>("-c|--config_path").help("Config path");
-  auto& num_threads = mllm::Argparse::add<uint32_t>("-t|--threads").help("Number of threads");
+  auto& num_threads = mllm::Argparse::add<int32_t>("-t|--threads").help("Number of threads");
   auto& pp = mllm::Argparse::add<std::string>("-pp|--prompt_length").help("Prompt length");
   auto& tg = mllm::Argparse::add<std::string>("-tg|--test_generation_length").help("Test Generation length");
+  auto& cache_length = mllm::Argparse::add<int32_t>("-cl|--cache_length").help("Cache length");
   mllm::Argparse::parse(argc, argv);
 
   // Print Build Version
@@ -54,6 +55,7 @@ MLLM_MAIN({
 
   // Print Model Info
   mllm::print("Model Info");
+  benchmark->init(config_path.get(), model_path.get(), cache_length.get());
   benchmark->printModelInfo();
 
   // Warmup run

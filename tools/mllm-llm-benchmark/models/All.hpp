@@ -15,7 +15,6 @@ std::shared_ptr<BenchmarkTemplate> createBenchmark(const std::string& model_name
     return result;
   };
   auto normalized_model_name = tolower(model_name);
-  std::transform(normalized_model_name.begin(), normalized_model_name.end(), normalized_model_name.begin(), ::tolower);
   if (normalized_model_name.find("qwen3") != std::string::npos && normalized_model_name.find("w4a32") != std::string::npos
       && normalized_model_name.find("kai") != std::string::npos) {
     return std::make_shared<Qwen3_W4A32_KAI_Benchmark>();

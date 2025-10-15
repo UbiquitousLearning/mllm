@@ -12,6 +12,8 @@ struct BenchmarkTemplateResult {
 
 class BenchmarkTemplate {
  public:
+  virtual ~BenchmarkTemplate() = default;
+
   virtual void init(const std::string& cfg_path, const std::string& model_path, int32_t cache_length) = 0;
 
   virtual void printModelInfo() = 0;
