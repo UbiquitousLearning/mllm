@@ -6,6 +6,7 @@
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
@@ -103,19 +104,20 @@ void QNNLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
   DataTypes o_dtype = i.dtype();
 
+  outputs.emplace_back(Tensor::empty(o_shape, o_dtype, kQNN));
+
+  // attach quant scale to output tensor
   switch (options_.qnn_impl_type) {
     case aops::LinearImplTypes::kQNN_tensor_symm_w8a8: {
-      o_dtype = kInt8;
+      setQuantScale(outputs[0], outputScale_.at<float>({0}) / (std::pow(2, 7) - 1));
       break;
     }
     case aops::LinearImplTypes::kQNN_tensor_symm_w8a16: {
-      o_dtype = kInt16;
+      setQuantScale(outputs[0], outputScale_.at<float>({0}) / (std::pow(2, 15) - 1));
       break;
     }
     default: MLLM_ERROR_EXIT(1, "QNN not support other linear impl");
   }
-
-  outputs.emplace_back(Tensor::empty(o_shape, o_dtype, i.device()));
 }
 
 bool QNNLinearPattern::addNode(const std::string& graphName, const ir::op_ptr_t& op,
@@ -192,13 +194,9 @@ bool QNNLinearPattern::addNode(const std::string& graphName, const ir::op_ptr_t&
   }
 
   // Add output tensor using qnnBackend interface
+  // The difference between int8 and int16 is handled in reshape
   float outputScale = mllm::qnn::getQuantScale(outputs[0]->tensor_);
-  // output tensor is not in int8/int16 range, need to normalize it
-  switch (options.qnn_impl_type) {
-    case aops::LinearImplTypes::kQNN_tensor_symm_w8a8: outputScale /= (std::pow(2, 7) - 1); break;
-    case aops::LinearImplTypes::kQNN_tensor_symm_w8a16: outputScale /= (std::pow(2, 15) - 1); break;
-    default: MLLM_ERROR("Unsupported QNN linear implementation type"); return false;
-  }
+
   Qnn_QuantizeParams_t outputQuantizeParams = {QNN_DEFINITION_DEFINED,
                                                QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                {.scaleOffsetEncoding = {.scale = outputScale, .offset = 0}}};
