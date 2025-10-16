@@ -137,18 +137,19 @@ inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint6
 
 // --------------- get/set quant scale for mllm::Tensor ---------------
 // currently only consider per-tensor quantization
+const std::string QNN_QUANT_SCALE_NAME = "qnn_quant_scale";
 inline float getQuantScale(Tensor& tensor) {
-  if (!tensor.attachedViews().contains("quant_scale")) { return 0.0f; }
-  return tensor.attachedViews()["quant_scale"]->ptr<float>()[0];
+  if (!tensor.attachedViews().contains(QNN_QUANT_SCALE_NAME)) { return 0.0f; }
+  return tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0];
 }
 
 inline void setQuantScale(Tensor& tensor, float scale) {
-  if (!tensor.attachedViews().contains("quant_scale")) {
+  if (!tensor.attachedViews().contains(QNN_QUANT_SCALE_NAME)) {
     auto t = Tensor::empty({1}, kFloat32, kCPU).alloc();
     t.at<float>({0}) = scale;
-    tensor.attach("quant_scale", t.impl());
+    tensor.attach(QNN_QUANT_SCALE_NAME, t.impl());
   } else {
-    tensor.attachedViews()["quant_scale"]->ptr<float>()[0] = scale;
+    tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0] = scale;
   }
 }
 
