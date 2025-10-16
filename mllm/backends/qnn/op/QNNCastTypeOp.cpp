@@ -91,17 +91,6 @@ bool QNNCastTypePattern::addQuantizeNode(const std::string& graphName, QNNCastTy
   float* scaleData = static_cast<float*>(scaleParam->alloc());
   scaleData[0] = quantScale;
 
-  // Determine QNN data type for output
-  Qnn_DataType_t qnnOutputDataType;
-  if (outputDtype == kInt8) {
-    qnnOutputDataType = QNN_DATATYPE_SFIXED_POINT_8;
-  } else if (outputDtype == kInt16) {
-    qnnOutputDataType = QNN_DATATYPE_SFIXED_POINT_16;
-  } else {
-    MLLM_ERROR("Unsupported output dtype for quantize: {}", (int)outputDtype);
-    return false;
-  }
-
   // Add output tensor with quantization parameters
   Qnn_QuantizeParams_t outputQuantizeParams = {QNN_DEFINITION_DEFINED,
                                                QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
@@ -130,11 +119,6 @@ bool QNNCastTypePattern::addDequantizeNode(const std::string& graphName, QNNCast
 
   // Calculate dequantization scale
   float dequantScale = getQuantScale(inputs[0]->tensor_);
-  if (inputDtype == kInt8) {
-    dequantScale *= (std::pow(2, 7) - 1);
-  } else if (inputDtype == kInt16) {
-    dequantScale *= (std::pow(2, 15) - 1);
-  }
 
   // Create scale parameter tensor
   auto scaleParamName = qnnCastTypeOp->getName() + ".dequantize_scale";
