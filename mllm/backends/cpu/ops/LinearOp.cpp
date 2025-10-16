@@ -116,6 +116,7 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 // The code below is for ARM64/ARM.
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32: {
+    __mllm_label_kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32:
       auto M = input.shape()[input.shape().size() - 2];
       auto K = options_.in_channels;
       auto N = options_.out_channels;
@@ -134,6 +135,7 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       return;
     }
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32: {
+    __mllm_label_kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32:
       auto M = input.shape()[input.shape().size() - 2];
       auto K = options_.in_channels;
       auto N = options_.out_channels;
@@ -155,6 +157,8 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       auto M = input.shape()[input.shape().size() - 2];
       auto K = options_.in_channels;
       auto N = options_.out_channels;
+
+      if (M == 1) { goto __mllm_label_kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32; }
 
       ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
 
@@ -191,6 +195,8 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       auto M = input.shape()[input.shape().size() - 2];
       auto K = options_.in_channels;
       auto N = options_.out_channels;
+
+      if (M == 1) { goto __mllm_label_kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32; }
 
       ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
 
