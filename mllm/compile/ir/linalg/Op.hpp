@@ -95,6 +95,7 @@ class PagedAttnOp;
   }                                                                                                                         \
   void class_name::dump(IRPrinter& p) {                                                                                     \
     p.print("linalg.{}.{}", deviceTypes2Str(getDevice()), #class_name);                                                     \
+    if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }                                   \
     Op::dump(p);                                                                                                            \
   }
 
