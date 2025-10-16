@@ -454,8 +454,6 @@ class Qwen3Session final : public ::mllm::service::Session {
 
       package_cnt++;
     });
-    // Callback a finish token
-    callback("", true);
 
     // Post process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
     //

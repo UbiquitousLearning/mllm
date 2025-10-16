@@ -19,7 +19,9 @@ void shutdownContext() {
   ::mllm::cleanThisThread();
 
   // Clean up memory before backend is freed.
-  Context::instance().memoryManager()->clearAll();
+  // FIXME:
+  // This line is needed for cuda !!!
+  // Context::instance().memoryManager()->clearAll();
 }
 
 void setLogLevel(const LogLevel& level) { ::mllm::Logger::level() = level; }
