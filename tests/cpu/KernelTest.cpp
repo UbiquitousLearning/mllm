@@ -807,6 +807,37 @@ TEST_F(RadixAttnKernelTest, fwd_bshd) {
 }
 #endif
 
+//===----------------------------------------------------------------------===//
+// Radix Attn
+//===----------------------------------------------------------------------===//
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#include "FlashAttentionKernelTest.hpp"
+TEST_F(FlashAttn2KernelTest, fwd_bshd) {
+  EXPECT_EQ(testRadixAttn({{
+                               {"H_Q", 28},
+                               {"H_KV", 2},
+                               {"S_Q", 10},
+                               {"S_KV", 10},
+                               {"D", 128},
+                           },
+                           {
+                               {"H_Q", 28},
+                               {"H_KV", 2},
+                               {"S_Q", 10},
+                               {"S_KV", 20},
+                               {"D", 128},
+                           },
+                           {
+                               {"H_Q", 28},
+                               {"H_KV", 2},
+                               {"S_Q", 1},
+                               {"S_KV", 20},
+                               {"D", 128},
+                           }}),
+            true);
+}
+#endif
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

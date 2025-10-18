@@ -33,7 +33,7 @@ class RoPEOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
-  inline const RoPEOpOptions& options() const { return options_; }
+  inline RoPEOpOptions& options() { return options_; }
 
  protected:
   RoPEOpOptions options_;
