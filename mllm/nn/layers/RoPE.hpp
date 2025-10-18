@@ -16,6 +16,7 @@ class RoPE : public Layer {
        aops::RoPEOpOptionsInputType input_type = aops::RoPEOpOptionsInputType::kBHSD);
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
+  MLLM_LAYER_ENABLE_INPLACE_ATTRIBUTE(RoPE)
 
  private:
   float rope_theta_ = 10000.0F;

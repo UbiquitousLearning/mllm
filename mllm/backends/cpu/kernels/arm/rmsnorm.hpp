@@ -15,9 +15,15 @@ namespace mllm::cpu::arm {
 void rmsnorm_fp32(const mllm_fp32_t* __restrict X, const mllm_fp32_t* __restrict W, mllm_fp32_t* __restrict Y, int D,
                   float epsilon, bool add_unit_offset, int thread_count);
 
+void rmsnorm_fp32_inplace(const mllm_fp32_t* __restrict X, const mllm_fp32_t* __restrict W, mllm_fp32_t* __restrict Y, int D,
+                          float epsilon, bool add_unit_offset, int thread_count);
+
 // Should support [B, S, H * D] and [B, S, H, D]
 void rmsnorm_fp16(const mllm_fp16_t* __restrict X, const mllm_fp16_t* __restrict W, mllm_fp16_t* __restrict Y, int D,
                   float epsilon, bool add_unit_offset, int thread_count);
+
+void rmsnorm_fp16_inplace(const mllm_fp16_t* __restrict X, const mllm_fp16_t* __restrict W, mllm_fp16_t* __restrict Y, int D,
+                          float epsilon, bool add_unit_offset, int thread_count);
 
 }  // namespace mllm::cpu::arm
 

@@ -45,9 +45,13 @@ class StaticCache : public AbstractStaticCache {
 
   std::array<Tensor, 2> updateKVCache(int32_t layer_idx, Tensor k, Tensor v) override;
 
-  [[nodiscard]] inline Tensor getKCache(int32_t layer_idx) const { return k_cache_[layer_idx]; };
+  std::array<Tensor, 2> getKVCache(int32_t layer_idx);
 
-  [[nodiscard]] inline Tensor getVCache(int32_t layer_idx) const { return v_cache_[layer_idx]; };
+  std::array<Tensor, 2> preGetKVWriteLocation(int32_t layer_idx, int32_t s);
+
+  [[nodiscard]] inline Tensor getKCacheBuffer(int32_t layer_idx) const { return k_cache_[layer_idx]; };
+
+  [[nodiscard]] inline Tensor getVCacheBuffer(int32_t layer_idx) const { return v_cache_[layer_idx]; };
 
  private:
   DeviceTypes device_type_;
@@ -79,8 +83,8 @@ class SubStaticCache : public AbstractStaticCache {
 
     for (int32_t i = 0; i < layers; i++) {
       // k_cache_ shape: [batch, kv_heads, seq_len, kv_dim]
-      sub_k_cache_[i] = cache_.getKCache(i)[{kAll, kAll, {start_idx_, kAll}, kAll}];
-      sub_v_cache_[i] = cache_.getVCache(i)[{kAll, kAll, {start_idx_, kAll}, kAll}];
+      sub_k_cache_[i] = cache_.getKCacheBuffer(i)[{kAll, kAll, {start_idx_, kAll}, kAll}];
+      sub_v_cache_[i] = cache_.getVCacheBuffer(i)[{kAll, kAll, {start_idx_, kAll}, kAll}];
     }
   }
 

@@ -142,6 +142,47 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
 }
 __MLLM_UNSAFE_OPT_END
 
+std::array<Tensor, 2> StaticCache::getKVCache(int32_t layer_idx) {
+  if (use_fa2_) {
+    return {
+        k_cache_[layer_idx][{kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll, kAll}],
+        v_cache_[layer_idx][{kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll, kAll}],
+    };
+  } else
+  // Eager mode
+  {
+    return {
+        k_cache_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],
+        v_cache_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],
+    };
+  }
+}
+
+std::array<Tensor, 2> StaticCache::preGetKVWriteLocation(int32_t layer_idx, int32_t s) {
+  if (!use_fa2_) { MLLM_ERROR_EXIT(ExitCode::kCoreError, "StaticCache::preGetKVWriteLocation is not supported in eager mode"); }
+
+  auto new_shape = {1, s, kv_heads_ * kv_dims_};
+  auto k = k_cache_[layer_idx][{kAll, {current_seq_cnt_[layer_idx], current_seq_cnt_[layer_idx] + s}, kAll, kAll}];
+  auto v = v_cache_[layer_idx][{kAll, {current_seq_cnt_[layer_idx], current_seq_cnt_[layer_idx] + s}, kAll, kAll}];
+  current_seq_cnt_[layer_idx] += s;
+
+  // NOTE: Only for Batch = 1
+  // We wrap this KV in low level API to provide a contiguous tensor view.
+  auto k_storage = TensorStorage::create(new_shape, k_cache_[layer_idx].dtype(), k_cache_[layer_idx].device());
+  k_storage->mem_type_ = TensorMemTypes::kManual;
+  k_storage->ptr_ = k.ptr<void>();
+  k_storage->custom_32bit_uuid_ = k_cache_[layer_idx].uuid();
+  auto out_k = TensorViewImpl::create(new_shape, k_storage);
+
+  auto v_storage = TensorStorage::create(new_shape, v_cache_[layer_idx].dtype(), v_cache_[layer_idx].device());
+  v_storage->mem_type_ = TensorMemTypes::kManual;
+  v_storage->ptr_ = v.ptr<void>();
+  v_storage->custom_32bit_uuid_ = v_cache_[layer_idx].uuid();
+  auto out_v = TensorViewImpl::create(new_shape, v_storage);
+
+  return {Tensor(out_k), Tensor(out_v)};
+}
+
 int32_t SubStaticCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_sub_seq_cnt_[layer_idx]; }
 
 std::array<Tensor, 2> SubStaticCache::updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {

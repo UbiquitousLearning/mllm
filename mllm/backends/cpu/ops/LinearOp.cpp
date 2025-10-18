@@ -266,6 +266,10 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 }
 
 void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (options_.isRedirect()) {
+    outputs.emplace_back(inputs[1]);
+    return;
+  }
   const auto& i = inputs[0];
   auto i_shape = i.shape();
 
