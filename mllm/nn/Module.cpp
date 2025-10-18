@@ -137,6 +137,8 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs, const std
 
   // Generate unique name for this module instance to avoid conflicts with same-name modules
   std::string unique_module_name = ir_ctx->getUniqueModuleName(impl_->getAbsoluteName());
+  // rename the module impl to unique name
+  impl_->setAbsoluteName(unique_module_name);
 
   // Create call graph.
   auto call_op = ir_ctx->create<ir::graph::CallGraphOp>(ir_ctx->create<ir::SymbolAttr>(unique_module_name));
