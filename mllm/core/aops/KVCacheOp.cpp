@@ -41,4 +41,6 @@ void KVCacheOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& ou
 
 void KVCacheOp::setLayerIndex(int32_t layer_idx) { options_.layer_idx = layer_idx; }
 
+void KVCacheOp::clearCache() { NYI("KVCacheOp::clearCache not implemented in aops base."); }
+
 }  // namespace mllm::aops

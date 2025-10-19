@@ -17,6 +17,8 @@ class AbstractStaticCache {
 
   virtual void setCurrentSeqCnt(int32_t seq) {};
 
+  virtual void clearCache() {};
+
   [[nodiscard]] virtual int32_t getLayerNums() const { return 0; }
 
   virtual std::array<Tensor, 2> updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {  // NOLINT
@@ -37,6 +39,10 @@ class StaticCache : public AbstractStaticCache {
 
   void setCurrentSeqCnt(int32_t seq) override {
     for (int32_t layer_idx = 0; layer_idx < layer_nums_; ++layer_idx) { current_seq_cnt_[layer_idx] = seq; }
+  }
+
+  void clearCache() override {
+    for (int32_t layer_idx = 0; layer_idx < layer_nums_; ++layer_idx) { current_seq_cnt_[layer_idx] = 0; }
   }
 
   [[nodiscard]] int32_t getCurrentSeqCnt(int32_t layer_idx) const override;
@@ -85,6 +91,10 @@ class SubStaticCache : public AbstractStaticCache {
   }
 
   [[nodiscard]] int32_t getCurrentSeqCnt(int32_t layer_idx) const override;
+
+  void clearCache() override {
+    for (int32_t layer_idx = 0; layer_idx < cache_.getLayerNums(); ++layer_idx) { current_sub_seq_cnt_[layer_idx] = len_; }
+  }
 
   [[nodiscard]] int32_t getLayerNums() const override { return cache_.getLayerNums(); }
 
