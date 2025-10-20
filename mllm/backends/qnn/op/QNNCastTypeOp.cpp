@@ -22,11 +22,11 @@ void QNNCastTypeOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tenso
   outputs.emplace_back(Tensor::empty(input.shape(), options_.dtype, input.device()));
 
   if (options_.dtype == kInt8 || options_.dtype == kInt16) {
-    auto t = inputs[0];  // shadow copy for get scale
     // IMPORTANT: propagate quantization scale to output tensor for afterward ops
     // we assume user attached original quant scale in the frontend
     // FIXME: historically issues
-    if (t.dtype() == kInt8) {
+    auto t = inputs[0];  // shadow copy for get scale
+    if (options_.dtype == kInt8) {
       setQuantScale(outputs[0], getQuantScale(t) / (pow(2, 7) - 1));
     } else {
       setQuantScale(outputs[0], getQuantScale(t) / (pow(2, 15) - 1));
@@ -55,9 +55,6 @@ bool QNNCastTypePattern::addNode(const std::string& graphName, const ir::op_ptr_
     MLLM_ERROR("Failed to get QNN backend from context");
     return false;
   }
-
-  // Prepare input tensor name
-  std::vector<std::string> inputTensorNames = {inputs[0]->name()};
 
   // Determine operation type based on input/output dtypes
   const auto& inputDtype = inputs[0]->tensor_.dtype();
