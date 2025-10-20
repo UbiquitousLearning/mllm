@@ -5,6 +5,13 @@
 #include "QnnTypes.h"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
+#include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
+#include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
+#include "mllm/backends/qnn/op/QNNRMSNormOp.hpp"
+#include "mllm/backends/qnn/op/QNNSiLUOp.hpp"
+#include "mllm/backends/qnn/op/QNNTransposeOp.hpp"
+#include "mllm/backends/qnn/op/QNNViewOp.hpp"
+#include "mllm/backends/qnn/op/QNNX2XOp.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
@@ -21,7 +28,10 @@
 
 namespace mllm::qnn {
 
-QNNGraphBuildPass::QNNGraphBuildPass() { regPattern<QNNLinearPattern>(); }
+QNNGraphBuildPass::QNNGraphBuildPass() {
+  regPattern<QNNAddPattern, QNNMulPattern, QNNLinearPattern, QNNRMSNormPattern, QNNViewPattern, QNNTransposePattern,
+             QNNX2XPattern, QNNCastTypePattern, QNNSiLUPattern>();
+}
 
 uint8_t QNNGraphBuildPass::run(const ir::node_ptr_t& op) {
   // The top op should be ModuleOp
@@ -137,6 +147,8 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
       auto op_types = linalg_op->getAOpTypes();
       std::vector<ir::tensor::TensorValue::ptr_t> op_inputs;
       std::vector<ir::tensor::TensorValue::ptr_t> op_outputs;
+
+      MLLM_INFO("build layer: {}", linalg_op->getAOp()->getName());
 
       // Collect op inputs
       for (auto& input_val : linalg_op->inputs()) { op_inputs.emplace_back(input_val->cast_<ir::tensor::TensorValue>()); }
