@@ -3,6 +3,7 @@
 
 #include "mllm/backends/qnn/QNNDispatcher.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
+#include "mllm/core/OpTypes.hpp"
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/utils/Common.hpp"
@@ -49,6 +50,11 @@ void QNNDispatcher::process(const Task::ptr_t& task) {
     case TaskTypes::kExecuteOp: {
       // the reshape should be called to init op output tensors
       task->op->reshape(task->inputs, task->outputs);
+      // only X2X op is executed in QNN dispatcher
+      if (task->op->getOpType() == OpTypes::kX2X) {
+        task->op->setup(task->inputs, task->outputs);
+        task->op->forward(task->inputs, task->outputs);
+      }
       break;
     }
     case TaskTypes::kExecuteModule: {
