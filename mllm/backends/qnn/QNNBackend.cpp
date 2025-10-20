@@ -7,15 +7,25 @@
 #include "QNNUtils.hpp"
 #include "QnnLog.h"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
+#include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
 #include "mllm/backends/qnn/op/QNNGraphOp.hpp"
 #include "mllm/backends/qnn/op/QNNLinearOp.hpp"
+#include "mllm/backends/qnn/op/QNNParamOp.hpp"
+#include "mllm/backends/qnn/op/QNNRMSNormOp.hpp"
+#include "mllm/backends/qnn/op/QNNSiLUOp.hpp"
+#include "mllm/backends/qnn/op/QNNTransposeOp.hpp"
+#include "mllm/backends/qnn/op/QNNViewOp.hpp"
+#include "mllm/backends/qnn/op/QNNX2XOp.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
 
 QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
-  regOpFactory<QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory>();
+  regOpFactory<QNNAddOpFactory, QNNMulOpFactory, QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory,
+               QNNViewOpFactory, QNNRMSNormOpFactory, QNNTransposeOpFactory, QNNX2XOpFactory, QNNCastTypeOpFactory,
+               QNNParamOpFactory, QNNSiLUOpFactory>();
 
   QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
@@ -475,10 +485,10 @@ void QNNBackend::graphAddNode(const std::string& graphName, const std::string& n
                                        inputTensorNames, outputTensorNames);
 
   if (err != MODEL_NO_ERROR) {
-    MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}", nodeName, nodeType, graphName,
+    MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}\n", nodeName, nodeType, graphName,
                static_cast<int>(err));
   } else {
-    MLLM_INFO("Added node {} of type {} to graph {}", nodeName, nodeType, graphName);
+    MLLM_INFO("Added node {} of type {} to graph {}\n", nodeName, nodeType, graphName);
   }
 }
 
