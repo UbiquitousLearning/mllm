@@ -44,11 +44,11 @@ static inline std::vector<TensorValue::ptr_t> wrapTensors2TensorIR(IRContext* ct
                                                                    bool no_memory_side_effect = false) {
   std::vector<TensorValue::ptr_t> tensor_ir_values;
   for (auto& t : tensors) {
-    if (!no_memory_side_effect && ctx->isCacheInputOutputTensor(t.uuid())) {
-      tensor_ir_values.emplace_back(ctx->getCacheInputOutputTensor(t.uuid())->cast_<ir::tensor::TensorValue>());
+    if (!no_memory_side_effect && ctx->isCacheInputOutputTensor(t.hash())) {
+      tensor_ir_values.emplace_back(ctx->getCacheInputOutputTensor(t.hash())->cast_<ir::tensor::TensorValue>());
     } else {
       auto ret = ctx->create<TensorValue>(t);
-      ctx->cacheInputOutputTensor(t.uuid(), ret);
+      ctx->cacheInputOutputTensor(t.hash(), ret);
       tensor_ir_values.emplace_back(ret);
     }
   }
