@@ -488,4 +488,24 @@ Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::
   return QNN_TENSOR_TYPE_NATIVE;
 }
 
+// --------------- QNN Quantization Helper ---------------
+
+Qnn_QuantizeParams_t createQuantizeParams(const Tensor& tensor) {
+  auto quantParam = DEFAULT_QUANTIZE_PARAMS;
+  if (tensor.dtype() == kInt8 || tensor.dtype() == kInt16) {
+    quantParam = {QNN_DEFINITION_DEFINED,
+                  QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                  {.scaleOffsetEncoding = {.scale = getQuantScale(const_cast<Tensor&>(tensor)), .offset = 0}}};
+  }
+  return quantParam;
+}
+
+void propagateQuantScale(const Tensor& input, Tensor& output) {
+  if (input.dtype() == kInt8 || input.dtype() == kInt16) {
+    // IMPORTANT! propagate quantization scale from input to output for afterward ops
+    auto t = input;  // shadow copy for get scale
+    setQuantScale(output, getQuantScale(t));
+  }
+}
+
 }  // namespace mllm::qnn

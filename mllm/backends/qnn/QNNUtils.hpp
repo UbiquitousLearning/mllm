@@ -161,6 +161,21 @@ inline void setQuantScale(Tensor& tensor, float scale) {
  */
 Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue);
 
+// --------------- QNN Quantization Helper ---------------
+/**
+ * @brief Creates quantization parameters for QNN tensors
+ * @param tensor The tensor to create quantization parameters for
+ * @return QNN quantization parameters
+ */
+Qnn_QuantizeParams_t createQuantizeParams(const Tensor& tensor);
+
+/**
+ * @brief Propagates quantization scale from input to output tensor in reshape operations
+ * @param input Input tensor
+ * @param output Output tensor
+ */
+void propagateQuantScale(const Tensor& input, Tensor& output);
+
 // --------------- QNN Wrapper ---------------
 // QNN tensors' resource management is in C style. Wrap it in a C++ class
 // related issue: dimension vector can only be destroyed after QNN graph is finalized
