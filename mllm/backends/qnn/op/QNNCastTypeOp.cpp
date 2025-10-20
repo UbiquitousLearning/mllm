@@ -6,6 +6,7 @@
 #include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include "QnnTypes.h"
 #include <cmath>
@@ -77,6 +78,7 @@ bool QNNCastTypePattern::addQuantizeNode(const std::string& graphName, QNNCastTy
                                          const std::vector<ir::tensor::TensorValue::ptr_t>& inputs,
                                          const std::vector<ir::tensor::TensorValue::ptr_t>& outputs,
                                          const std::shared_ptr<QNNBackend>& qnnBackend) {
+  MLLM_RT_ASSERT(inputs[0]->tensor_.rank() == 4);  // FIXME: custom op only supports 4D tensor for now
   const auto& outputDtype = outputs[0]->tensor_.dtype();
 
   // Calculate quantization scale
@@ -112,6 +114,7 @@ bool QNNCastTypePattern::addDequantizeNode(const std::string& graphName, QNNCast
                                            const std::vector<ir::tensor::TensorValue::ptr_t>& inputs,
                                            const std::vector<ir::tensor::TensorValue::ptr_t>& outputs,
                                            const std::shared_ptr<QNNBackend>& qnnBackend) {
+  MLLM_RT_ASSERT(inputs[0]->tensor_.rank() == 4);  // FIXME: custom op only supports 4D tensor for now
   const auto& inputDtype = inputs[0]->tensor_.dtype();
 
   // Calculate dequantization scale
