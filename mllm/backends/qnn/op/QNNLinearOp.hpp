@@ -14,7 +14,7 @@
 namespace mllm::qnn {
 
 class QNNLinearOp final : public aops::LinearOp {
-  Tensor weightScale_, biasScale_, outputScale_, biasInt32_;
+  Tensor weightScale_, biasScale_, outputScale_;
 
  public:
   explicit QNNLinearOp(const aops::LinearOpOptions& options);
