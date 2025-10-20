@@ -43,6 +43,22 @@ Backend::ptr_t Context::getBackend(const DeviceTypes& device) {
 std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
                                                   const std::vector<Tensor>& inputs, DeviceTypes special_device) {
   auto device = special_device != kDeviceTypes_End ? special_device : inputs[0].device();
+
+  // If input device and special device are different, prefer non-CPU device
+  if (special_device != kDeviceTypes_End && special_device != inputs[0].device()) {
+    auto input_device = inputs[0].device();
+    if (input_device == kCPU && special_device != kCPU) {
+      // Use special device (non-CPU) over input device (CPU)
+      device = special_device;
+    } else if (special_device == kCPU && input_device != kCPU) {
+      // Use input device (non-CPU) over special device (CPU)
+      device = input_device;
+    } else {
+      // Both are non-CPU or both are CPU, use special device as originally intended
+      device = special_device;
+    }
+  }
+
   auto op = getBackend(device)->createOp(op_type, base_options);
   auto task = Task::createExecuteOpTask(op, inputs, {});
 
