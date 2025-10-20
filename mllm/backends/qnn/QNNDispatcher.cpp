@@ -51,7 +51,7 @@ void QNNDispatcher::process(const Task::ptr_t& task) {
       // the reshape should be called to init op output tensors
       task->op->reshape(task->inputs, task->outputs);
       // only X2X op is executed in QNN dispatcher
-      if (task->op->getOpType() == OpTypes::kX2X) {
+      if (task->op->getOpType() == OpTypes::kX2X || task->op->getOpType() == OpTypes::kEmbedding) {
         task->op->setup(task->inputs, task->outputs);
         task->op->forward(task->inputs, task->outputs);
       }

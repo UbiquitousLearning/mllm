@@ -9,6 +9,7 @@
 #include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
 #include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
+#include "mllm/backends/qnn/op/QNNEmbeddingOp.hpp"
 #include "mllm/backends/qnn/op/QNNGraphOp.hpp"
 #include "mllm/backends/qnn/op/QNNLinearOp.hpp"
 #include "mllm/backends/qnn/op/QNNParamOp.hpp"
@@ -25,7 +26,7 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
   regOpFactory<QNNAddOpFactory, QNNMulOpFactory, QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory,
                QNNViewOpFactory, QNNRMSNormOpFactory, QNNTransposeOpFactory, QNNX2XOpFactory, QNNCastTypeOpFactory,
-               QNNParamOpFactory, QNNSiLUOpFactory>();
+               QNNParamOpFactory, QNNSiLUOpFactory, QNNEmbeddingOpFactory>();
 
   QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
