@@ -88,7 +88,7 @@ void ViewOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
       current_stride *= actual_shape[i];
     }
   } else {
-    // TODO: more stride logic such as `compute_stride_for_view` in PyTorch
+    // FIXME: more stride logic such as `compute_stride_for_view` in PyTorch
     MLLM_ASSERT_EXIT(is_contiguous, "ViewOp::reshape is only supported for contiguous tensors in this implementation");
   }
 

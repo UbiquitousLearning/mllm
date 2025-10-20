@@ -375,7 +375,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     };
   }
 
-  const Qwen3Config& cfg;
+  const Qwen3Config cfg;
 
  private:
   Qwen3Text llm;
@@ -403,7 +403,8 @@ class Qwen3Session final : public ::mllm::service::Session {
 
     // Search in the radix cache. Find the tokens we really need to compute.
     auto prefix_cache_result = cache_->find(full_seq_idx);
-    fmt::print("Reuse Tokens: {} \n", prefix_cache_result.matched_length);
+    fmt::print("Reuse Tokens: {}, compute budget: {} tokens\n", prefix_cache_result.matched_length,
+               full_seq_idx.size() - prefix_cache_result.matched_length);
     std::span<int64_t> reduced_seq_idx(full_seq_idx.data() + prefix_cache_result.matched_length,
                                        full_seq_idx.size() - prefix_cache_result.matched_length);
     std::vector<int64_t> position_ids;
@@ -453,8 +454,6 @@ class Qwen3Session final : public ::mllm::service::Session {
 
       package_cnt++;
     });
-    // Callback a finish token
-    callback("", true);
 
     // Post process full_seq_idx and k_cache_addrs_/v_cache_addrs_. Only none thinking budget should be insert in radix tree.
     //

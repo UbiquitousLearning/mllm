@@ -26,3 +26,7 @@ __pycache__/
 
 # Not Released
 rsmllm/
+
+
+# Tilelang log
+autotuner.log

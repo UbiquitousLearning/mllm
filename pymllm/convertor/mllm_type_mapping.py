@@ -1,8 +1,15 @@
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
 
-import torch
-import numpy as np
+from ..ffi import (
+    MLLM_FIND_NUMPY_AVAILABLE,
+    MLLM_FIND_TORCH_AVAILABLE,
+)
+
+if MLLM_FIND_TORCH_AVAILABLE:
+    import torch
+if MLLM_FIND_NUMPY_AVAILABLE:
+    import numpy as np
 
 """
 //===----------------------------------------------------------------------===//
@@ -64,29 +71,42 @@ enum DataTypes : int32_t {
 
 MLLM_TYPE_MAPPING = {
     # PyTorch data type mappings
-    torch.float32: 0,          # kFloat32
-    torch.float16: 1,          # kFloat16
-    torch.bfloat16: 128,       # kBFloat16
-    torch.int8: 16,            # kInt8
-    torch.int16: 17,           # kInt16
-    torch.int32: 18,           # kInt32
-    torch.int64: 132,          # kInt64
-    torch.uint8: 129,          # kUInt8
-    torch.bool: 129,           # kUInt8 (Boolean type in PyTorch is usually represented as uint8)
-    # Quantized type mappings
-    torch.qint8: 16,           # kInt8
-    torch.quint8: 129,         # kUInt8
-    torch.qint32: 18,          # kInt32
-    
-    # NumPy data type mappings
-    np.float32: 0,             # kFloat32
-    np.float16: 1,             # kFloat16
-    np.int8: 16,               # kInt8
-    np.int16: 17,              # kInt16
-    np.int32: 18,              # kInt32
-    np.int64: 132,             # kInt64
-    np.uint8: 129,             # kUInt8
-    np.bool_: 129,             # kUInt8 (Boolean type in NumPy)
-    np.complex64: 201,         # kComplexFloat32
-    np.complex128: 202,        # kComplexFloat64
+    # Only include PyTorch types if PyTorch is available
 }
+
+# Add PyTorch mappings only if PyTorch is available
+if MLLM_FIND_TORCH_AVAILABLE:
+    MLLM_TYPE_MAPPING.update(
+        {
+            torch.float32: 0,  # kFloat32
+            torch.float16: 1,  # kFloat16
+            torch.bfloat16: 128,  # kBFloat16
+            torch.int8: 16,  # kInt8
+            torch.int16: 17,  # kInt16
+            torch.int32: 18,  # kInt32
+            torch.int64: 132,  # kInt64
+            torch.uint8: 129,  # kUInt8
+            torch.bool: 129,  # kUInt8 (Boolean type in PyTorch is usually represented as uint8)
+            # Quantized type mappings
+            torch.qint8: 16,  # kInt8
+            torch.quint8: 129,  # kUInt8
+            torch.qint32: 18,  # kInt32
+        }
+    )
+
+# Add NumPy mappings only if NumPy is available
+if MLLM_FIND_NUMPY_AVAILABLE:
+    MLLM_TYPE_MAPPING.update(
+        {
+            np.float32: 0,  # kFloat32
+            np.float16: 1,  # kFloat16
+            np.int8: 16,  # kInt8
+            np.int16: 17,  # kInt16
+            np.int32: 18,  # kInt32
+            np.int64: 132,  # kInt64
+            np.uint8: 129,  # kUInt8
+            np.bool_: 129,  # kUInt8 (Boolean type in NumPy)
+            np.complex64: 201,  # kComplexFloat32
+            np.complex128: 202,  # kComplexFloat64
+        }
+    )

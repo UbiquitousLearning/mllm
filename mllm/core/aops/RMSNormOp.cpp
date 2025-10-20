@@ -39,11 +39,17 @@ void RMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 }
 
 void RMSNormOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  const auto& i = inputs[0];
-  outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
+  if (options_.isInplace()) {
+    outputs.emplace_back(inputs[0]);
+  } else {
+    const auto& i = inputs[0];
+    outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
+  }
 }
 
-void RMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+void RMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (!options_.isInplace()) { BaseOp::setup(inputs, outputs); }
+}
 
 ParameterFile::ptr_t RMSNormOp::getParams() {
   auto p = ParameterFile::create();

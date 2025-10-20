@@ -3,10 +3,17 @@
 
 import os
 import struct
-import torch
-import numpy as np
 from typing import List, Union, Dict
-from ..ffi import Tensor
+from ..ffi import (
+    Tensor,
+    MLLM_FIND_NUMPY_AVAILABLE,
+    MLLM_FIND_TORCH_AVAILABLE,
+)
+
+if MLLM_FIND_TORCH_AVAILABLE:
+    import torch
+if MLLM_FIND_NUMPY_AVAILABLE:
+    import numpy as np
 from .mllm_type_mapping import MLLM_TYPE_MAPPING
 
 
@@ -121,15 +128,13 @@ class ModelFileV2:
             self.file_handler.write(reserved_bytes)
             self.file_handler.flush()
 
-    def streaming_write(
-        self, tensor_name, tensor_obj: Union[torch.Tensor, np.ndarray, Tensor]
-    ):
-        if isinstance(tensor_obj, torch.Tensor):
+    def streaming_write(self, tensor_name, tensor_obj):
+        if MLLM_FIND_TORCH_AVAILABLE and isinstance(tensor_obj, torch.Tensor):
             # PyTorch tensor
             shape = list(tensor_obj.shape)
             tensor_data = tensor_obj.detach().cpu().numpy().tobytes()
             true_dtype = MLLM_TYPE_MAPPING[tensor_obj.dtype]
-        elif isinstance(tensor_obj, np.ndarray):
+        elif MLLM_FIND_NUMPY_AVAILABLE and isinstance(tensor_obj, np.ndarray):
             # Numpy array
             shape = list(tensor_obj.shape)
             tensor_data = tensor_obj.tobytes()
@@ -174,7 +179,7 @@ class ModelFileV2:
         # Back to tail.
         self.file_handler.seek(0, os.SEEK_END)
 
-    def static_write(self, tensor_obj: Dict[str, Union[torch.tensor, np.ndarray]]):
+    def static_write(self, tensor_obj):
         # Calculate total size needed for parameter descriptors
         total_params = len(tensor_obj)
 
@@ -195,12 +200,12 @@ class ModelFileV2:
         # Write tensor data
         param_id = 0
         for tensor_name, tensor in tensor_obj.items():
-            if isinstance(tensor, torch.Tensor):
+            if MLLM_FIND_TORCH_AVAILABLE and isinstance(tensor, torch.Tensor):
                 # PyTorch tensor
                 shape = list(tensor.shape)
                 tensor_data = tensor.detach().cpu().numpy().tobytes()
                 true_dtype = MLLM_TYPE_MAPPING[tensor.dtype]
-            elif isinstance(tensor, np.ndarray):
+            elif MLLM_FIND_NUMPY_AVAILABLE and isinstance(tensor, np.ndarray):
                 # Numpy array
                 shape = list(tensor.shape)
                 tensor_data = tensor.tobytes()

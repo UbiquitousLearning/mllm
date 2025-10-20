@@ -79,7 +79,7 @@ class SessionObj : public tvm::ffi::Object {
 
   explicit SessionObj(const ::mllm::service::Session::ptr_t& session_ptr) : session_ptr_(session_ptr) { MLLM_EMPTY_SCOPE; }
 
-  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.service.Session", TensorObj, tvm::ffi::Object);
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.service.Session", SessionObj, tvm::ffi::Object);
 };
 
 class Session : public tvm::ffi::ObjectRef {

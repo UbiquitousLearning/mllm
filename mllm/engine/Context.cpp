@@ -140,4 +140,10 @@ void Context::setPrintMaxElementsPerDim(int max_elements) { print_max_elements_p
 
 int Context::getPrintMaxElementsPerDim() const { return print_max_elements_per_dim_; }
 
+void Context::loadOpPackage(const std::string& path) { op_plugin_system_.loadOpPackage(path); }
+
+int32_t Context::lookupCustomizedOpId(DeviceTypes device_type, const std::string& name) {
+  return op_plugin_system_.lookupCustomizedOp(device_type, name);
+}
+
 }  // namespace mllm

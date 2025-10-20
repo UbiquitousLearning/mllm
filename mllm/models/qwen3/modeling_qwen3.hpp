@@ -342,6 +342,8 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     };
   }
 
+  inline nn::StaticCache& kvCache() { return kv_cache_; }
+
  private:
   const Qwen3Config& cfg;
   Qwen3Text llm;

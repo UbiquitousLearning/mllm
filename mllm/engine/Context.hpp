@@ -14,6 +14,7 @@
 #include "mllm/utils/SymbolTable.hpp"
 #include "mllm/engine/MemoryManager.hpp"
 #include "mllm/backends/base/Backend.hpp"
+#include "mllm/backends/base/PluginSystem.hpp"
 
 namespace mllm {
 
@@ -61,9 +62,16 @@ class Context {
 
   int getPrintMaxElementsPerDim() const;
 
+  void loadOpPackage(const std::string& path);
+
+  int32_t lookupCustomizedOpId(DeviceTypes device_type, const std::string& name);
+
  private:
   // NOTE: Context should be made private in singleton design pattern.
   Context();
+
+  // Plugin system
+  plugin::OpPluginSystem op_plugin_system_;
 
   uint64_t random_seed_ = 42;
   uint64_t random_state_ = 42;

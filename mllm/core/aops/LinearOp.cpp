@@ -92,6 +92,10 @@ void LinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 }
 
 void LinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (options_.isRedirect()) {
+    outputs.emplace_back(inputs[1]);
+    return;
+  }
   auto& input = inputs[0];
   auto out_shape = input.shape();
   MLLM_RT_ASSERT_EQ(out_shape[out_shape.size() - 1], options_.in_channels);
@@ -100,7 +104,10 @@ void LinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   outputs.emplace_back(Tensor::empty(out_shape, input.dtype(), input.device()));
 }
 
-void LinearOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+void LinearOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (options_.isRedirect()) { return; }
+  BaseOp::setup(inputs, outputs);
+}
 
 ParameterFile::ptr_t LinearOp::getParams() {
   auto p = ParameterFile::create();

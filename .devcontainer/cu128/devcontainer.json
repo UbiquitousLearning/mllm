@@ -1,0 +1,29 @@
+{
+    "name": "mllm-cu128-dev",
+    "build": {
+        "dockerfile": "../../docker/Dockerfile.cu128"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.black-formatter",
+                "matepek.vscode-catch2-test-adapter",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "streetsidesoftware.code-spell-checker",
+                "GitHub.vscode-pull-request-github",
+                "eamodio.gitlens",
+                "llvm-vs-code-extensions.lldb-dap",
+                "ms-python.vscode-pylance",
+                "ms-python.python",
+                "ms-python.debugpy",
+                "charliermarsh.ruff",
+                "Gruntfuggly.todo-tree",
+                "benjamin-simmonds.pythoncpp-debug",
+                "cschlosser.doxdocgen",
+                "ms-vscode.cmake-tools",
+                "EditorConfig.EditorConfig",
+                "golang.go"
+            ]
+        }
+    }
+}

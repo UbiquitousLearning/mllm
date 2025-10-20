@@ -168,6 +168,8 @@ void memoryReport();
 
 bool isOpenCLAvailable();
 
+extern void initCudaBackend();
+
 bool isQnnAvailable();
 
 extern void initQnnBackend();
@@ -175,6 +177,8 @@ extern void initQnnBackend();
 void cleanThisThread();
 
 SessionTCB::ptr_t thisThread();
+
+void loadOpPackage(const std::string& path);
 
 ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion version = ModelFileVersion::kV1,
                           DeviceTypes map_2_device = kCPU);

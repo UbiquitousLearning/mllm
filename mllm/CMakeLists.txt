@@ -15,6 +15,7 @@ add_library(
   mllm.cpp
   backends/base/Backend.cpp
   backends/base/Allocator.cpp
+  backends/base/PluginSystem.cpp
   ${MLLM_RT_CORE_SRC}
   ${MLLM_RT_UTILS_SRC}
   ${MLLM_RT_ENGINE_SRC}
@@ -100,4 +101,7 @@ endif()
 
 if(MLLM_BUILD_CUDA_BACKEND)
   add_subdirectory(backends/cuda)
+  add_compile_definitions(
+    MLLM_CUDA_BACKEND
+  )
 endif()

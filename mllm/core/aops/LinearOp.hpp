@@ -141,7 +141,7 @@ class LinearOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
-  inline const LinearOpOptions& options() const { return options_; }
+  inline LinearOpOptions& options() { return options_; }
 
  protected:
   Tensor weight_;

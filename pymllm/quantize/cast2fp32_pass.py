@@ -39,10 +39,10 @@ class Cast2Fp32QuantizePass(QuantizeBasePass):
             return False
         ret = False
         for k, v in tensor_dict.items():
-            if isinstance(v, torch.Tensor):
+            if MLLM_FIND_TORCH_AVAILABLE and isinstance(v, torch.Tensor):
                 if v.dtype is not torch.float32:
                     ret = True
-            if isinstance(v, np.ndarray):
+            if MLLM_FIND_NUMPY_AVAILABLE and isinstance(v, np.ndarray):
                 if v.dtype is not np.float32:
                     ret = True
         return ret
@@ -50,8 +50,8 @@ class Cast2Fp32QuantizePass(QuantizeBasePass):
     def run(self, quantize_config, tensor_dict: Dict, **kwargs) -> Dict:
         name = tensor_dict.keys()[0]
         weight = tensor_dict[name]
-        if isinstance(weight, torch.Tensor):
+        if MLLM_FIND_TORCH_AVAILABLE and isinstance(weight, torch.Tensor):
             weight = weight.to(torch.float32)
-        if isinstance(weight, np.ndarray):
+        if MLLM_FIND_NUMPY_AVAILABLE and isinstance(weight, np.ndarray):
             weight = weight.to(np.float32)
         return {name: weight}

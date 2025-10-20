@@ -20,7 +20,7 @@
 
 namespace mllm::cpu::radix_attn {
 
-// BHSD
+// BSHD
 // K: [S_KV], address, not contiguous
 // V: [S_KV], address, not contiguous
 // Q: [B, S_Q, H_Q, D], contiguous
@@ -62,6 +62,12 @@ void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
         int S_KV_BOUND = std::min(__delta + s_q_idx + 1, S_KV);
 
         for (int s_kv_idx = 0; s_kv_idx < S_KV_BOUND; ++s_kv_idx) {
+          // TODO Prefetch or not.
+          // if (s_kv_idx + 1 < S_KV_BOUND) {
+          //   __builtin_prefetch(__k[s_kv_idx + 1]);
+          //   __builtin_prefetch(__v[s_kv_idx + 1]);
+          // }
+
           // k_token and v_token shape is [B, 1, H, D]
           __KDType* k_token = __k[s_kv_idx];
           __VDType* v_token = __v[s_kv_idx];

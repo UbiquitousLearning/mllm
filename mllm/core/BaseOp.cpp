@@ -23,4 +23,6 @@ void BaseOp::setDeviceType(DeviceTypes device_type) { device_type_ = device_type
 
 OpTypes BaseOp::getOpType() const { return op_type_; }
 
+void BaseOp::setOpType(OpTypes op_type) { op_type_ = op_type; }
+
 }  // namespace mllm

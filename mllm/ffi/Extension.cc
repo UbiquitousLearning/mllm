@@ -330,7 +330,8 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   refl::GlobalDef().def("mllm.service.stopService", []() -> void { ::mllm::service::stopService(); });
   refl::GlobalDef().def("mllm.service.sendRequest",
                         [](const std::string& json_str) -> void { ::mllm::service::sendRequest(json_str); });
-  refl::GlobalDef().def("mllm.service.getResponse", [](const std::string& id) -> void { ::mllm::service::sendRequest(id); });
+  refl::GlobalDef().def("mllm.service.getResponse",
+                        [](const std::string& id) -> std::string { return ::mllm::service::getResponse(id); });
   refl::GlobalDef().def("mllm.service.insertSession",
                         [](const std::string& session_id, const mllm::ffi::Session& session) -> void {
                           ::mllm::service::insertSession(session_id, session.get()->session_ptr_);

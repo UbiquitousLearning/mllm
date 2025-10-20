@@ -24,6 +24,8 @@ class SiLUOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline SiLUOpOptions& options() { return options_; }
+
  protected:
   SiLUOpOptions options_;
 };

@@ -893,6 +893,8 @@ class Qwen2VLForCausalLM : public ARGeneration {
     return position_ids;
   }
 
+  inline nn::StaticCache& kvCache() { return kv_cache_; }
+
   const Qwen2VLConfig& cfg;
   Qwen2VLText llm;
   Qwen2VisionTransformerPretrainedModel visual;

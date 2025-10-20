@@ -22,6 +22,7 @@ class Linear : public Layer {
   [[nodiscard]] Tensor bias() const;
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
+  MLLM_LAYER_ENABLE_REDIRECT_ATTRIBUTE(Linear)
 };
 
 }  // namespace mllm::nn

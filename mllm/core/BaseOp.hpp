@@ -67,8 +67,13 @@ class BaseOpOptions {
 
   [[nodiscard]] bool isInplace() const { return inplace_; }
 
+  inline void setRedirect(bool redirect) { redirect_ = redirect; }
+
+  [[nodiscard]] bool isRedirect() const { return redirect_; }
+
  private:
   bool inplace_ = false;
+  bool redirect_ = false;
   int threads_ = 4;
   std::vector<DataTypes> inputs_dtypes_;
   std::vector<DataTypes> outputs_dtypes_;
@@ -172,6 +177,8 @@ class BaseOp : public std::enable_shared_from_this<BaseOp> {
   void setDeviceType(DeviceTypes device_type);
 
   OpTypes getOpType() const;
+
+  void setOpType(OpTypes op_type);
 
  private:
   DeviceTypes device_type_;
