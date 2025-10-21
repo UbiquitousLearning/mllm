@@ -273,6 +273,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("CosOp"))
     op.derive(Cls("PagedAttnOp"))
 
+    # customized ops
+    op.derive(Cls("CustomizedOp"))
+
     # value
 
     # attr

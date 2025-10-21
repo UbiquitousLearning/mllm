@@ -142,6 +142,11 @@ int Context::getPrintMaxElementsPerDim() const { return print_max_elements_per_d
 
 void Context::loadOpPackage(const std::string& path) { op_plugin_system_.loadOpPackage(path); }
 
+int32_t Context::registerCustomizedOp(DeviceTypes device_type, const std::string& name,
+                                      const std::shared_ptr<BaseOpFactory>& factory) {
+  return op_plugin_system_.registerCustomizedOp(device_type, name, factory);
+}
+
 int32_t Context::lookupCustomizedOpId(DeviceTypes device_type, const std::string& name) {
   return op_plugin_system_.lookupCustomizedOp(device_type, name);
 }
