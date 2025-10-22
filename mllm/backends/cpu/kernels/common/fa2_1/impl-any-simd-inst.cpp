@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#if !defined(MLLM_HOST_ARCH_ARM64) && !defined(MLLM_HOST_ARCH_ARM)
+
 #include "mllm/backends/cpu/kernels/common/fa2_1/impl-any-simd-inst.hpp"
 
 // >>>> for dynamic dispatch only, skip if you want static dispatch
@@ -38,13 +40,14 @@ HWY_DLLEXPORT void call_fma_const_array_fp32(mllm_fp32_t* HWY_RESTRICT acc_o, ml
   HWY_DYNAMIC_DISPATCH(fma_const_array_fp32)(acc_o, acc_s, v_token, len);
 }
 
-HWY_DLLEXPORT void call_filled_with_const_fp32(mllm_fp32_t* HWY_DLLEXPORT a, float v, size_t len) {
+HWY_DLLEXPORT void call_filled_with_const_fp32(mllm_fp32_t* HWY_RESTRICT a, float v, size_t len) {
   HWY_DYNAMIC_DISPATCH(filled_with_const_fp32)(a, v, len);
 }
 
-HWY_DLLEXPORT void call_mul_from_const_fp32(mllm_fp32_t* HWY_DLLEXPORT from, float c, size_t len) {
+HWY_DLLEXPORT void call_mul_from_const_fp32(mllm_fp32_t* HWY_RESTRICT from, float c, size_t len) {
   HWY_DYNAMIC_DISPATCH(mul_from_const_fp32)(from, c, len);
 }
 
 }  // namespace mllm::cpu::flash_attn2::details
 #endif  // HWY_ONCE
+#endif
