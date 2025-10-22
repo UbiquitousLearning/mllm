@@ -101,26 +101,6 @@ class CustomizedOp;
     Op::dump(p);                                                                                                            \
   }
 
-#define CUSTOMIZED_LINALG_AOPS_DECL(op_name, class_name)                                                                    \
-  class_name::~class_name() = default;                                                                                      \
-  class_name::class_name(const BaseOp::ptr_t& aop) : LinalgIROp(RK_Op_LinalgIROp_##class_name) {                            \
-    setAOp(aop->getOpType(), aop);                                                                                          \
-  }                                                                                                                         \
-  ::mllm::ir::linalg::class_name::ptr_t class_name::build(IRContext* ctx, const BaseOp::ptr_t& aop,                         \
-                                                          const std::vector<::mllm::ir::tensor::TensorValue::ptr_t>& ins,   \
-                                                          const std::vector<::mllm::ir::tensor::TensorValue::ptr_t>& ous) { \
-    auto op = std::make_shared<::mllm::ir::linalg::class_name>(aop);                                                        \
-    for (auto& i : ins) { (*i)-- > op; }                                                                                    \
-    for (auto& o : ous) { (*op)-- > o; }                                                                                    \
-    op->setDevice(aop->getDevice());                                                                                        \
-    return op;                                                                                                              \
-  }                                                                                                                         \
-  void class_name::dump(IRPrinter& p) {                                                                                     \
-    p.print("linalg.{}.{}", deviceTypes2Str(getDevice()), #op_name);                                                        \
-    if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }                                   \
-    Op::dump(p);                                                                                                            \
-  }
-
 namespace mllm::ir::linalg {
 class LinalgIROp : public Op {
  public:
