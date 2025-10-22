@@ -12,6 +12,7 @@
 #include "mllm/backends/qnn/op/QNNTransposeOp.hpp"
 #include "mllm/backends/qnn/op/QNNViewOp.hpp"
 #include "mllm/backends/qnn/op/QNNX2XOp.hpp"
+#include "mllm/backends/qnn/passes/CustomOpPatterns.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
@@ -31,6 +32,10 @@ namespace mllm::qnn {
 QNNGraphBuildPass::QNNGraphBuildPass() {
   regPattern<QNNAddPattern, QNNMulPattern, QNNLinearPattern, QNNRMSNormPattern, QNNViewPattern, QNNTransposePattern,
              QNNX2XPattern, QNNCastTypePattern, QNNSiLUPattern>();
+
+  // register custom op patterns
+  patterns_.emplace((mllm::OpTypes)mllm::Context::instance().lookupCustomizedOpId(mllm::kQNN, "DequantizeAdd"),
+                    std::make_shared<QNNDequantizeAddPattern>());
 }
 
 uint8_t QNNGraphBuildPass::run(const ir::node_ptr_t& op) {
