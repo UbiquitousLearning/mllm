@@ -188,13 +188,12 @@ class LlamaAttention final : public nn::Module {
       attn = softmax_(attn);
     } else if (key_states.dtype() == kFloat16) {
       attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
       if (causal_mask) {
         attn = attn + causal_mask;
       } else {
         attn = mask_(attn);
       }
+      attn = softmax_(attn);
       attn = attn.to(kFloat16);
     }
 
