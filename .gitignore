@@ -30,3 +30,8 @@ rsmllm/
 
 # Tilelang log
 autotuner.log
+# Python virtual environment
+.venv/
+
+# Downloaded models and build artifacts
+models/
