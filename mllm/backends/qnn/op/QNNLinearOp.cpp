@@ -20,11 +20,12 @@ QNN Linear in mllm uses W8A8/W8A16 per-tensor quantization scheme.
 The weight and the activation is using offline profiled scale to quantize the float32 data to int8/int16.
 In QNN, the quantizeParam is set to QNN_QUANTIZATION_ENCODING_SCALE_OFFSET (with offset=0)
 
-This implementation uses QNN FullyConnected operator instead of Conv2d.
-For FullyConnected, weights have shape [m, n] where n is input channels and m is output channels.
-Bias is required to be int32 type for proper quantization handling.
+FIXME: Due to history reason, the bias is stored in int8 format.
+In w8a8 case, the bias is converted to uint8 with zero-point 128.
+In w8a16 case, the bias is needed to convert to int32.
+Additionally, when using rotation quant and fused dequantize-add, the bias is not needed here and in float32 format.
 
-TODO: per-channel quantization support
+TODO: per-channel quantization support, use FullyConnected to replace Conv2d
 */
 
 QNNLinearOp::QNNLinearOp(const aops::LinearOpOptions& options) : LinearOp(options) {}
@@ -33,8 +34,8 @@ void QNNLinearOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
-      // using FullyConnected in QNN, reshape weight to 2D [m, n] where m=out_channels, n=in_channels
-      weight_ = weight_.view({options_.out_channels, options_.in_channels});
+      // using Conv2d in QNN, need to reshape the weight to 4D
+      weight_ = weight_.view({1, 1, options_.in_channels, options_.out_channels});
       if (options_.bias) {
         bias_ = ploader->pull(getName() + ".bias");
         bias_ = bias_.view({options_.out_channels});
@@ -53,8 +54,8 @@ void QNNLinearOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kUserTemporary:
     case ModelFileVersion::kV2: {
       weight_ = ploader->pull(getName() + ".weight");
-      // using FullyConnected in QNN, reshape weight to 2D [m, n] where m=out_channels, n=in_channels
-      weight_ = weight_.view({options_.out_channels, options_.in_channels});
+      // using Conv2d in QNN, need to reshape the weight to 4D
+      weight_ = weight_.view({1, 1, options_.in_channels, options_.out_channels});
       if (options_.bias) {
         bias_ = ploader->pull(getName() + ".bias");
         bias_ = bias_.view({options_.out_channels});
@@ -72,10 +73,24 @@ void QNNLinearOp::load(const ParameterFile::ptr_t& ploader) {
 
   // set quant scale to tensor's attached view
   setQuantScale(weight_, weightScale_.at<float>({0}));
-  if (options_.bias) { setQuantScale(bias_, biasScale_.at<float>({0})); }
+  if (options_.bias) { setQuantScale(biasScale_, biasScale_.at<float>({0})); }
 
-  // Convert bias to int32 for FullyConnected operator
-  if (options_.bias) { bias_ = bias_.to(kInt32); }
+  // handle bias conversion for history reason
+  if (options_.bias) {
+    switch (options_.qnn_impl_type) {
+      case aops::LinearImplTypes::kQNN_tensor_symm_w8a8: {
+        // convert int8 bias to uint8 with zero-point 128
+        bias_ = bias_.to(kUInt8);
+        break;
+      }
+      case aops::LinearImplTypes::kQNN_tensor_symm_w8a16: {
+        // convert int8 bias to int32
+        bias_ = bias_.to(kInt32);
+        break;
+      }
+      default: MLLM_ERROR_EXIT(1, "QNN not support other linear impl");
+    }
+  }
 }
 
 void QNNLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
@@ -84,12 +99,10 @@ void QNNLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
   MLLM_RT_ASSERT_EQ(i_shape[i_shape.size() - 1], options_.in_channels);
 
-  DataTypes o_dtype = i.dtype();
+  auto o_shape = i_shape;
+  o_shape[o_shape.size() - 1] = options_.out_channels;
 
-  // flatten to 2D for QNN FullyConnected operator
-  int batch_count = 1;
-  for (size_t i = 0; i < i_shape.size() - 1; ++i) { batch_count *= i_shape[i]; }
-  auto o_shape = std::vector<int>{batch_count, options_.out_channels};
+  DataTypes o_dtype = i.dtype();
 
   outputs.emplace_back(Tensor::empty(o_shape, o_dtype, kQNN));
 
@@ -133,60 +146,78 @@ bool QNNLinearPattern::addNode(const std::string& graphName, const ir::op_ptr_t&
 
   auto& weight = qnnLinearOp->weight();
   auto& bias = qnnLinearOp->bias();
+  auto& weightScale = const_cast<Tensor&>(qnnLinearOp->weightScale());
+  auto& biasScale = const_cast<Tensor&>(qnnLinearOp->biasScale());
 
-  std::vector<std::string> inputTensorNames;
-  inputTensorNames.reserve(inputs.size());
-  for (const auto& input : inputs) { inputTensorNames.push_back(input->name()); }
-  inputTensorNames.push_back(weight.name());
-
-  // only support false in HTP
-  auto keep_dims = QNNParamScalarWrapper::create("keep_dims", false);
-
-  // Add weight tensor using qnnBackend interface
-  float weightScale = mllm::qnn::getQuantScale(weight);
-  Qnn_QuantizeParams_t weightQuantizeParams = {QNN_DEFINITION_DEFINED,
-                                               QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                               {.scaleOffsetEncoding = {.scale = weightScale, .offset = 0}}};
-
-  if (!qnnBackend->addStaticTensor(graphName, weight.name(), weight, weightQuantizeParams)) {
-    MLLM_ERROR("Failed to add weight tensor {} to graph {}", weight.name(), graphName);
+  // Check if this is W8A16 quantization type
+  if (options.qnn_impl_type != aops::LinearImplTypes::kQNN_tensor_symm_w8a16) {
+    MLLM_ERROR("addNode currently only supports W8A16 quantization");
     return false;
   }
 
-  // Add bias tensor if needed
-  if (options.bias) {
-    float biasScale = mllm::qnn::getQuantScale(bias);
-    Qnn_QuantizeParams_t biasQuantizeParams = {QNN_DEFINITION_DEFINED,
-                                               QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                               {.scaleOffsetEncoding = {.scale = biasScale, .offset = 0}}};
+  // Create Conv2d parameters (stride and padding)
+  auto strideName = qnnLinearOp->getName() + ".stride";
+  auto padName = qnnLinearOp->getName() + ".pad";
 
-    if (!qnnBackend->addStaticTensor(graphName, bias.name(), bias, biasQuantizeParams)) {
-      MLLM_ERROR("Failed to add bias tensor {} to graph {}", bias.name(), graphName);
+  auto strideParam = QNNParamTensorWrapper::create("stride", strideName, QNN_DATATYPE_UINT_32, std::vector<uint32_t>{2});
+  uint32_t* strideData = static_cast<uint32_t*>(strideParam->alloc());
+  strideData[0] = 1;
+  strideData[1] = 1;
+
+  auto padParam = QNNParamTensorWrapper::create("pad_amount", padName, QNN_DATATYPE_UINT_32, std::vector<uint32_t>{2, 2});
+  uint32_t* padData = static_cast<uint32_t*>(padParam->alloc());
+  padData[0] = 0;
+  padData[1] = 0;
+  padData[2] = 0;
+  padData[3] = 0;
+
+  // Add weight tensor to QNN
+  float weightScaleValue = weightScale.at<float>({0});
+
+  Qnn_QuantizeParams_t weightQuantParams = {QNN_DEFINITION_DEFINED,
+                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                            {.scaleOffsetEncoding = {.scale = weightScaleValue, .offset = 0}}};
+
+  if (!qnnBackend->addStaticTensor(graphName, weight.name(), weight, weightQuantParams)) {
+    MLLM_ERROR("Failed to add weight tensor to QNN graph");
+    return false;
+  }
+
+  // Set output tensor quantization parameters
+  float outputScaleValue = getQuantScale(outputs[0]->tensor_);
+  Qnn_QuantizeParams_t outputQuantParams = {QNN_DEFINITION_DEFINED,
+                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                            {.scaleOffsetEncoding = {.scale = outputScaleValue, .offset = 0}}};
+
+  auto qnn_output_tensor_type = mllm::qnn::getQnnOutputTensorType(outputs[0]);
+
+  if (!qnnBackend->addTensor(graphName, outputs[0]->name(), qnn_output_tensor_type, outputs[0]->tensor_, outputQuantParams)) {
+    MLLM_ERROR("Failed to add output tensor to QNN graph");
+    return false;
+  }
+
+  std::vector<std::string> inputTensorNames = {inputs[0]->name(), weight.name()};
+  std::vector<std::string> outputTensorNames = {outputs[0]->name()};
+
+  // Handle bias if supported
+  if (options.bias) {
+    float biasScaleValue = biasScale.at<float>({0});
+
+    Qnn_QuantizeParams_t biasQuantParams = {QNN_DEFINITION_DEFINED,
+                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                            {.scaleOffsetEncoding = {.scale = biasScaleValue, .offset = 0}}};
+
+    if (!qnnBackend->addStaticTensor(graphName, bias.name(), bias, biasQuantParams)) {
+      MLLM_ERROR("Failed to add bias tensor to QNN graph");
       return false;
     }
 
     inputTensorNames.push_back(bias.name());
   }
 
-  // Add output tensor using qnnBackend interface
-  // The difference between int8 and int16 is handled in reshape
-  float outputScale = mllm::qnn::getQuantScale(outputs[0]->tensor_);
-
-  Qnn_QuantizeParams_t outputQuantizeParams = {QNN_DEFINITION_DEFINED,
-                                               QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                               {.scaleOffsetEncoding = {.scale = outputScale, .offset = 0}}};
-
-  // Determine output tensor type using helper function
-  auto qnn_output_tensor_type = mllm::qnn::getQnnOutputTensorType(outputs[0]);
-
-  if (!qnnBackend->addTensor(graphName, outputs[0]->name(), qnn_output_tensor_type, outputs[0]->tensor_,
-                             outputQuantizeParams)) {
-    MLLM_ERROR("Failed to add output tensor {} to graph {}", outputs[0]->name(), graphName);
-    return false;
-  }
-
-  qnnBackend->graphAddNode(graphName, qnnLinearOp->getName(), "FullyConnected", inputTensorNames, {outputs[0]->name()}, {},
-                           {keep_dims});
+  // Add Conv2d node to graph
+  std::string nodeName = qnnLinearOp->getName() + ".linear_w8a16";
+  qnnBackend->graphAddNode(graphName, nodeName, "Conv2d", inputTensorNames, outputTensorNames, {strideParam, padParam}, {});
 
   return true;
 }
