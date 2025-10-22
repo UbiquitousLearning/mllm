@@ -379,8 +379,6 @@ void QNNTensorWrapper::alloc() {
   // or, register the existing storage to QNN(passing allocated input to QNN)
   if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
 
-  MLLM_INFO("tensor ptr: {}", dataContainer_.ptr<void>());
-
   std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
       ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
 
@@ -481,10 +479,7 @@ Qnn_Param_t* QNNParamScalarWrapper::getNativeParam() { return &(qnnParam_); }
 // --------------- QNN Graph Output Helper ---------------
 
 Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue) {
-  if (tensorValue->getAttr("is_graph_output")) {
-    MLLM_INFO("QNN output tensor {} is marked as graph output", tensorValue->name());
-    return QNN_TENSOR_TYPE_APP_READ;
-  }
+  if (tensorValue->getAttr("is_graph_output")) { return QNN_TENSOR_TYPE_APP_READ; }
   return QNN_TENSOR_TYPE_NATIVE;
 }
 

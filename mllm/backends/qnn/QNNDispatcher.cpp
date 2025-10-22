@@ -8,7 +8,6 @@
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/nn/Module.hpp"
-#include "mllm/utils/Log.hpp"
 
 #ifdef MLLM_PERFETTO_ENABLE
 #include "mllm/engine/Perf.hpp"
@@ -67,8 +66,6 @@ void QNNDispatcher::process(const Task::ptr_t& task) {
         }
       });
 #endif
-      MLLM_INFO("QNNDispatcher::process execute module: {}", moduleName);
-
       // here enters in a QNN module, execute it and not dive into its layers
       auto qnnBackend = std::static_pointer_cast<QNNBackend>(Context::instance().getBackend(kQNN));
 

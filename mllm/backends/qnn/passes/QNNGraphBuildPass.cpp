@@ -57,13 +57,7 @@ uint8_t QNNGraphBuildPass::run(const ir::node_ptr_t& op) {
       if (symbol_attr) {
         auto sub_graph_name = symbol_attr->str();
 
-        MLLM_INFO("Found SubGraphOp: {}", sub_graph_name);
-
-        if (sub_graph_op->getDevice() == DeviceTypes::kQNN) {
-          graphs_ir_to_be_compiled.push_back(sub_graph_op);
-
-          MLLM_INFO("pushing {} to be compiled", sub_graph_name);
-        }
+        if (sub_graph_op->getDevice() == DeviceTypes::kQNN) { graphs_ir_to_be_compiled.push_back(sub_graph_op); }
       }
     }
   }
@@ -112,9 +106,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
 
   std::string graph_name = sub_graph_op->getSymbolAttr()->str();
 
-  MLLM_INFO("Building QNN graph '{}' with {} inputs, {} outputs", graph_name, sub_graph_op->inputs().size(),
-            sub_graph_op->outputs().size());
-
   // Create QNN model using the backend
   auto qnn_model = qnn_backend->createQnnGraph(graph_name);
   if (!qnn_model) {
@@ -136,8 +127,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
     }
     auto qnn_tensor =
         qnn_model->addTensor(input_tensor->name(), QNN_TENSOR_TYPE_APP_WRITE, input_tensor->tensor_, quantize_param);
-
-    MLLM_INFO("Added input tensor '{}' to QNN model", input_tensor->name());
   }
 
   // Process each operation in the subgraph
@@ -147,8 +136,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
       auto op_types = linalg_op->getAOpTypes();
       std::vector<ir::tensor::TensorValue::ptr_t> op_inputs;
       std::vector<ir::tensor::TensorValue::ptr_t> op_outputs;
-
-      MLLM_INFO("build layer: {}", linalg_op->getAOp()->getName());
 
       // Collect op inputs
       for (auto& input_val : linalg_op->inputs()) { op_inputs.emplace_back(input_val->cast_<ir::tensor::TensorValue>()); }
@@ -173,8 +160,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
     MLLM_ERROR("Failed to finalize QNN graph '{}'", graph_name);
     return;
   }
-
-  MLLM_INFO("QNN graph '{}' build completed", graph_name);
 }
 
 }  // namespace mllm::qnn
