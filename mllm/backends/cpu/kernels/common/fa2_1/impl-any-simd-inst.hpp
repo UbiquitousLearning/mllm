@@ -1,7 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#if !defined(MLLM_HOST_ARCH_ARM64) && !defined(MLLM_HOST_ARCH_ARM)
+#if !(defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM))
 
 // Normal header with include guard and namespace.
 #ifndef HIGHWAY_HWY_FA2_IMPL_INL_H_
