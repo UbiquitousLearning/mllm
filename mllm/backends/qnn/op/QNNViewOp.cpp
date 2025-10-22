@@ -109,7 +109,7 @@ bool QNNViewPattern::addNode(const std::string& graphName, const ir::op_ptr_t& o
   auto qnn_output_tensor_type = mllm::qnn::getQnnOutputTensorType(outputs[0]);
 
   // Create quantization parameters using helper function
-  auto quantParam = createQuantizeParams(inputs[0]->tensor_);
+  auto quantParam = createQuantizeParams(outputs[0]->tensor_);
 
   if (!qnnBackend->addTensor(graphName, outputs[0]->name(), qnn_output_tensor_type, outputs[0]->tensor_, quantParam)) {
     MLLM_ERROR("Failed to add output tensor {} to graph {}", outputs[0]->name(), graphName);

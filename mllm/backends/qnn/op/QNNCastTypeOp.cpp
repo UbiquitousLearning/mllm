@@ -81,8 +81,8 @@ bool QNNCastTypePattern::addQuantizeNode(const std::string& graphName, QNNCastTy
   MLLM_RT_ASSERT(inputs[0]->tensor_.rank() == 4);  // FIXME: custom op only supports 4D tensor for now
   const auto& outputDtype = outputs[0]->tensor_.dtype();
 
-  // Calculate quantization scale
-  float quantScale = getQuantScale(inputs[0]->tensor_);
+  // get quantization scale, it is propagated from input to output in reshape step
+  float quantScale = getQuantScale(outputs[0]->tensor_);
 
   // Create scale parameter tensor
   auto scaleParamName = qnnCastTypeOp->getName() + ".quantize_scale";
@@ -117,7 +117,8 @@ bool QNNCastTypePattern::addDequantizeNode(const std::string& graphName, QNNCast
   MLLM_RT_ASSERT(inputs[0]->tensor_.rank() == 4);  // FIXME: custom op only supports 4D tensor for now
   const auto& inputDtype = inputs[0]->tensor_.dtype();
 
-  // Calculate dequantization scale
+  // get quantization scale, it is propagated to input in previous ops
+  // NOTE: different from quantize
   float dequantScale = getQuantScale(inputs[0]->tensor_);
 
   // Create scale parameter tensor
