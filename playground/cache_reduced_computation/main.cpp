@@ -27,7 +27,7 @@ int qwen2vlLlmPartBench(const std::string& cfg_fp, const std::string& model_fp, 
   auto pos_ids = mllm::Tensor::ones({3, options.prefill_tokens, 1}, mllm::kInt64);
   auto t0 = std::chrono::steady_clock::now();
   model.generate(mllm::models::ARGenerationOutputPast{{"sequence", inputs}, {"position_ids", pos_ids}},
-                 mllm::models::ARGenerationArgs{{"max_length", mllm::AnyValue(1)}});
+                 mllm::models::ARGenerationArgs{{"max_length", mllm::AnyValue((int)1)}});
   auto t1 = std::chrono::steady_clock::now();
   auto ms_int = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
   mllm::print("cost (int ms) = ", ms_int.count(), " ms\n");
