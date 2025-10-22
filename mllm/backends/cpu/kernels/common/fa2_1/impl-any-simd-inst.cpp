@@ -1,6 +1,6 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
-
+#include "mllm/utils/CPUArchHelper.hpp"
 #if !(defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM))
 
 #include "mllm/backends/cpu/kernels/common/fa2_1/impl-any-simd-inst.hpp"

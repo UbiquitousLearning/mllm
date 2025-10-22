@@ -1,11 +1,11 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
-
-#if !(defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM))
-
 // Normal header with include guard and namespace.
 #ifndef HIGHWAY_HWY_FA2_IMPL_INL_H_
 #define HIGHWAY_HWY_FA2_IMPL_INL_H_
+
+#include "mllm/utils/CPUArchHelper.hpp"
+#if !(defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM))
 
 #include "mllm/core/DataTypes.hpp"
 
