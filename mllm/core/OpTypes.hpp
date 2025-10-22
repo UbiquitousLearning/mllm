@@ -75,6 +75,7 @@ enum class OpTypes : int32_t {
   kPagedAttn = 57,
   kRadixAttn = 58,
   kScatter2Shards = 59,
+  kLayerNorm2D = 60,
 
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
@@ -143,6 +144,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kGraphEnd: return "GraphEnd";
     case OpTypes::kPagedAttn: return "PagedAttn";
     case OpTypes::kScatter2Shards: return "Scatter2Shards";
+    case OpTypes::kLayerNorm2D: return "LayerNorm2D";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";
   }

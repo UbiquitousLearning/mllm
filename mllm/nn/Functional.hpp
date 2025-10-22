@@ -129,4 +129,7 @@ Tensor silu_(const Tensor& x);
 
 void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim);
 
+// If you want causal mask attention. Use Flash attention instead.
+Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor& V, const Tensor& mask = Tensor());
+
 }  // namespace mllm::nn::functional

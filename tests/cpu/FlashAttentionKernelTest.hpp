@@ -7,7 +7,6 @@
 #include "mllm/mllm.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
-#include "mllm/nn/lmcache/PrefixCache.hpp"
 
 #include "KernelTestHelper.hpp"
 

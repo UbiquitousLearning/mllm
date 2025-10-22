@@ -118,4 +118,13 @@ void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim
                                            {src, shards_pointer});
 }
 
+Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor& V, const Tensor& mask) {
+  auto scale = Q.size(-1);
+  scale = (1.f / sqrtf(scale));
+  auto attn_weight = matmul(Q, K, false, true) * scale;
+  if (mask) { attn_weight = attn_weight + mask; }
+  attn_weight = softmax(attn_weight, -1);
+  return matmul(attn_weight, V);
+}
+
 }  // namespace mllm::nn::functional

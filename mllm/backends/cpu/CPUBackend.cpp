@@ -10,6 +10,7 @@
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
 #include "mllm/backends/cpu/ops/Conv1DOp.hpp"
+#include "mllm/backends/cpu/ops/Conv2DOp.hpp"
 #include "mllm/backends/cpu/ops/Conv3DOp.hpp"
 #include "mllm/backends/cpu/ops/CopyOp.hpp"
 #include "mllm/backends/cpu/ops/ElewiseOps.hpp"
@@ -17,6 +18,7 @@
 #include "mllm/backends/cpu/ops/FillOp.hpp"
 #include "mllm/backends/cpu/ops/FlashAttention2Op.hpp"
 #include "mllm/backends/cpu/ops/GELUOp.hpp"
+#include "mllm/backends/cpu/ops/LayerNorm2DOp.hpp"
 #include "mllm/backends/cpu/ops/RadixAttnOp.hpp"
 #include "mllm/backends/cpu/ops/ReLUOp.hpp"
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
@@ -60,7 +62,8 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory,
                CPUMultimodalRoPEOpFactory, CPURoPEOpFactory, CPUCausalMaskOpFactory, CPUConv1DOpFactory, CPUConv3DOpFactory,
                CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory,
-               CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory>();
+               CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
+               CPUConv2DOpFactory, CPULayerNorm2DOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

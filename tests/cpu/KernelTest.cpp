@@ -838,6 +838,55 @@ TEST_F(FlashAttn2KernelTest, fwd_bshd) {
 }
 #endif
 
+//===----------------------------------------------------------------------===//
+// Conv2D Test
+//
+// auto in_channel = cfg.at("in_channel");
+// auto out_channel = cfg.at("out_channel");
+// auto I_H = cfg.at("I_H");
+// auto I_W = cfg.at("I_W");
+// auto K_H = cfg.at("K_H");
+// auto K_W = cfg.at("K_W");
+// auto S_H = cfg.at("S_H");
+// auto S_W = cfg.at("S_W");
+// auto P_H = cfg.at("P_H");
+// auto P_W = cfg.at("P_W");
+// auto bias = cfg.at("bias");
+//
+// In deepseek-ocr we have
+// CASE 1:
+//  in_channel = 3
+//  out_channel = 1024
+//  I_H = 224
+//  I_W = 224
+//  K_H = 14
+//  K_W = 14
+//  S_H = 14
+//  S_W = 14
+//  P_H = 0
+//  P_W = 0
+//  bias = false
+// CASE 2:
+//
+//===----------------------------------------------------------------------===//
+#include "Conv2DKernelTest.hpp"
+TEST_F(Conv2DKernelTest, im2col) {
+  EXPECT_EQ(testConv2D({{
+                {"in_channel", 3},
+                {"out_channel", 1024},
+                {"I_H", 224},
+                {"I_W", 224},
+                {"K_H", 14},
+                {"K_W", 14},
+                {"S_H", 14},
+                {"S_W", 14},
+                {"P_H", 0},
+                {"P_W", 0},
+                {"bias", 0},
+            }}),
+            true);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

@@ -477,6 +477,14 @@ class Tensor {
   [[nodiscard]] bool isContiguousN(int n) const;
 
   /**
+   * @brief
+   *
+   * @param id
+   * @return int32_t
+   */
+  [[nodiscard]] int32_t size(int32_t id) const;
+
+  /**
    * @brief Creates contiguous copy if non-contiguous.
    * @return Contiguous tensor (may be a view or copy).
    */
@@ -521,6 +529,14 @@ class Tensor {
    * @return Tensor
    */
   Tensor squeeze(int32_t dim = 0x7fffffff);
+
+  /**
+   * @brief
+   *
+   * @param dim
+   * @return Tensor
+   */
+  Tensor flatten(int32_t dim = 0x7fffffff);
 
   /**
    * @brief clone a tensor

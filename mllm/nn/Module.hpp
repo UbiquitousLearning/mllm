@@ -42,10 +42,10 @@ class ModuleImpl : public AbstractNnNode {
 };
 
 template<typename T>
-class ModuleLists;
+class ModuleList;
 
 template<typename T>
-class ModuleListsSuffix;
+class ModuleListSuffix;
 
 class Module {
  public:

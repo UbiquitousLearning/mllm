@@ -30,6 +30,8 @@
 #include "mllm/backends/cpu/kernels/arm/conv3d.hpp"                     // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"                 // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/relu.hpp"                       // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/conv2d.hpp"                     // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/layernorm2d.hpp"                // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"  // IWYU pragma: export
 #else
 #include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"     // IWYU pragma: export

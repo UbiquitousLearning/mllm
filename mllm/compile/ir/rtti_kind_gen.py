@@ -272,6 +272,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("SinOp"))
     op.derive(Cls("CosOp"))
     op.derive(Cls("PagedAttnOp"))
+    op.derive(Cls("LayerNorm2DOp"))
 
     # value
 
