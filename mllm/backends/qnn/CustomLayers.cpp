@@ -37,13 +37,13 @@ void DequantizeAddOp::load(const mllm::ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(weight_name);
-      weight_ = weight_.view({options_.out_channels});
+      weight_ = weight_.view({1, 1, 1, options_.out_channels});
       break;
     }
     case ModelFileVersion::kUserTemporary:
     case ModelFileVersion::kV2: {
       weight_ = ploader->pull(weight_name);
-      weight_ = weight_.view({options_.out_channels});
+      weight_ = weight_.view({1, 1, 1, options_.out_channels});
       break;
     }
     default: NYI("Unsupported model file version")
