@@ -19,7 +19,20 @@ namespace mllm::models::deepseek_ocr {
 //===----------------------------------------------------------------------===//
 // MLP Projector For Mapping Visual Tokens to Text Token Space
 //===----------------------------------------------------------------------===//
-// TODO
+class MlpProjector final : public nn::Module {
+  nn::Linear layers_;
+
+ public:
+  MlpProjector() = default;
+
+  MlpProjector(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
+    layers_ = reg<nn::Linear>("layers", 2048, 1280, true, config.mlp_projector_linear_impl_type);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    return {layers_(inputs[0])};
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // CLIP

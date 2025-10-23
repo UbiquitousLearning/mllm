@@ -12,6 +12,9 @@
 #include <optional>
 #include <limits>
 #include <nlohmann/json.hpp>
+#include <set>
+#include <algorithm>
+#include <cmath>
 
 #include "mllm/preprocessor/visual/Image.hpp"
 
@@ -83,7 +86,7 @@ class Conversation {
         const auto& [role, message] = std::make_pair(i[0], i[1]);
         if (!message.empty()) {
           if (role == "User") {
-            ret += "<｜sft▁begin｜>\n" + message + sep_;
+            ret += "<｜sft begin｜>\n" + message + sep_;
           } else {
             ret += message + sep2_.value_or("");
           }
@@ -254,16 +257,16 @@ std::shared_ptr<Conversation> getConvTemplate(const std::string& name) {
 void initializeTemplates() {
   // DeepSeek template
   auto deepseek = std::make_shared<Conversation>(
-      "deepseek", "{system_message}", "", std::vector<std::string>{"<|User|>", "<|Assistant|>"},
-      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "\n\n", "<｜end▁of▁sentence｜>",
-      std::vector<std::string>{"User:", "<｜end▁of▁sentence｜>"}, std::vector<int>{100001});
+      "deepseek", "{system_message}", "", std::vector<std::string>{"<|User|>", " outputId="},
+      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "\n\n", "<｜end of sentence｜>",
+      std::vector<std::string>{"User:", "<｜end of sentence｜>"}, std::vector<int>{100001});
   registerConvTemplate(deepseek);
 
   // DeepSeekV2 template
   auto deepseekv2 = std::make_shared<Conversation>(
       "deepseekv2", "{system_message}", "", std::vector<std::string>{"<｜User｜>", "<｜Assistant｜>"},
-      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "", "<｜end▁of▁sentence｜>",
-      std::vector<std::string>{"User:", "<｜end▁of▁sentence｜>"}, std::vector<int>{100001});
+      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "", "<｜end of sentence｜>",
+      std::vector<std::string>{"User:", "<｜end of sentence｜>"}, std::vector<int>{100001});
   registerConvTemplate(deepseekv2);
 
   // Plain template
@@ -355,62 +358,57 @@ std::pair<int, int> findClosestAspectRatio(double aspect_ratio, const std::vecto
  * @param use_thumbnail Whether to add a square thumbnail (image_size x image_size) as the first tile
  * @return             Vector of processed Image tiles
  */
-inline std::vector<Image> dynamic_preprocess(const Image& image, int image_size, int max_num = 6, bool use_thumbnail = false) {
-  // Mirror Python logic: generate a grid of image_size x image_size crops.
-  // Grid shape is derived from ceil(width/size) and ceil(height/size),
-  // and then capped to max_num by reducing along the longer dimension.
-
-  Image src = image;  // non-const copy to call non-const methods
+inline std::pair<std::vector<Image>, std::pair<int, int>> dynamicPreprocess(const Image& image, int min_num = 2,
+                                                                            int max_num = 9, int image_size = 640,
+                                                                            bool use_thumbnail = false) {
+  Image src = image;
   const int w = src.w();
   const int h = src.h();
-  if (w <= 0 || h <= 0) { return {}; }
+  if (w <= 0 || h <= 0) { return {{}, {1, 1}}; }
 
-  // Integer ceil for positive numbers: ceil(x / y) == (x + y - 1) / y
-  int grid_w = (w + image_size - 1) / image_size;
-  int grid_h = (h + image_size - 1) / image_size;
-  if (grid_w < 1) grid_w = 1;
-  if (grid_h < 1) grid_h = 1;
+  const double aspect_ratio = static_cast<double>(w) / static_cast<double>(h);
 
-  // Cap total tiles to max_num while preserving aspect tendency
-  while (grid_w * grid_h > max_num) {
-    if (grid_w >= grid_h && grid_w > 1) {
-      --grid_w;
-    } else if (grid_h > 1) {
-      --grid_h;
-    } else {
-      break;
+  // Build candidate ratios: all pairs (i, j) with min_num <= i*j <= max_num
+  std::set<std::pair<int, int>> ratio_set;
+  for (int n = min_num; n <= max_num; ++n) {
+    for (int i = 1; i <= n; ++i) {
+      for (int j = 1; j <= n; ++j) {
+        const int blocks = i * j;
+        if (blocks >= min_num && blocks <= max_num) { ratio_set.insert({i, j}); }
+      }
     }
   }
+  std::vector<std::pair<int, int>> target_ratios(ratio_set.begin(), ratio_set.end());
+  std::sort(target_ratios.begin(), target_ratios.end(),
+            [](const auto& a, const auto& b) { return (a.first * a.second) < (b.first * b.second); });
 
-  const int target_width = grid_w * image_size;
-  const int target_height = grid_h * image_size;
+  const auto target_aspect_ratio = findClosestAspectRatio(aspect_ratio, target_ratios, w, h, image_size);
 
-  std::vector<Image> out;
-  out.reserve(static_cast<size_t>(max_num));
+  const int target_width = image_size * target_aspect_ratio.first;
+  const int target_height = image_size * target_aspect_ratio.second;
+  const int blocks = target_aspect_ratio.first * target_aspect_ratio.second;
 
-  // Optional thumbnail first
-  if (use_thumbnail) {
-    out.push_back(src.resize(image_size, image_size));
-    if (static_cast<int>(out.size()) >= max_num) { return out; }
+  Image resized_img = src.resize(target_width, target_height);
+  std::vector<Image> processed_images;
+  processed_images.reserve(static_cast<size_t>(blocks));
+
+  for (int i = 0; i < blocks; ++i) {
+    const int cols = target_width / image_size;  // equals target_aspect_ratio.first
+    const int x0 = (i % cols) * image_size;
+    const int y0 = (i / cols) * image_size;
+    const int x1 = x0 + image_size;
+    const int y1 = y0 + image_size;
+    Image split_img = resized_img.crop(x0, y0, x1, y1);
+    processed_images.push_back(split_img);
   }
 
-  const int total_tiles = grid_w * grid_h;
-  for (int i = 0; i < total_tiles; ++i) {
-    // Python equivalent:
-    // x = (i % (target_width // image_size)) * image_size
-    // y = (i // (target_width // image_size)) * image_size
-    const int cols = target_width / image_size;  // == grid_w
-    const int x = (i % cols) * image_size;
-    const int y = (i / cols) * image_size;
+  assert(static_cast<int>(processed_images.size()) == blocks);
 
-    // PIL-style crop with zero padding beyond bounds
-    Image tile = src.crop(x, y, x + image_size, y + image_size);
-    out.push_back(tile);
-
-    if (static_cast<int>(out.size()) >= max_num) { break; }
+  if (use_thumbnail && static_cast<int>(processed_images.size()) != 1) {
+    processed_images.push_back(src.resize(image_size, image_size));
   }
 
-  return out;
+  return {processed_images, target_aspect_ratio};
 }
 
 }  // namespace mllm::models::deepseek_ocr
