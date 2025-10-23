@@ -98,7 +98,7 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
           // step 1. im2col inputs to tmp
           auto packed_inputs = Tensor::empty({MATMUL_K, MATMUL_N}, input.dtype(), input.device()).alloc();
-          arm::conv2d_fp32_im2col_input(input.ptr<mllm_fp32_t>(), options_.in_channels, input.shape()[1], input.shape()[2],
+          arm::conv2d_fp32_im2col_input(input.ptr<mllm_fp32_t>(), options_.in_channels, input.shape()[2], input.shape()[3],
                                         kernel_size[0], kernel_size[1], padding[0], padding[1], stride[0], stride[1],
                                         dilation[0], dilation[1], packed_inputs.ptr<mllm_fp32_t>());
           // step 2. Do matmul
@@ -106,7 +106,17 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
             case aops::MatMulOpType::kBLAS: {
 #if defined(MLLM_USE_BLAS)
               blas::matmul_fp32(weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(),
-                                options_.bias ? bias_.ptr<mllm_fp32_t>() : nullptr, MATMUL_M, MATMUL_N, MATMUL_K, false, false);
+                                nullptr, MATMUL_M, MATMUL_N, MATMUL_K, false, false);
+
+              // Add Bias
+              if (options_.bias) {
+                auto out_ptr = output.ptr<mllm_fp32_t>();
+                const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
+                for (int m = 0; m < MATMUL_M; ++m) {
+                  const float b = bias_ptr[m];
+                  for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
+                }
+              }
 #else
               NYI("BLAS not supported. Pls set MLLM_USE_BLAS=ON to enable BLAS supports in cmake.");
 #endif
@@ -116,8 +126,16 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
               auto thread_count = options_.getThreads();
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
               arm::mllm_blas_matmul_fp32(MATMUL_M, MATMUL_K, MATMUL_N, output.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
-                                         packed_inputs.ptr<mllm_fp32_t>(), options_.bias ? bias_.ptr<mllm_fp32_t>() : nullptr,
-                                         false, false, thread_count);
+                                         packed_inputs.ptr<mllm_fp32_t>(), nullptr, false, false, thread_count);
+              // Add Bias
+              if (options_.bias) {
+                auto out_ptr = output.ptr<mllm_fp32_t>();
+                const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
+                for (int m = 0; m < MATMUL_M; ++m) {
+                  const float b = bias_ptr[m];
+                  for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
+                }
+              }
 #else
               NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
 #endif

@@ -1,4 +1,4 @@
-// Auto generated: 2025-10-22 14:54:07
+// Auto generated: 2025-10-23 14:44:05
 // do not modify this file
 #pragma once
 
@@ -72,6 +72,9 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_CosOp,
   RK_Op_LinalgIROp_PagedAttnOp,
   RK_Op_LinalgIROp_LayerNorm2DOp,
+  RK_Op_LinalgIROp_PadOp,
+  RK_Op_LinalgIROp_InterpolateOp,
+  RK_Op_LinalgIROp_EinsumOp,
   RK_Op_LinalgIROp_Last,
   RK_Op_GraphIROp,
   RK_Op_GraphIROp_SubGraphOp,

@@ -79,15 +79,14 @@ void conv2d_fp32_im2col_input(const float* input_data, const int channels, const
 
 void conv2d_fp32_im2col_weight(const float* src_weight, float* packed_weight, int out_channels, int in_channels, int kernel_h,
                                int kernel_w) {
-  int M = out_channels;
-  int K = in_channels * kernel_h * kernel_w;
-
+  // Original Weight: [Out, In, Kh, Kw]
+  // Packed Weight: [Out, In*Kh*Kw]
   for (int o = 0; o < out_channels; ++o) {
     for (int i = 0; i < in_channels; ++i) {
       for (int h = 0; h < kernel_h; ++h) {
         for (int w = 0; w < kernel_w; ++w) {
-          int src_idx = h * (kernel_w * in_channels * out_channels) + w * (in_channels * out_channels) + i * (out_channels) + o;
-          int dst_idx = o * (in_channels * kernel_h * kernel_w) + i * (kernel_h * kernel_w) + h * (kernel_w) + w;
+          int src_idx = o * (in_channels * kernel_h * kernel_w) + i * (kernel_h * kernel_w) + h * kernel_w + w;
+          int dst_idx = o * (in_channels * kernel_h * kernel_w) + i * (kernel_h * kernel_w) + h * kernel_w + w;
           packed_weight[dst_idx] = src_weight[src_idx];
         }
       }

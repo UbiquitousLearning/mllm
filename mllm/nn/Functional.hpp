@@ -9,6 +9,8 @@
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
+#include "mllm/core/aops/PadOp.hpp"
+#include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -131,5 +133,17 @@ void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim
 
 // If you want causal mask attention. Use Flash attention instead.
 Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor& V, const Tensor& mask = Tensor());
+
+// Pad: apply N-D padding. pad is ordered from the last to first dimension.
+Tensor pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode = aops::PadMode::kConstant, float value = 0.0f);
+
+// Interpolate by target size
+Tensor interpolate(const Tensor& x, const std::vector<int32_t>& size,
+                   aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false,
+                   bool keep_aspect_ratio = false);
+
+// Interpolate by scale factor
+Tensor interpolate(const Tensor& x, const std::vector<float>& scale_factor,
+                   aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false);
 
 }  // namespace mllm::nn::functional

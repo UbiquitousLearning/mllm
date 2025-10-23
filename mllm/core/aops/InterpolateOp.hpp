@@ -8,22 +8,25 @@
 
 namespace mllm::aops {
 
-enum class PadMode : uint8_t {
-  kConstant = 0,
-  kReflect = 1,
-  kReplicate = 2,
-  kCircular = 3,
+enum class InterpolateOpMode {
+  kNearest,
+  kLinear,
+  kBilinear,
+  kBicubic,
+  kTrilinear,
 };
 
-struct PadOpOptions : public BaseOpOptions<PadOpOptions> {
-  std::vector<int32_t> pad;          // padding sizes, starting from the last dimension
-  PadMode mode{PadMode::kConstant};  // padding mode
-  float value{0.0f};                 // padding value for constant mode
+struct InterpolateOpOptions : public BaseOpOptions<InterpolateOpOptions> {
+  std::vector<int> size;
+  std::vector<float> scale_factor;
+  InterpolateOpMode mode = InterpolateOpMode::kNearest;
+  bool align_corners = false;
+  bool keep_aspect_ratio = false;
 };
 
-class PadOp : public BaseOp {
+class InterpolateOp : public BaseOp {
  public:
-  explicit PadOp(const PadOpOptions& options);
+  explicit InterpolateOp(const InterpolateOpOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -35,10 +38,10 @@ class PadOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
-  inline const PadOpOptions& options() const { return options_; }
+  inline InterpolateOpOptions& options() { return options_; }
 
  protected:
-  PadOpOptions options_;
+  InterpolateOpOptions options_;
 };
 
 }  // namespace mllm::aops

@@ -102,5 +102,7 @@ LINALG_AOPS_DECL(OpTypes::kClip, ClipOp);
 LINALG_AOPS_DECL(OpTypes::kPagedAttn, PagedAttnOp);
 
 LINALG_AOPS_DECL(OpTypes::kLayerNorm2D, LayerNorm2DOp);
+LINALG_AOPS_DECL(OpTypes::kPad, PadOp);
+LINALG_AOPS_DECL(OpTypes::kInterpolate, InterpolateOp);
 
 }  // namespace mllm::ir::linalg

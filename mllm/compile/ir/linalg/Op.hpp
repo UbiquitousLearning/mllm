@@ -65,6 +65,8 @@ class SinOp;
 class CosOp;
 class PagedAttnOp;
 class LayerNorm2DOp;
+class PadOp;
+class InterpolateOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -215,5 +217,7 @@ LINALG_AOPS_DEFINE(ClipOp, CLIPOP);
 LINALG_AOPS_DEFINE(PagedAttnOp, PAGEDATTNOP);
 
 LINALG_AOPS_DEFINE(LayerNorm2DOp, LAYERNORM2DOP);
+LINALG_AOPS_DEFINE(PadOp, PADOP);
+LINALG_AOPS_DEFINE(InterpolateOp, INTERPOLATEOP);
 
 }  // namespace mllm::ir::linalg

@@ -14,6 +14,8 @@
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/core/aops/SiLUOp.hpp"
+#include "mllm/core/aops/PadOp.hpp"
+#include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -125,6 +127,29 @@ Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor&
   if (mask) { attn_weight = attn_weight + mask; }
   attn_weight = softmax(attn_weight, -1);
   return matmul(attn_weight, V);
+}
+
+Tensor pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode, float value) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kPad, aops::PadOpOptions{.pad = pad, .mode = mode, .value = value},
+                                                  {x})[0];
+}
+
+Tensor interpolate(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode, bool align_corners,
+                   bool keep_aspect_ratio) {
+  aops::InterpolateOpOptions opts{};
+  opts.size.assign(size.begin(), size.end());
+  opts.mode = mode;
+  opts.align_corners = align_corners;
+  opts.keep_aspect_ratio = keep_aspect_ratio;
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
+}
+
+Tensor interpolate(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode, bool align_corners) {
+  aops::InterpolateOpOptions opts{};
+  opts.scale_factor = scale_factor;
+  opts.mode = mode;
+  opts.align_corners = align_corners;
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
 }
 
 }  // namespace mllm::nn::functional

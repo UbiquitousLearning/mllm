@@ -112,7 +112,21 @@ class Conv2DKernelTest : public KernelTest {
 
   bool testConv2D(const std::vector<std::unordered_map<std::string, int32_t>>& cfgs) {
     for (auto& cfg : cfgs) {
-      if (!testConv2DOnce(cfg)) { return false; }
+      if (!testConv2DOnce(cfg)) {
+        auto in_channel = cfg.at("in_channel");
+        auto out_channel = cfg.at("out_channel");
+        auto I_H = cfg.at("I_H");
+        auto I_W = cfg.at("I_W");
+        auto K_H = cfg.at("K_H");
+        auto K_W = cfg.at("K_W");
+        auto S_H = cfg.at("S_H");
+        auto S_W = cfg.at("S_W");
+        auto P_H = cfg.at("P_H");
+        auto P_W = cfg.at("P_W");
+        auto bias = cfg.at("bias");
+        print(in_channel, out_channel, I_H, I_W, K_H, K_W, S_H, S_W, P_H, P_W, bias);
+        return false;
+      }
     }
     return true;
   }

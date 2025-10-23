@@ -45,7 +45,7 @@ template<typename T>
 class ModuleList;
 
 template<typename T>
-class ModuleListSuffix;
+class ModuleListSuffixed;
 
 class Module {
  public:

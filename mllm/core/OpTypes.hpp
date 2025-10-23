@@ -77,6 +77,10 @@ enum class OpTypes : int32_t {
   kScatter2Shards = 59,
   kLayerNorm2D = 60,
 
+  // Padding Op
+  kPad = 61,
+  kInterpolate = 62,
+
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
 
