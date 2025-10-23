@@ -7,7 +7,7 @@
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
-#include "mllm/core/aops/SiluOp.hpp"
+#include "mllm/core/aops/SiLUOp.hpp"
 #include <vector>
 
 namespace mllm::qnn {

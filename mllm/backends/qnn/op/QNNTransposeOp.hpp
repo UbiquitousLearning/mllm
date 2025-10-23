@@ -7,13 +7,12 @@
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
-#include "mllm/core/aops/transposeOp.hpp"
+#include "mllm/core/aops/TransposeOp.hpp"
 #include <vector>
 
 namespace mllm::qnn {
 
 class QNNTransposeOp final : public aops::TransposeOp {
-
  public:
   explicit QNNTransposeOp(const aops::TransposeOpOptions& options);
 

@@ -351,7 +351,7 @@ size_t Tensor::hash() const {
   auto* buf = stack_buf;
   size_t count = 1 + attached_views_.size();
   if (count > kStackCap) {
-    heap_buf.reserve(count);
+    heap_buf.resize(count);
     buf = heap_buf.data();
   }
   buf[0] = uuid();

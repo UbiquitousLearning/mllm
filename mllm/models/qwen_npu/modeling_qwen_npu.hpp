@@ -23,8 +23,8 @@ inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
-    -> std::pair<Tensor, Tensor> {
+inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
+                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -497,7 +497,13 @@ class QwenForCausalLM : public nn::Module, public ARGeneration {
     }
 
     Tensor logits;
-    if (!tie_word_embeddings_) { logits = lm_head_(hidden_states); }
+    if (!tie_word_embeddings_) {
+      logits = lm_head_(hidden_states);
+    } else {
+      // tie with embedding weights: [B,1,H] @ [V,H]^T -> [B,1,V]
+      auto emb_w = model.embedding_.weight();  // shape [V, H]
+      logits = nn::functional::matmul(hidden_states, emb_w, /*trans_a=*/false, /*trans_b=*/true);
+    }
 
     return {
         {"sequence", logits},

@@ -4,7 +4,6 @@
 #include "mllm/backends/qnn/op/QNNViewOp.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
-#include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Log.hpp"
 #include <cstring>
 #include <numeric>

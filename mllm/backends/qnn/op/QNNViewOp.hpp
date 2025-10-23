@@ -7,13 +7,12 @@
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
-#include "mllm/core/aops/viewOp.hpp"
+#include "mllm/core/aops/ViewOp.hpp"
 #include <vector>
 
 namespace mllm::qnn {
 
 class QNNViewOp final : public aops::ViewOp {
-
  public:
   explicit QNNViewOp(const aops::ViewOpOptions& options);
 

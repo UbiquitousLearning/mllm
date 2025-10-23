@@ -7,7 +7,6 @@
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
-#include "mllm/utils/Log.hpp"
 
 // -------------------- Custom QNN Layers --------------------
 namespace mllm::nn::qnn {
