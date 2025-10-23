@@ -17,6 +17,11 @@
 namespace mllm::models::deepseek_ocr {
 
 //===----------------------------------------------------------------------===//
+// MLP Projector For Mapping Visual Tokens to Text Token Space
+//===----------------------------------------------------------------------===//
+// TODO
+
+//===----------------------------------------------------------------------===//
 // CLIP
 //
 // CLIP params is hard coded. Just like what deepseek official model does.
@@ -95,61 +100,8 @@ class CLIPVisionEmbeddings final : public nn::Module {
     if (src_size != tgt_size) {
       old_pos_embed = old_pos_embed.view({1, src_size, src_size, dim}).permute({0, 3, 1, 2});
       old_pos_embed = old_pos_embed.to(kFloat32);
-
-      auto new_pos_embed = Tensor::empty({tgt_size, tgt_size}, kFloat32, kCPU).alloc();
-
-      // F.interpolate here.
-      {
-        const int channels = old_pos_embed.shape()[1];
-
-        auto old_pos_embed_ptr = old_pos_embed.ptr<mllm_fp32_t>();
-        auto new_pos_embed_ptr = new_pos_embed.ptr<mllm_fp32_t>();
-
-        auto cubic_kernel = [](float x) -> float {
-          constexpr float a = -0.5f;
-          x = std::abs(x);
-          if (x < 1.0f) {
-            return (a + 2.0f) * x * x * x - (a + 3.0f) * x * x + 1.0f;
-          } else if (x < 2.0f) {
-            return a * x * x * x - 5.0f * a * x * x + 8.0f * a * x - 4.0f * a;
-          } else {
-            return 0.0f;
-          }
-        };
-
-        const float scale_y = static_cast<float>(src_size) / tgt_size;
-        const float scale_x = static_cast<float>(src_size) / tgt_size;
-
-        for (int c = 0; c < channels; ++c) {
-          const float* src_channel_ptr = old_pos_embed_ptr + c * src_size * src_size;
-          float* dst_channel_ptr = new_pos_embed_ptr + c * tgt_size * tgt_size;
-
-          for (int j = 0; j < tgt_size; ++j) {
-            for (int i = 0; i < tgt_size; ++i) {
-              float src_y = (static_cast<float>(j) + 0.5f) * scale_y - 0.5f;
-              float src_x = (static_cast<float>(i) + 0.5f) * scale_x - 0.5f;
-
-              int y0 = static_cast<int>(std::floor(src_y)) - 1;
-              int x0 = static_cast<int>(std::floor(src_x)) - 1;
-
-              float total_weight = 0.0f;
-
-              for (int m = 0; m < 4; ++m) {
-                for (int n = 0; n < 4; ++n) {
-                  int cur_y = y0 + m;
-                  int cur_x = x0 + n;
-                  cur_y = std::max(0, std::min(src_size - 1, cur_y));
-                  cur_x = std::max(0, std::min(src_size - 1, cur_x));
-                  float weight_y = cubic_kernel(src_y - (y0 + m));
-                  float weight_x = cubic_kernel(src_x - (x0 + n));
-                  total_weight += src_channel_ptr[cur_y * src_size + cur_x] * weight_y * weight_x;
-                }
-              }
-              dst_channel_ptr[j * tgt_size + i] = total_weight;
-            }
-          }
-        }
-      }
+      auto new_pos_embed = nn::functional::interpolateBySize(old_pos_embed, {tgt_size, tgt_size},
+                                                             aops::InterpolateOpMode::kBicubic, false, true);
       new_pos_embed = new_pos_embed.permute({0, 2, 3, 1});
       new_pos_embed = new_pos_embed.view({tgt_size * tgt_size, dim});
       auto vision_pos_embed = nn::functional::concat({cls_token, new_pos_embed}, 0);
@@ -403,34 +355,19 @@ class Attention final : public nn::Module {
     }
   }
 
-  Tensor __interpolateLinear1d(const Tensor& input, int output_size) {
-    auto output = Tensor::empty({output_size, input.size(1)}).alloc();
-    int input_size = input.size(0);
-    float scale_factor = static_cast<float>(input_size - 1) / (output_size - 1);
-
-    for (int i = 0; i < output_size; ++i) {
-      float in_x = i * scale_factor;
-      int x0 = static_cast<int>(floor(in_x));
-      int x1 = std::min(x0 + 1, input_size - 1);
-      float w1 = in_x - x0;
-      float w0 = 1.0f - w1;
-
-      for (int c = 0; c < input.size(1); ++c) {
-        float val =
-            w0 * input.ptr<mllm_fp32_t>()[x0 * input.size(1) + c] + w1 * input.ptr<mllm_fp32_t>()[x1 * input.size(1) + c];
-        *output.offsettedPtr<mllm_fp32_t>({i, c}) = val;
-      }
-    }
-    return output;
-  }
-
   // Get relative positional embeddings according to the relative positions of query and key sizes.
-  Tensor getRelPos(int q_size, int k_size, const Tensor& rel_pos) {
+  Tensor getRelPos(int q_size, int k_size, const Tensor& rel_pos_) {
+    auto rel_pos = rel_pos_;
     auto max_rel_dist = 2 * std::max(q_size, k_size) - 1;
     Tensor rel_pos_resized = Tensor::nil();
 
     if (rel_pos.size(0) != max_rel_dist) {
-      rel_pos_resized = __interpolateLinear1d(rel_pos, max_rel_dist);
+      auto dtype = rel_pos.dtype();
+      rel_pos = rel_pos.to(kFloat32);
+      rel_pos_resized = nn::functional::interpolateBySize(rel_pos.view({1, rel_pos.size(0), -1}).permute({0, 2, 1}),
+                                                          {max_rel_dist}, aops::InterpolateOpMode::kLinear)
+                            .to(dtype);
+      rel_pos_resized = rel_pos_resized.view({-1, max_rel_dist}).permute({1, 0});
     } else {
       rel_pos_resized = rel_pos;
     }
@@ -442,7 +379,6 @@ class Attention final : public nn::Module {
     float k_scale = std::max((float)q_size / k_size, 1.0f);
 
     for (int i = 0; i < q_size; ++i) { q_coords[i] = i * q_scale; }
-
     for (int i = 0; i < k_size; ++i) { k_coords[i] = i * k_scale; }
 
     float offset = (k_size - 1) * k_scale;
@@ -610,32 +546,7 @@ class Block final : public nn::Module {
     auto pad_h = (window_size - H % window_size) % window_size;
     auto pad_w = (window_size - W % window_size) % window_size;
 
-    if (pad_h > 0 || pad_w > 0) {
-      // Do x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
-      const auto& x_shape = x.shape();
-      const int in_c = x_shape[0];
-      const int in_h = x_shape[1];
-      const int in_w = x_shape[2];
-
-      const int out_h = in_h + pad_h;
-      const int out_w = in_w + pad_w;
-      std::vector<int> out_shape = {in_c, out_h, out_w};
-
-      Tensor padded_x = Tensor::empty(out_shape).alloc();
-
-      mllm_fp32_t* x_data_ptr = x.ptr<mllm_fp32_t>();
-      mllm_fp32_t* padded_x_data_ptr = padded_x.ptr<mllm_fp32_t>();
-
-      for (int c = 0; c < in_c; ++c) {
-        for (int h = 0; h < in_h; ++h) {
-          for (int w = 0; w < in_w; ++w) {
-            int src_idx = c * (in_h * in_w) + h * in_w + w;
-            int dest_idx = c * (out_h * out_w) + h * out_w + w;
-            padded_x_data_ptr[dest_idx] = x_data_ptr[src_idx];
-          }
-        }
-      }
-    }
+    if (pad_h > 0 || pad_w > 0) { x = nn::functional::pad(x, {0, 0, 0, pad_w, 0, pad_h}); }
 
     auto Hp = H + pad_h;
     auto Wp = W + pad_w;
@@ -741,11 +652,6 @@ class ImageEncoderViT final : public nn::Module {
                              Tensor::shape_t{1, 1}, false);
   }
 
-  template<typename T>
-  T __cubicInterpolate(T p0, T p1, T p2, T p3, float t) {
-    return p1 + 0.5f * t * (p2 - p0 + t * (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3 + t * (3.0f * (p1 - p2) + p3 - p0)));
-  }
-
   Tensor getAbsPosSam(Tensor abs_pos, int tgt_size) {
     auto dtype = abs_pos.dtype();
     auto src_size = abs_pos.size(1);
@@ -753,53 +659,9 @@ class ImageEncoderViT final : public nn::Module {
     if (src_size != tgt_size) {
       auto old_pos_embed = abs_pos.permute({0, 3, 1, 2});
       old_pos_embed = old_pos_embed.to(kFloat32);
-
-      const int batch_size = old_pos_embed.size(0);
-      const int channels = old_pos_embed.size(1);
-      const int src_h = old_pos_embed.size(2);
-      const int src_w = old_pos_embed.size(3);
-      const int tgt_h = tgt_size;
-      const int tgt_w = tgt_size;
-
-      auto new_pos_embed = Tensor::empty({batch_size, channels, tgt_h, tgt_w}, kFloat32).alloc();
-
-      const float* src_data = old_pos_embed.ptr<float>();
-      float* dst_data = new_pos_embed.ptr<float>();
-
-      const float height_scale = static_cast<float>(src_h) / tgt_h;
-      const float width_scale = static_cast<float>(src_w) / tgt_w;
-      for (int b = 0; b < batch_size; ++b) {
-        for (int c = 0; c < channels; ++c) {
-          const float* current_src_channel = src_data + (b * channels + c) * src_h * src_w;
-          float* current_dst_channel = dst_data + (b * channels + c) * tgt_h * tgt_w;
-
-          for (int y_tgt = 0; y_tgt < tgt_h; ++y_tgt) {
-            for (int x_tgt = 0; x_tgt < tgt_w; ++x_tgt) {
-              float y_src = (static_cast<float>(y_tgt) + 0.5f) * height_scale - 0.5f;
-              float x_src = (static_cast<float>(x_tgt) + 0.5f) * width_scale - 0.5f;
-
-              int y_floor = static_cast<int>(std::floor(y_src));
-              int x_floor = static_cast<int>(std::floor(x_src));
-              float y_frac = y_src - y_floor;
-              float x_frac = x_src - x_floor;
-
-              float p[4][4];
-              for (int i = 0; i < 4; ++i) {
-                for (int j = 0; j < 4; ++j) {
-                  int y_coord = std::max(0, std::min(src_h - 1, y_floor - 1 + i));
-                  int x_coord = std::max(0, std::min(src_w - 1, x_floor - 1 + j));
-                  p[i][j] = current_src_channel[y_coord * src_w + x_coord];
-                }
-              }
-              float col[4];
-              for (int i = 0; i < 4; ++i) { col[i] = __cubicInterpolate(p[i][0], p[i][1], p[i][2], p[i][3], x_frac); }
-              float value = __cubicInterpolate(col[0], col[1], col[2], col[3], y_frac);
-              current_dst_channel[y_tgt * tgt_w + x_tgt] = value;
-            }
-          }
-        }
-      }
-      new_pos_embed = new_pos_embed.to(dtype);
+      // clang-format off
+      auto new_pos_embed = nn::functional::interpolateBySize(old_pos_embed, {tgt_size, tgt_size}, aops::InterpolateOpMode::kBicubic, false, true).to(dtype);
+      // clang-format on
       new_pos_embed = new_pos_embed.permute({0, 2, 3, 1});
       return new_pos_embed;
     } else {

@@ -353,6 +353,7 @@ void CPUInterpolateOp::forward(const std::vector<Tensor>& inputs, std::vector<Te
   // Get options
   const auto& mode = options().mode;
   const bool align_corners = options().align_corners;
+  const bool antialias = options().antialias;
 
   // Allocate output tensor if not already allocated
   if (Y.isNil() || Y.numel() == 0) { Y = Tensor::empty(output_shape, X.dtype(), X.device()).alloc(); }
@@ -361,6 +362,59 @@ void CPUInterpolateOp::forward(const std::vector<Tensor>& inputs, std::vector<Te
     case kFloat32: {
       const float* input_data = X.ptr<float>();
       float* output_data = Y.ptr<float>();
+
+      // Gaussian blur utility (separable) for NCHW
+      auto gaussian_blur_nchw = [&](const float* src, int N, int C, int H, int W, float sigma) {
+        int radius = std::max(1, static_cast<int>(std::ceil(3.f * sigma)));
+        std::vector<float> kernel(2 * radius + 1);
+        float sumw = 0.f;
+        for (int i = -radius; i <= radius; ++i) {
+          float w = std::exp(-(i * i) / (2.f * sigma * sigma));
+          kernel[i + radius] = w;
+          sumw += w;
+        }
+        for (float& w : kernel) { w /= sumw; }
+
+        size_t numel = static_cast<size_t>(N) * C * H * W;
+        std::vector<float> tmp(numel, 0.f);
+        std::vector<float> dst(numel, 0.f);
+
+        // Horizontal pass
+        for (int n = 0; n < N; ++n) {
+          for (int c = 0; c < C; ++c) {
+            for (int h = 0; h < H; ++h) {
+              for (int w = 0; w < W; ++w) {
+                float acc = 0.f;
+                for (int k = -radius; k <= radius; ++k) {
+                  int x = std::min(std::max(w + k, 0), W - 1);
+                  size_t idx = ((static_cast<size_t>(n) * C + c) * H + h) * W + x;
+                  acc += kernel[k + radius] * src[idx];
+                }
+                size_t oidx = ((static_cast<size_t>(n) * C + c) * H + h) * W + w;
+                tmp[oidx] = acc;
+              }
+            }
+          }
+        }
+        // Vertical pass
+        for (int n = 0; n < N; ++n) {
+          for (int c = 0; c < C; ++c) {
+            for (int h = 0; h < H; ++h) {
+              for (int w = 0; w < W; ++w) {
+                float acc = 0.f;
+                for (int k = -radius; k <= radius; ++k) {
+                  int y = std::min(std::max(h + k, 0), H - 1);
+                  size_t idx = ((static_cast<size_t>(n) * C + c) * H + y) * W + w;
+                  acc += kernel[k + radius] * tmp[idx];
+                }
+                size_t oidx = ((static_cast<size_t>(n) * C + c) * H + h) * W + w;
+                dst[oidx] = acc;
+              }
+            }
+          }
+        }
+        return dst;
+      };
 
       // Choose interpolation method based on mode and input dimensions
       if (mode == aops::InterpolateOpMode::kNearest) {
@@ -410,13 +464,39 @@ void CPUInterpolateOp::forward(const std::vector<Tensor>& inputs, std::vector<Te
         }
       } else if (mode == aops::InterpolateOpMode::kBilinear) {
         if (input_dim == 4) {  // NCHW format
-          bilinear_interpolate_2d<float>(input_data, output_data, input_shape, output_shape, align_corners);
+          // Antialias for downsampling
+          std::vector<float> scale_factors;
+          compute_scale_factors({input_shape[2], input_shape[3]}, {output_shape[2], output_shape[3]}, scale_factors,
+                                align_corners);
+          const float h_scale = scale_factors[0];
+          const float w_scale = scale_factors[1];
+          const float* src_ptr = input_data;
+          std::vector<float> blurred;
+          if (antialias && (h_scale > 1.f || w_scale > 1.f)) {
+            float sigma = 0.5f * std::max(h_scale, w_scale);
+            blurred = gaussian_blur_nchw(input_data, input_shape[0], input_shape[1], input_shape[2], input_shape[3], sigma);
+            src_ptr = blurred.data();
+          }
+          bilinear_interpolate_2d<float>(src_ptr, output_data, input_shape, output_shape, align_corners);
         } else {
           NYI("CPUInterpolateOp::forward bilinear mode only supports 4D input (NCHW format)");
         }
       } else if (mode == aops::InterpolateOpMode::kBicubic) {
         if (input_dim == 4) {  // NCHW format
-          bicubic_interpolate_2d<float>(input_data, output_data, input_shape, output_shape, align_corners);
+          // Antialias for downsampling
+          std::vector<float> scale_factors;
+          compute_scale_factors({input_shape[2], input_shape[3]}, {output_shape[2], output_shape[3]}, scale_factors,
+                                align_corners);
+          const float h_scale = scale_factors[0];
+          const float w_scale = scale_factors[1];
+          const float* src_ptr = input_data;
+          std::vector<float> blurred;
+          if (antialias && (h_scale > 1.f || w_scale > 1.f)) {
+            float sigma = 0.5f * std::max(h_scale, w_scale);
+            blurred = gaussian_blur_nchw(input_data, input_shape[0], input_shape[1], input_shape[2], input_shape[3], sigma);
+            src_ptr = blurred.data();
+          }
+          bicubic_interpolate_2d<float>(src_ptr, output_data, input_shape, output_shape, align_corners);
         } else {
           NYI("CPUInterpolateOp::forward bicubic mode only supports 4D input (NCHW format)");
         }

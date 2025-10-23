@@ -21,7 +21,7 @@ struct InterpolateOpOptions : public BaseOpOptions<InterpolateOpOptions> {
   std::vector<float> scale_factor;
   InterpolateOpMode mode = InterpolateOpMode::kNearest;
   bool align_corners = false;
-  bool keep_aspect_ratio = false;
+  bool antialias = false;
 };
 
 class InterpolateOp : public BaseOp {

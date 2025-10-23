@@ -138,12 +138,13 @@ Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor&
 Tensor pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode = aops::PadMode::kConstant, float value = 0.0f);
 
 // Interpolate by target size
-Tensor interpolate(const Tensor& x, const std::vector<int32_t>& size,
-                   aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false,
-                   bool keep_aspect_ratio = false);
+Tensor interpolateBySize(const Tensor& x, const std::vector<int32_t>& size,
+                         aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false,
+                         bool antialias = false);
 
 // Interpolate by scale factor
-Tensor interpolate(const Tensor& x, const std::vector<float>& scale_factor,
-                   aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false);
+Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_factor,
+                          aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false,
+                          bool antialias = false);
 
 }  // namespace mllm::nn::functional

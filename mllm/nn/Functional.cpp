@@ -134,21 +134,23 @@ Tensor pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode,
                                                   {x})[0];
 }
 
-Tensor interpolate(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode, bool align_corners,
-                   bool keep_aspect_ratio) {
+Tensor interpolateBySize(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode, bool align_corners,
+                         bool antialias) {
   aops::InterpolateOpOptions opts{};
   opts.size.assign(size.begin(), size.end());
   opts.mode = mode;
   opts.align_corners = align_corners;
-  opts.keep_aspect_ratio = keep_aspect_ratio;
+  opts.antialias = antialias;
   return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
 }
 
-Tensor interpolate(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode, bool align_corners) {
+Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode,
+                          bool align_corners, bool antialias) {
   aops::InterpolateOpOptions opts{};
   opts.scale_factor = scale_factor;
   opts.mode = mode;
   opts.align_corners = align_corners;
+  opts.antialias = antialias;
   return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
 }
 

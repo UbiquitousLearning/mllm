@@ -9,7 +9,7 @@
 
 namespace mllm::aops {
 
-InterpolateOp::InterpolateOp(const InterpolateOpOptions& options) : BaseOp(OpTypes::kSiLU), options_(options) {}
+InterpolateOp::InterpolateOp(const InterpolateOpOptions& options) : BaseOp(OpTypes::kInterpolate), options_(options) {}
 
 void InterpolateOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
@@ -57,19 +57,6 @@ void InterpolateOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tenso
     for (size_t i = 0; i < options_.scale_factor.size(); ++i) {
       output_shape[offset + i] = static_cast<int>(input_shape[offset + i] * options_.scale_factor[i]);
     }
-  }
-
-  // If keep_aspect_ratio is true, adjust dimensions to maintain aspect ratio
-  if (options_.keep_aspect_ratio && !options_.size.empty() && options_.size.size() >= 2) {
-    // This is typically used for image resizing where we want to maintain aspect ratio
-    // We'll implement a simple version that scales based on the smaller dimension
-    const int offset = input_dim - static_cast<int>(options_.size.size());
-    float h_scale = static_cast<float>(options_.size[0]) / input_shape[offset];
-    float w_scale = static_cast<float>(options_.size[1]) / input_shape[offset + 1];
-
-    float scale = std::min(h_scale, w_scale);
-    output_shape[offset] = static_cast<int>(input_shape[offset] * scale);
-    output_shape[offset + 1] = static_cast<int>(input_shape[offset + 1] * scale);
   }
 
   // Create output tensor with the calculated shape

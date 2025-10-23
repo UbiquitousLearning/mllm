@@ -88,7 +88,7 @@ Shape Operations
    :param value: Constant value used when mode is kConstant. Default: 0.0
    :return: Padded tensor
 
-.. cpp:function:: Tensor mllm::nn::functional::interpolate(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false, bool keep_aspect_ratio = false)
+.. cpp:function:: Tensor mllm::nn::functional::interpolate(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false, bool antialias = false)
 
    Resize a tensor to the target spatial size.
 
@@ -96,8 +96,7 @@ Shape Operations
    :param size: Target spatial size (e.g., [H_out, W_out] for 2D)
    :param mode: Interpolation mode (kNearest, kLinear, kBilinear, kBicubic, kTrilinear). Default: kNearest
    :param align_corners: Align corners for linear/bilinear/trilinear interpolation. Default: false
-   :param keep_aspect_ratio: Keep aspect ratio when size is provided (handled by AOP). Default: false
-   :return: Resized tensor
+      :return: Resized tensor
 
 .. cpp:function:: Tensor mllm::nn::functional::interpolate(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false)
 
