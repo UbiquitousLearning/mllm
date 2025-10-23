@@ -221,7 +221,7 @@ class NoTPAttention final : public nn::Module {
  public:
   NoTPAttention() = default;
 
-  NoTPAttention(const std::string& name, const DpskOcrConfig& config) {
+  NoTPAttention(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
     num_heads_ = 16;
     n_local_heads_ = 16;
     head_dim_ = 1024 / 16;
@@ -232,7 +232,6 @@ class NoTPAttention final : public nn::Module {
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
-    // TODO
     auto& x = inputs[0];
     auto bsz = x.size(0);
     auto seqlen = x.size(1);
@@ -241,15 +240,18 @@ class NoTPAttention final : public nn::Module {
     xqkv = xqkv.view({bsz, seqlen, 3, num_heads_, head_dim_});
     auto [xq, xk, xv] = nn::functional::split<3>(xqkv, 2);
 
-    // TODO need squeeze ?
+    xq = xq.squeeze(2);
+    xk = xk.squeeze(2);
+    xv = xv.squeeze(2);
 
-    // TODO permute ?
+    xq = xq.permute({0, 2, 1, 3});
+    xk = xk.permute({0, 2, 1, 3});
+    xv = xv.permute({0, 2, 1, 3});
 
-    // TODO FA without mask
-
-    // TODO outproj.
-
-    return {};
+    auto output = nn::functional::scaledDotProductAttention(xq, xk, xv);
+    output = output.permute({0, 2, 1, 3}).reshape({bsz, seqlen, -1});
+    output = out_proj_(output);
+    return {output};
   }
 };
 
@@ -609,9 +611,32 @@ class Block final : public nn::Module {
     auto pad_w = (window_size - W % window_size) % window_size;
 
     if (pad_h > 0 || pad_w > 0) {
-      // TODO do pad
-      //  x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
+      // Do x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
+      const auto& x_shape = x.shape();
+      const int in_c = x_shape[0];
+      const int in_h = x_shape[1];
+      const int in_w = x_shape[2];
+
+      const int out_h = in_h + pad_h;
+      const int out_w = in_w + pad_w;
+      std::vector<int> out_shape = {in_c, out_h, out_w};
+
+      Tensor padded_x = Tensor::empty(out_shape).alloc();
+
+      mllm_fp32_t* x_data_ptr = x.ptr<mllm_fp32_t>();
+      mllm_fp32_t* padded_x_data_ptr = padded_x.ptr<mllm_fp32_t>();
+
+      for (int c = 0; c < in_c; ++c) {
+        for (int h = 0; h < in_h; ++h) {
+          for (int w = 0; w < in_w; ++w) {
+            int src_idx = c * (in_h * in_w) + h * in_w + w;
+            int dest_idx = c * (out_h * out_w) + h * out_w + w;
+            padded_x_data_ptr[dest_idx] = x_data_ptr[src_idx];
+          }
+        }
+      }
     }
+
     auto Hp = H + pad_h;
     auto Wp = W + pad_w;
 
@@ -716,10 +741,76 @@ class ImageEncoderViT final : public nn::Module {
                              Tensor::shape_t{1, 1}, false);
   }
 
+  template<typename T>
+  T __cubicInterpolate(T p0, T p1, T p2, T p3, float t) {
+    return p1 + 0.5f * t * (p2 - p0 + t * (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3 + t * (3.0f * (p1 - p2) + p3 - p0)));
+  }
+
+  Tensor getAbsPosSam(Tensor abs_pos, int tgt_size) {
+    auto dtype = abs_pos.dtype();
+    auto src_size = abs_pos.size(1);
+
+    if (src_size != tgt_size) {
+      auto old_pos_embed = abs_pos.permute({0, 3, 1, 2});
+      old_pos_embed = old_pos_embed.to(kFloat32);
+
+      const int batch_size = old_pos_embed.size(0);
+      const int channels = old_pos_embed.size(1);
+      const int src_h = old_pos_embed.size(2);
+      const int src_w = old_pos_embed.size(3);
+      const int tgt_h = tgt_size;
+      const int tgt_w = tgt_size;
+
+      auto new_pos_embed = Tensor::empty({batch_size, channels, tgt_h, tgt_w}, kFloat32).alloc();
+
+      const float* src_data = old_pos_embed.ptr<float>();
+      float* dst_data = new_pos_embed.ptr<float>();
+
+      const float height_scale = static_cast<float>(src_h) / tgt_h;
+      const float width_scale = static_cast<float>(src_w) / tgt_w;
+      for (int b = 0; b < batch_size; ++b) {
+        for (int c = 0; c < channels; ++c) {
+          const float* current_src_channel = src_data + (b * channels + c) * src_h * src_w;
+          float* current_dst_channel = dst_data + (b * channels + c) * tgt_h * tgt_w;
+
+          for (int y_tgt = 0; y_tgt < tgt_h; ++y_tgt) {
+            for (int x_tgt = 0; x_tgt < tgt_w; ++x_tgt) {
+              float y_src = (static_cast<float>(y_tgt) + 0.5f) * height_scale - 0.5f;
+              float x_src = (static_cast<float>(x_tgt) + 0.5f) * width_scale - 0.5f;
+
+              int y_floor = static_cast<int>(std::floor(y_src));
+              int x_floor = static_cast<int>(std::floor(x_src));
+              float y_frac = y_src - y_floor;
+              float x_frac = x_src - x_floor;
+
+              float p[4][4];
+              for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                  int y_coord = std::max(0, std::min(src_h - 1, y_floor - 1 + i));
+                  int x_coord = std::max(0, std::min(src_w - 1, x_floor - 1 + j));
+                  p[i][j] = current_src_channel[y_coord * src_w + x_coord];
+                }
+              }
+              float col[4];
+              for (int i = 0; i < 4; ++i) { col[i] = __cubicInterpolate(p[i][0], p[i][1], p[i][2], p[i][3], x_frac); }
+              float value = __cubicInterpolate(col[0], col[1], col[2], col[3], y_frac);
+              current_dst_channel[y_tgt * tgt_w + x_tgt] = value;
+            }
+          }
+        }
+      }
+      new_pos_embed = new_pos_embed.to(dtype);
+      new_pos_embed = new_pos_embed.permute({0, 2, 3, 1});
+      return new_pos_embed;
+    } else {
+      return abs_pos;
+    }
+  }
+
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     x = patch_embed_(x)[0];
-    // TODO x = x + get_abs_pos_sam(self.pos_embed, x.size(1))
+    x = x + getAbsPosSam(pos_embed_.weight(), x.size(1));
     for (auto& blk : blocks_.list()) { x = blk(x)[0]; }
 
     x = neck_(x.permute({0, 3, 1, 2}))[0];
