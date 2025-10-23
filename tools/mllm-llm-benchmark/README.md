@@ -1,15 +1,15 @@
 # MLLM LLM Benchmark Tool
 
-## 概述
+## Overview
 
-这是一个用于测试 MLLM 模型性能的基准测试工具，可以测量：
-- **TTFT (Time To First Token)**: 首 token 延迟
-- **Prefill Speed**: 预填充速度 (tokens/s)
-- **Decode Speed**: 解码生成速度 (tokens/s)
+This is a benchmark tool for measuring MLLM model performance, including:
+- **TTFT (Time To First Token)**: Time to first token latency
+- **Prefill Speed**: Prefill speed (tokens/s)
+- **Decode Speed**: Decode generation speed (tokens/s)
 
-## 编译
+## Build
 
-在 mllm_v2 项目根目录下编译：
+Build from the mllm_v2 project root directory:
 
 ```bash
 mkdir -p build && cd build
@@ -17,9 +17,9 @@ cmake ..
 make mllm-llm-benchmark
 ```
 
-## 使用方法
+## Usage
 
-### 基本用法
+### Basic Usage
 
 ```bash
 ./mllm-llm-benchmark \
@@ -32,21 +32,21 @@ make mllm-llm-benchmark
   -cl 2048
 ```
 
-### 参数说明
+### Parameters
 
-| 参数 | 长格式 | 说明 | 示例 |
-|------|--------|------|------|
-| `-n` | `--model_name` | 模型名称（用于选择正确的 benchmark 实现） | `qwen3-w4a32-kai` |
-| `-m` | `--model_path` | 模型权重文件路径 | `/path/to/model.mllm` |
-| `-c` | `--config_path` | 模型配置文件路径 | `/path/to/config.json` |
-| `-t` | `--threads` | CPU 线程数 | `4` |
-| `-pp` | `--prompt_length` | 提示词长度列表（逗号分隔） | `64,128,256` |
-| `-tg` | `--test_generation_length` | 生成长度列表（逗号分隔，需与 pp 数量一致） | `100,200,300` |
-| `-cl` | `--cache_length` | KV 缓存最大长度 | `2048` |
+| Parameter | Long Format | Description | Example |
+|-----------|-------------|-------------|---------|
+| `-n` | `--model_name` | Model name (used to select the correct benchmark implementation) | `qwen3-w4a32-kai` |
+| `-m` | `--model_path` | Model weight file path | `/path/to/model.mllm` |
+| `-c` | `--config_path` | Model configuration file path | `/path/to/config.json` |
+| `-t` | `--threads` | Number of CPU threads | `4` |
+| `-pp` | `--prompt_length` | Prompt length list (comma-separated) | `64,128,256` |
+| `-tg` | `--test_generation_length` | Generation length list (comma-separated, must match pp count) | `100,200,300` |
+| `-cl` | `--cache_length` | Maximum KV cache length | `2048` |
 
-### 示例
+### Examples
 
-#### 测试 Qwen3-0.6B 模型
+#### Testing Qwen3-0.6B Model
 
 ```bash
 ./mllm-llm-benchmark \
@@ -59,7 +59,7 @@ make mllm-llm-benchmark
   -cl 2048
 ```
 
-#### 快速测试（单个配置）
+#### Quick Test (Single Configuration)
 
 ```bash
 ./mllm-llm-benchmark \
@@ -72,7 +72,7 @@ make mllm-llm-benchmark
   -cl 2048
 ```
 
-## 输出示例
+## Output Example
 
 ```
 MLLM Build Version : abc123def456
@@ -130,20 +130,20 @@ Benchmark Tests Completed
 ========================================
 ```
 
-## 测试流程
+## Test Workflow
 
-每个测试配置会执行以下步骤：
+Each test configuration executes the following steps:
 
-1. **清理缓存** - 确保每次测试从干净状态开始
-2. **运行 3 轮测试** - 每轮之间休眠 5 秒以避免过热
-3. **计算平均值** - 对 3 轮结果求平均
-4. **输出结果** - 显示 TTFT、Prefill Speed、Decode Speed
+1. **Clear Cache** - Ensures each test starts from a clean state
+2. **Run 3 Test Rounds** - 5-second sleep between rounds to avoid overheating
+3. **Calculate Average** - Average results from 3 rounds
+4. **Output Results** - Display TTFT, Prefill Speed, Decode Speed
 
-## 添加新模型支持
+## Adding New Model Support
 
-### 1. 创建新的 Benchmark 类
+### 1. Create New Benchmark Class
 
-在 `models/` 目录下创建 `YourModel_Benchmark.hpp`：
+Create `YourModel_Benchmark.hpp` in the `models/` directory:
 
 ```cpp
 #include "BenchmarkTemplate.hpp"
@@ -152,23 +152,23 @@ Benchmark Tests Completed
 class YourModel_Benchmark final : public BenchmarkTemplate {
  public:
   void init(const std::string& cfg_path, const std::string& model_path, int32_t cache_length) override {
-    // 初始化你的模型
+    // Initialize your model
   }
   
   void printModelInfo() override {
-    // 打印模型信息
+    // Print model information
   }
   
   void warmup() override {
-    // 预热运行
+    // Warmup run
   }
   
   void clear() override {
-    // 清理 KV 缓存
+    // Clear KV cache
   }
   
   BenchmarkTemplateResult run(int32_t pp, int32_t tg) override {
-    // 运行测试并返回结果
+    // Run test and return results
   }
   
  private:
@@ -177,7 +177,7 @@ class YourModel_Benchmark final : public BenchmarkTemplate {
 };
 ```
 
-### 2. 在 All.hpp 中注册
+### 2. Register in All.hpp
 
 ```cpp
 #include "YourModel_Benchmark.hpp"
@@ -185,33 +185,33 @@ class YourModel_Benchmark final : public BenchmarkTemplate {
 std::shared_ptr<BenchmarkTemplate> createBenchmark(const std::string& model_name) {
   auto normalized_model_name = tolower(model_name);
   
-  // 添加你的模型判断
+  // Add your model check
   if (normalized_model_name.find("yourmodel") != std::string::npos) {
     return std::make_shared<YourModel_Benchmark>();
   }
   
-  // ... 其他模型
+  // ... other models
 }
 ```
 
-## 注意事项
+## Notes
 
-- 确保有足够的内存用于模型加载和推理
-- 每轮测试之间会休眠 5 秒，以避免设备过热影响结果
-- TTFT 以毫秒为单位，速度以 tokens/s 为单位
-- 每个配置会运行 3 轮并取平均值，以获得更稳定的结果
+- Ensure sufficient memory for model loading and inference
+- 5-second sleep between test rounds to avoid device overheating affecting results
+- TTFT is in milliseconds, speed is in tokens/s
+- Each configuration runs 3 rounds and averages results for more stable measurements
 
-## 故障排查
+## Troubleshooting
 
-### 错误：Model not initialized
-- 检查模型路径是否正确
-- 确认配置文件格式正确
+### Error: Model not initialized
+- Check if model path is correct
+- Verify configuration file format is correct
 
-### 错误：Benchmark not found
-- 检查模型名称是否正确（使用 `-n` 参数）
-- 确认 `All.hpp` 中有对应的模型注册
+### Error: Benchmark not found
+- Check if model name is correct (using `-n` parameter)
+- Confirm corresponding model registration exists in `All.hpp`
 
-### 性能异常
-- 检查 CPU 线程数设置（`-t` 参数）
-- 确认没有其他程序占用系统资源
-- 检查是否启用了正确的量化方案
+### Performance Anomalies
+- Check CPU thread count setting (`-t` parameter)
+- Confirm no other programs are consuming system resources
+- Check if correct quantization scheme is enabled
