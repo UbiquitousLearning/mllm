@@ -282,6 +282,42 @@ void initializeTemplates() {
   registerConvTemplate(alignment);
 }
 
+inline std::string formatMessages(const nlohmann::json& conversations, const std::string& sft_format = "deepseek",
+                                  const std::string& system_prompt = "") {
+  auto conv = getConvTemplate(sft_format);
+
+  // Helper trim function to mimic Python's .strip()
+  auto trim = [](const std::string& s) -> std::string {
+    const char* ws = " \t\n\r\f\v";
+    const auto start = s.find_first_not_of(ws);
+    if (start == std::string::npos) return "";
+    const auto end = s.find_last_not_of(ws);
+    return s.substr(start, end - start + 1);
+  };
+
+  conv->setSystemMessage(system_prompt);
+  for (const auto& message : conversations) {
+    std::string role;
+    std::string content;
+
+    if (message.contains("role") && message["role"].is_string()) {
+      role = message["role"].get<std::string>();
+    } else {
+      role = "";
+    }
+
+    if (message.contains("content") && message["content"].is_string()) {
+      content = trim(message["content"].get<std::string>());
+    } else {
+      content = "";
+    }
+
+    conv->appendMessage(role, content);
+  }
+
+  return trim(conv->getPrompt());
+}
+
 //===----------------------------------------------------------------------===//
 // For Image processing
 //===----------------------------------------------------------------------===//
