@@ -21,3 +21,7 @@
 [submodule "mllm/ffi/vendors/tvm-ffi"]
 	path = mllm/ffi/vendors/tvm-ffi
 	url = https://github.com/apache/tvm-ffi
+[submodule "mllm/ext/vendors/tokenizers-cpp"]
+	path = mllm/ext/vendors/tokenizers-cpp
+	url = https://github.com/mlc-ai/tokenizers-cpp
+	update = none
