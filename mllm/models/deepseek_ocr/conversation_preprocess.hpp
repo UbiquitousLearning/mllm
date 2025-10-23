@@ -10,6 +10,7 @@
 #include <cassert>
 #include <variant>
 #include <optional>
+#include <limits>
 #include <nlohmann/json.hpp>
 
 #include "mllm/preprocessor/visual/Image.hpp"
@@ -314,6 +315,102 @@ std::vector<Image> loadImages(const nlohmann::json& conversations) {
     }
   }
   return ret;
+}
+
+std::pair<int, int> findClosestAspectRatio(double aspect_ratio, const std::vector<std::pair<int, int>>& target_ratios,
+                                           int width, int height, int image_size) {
+  double best_ratio_diff = std::numeric_limits<double>::infinity();
+  std::pair<int, int> best_ratio = {1, 1};
+  const double area = static_cast<double>(width) * static_cast<double>(height);
+
+  for (const auto& ratio : target_ratios) {
+    const double target_aspect_ratio = static_cast<double>(ratio.first) / static_cast<double>(ratio.second);
+    const double ratio_diff = std::abs(aspect_ratio - target_aspect_ratio);
+
+    if (ratio_diff < best_ratio_diff) {
+      best_ratio_diff = ratio_diff;
+      best_ratio = ratio;
+    } else if (ratio_diff == best_ratio_diff) {
+      if (area > 0.5 * static_cast<double>(image_size) * static_cast<double>(image_size) * static_cast<double>(ratio.first)
+                     * static_cast<double>(ratio.second)) {
+        best_ratio = ratio;
+      }
+    }
+  }
+
+  return best_ratio;
+}
+
+/**
+ * Dynamic preprocess that crops and resizes an image into tiles matching
+ * a target aspect ratio grid, similar to DeepSeek-OCR implementation.
+ *
+ * - Selects closest aspect ratio from predefined candidates.
+ * - Generates non-overlapping tiles along the longer dimension.
+ * - Pads out-of-bounds areas during crop and resizes tiles to target grid.
+ *
+ * @param image        Input RGB image
+ * @param image_size   Base size used to construct target grid (e.g., 448)
+ * @param max_num      Max number of tiles to generate (default 6)
+ * @param use_thumbnail Whether to add a square thumbnail (image_size x image_size) as the first tile
+ * @return             Vector of processed Image tiles
+ */
+inline std::vector<Image> dynamic_preprocess(const Image& image, int image_size, int max_num = 6, bool use_thumbnail = false) {
+  // Mirror Python logic: generate a grid of image_size x image_size crops.
+  // Grid shape is derived from ceil(width/size) and ceil(height/size),
+  // and then capped to max_num by reducing along the longer dimension.
+
+  Image src = image;  // non-const copy to call non-const methods
+  const int w = src.w();
+  const int h = src.h();
+  if (w <= 0 || h <= 0) { return {}; }
+
+  // Integer ceil for positive numbers: ceil(x / y) == (x + y - 1) / y
+  int grid_w = (w + image_size - 1) / image_size;
+  int grid_h = (h + image_size - 1) / image_size;
+  if (grid_w < 1) grid_w = 1;
+  if (grid_h < 1) grid_h = 1;
+
+  // Cap total tiles to max_num while preserving aspect tendency
+  while (grid_w * grid_h > max_num) {
+    if (grid_w >= grid_h && grid_w > 1) {
+      --grid_w;
+    } else if (grid_h > 1) {
+      --grid_h;
+    } else {
+      break;
+    }
+  }
+
+  const int target_width = grid_w * image_size;
+  const int target_height = grid_h * image_size;
+
+  std::vector<Image> out;
+  out.reserve(static_cast<size_t>(max_num));
+
+  // Optional thumbnail first
+  if (use_thumbnail) {
+    out.push_back(src.resize(image_size, image_size));
+    if (static_cast<int>(out.size()) >= max_num) { return out; }
+  }
+
+  const int total_tiles = grid_w * grid_h;
+  for (int i = 0; i < total_tiles; ++i) {
+    // Python equivalent:
+    // x = (i % (target_width // image_size)) * image_size
+    // y = (i // (target_width // image_size)) * image_size
+    const int cols = target_width / image_size;  // == grid_w
+    const int x = (i % cols) * image_size;
+    const int y = (i / cols) * image_size;
+
+    // PIL-style crop with zero padding beyond bounds
+    Image tile = src.crop(x, y, x + image_size, y + image_size);
+    out.push_back(tile);
+
+    if (static_cast<int>(out.size()) >= max_num) { break; }
+  }
+
+  return out;
 }
 
 }  // namespace mllm::models::deepseek_ocr

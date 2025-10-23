@@ -30,6 +30,10 @@ class Image {
 
   Image resize(int new_w, int new_h);
 
+  // Crop the image with PIL-style box (left, upper, right, lower).
+  // Out-of-bounds areas are padded with zeros. Returns a new Image.
+  Image crop(int left, int upper, int right, int lower);
+
   void save(const std::string& fp);
 
   Tensor tensor();

@@ -101,4 +101,48 @@ int Image::h() { return h_; }
 
 int Image::c() { return c_; }
 
+Image Image::crop(int left, int upper, int right, int lower) {
+  // Validate input dimensions and ensure source image is loaded
+  MLLM_RT_ASSERT(image_ptr_ != nullptr);
+  MLLM_RT_ASSERT(right > left && lower > upper);
+
+  const int crop_w = right - left;
+  const int crop_h = lower - upper;
+
+  Image new_img;
+  new_img.w_ = crop_w;
+  new_img.h_ = crop_h;
+  new_img.c_ = 3;  // Force RGB, consistent with Image::open
+
+  // Allocate output buffer; stbi_image_free uses free, so malloc is compatible
+  unsigned char* output = static_cast<unsigned char*>(malloc(static_cast<size_t>(crop_w) * crop_h * new_img.c_));
+  MLLM_RT_ASSERT(output != nullptr);
+
+  const unsigned char* src = static_cast<const unsigned char*>(image_ptr_->ptr_);
+
+  // PIL-style crop: pad out-of-bounds with zeros
+  for (int y = 0; y < crop_h; ++y) {
+    const int sy = upper + y;
+    for (int x = 0; x < crop_w; ++x) {
+      const int sx = left + x;
+      unsigned char* dst_px = output + (static_cast<size_t>(y) * crop_w + x) * new_img.c_;
+      if (sx >= 0 && sx < w_ && sy >= 0 && sy < h_) {
+        const unsigned char* src_px = src + (static_cast<size_t>(sy) * w_ + sx) * c_;
+        dst_px[0] = src_px[0];
+        dst_px[1] = src_px[1];
+        dst_px[2] = src_px[2];
+      } else {
+        dst_px[0] = 0;
+        dst_px[1] = 0;
+        dst_px[2] = 0;
+      }
+    }
+  }
+
+  new_img.image_ptr_ = std::make_shared<_ImagePtr>();
+  new_img.image_ptr_->ptr_ = output;
+
+  return new_img;
+}
+
 }  // namespace mllm
