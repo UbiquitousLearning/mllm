@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <sstream>
+#include <thread>
+#include <chrono>
 
 #include <mllm/mllm.hpp>
 #include <mllm/utils/Argparse.hpp>
@@ -87,16 +89,68 @@ MLLM_MAIN({
     for (size_t i = 0; i < pp_values.size(); ++i) { pp_tg_pairs.emplace_back(pp_values[i], tg_values[i]); }
   }
 
-  // TODO Actual run for 3 turns and gives avg results. Each turn will sleep for 5 seconds to let the SoC or GPU/NPU cool down.
+  // Actual run for 3 turns and gives avg results. Each turn will sleep for 5 seconds to let the SoC or GPU/NPU cool down.
+  mllm::print("\n========================================");
+  mllm::print("Starting Benchmark Tests");
+  mllm::print("========================================\n");
+  
   for (auto [pp, tg] : pp_tg_pairs) {
-    benchmark->clear();
-
+    mllm::print("----------------------------------------");
+    mllm::print("Test Configuration:");
+    mllm::print("  Prompt Length (PP)    :", pp);
+    mllm::print("  Generation Length (TG):", tg);
+    mllm::print("----------------------------------------");
+    
+    // Storage for results
+    std::vector<BenchmarkTemplateResult> results;
+    results.reserve(3);
+    
     for (int i = 0; i < 3; ++i) {
-      // TODO
+      mllm::print("  Run", i + 1, "of 3...");
+      
+      // Clear cache before each run
+      benchmark->clear();
+      
+      // Run benchmark
       auto result = benchmark->run(pp, tg);
-
-      // TODO Sleep some times.
+      results.push_back(result);
+      
+      mllm::print("    TTFT         :", result.ttft, "ms");
+      mllm::print("    Prefill Speed:", result.prefill_speed, "tokens/s");
+      mllm::print("    Decode Speed :", result.decode_speed, "tokens/s");
+      
+      // Sleep for 5 seconds between runs to cool down
+      if (i < 2) {
+        mllm::print("    Cooling down for 5 seconds...");
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+      }
     }
-    // TODO Calculate avg and print results
+    
+    // Calculate average results
+    float avg_ttft = 0.0f;
+    float avg_prefill_speed = 0.0f;
+    float avg_decode_speed = 0.0f;
+    
+    for (const auto& result : results) {
+      avg_ttft += result.ttft;
+      avg_prefill_speed += result.prefill_speed;
+      avg_decode_speed += result.decode_speed;
+    }
+    
+    avg_ttft /= 3.0f;
+    avg_prefill_speed /= 3.0f;
+    avg_decode_speed /= 3.0f;
+    
+    // Print average results
+    mllm::print("\n========== Average Results ==========");
+    mllm::print("Configuration: PP=", pp, " TG=", tg);
+    mllm::print("Average TTFT         :", avg_ttft, "ms");
+    mllm::print("Average Prefill Speed:", avg_prefill_speed, "tokens/s");
+    mllm::print("Average Decode Speed :", avg_decode_speed, "tokens/s");
+    mllm::print("=====================================\n");
   }
+  
+  mllm::print("\n========================================");
+  mllm::print("Benchmark Tests Completed");
+  mllm::print("========================================");
 })
