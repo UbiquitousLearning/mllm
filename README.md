@@ -1,3 +1,20 @@
+<h1 align="center">
+mllm
+</h1>
+
+
+<div align="center">
+
+**Fast and lightweight multimodal LLM inference engine for mobile and edge devices**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/docs-website-blue)](https://ubiquitouslearning.github.io/mllm/)
+[![GitHub Stars](https://img.shields.io/github/stars/UbiquitousLearning/mllm.svg)](https://github.com/UbiquitousLearning/mllm/stargazers)
+
+[📚 Documentation](https://ubiquitouslearning.github.io/mllm/) • [🚀 Quick Start](#quick-starts) • [💡 Examples](./examples/) • [🛠️ Installation](#installation)
+
+</div>
+
 ## Latest News
 
 ## Key Features
