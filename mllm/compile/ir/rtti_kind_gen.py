@@ -276,6 +276,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("PadOp"))
     op.derive(Cls("InterpolateOp"))
     op.derive(Cls("EinsumOp"))
+    op.derive(Cls("StackOp"))
 
     # value
 

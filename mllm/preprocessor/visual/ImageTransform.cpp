@@ -87,7 +87,7 @@ Normalize::Normalize(const std::vector<float>& mean, const std::vector<float>& s
 }
 
 Tensor Normalize::apply(const Tensor& input) const {
-  Tensor src = input;  // mutable copy
+  const Tensor& src = input;
   // Expect src in CHW layout
   MLLM_RT_ASSERT(src.rank() == 3);
   const int c = src.size(0);
@@ -97,7 +97,7 @@ Tensor Normalize::apply(const Tensor& input) const {
   MLLM_RT_ASSERT_EQ(static_cast<int>(std_.size()), c);
 
   // Work on a contiguous clone to simplify indexing
-  Tensor out = src.clone().contiguous();
+  Tensor out = Tensor::empty(src.shape(), src.dtype(), src.device()).alloc();
   float* ptr = out.ptr<float>();
   const size_t plane = static_cast<size_t>(h) * static_cast<size_t>(w);
 

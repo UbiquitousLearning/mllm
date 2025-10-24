@@ -80,6 +80,8 @@ enum class OpTypes : int32_t {
   // Padding Op
   kPad = 61,
   kInterpolate = 62,
+  kEinsum = 63,
+  kStack = 64,
 
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
@@ -147,8 +149,12 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";
     case OpTypes::kPagedAttn: return "PagedAttn";
+    case OpTypes::kRadixAttn: return "RadixAttn";
     case OpTypes::kScatter2Shards: return "Scatter2Shards";
     case OpTypes::kLayerNorm2D: return "LayerNorm2D";
+    case OpTypes::kPad: return "Pad";
+    case OpTypes::kInterpolate: return "Interpolate";
+    case OpTypes::kStack: return "Stack";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";
   }

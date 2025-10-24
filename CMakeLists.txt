@@ -22,6 +22,10 @@ option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
+# Extension Enable
+option(MLLM_EXT_ENABLE_LLVM_PROJECT OFF)
+option(MLLM_EXT_ENABLE_TOKENIZERS_CPP OFF)
+
 # CPU Backend: BLAS
 option(MLLM_USE_BLAS "Enable BLAS" OFF)
 option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)

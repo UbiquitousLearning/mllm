@@ -34,6 +34,10 @@ class Image {
   // Out-of-bounds areas are padded with zeros. Returns a new Image.
   Image crop(int left, int upper, int right, int lower);
 
+  // Pad the image to target size (target_w, target_h) with RGB color.
+  // Mirrors PIL ImageOps.pad: scale to fit, then center-pad with color.
+  Image pad(int target_w, int target_h, unsigned char r, unsigned char g, unsigned char b);
+
   void save(const std::string& fp);
 
   Tensor tensor();

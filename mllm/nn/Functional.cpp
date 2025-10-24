@@ -16,6 +16,7 @@
 #include "mllm/core/aops/SiLUOp.hpp"
 #include "mllm/core/aops/PadOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
+#include "mllm/core/aops/StackOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -42,6 +43,10 @@ std::vector<Tensor> split(const Tensor& x, const std::vector<int32_t>& split_siz
 
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kConcat, aops::ConcatOpOptions{.dim = dim}, ins)[0];
+}
+
+Tensor stack(const std::vector<Tensor>& ins, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kStack, aops::StackOpOptions{.dim = dim}, ins)[0];
 }
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V) {

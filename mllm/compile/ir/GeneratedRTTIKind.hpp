@@ -1,4 +1,4 @@
-// Auto generated: 2025-10-23 14:44:05
+// Auto generated: 2025-10-24 14:21:08
 // do not modify this file
 #pragma once
 
@@ -75,6 +75,7 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_PadOp,
   RK_Op_LinalgIROp_InterpolateOp,
   RK_Op_LinalgIROp_EinsumOp,
+  RK_Op_LinalgIROp_StackOp,
   RK_Op_LinalgIROp_Last,
   RK_Op_GraphIROp,
   RK_Op_GraphIROp_SubGraphOp,

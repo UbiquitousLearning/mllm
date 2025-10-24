@@ -145,4 +145,66 @@ Image Image::crop(int left, int upper, int right, int lower) {
   return new_img;
 }
 
+// Pad the image to target size with given RGB color.
+// Semantics mirror PIL ImageOps.pad: resize to fit within target (keeping aspect ratio)
+// then center the resized image on a canvas of target size filled with color.
+Image Image::pad(int target_w, int target_h, unsigned char r, unsigned char g, unsigned char b) {
+  MLLM_RT_ASSERT(image_ptr_ != nullptr);
+  MLLM_RT_ASSERT_EQ(c_, 3);
+  MLLM_RT_ASSERT(target_w > 0 && target_h > 0);
+
+  // Compute scale to fit within target while preserving aspect ratio
+  const double scale_w = static_cast<double>(target_w) / static_cast<double>(w_);
+  const double scale_h = static_cast<double>(target_h) / static_cast<double>(h_);
+  const double scale = std::min(scale_w, scale_h);
+
+  int new_w = static_cast<int>(std::round(static_cast<double>(w_) * scale));
+  int new_h = static_cast<int>(std::round(static_cast<double>(h_) * scale));
+  new_w = std::max(1, new_w);
+  new_h = std::max(1, new_h);
+
+  // Resize current image to the computed size
+  Image resized = this->resize(new_w, new_h);
+
+  // Prepare output canvas filled with color
+  Image out;
+  out.w_ = target_w;
+  out.h_ = target_h;
+  out.c_ = 3;
+  unsigned char* canvas = static_cast<unsigned char*>(malloc(static_cast<size_t>(target_w) * target_h * out.c_));
+  MLLM_RT_ASSERT(canvas != nullptr);
+
+  for (int y = 0; y < target_h; ++y) {
+    for (int x = 0; x < target_w; ++x) {
+      unsigned char* dst_px = canvas + (static_cast<size_t>(y) * target_w + x) * out.c_;
+      dst_px[0] = r;
+      dst_px[1] = g;
+      dst_px[2] = b;
+    }
+  }
+
+  // Compute offsets to center the resized image
+  const int offset_x = (target_w - new_w) / 2;
+  const int offset_y = (target_h - new_h) / 2;
+
+  const unsigned char* src = static_cast<const unsigned char*>(resized.image_ptr_->ptr_);
+
+  // Blit resized image onto the canvas
+  for (int y = 0; y < new_h; ++y) {
+    const int dy = offset_y + y;
+    for (int x = 0; x < new_w; ++x) {
+      const int dx = offset_x + x;
+      unsigned char* dst_px = canvas + (static_cast<size_t>(dy) * target_w + dx) * out.c_;
+      const unsigned char* src_px = src + (static_cast<size_t>(y) * new_w + x) * resized.c_;
+      dst_px[0] = src_px[0];
+      dst_px[1] = src_px[1];
+      dst_px[2] = src_px[2];
+    }
+  }
+
+  out.image_ptr_ = std::make_shared<_ImagePtr>();
+  out.image_ptr_->ptr_ = canvas;
+  return out;
+}
+
 }  // namespace mllm

@@ -67,6 +67,8 @@ class PagedAttnOp;
 class LayerNorm2DOp;
 class PadOp;
 class InterpolateOp;
+class EinsumOp;
+class StackOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -219,5 +221,7 @@ LINALG_AOPS_DEFINE(PagedAttnOp, PAGEDATTNOP);
 LINALG_AOPS_DEFINE(LayerNorm2DOp, LAYERNORM2DOP);
 LINALG_AOPS_DEFINE(PadOp, PADOP);
 LINALG_AOPS_DEFINE(InterpolateOp, INTERPOLATEOP);
+LINALG_AOPS_DEFINE(EinsumOp, EINSUMOP);
+LINALG_AOPS_DEFINE(StackOp, STACKOP);
 
 }  // namespace mllm::ir::linalg

@@ -104,6 +104,8 @@ inline std::vector<Tensor> chunk(int32_t num, const Tensor& x, int32_t dim) {
 
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim);
 
+Tensor stack(const std::vector<Tensor>& ins, int32_t dim);
+
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
 
 Tensor softmax(const Tensor& x, int32_t dim);
