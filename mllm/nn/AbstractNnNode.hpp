@@ -54,6 +54,9 @@ class AbstractNnNode : public std::enable_shared_from_this<AbstractNnNode> {
 
   [[nodiscard]] bool isCompiledAsObj() const;
 
+  // used for set default device when creating customized ops
+  void __forceSetDevice(DeviceTypes device_type) { device_type_ = device_type; }
+
  protected:
   int32_t depth_ = 0;
   AbstractNnNodeTypes type_;

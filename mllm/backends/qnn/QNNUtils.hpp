@@ -137,18 +137,19 @@ inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint6
 
 // --------------- get/set quant scale for mllm::Tensor ---------------
 // currently only consider per-tensor quantization
+inline const std::string QNN_QUANT_SCALE_NAME = "qnn_quant_scale";
 inline float getQuantScale(Tensor& tensor) {
-  if (!tensor.attachedViews().contains("quant_scale")) { return 0.0f; }
-  return tensor.attachedViews()["quant_scale"]->ptr<float>()[0];
+  if (!tensor.attachedViews().contains(QNN_QUANT_SCALE_NAME)) { return 0.0f; }
+  return tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0];
 }
 
 inline void setQuantScale(Tensor& tensor, float scale) {
-  if (!tensor.attachedViews().contains("quant_scale")) {
+  if (!tensor.attachedViews().contains(QNN_QUANT_SCALE_NAME)) {
     auto t = Tensor::empty({1}, kFloat32, kCPU).alloc();
     t.at<float>({0}) = scale;
-    tensor.attach("quant_scale", t.impl());
+    tensor.attach(QNN_QUANT_SCALE_NAME, t.impl());
   } else {
-    tensor.attachedViews()["quant_scale"]->ptr<float>()[0] = scale;
+    tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0] = scale;
   }
 }
 
@@ -159,6 +160,21 @@ inline void setQuantScale(Tensor& tensor, float scale) {
  * @return QNN_TENSOR_TYPE_APP_WRITE if marked as graph output, QNN_TENSOR_TYPE_NATIVE otherwise
  */
 Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue);
+
+// --------------- QNN Quantization Helper ---------------
+/**
+ * @brief Creates quantization parameters for QNN tensors
+ * @param tensor The tensor to create quantization parameters for
+ * @return QNN quantization parameters
+ */
+Qnn_QuantizeParams_t createQuantizeParams(const Tensor& tensor);
+
+/**
+ * @brief Propagates quantization scale from input to output tensor in reshape operations
+ * @param input Input tensor
+ * @param output Output tensor
+ */
+void propagateQuantScale(const Tensor& input, Tensor& output);
 
 // --------------- QNN Wrapper ---------------
 // QNN tensors' resource management is in C style. Wrap it in a C++ class

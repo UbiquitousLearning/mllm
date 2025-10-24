@@ -3,6 +3,8 @@
 
 #include <optional>
 
+#include <xxHash/xxhash.h>
+
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/CastTypeOp.hpp"
@@ -340,6 +342,23 @@ Tensor::stride_t Tensor::stride() const { return impl()->stride(); }
 size_t Tensor::numel() const { return impl()->numel(); }
 
 uint32_t Tensor::uuid() const { return impl()->uuid(); }
+
+size_t Tensor::hash() const {
+  constexpr size_t kStackCap = 16;
+  uint32_t stack_buf[kStackCap];
+  std::vector<uint32_t> heap_buf;
+
+  auto* buf = stack_buf;
+  size_t count = 1 + attached_views_.size();
+  if (count > kStackCap) {
+    heap_buf.resize(count);
+    buf = heap_buf.data();
+  }
+  buf[0] = uuid();
+  size_t idx = 1;
+  for (const auto& [_, view] : attached_views_) { buf[idx++] = view ? view->uuid() : 0u; }
+  return XXH64(buf, count * sizeof(uint32_t), 0);
+}
 
 bool Tensor::isContiguous() const { return impl()->isContiguous(); }
 

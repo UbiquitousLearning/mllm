@@ -7,17 +7,28 @@
 #include "QNNUtils.hpp"
 #include "QnnLog.h"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
+#include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
+#include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
+#include "mllm/backends/qnn/op/QNNEmbeddingOp.hpp"
 #include "mllm/backends/qnn/op/QNNGraphOp.hpp"
 #include "mllm/backends/qnn/op/QNNLinearOp.hpp"
+#include "mllm/backends/qnn/op/QNNParamOp.hpp"
+#include "mllm/backends/qnn/op/QNNRMSNormOp.hpp"
+#include "mllm/backends/qnn/op/QNNSiLUOp.hpp"
+#include "mllm/backends/qnn/op/QNNTransposeOp.hpp"
+#include "mllm/backends/qnn/op/QNNViewOp.hpp"
+#include "mllm/backends/qnn/op/QNNX2XOp.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
 
 QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
-  regOpFactory<QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory>();
+  regOpFactory<QNNAddOpFactory, QNNMulOpFactory, QNNGraphBeginOpFactory, QNNGraphEndOpFactory, QNNLinearOpFactory,
+               QNNViewOpFactory, QNNRMSNormOpFactory, QNNTransposeOpFactory, QNNX2XOpFactory, QNNCastTypeOpFactory,
+               QNNParamOpFactory, QNNSiLUOpFactory, QNNEmbeddingOpFactory>();
 
-  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_INFO;  // default QNN log level
+  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_ERROR;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
   debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
 
@@ -449,7 +460,6 @@ std::shared_ptr<QNNModel> QNNBackend::createQnnGraph(const std::string& graphNam
     return nullptr;
   }
 
-  MLLM_INFO("Created QNN graph: {}", graphName);
   return qnnModel;
 }
 
@@ -475,10 +485,8 @@ void QNNBackend::graphAddNode(const std::string& graphName, const std::string& n
                                        inputTensorNames, outputTensorNames);
 
   if (err != MODEL_NO_ERROR) {
-    MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}", nodeName, nodeType, graphName,
+    MLLM_ERROR("Failed to add node {} of type {} to graph {}: error code {}\n", nodeName, nodeType, graphName,
                static_cast<int>(err));
-  } else {
-    MLLM_INFO("Added node {} of type {} to graph {}", nodeName, nodeType, graphName);
   }
 }
 
@@ -508,7 +516,6 @@ bool QNNBackend::graphFinalize(const std::string& graphName) {
   // Extract profiling info if enabled
   if (ProfilingLevel::OFF != profilingLevel_) { extractBackendProfilingInfo(runtime_->profileHandle); }
 
-  MLLM_INFO("Graph {} finalized successfully", graphName);
   return true;
 }
 
@@ -519,20 +526,14 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   std::vector<Qnn_Tensor_t> qnn_outputs;
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
     // alloc and register qnn tensor
-    // TODO: check if the tensor is same(QNNModel may take intermediate tensor as input/output)
     model->getGraphInputTensorWrappers()[i]->getDataContainer() = inputs[i];  // update data container
-
-    MLLM_INFO("in backend passed input tensor ptr: {}", inputs[i].ptr<void>());
-
-    model->getGraphInputTensorWrappers()[i]->alloc();
+    model->getGraphInputTensorWrappers()[i]->alloc();  // QNNAllocator will handle registered memory descriptor
     qnn_inputs.push_back(*(model->getGraphInputTensorWrappers()[i]->getNativeTensor()));
   }
   for (int j = 0; j < model->getGraphOutputTensorWrappers().size(); j++) {
     // alloc and register qnn tensor
-    model->getGraphOutputTensorWrappers()[j]->alloc();
+    model->getGraphOutputTensorWrappers()[j]->alloc();  // QNNAllocator will handle registered memory descriptor
     qnn_outputs.push_back(*(model->getGraphOutputTensorWrappers()[j]->getNativeTensor()));
-
-    // TODO: check if the tensor is same(QNNModel may take intermediate tensor as input/output)
     outputs[j] = model->getGraphOutputTensorWrappers()[j]->getDataContainer();
   }
 
@@ -564,7 +565,6 @@ bool QNNBackend::addTensor(const std::string& graphName, const std::string& tens
     return false;
   }
 
-  MLLM_INFO("Added tensor {} to graph {}", tensorName, graphName);
   return true;
 }
 
@@ -590,7 +590,6 @@ bool QNNBackend::addStaticTensor(const std::string& graphName, const std::string
     return false;
   }
 
-  MLLM_INFO("Added static tensor {} to graph {}", tensorName, graphName);
   return true;
 }
 

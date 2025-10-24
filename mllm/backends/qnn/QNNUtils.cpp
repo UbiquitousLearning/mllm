@@ -379,8 +379,6 @@ void QNNTensorWrapper::alloc() {
   // or, register the existing storage to QNN(passing allocated input to QNN)
   if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
 
-  MLLM_INFO("tensor ptr: {}", dataContainer_.ptr<void>());
-
   std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
       ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
 
@@ -481,11 +479,28 @@ Qnn_Param_t* QNNParamScalarWrapper::getNativeParam() { return &(qnnParam_); }
 // --------------- QNN Graph Output Helper ---------------
 
 Qnn_TensorType_t getQnnOutputTensorType(const std::shared_ptr<mllm::ir::tensor::TensorValue>& tensorValue) {
-  if (tensorValue->getAttr("is_graph_output")) {
-    MLLM_INFO("QNN output tensor {} is marked as graph output", tensorValue->name());
-    return QNN_TENSOR_TYPE_APP_READ;
-  }
+  if (tensorValue->getAttr("is_graph_output")) { return QNN_TENSOR_TYPE_APP_READ; }
   return QNN_TENSOR_TYPE_NATIVE;
+}
+
+// --------------- QNN Quantization Helper ---------------
+
+Qnn_QuantizeParams_t createQuantizeParams(const Tensor& tensor) {
+  auto quantParam = DEFAULT_QUANTIZE_PARAMS;
+  if (tensor.dtype() == kInt8 || tensor.dtype() == kInt16) {
+    quantParam = {QNN_DEFINITION_DEFINED,
+                  QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                  {.scaleOffsetEncoding = {.scale = getQuantScale(const_cast<Tensor&>(tensor)), .offset = 0}}};
+  }
+  return quantParam;
+}
+
+void propagateQuantScale(const Tensor& input, Tensor& output) {
+  if (input.dtype() == kInt8 || input.dtype() == kInt16) {
+    // IMPORTANT! propagate quantization scale from input to output for afterward ops
+    auto t = input;  // shadow copy for get scale
+    setQuantScale(output, getQuantScale(t));
+  }
 }
 
 }  // namespace mllm::qnn

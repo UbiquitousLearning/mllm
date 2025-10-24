@@ -21,4 +21,6 @@ void KVCache::setLayerIndex(int32_t layer_idx) {
   std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->setLayerIndex(layer_idx);
 }
 
+void KVCache::clearCache() { std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->clearCache(); }
+
 }  // namespace mllm::nn

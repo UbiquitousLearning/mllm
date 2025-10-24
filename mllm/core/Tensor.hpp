@@ -465,6 +465,12 @@ class Tensor {
   [[nodiscard]] uint32_t uuid() const;
 
   /**
+   * @brief Computes hash value based on tensor's uuid and attached views' uuids.
+   * @return Hash value combining this tensor's uuid and all attached views' uuids.
+   */
+  [[nodiscard]] size_t hash() const;
+
+  /**
    * @brief Checks memory layout contiguity.
    * @return True if memory is contiguous.
    */

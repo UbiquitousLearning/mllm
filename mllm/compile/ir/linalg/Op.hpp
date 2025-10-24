@@ -64,6 +64,8 @@ class ExpOp;
 class SinOp;
 class CosOp;
 class PagedAttnOp;
+
+class CustomizedOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -95,6 +97,7 @@ class PagedAttnOp;
   }                                                                                                                         \
   void class_name::dump(IRPrinter& p) {                                                                                     \
     p.print("linalg.{}.{}", deviceTypes2Str(getDevice()), #class_name);                                                     \
+    if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }                                   \
     Op::dump(p);                                                                                                            \
   }
 
@@ -212,5 +215,46 @@ LINALG_AOPS_DEFINE(TopKOp, TOPKOP);
 LINALG_AOPS_DEFINE(MeanOp, MEANOP);
 LINALG_AOPS_DEFINE(ClipOp, CLIPOP);
 LINALG_AOPS_DEFINE(PagedAttnOp, PAGEDATTNOP);
+
+/**
+ * @brief CustomizedOp: A generic operation type for implementing backend-specific operations
+ *
+ * @details This class serves as a container for custom operations that are not covered by
+ * the standard operation types. It allows for extending the IR system with platform-specific
+ * or domain-specific operations while maintaining type safety and IR consistency.
+ *
+ * @section usage Usage Instructions
+ *
+ * @subsection declaration Operation Declaration
+ * When implementing a backend-specific operation, you must configure the device and operation type:
+ *
+ * @code{.cpp}
+ * // Set the customized operation type and device
+ * this->impl()->__forceSetOpType(
+ *     static_cast<mllm::OpTypes>(
+ *         mllm::Context::instance().lookupCustomizedOpId(EXPECTED_DEVICE, "CUSTOM_OP_NAME")
+ *     )
+ * );
+ * this->impl()->__forceSetDevice(EXPECTED_DEVICE);
+ * @endcode
+ *
+ * @subsection tracing IR Tracing
+ * In the trace function of your customized operation, create the corresponding IR node:
+ *
+ * @code{.cpp}
+ * auto ir_ctx = static_cast<ir::IRContext*>(trace_context);
+ * auto input_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
+ * auto output_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+ * ir_ctx->create<ir::linalg::CustomizedOp>(shared_from_this(), input_irs, output_irs);
+ * @endcode
+ *
+ * @note Replace EXPECTED_DEVICE with the target device type (e.g., DeviceType::CPU, DeviceType::CUDA)
+ * @note Replace "CUSTOM_OP_NAME" with a unique identifier for your operation
+ *
+ * @see BaseOp for the base operation interface
+ * @see LinalgIROp for the IR operation base class
+ */
+
+LINALG_AOPS_DEFINE(CustomizedOp, CUSTOMIZEDOP);
 
 }  // namespace mllm::ir::linalg

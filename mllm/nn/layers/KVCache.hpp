@@ -18,6 +18,8 @@ class KVCache : public Layer {
 
   void setLayerIndex(int32_t layer_idx);
 
+  void clearCache();
+
   MLLM_LAYER_ANY_INPUTS_2_OUTPUTS_FORWARD
 };
 

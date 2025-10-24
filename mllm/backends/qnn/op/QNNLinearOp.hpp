@@ -14,7 +14,7 @@
 namespace mllm::qnn {
 
 class QNNLinearOp final : public aops::LinearOp {
-  Tensor weightScale_, biasScale_, outputScale_, biasInt32_;
+  Tensor weightScale_, biasScale_, outputScale_;
 
  public:
   explicit QNNLinearOp(const aops::LinearOpOptions& options);
@@ -22,6 +22,11 @@ class QNNLinearOp final : public aops::LinearOp {
   void load(const ParameterFile::ptr_t& ploader) override;
 
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  // Getter methods for accessing private members
+  const Tensor& weightScale() const { return weightScale_; }
+  const Tensor& biasScale() const { return biasScale_; }
+  const Tensor& outputScale() const { return outputScale_; }
 };
 
 class QNNLinearOpFactory : public TypedOpFactory<OpTypes::kLinear, aops::LinearOpOptions> {

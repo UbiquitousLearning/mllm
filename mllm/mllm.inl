@@ -131,6 +131,8 @@ struct formatter<mllm::Tensor> {
  private:
   template<typename OutputIt>
   OutputIt printTensorData(const mllm::Tensor& tensor, OutputIt out, int dim, const std::vector<int32_t>& indices) const {
+    // if in trace mode, we don't print the tensor data
+    if (mllm::Context::instance().thisThread()->trace_mode) { return fmt::format_to(out, "Tensor(...)"); }
     auto shape = tensor.shape();
 
     if (dim >= (int)shape.size()) { return printTensorValue(tensor, out, indices); }
