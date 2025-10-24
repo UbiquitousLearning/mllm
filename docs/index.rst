@@ -349,6 +349,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   qnn_backend/index
+
+.. toctree::
+   :maxdepth: 2
+
    api/index
 
 .. toctree::
