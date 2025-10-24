@@ -25,6 +25,9 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
 
   void infer(DpskOcrTokenizer& tokenizer, const std::string& prompt, const std::string& image_fp,
              const std::string& output_path, int base_size = 1024, int image_size = 640, bool crop_mode = true) {
+    // Initialize template
+    initializeTemplates();
+
     namespace fs = std::filesystem;
     fs::path out_path(output_path);
     fs::create_directories(out_path);
@@ -45,6 +48,8 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
     }
 
     auto processed_prompt = formatMessages(conversations, "plain", "");
+
+    MLLM_INFO("processed_prompt: {}", processed_prompt);
 
     // Global constant define
     const int PATCH_SIZE = 16;

@@ -86,7 +86,7 @@ class Conversation {
         const auto& [role, message] = std::make_pair(i[0], i[1]);
         if (!message.empty()) {
           if (role == "User") {
-            ret += "<｜sft begin｜>\n" + message + sep_;
+            ret += "<｜sft▁begin｜>\n" + message + sep_;
           } else {
             ret += message + sep2_.value_or("");
           }
@@ -257,28 +257,29 @@ std::shared_ptr<Conversation> getConvTemplate(const std::string& name) {
 void initializeTemplates() {
   // DeepSeek template
   auto deepseek = std::make_shared<Conversation>(
-      "deepseek", "{system_message}", "", std::vector<std::string>{"<|User|>", " outputId="},
-      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "\n\n", "<｜end of sentence｜>",
-      std::vector<std::string>{"User:", "<｜end of sentence｜>"}, std::vector<int>{100001});
+      "deepseek", "{system_message}", "", std::vector<std::string>{"<|User|>", "<|Assistant|>"},
+      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "\n\n", "<｜end▁of▁sentence｜>",
+      std::optional<std::string>{"<｜end▁of▁sentence｜>"}, std::optional<std::vector<int>>{std::vector<int>{100001}});
   registerConvTemplate(deepseek);
 
   // DeepSeekV2 template
   auto deepseekv2 = std::make_shared<Conversation>(
       "deepseekv2", "{system_message}", "", std::vector<std::string>{"<｜User｜>", "<｜Assistant｜>"},
-      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeek, "", "<｜end of sentence｜>",
-      std::vector<std::string>{"User:", "<｜end of sentence｜>"}, std::vector<int>{100001});
+      std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::DeepSeekV2, "", "<｜end▁of▁sentence｜>",
+      std::optional<std::string>{"<｜end▁of▁sentence｜>"}, std::optional<std::vector<int>>{std::vector<int>{100001}});
   registerConvTemplate(deepseekv2);
 
   // Plain template
-  auto plain = std::make_shared<Conversation>("plain", "", "", std::vector<std::string>{"", ""},
-                                              std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::PLAIN, "", "",
-                                              std::vector<std::string>{"</s>"}, std::vector<int>{100001});
+  auto plain = std::make_shared<Conversation>(
+      "plain", "", "", std::vector<std::string>{"", ""}, std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::PLAIN, "",
+      "", std::optional<std::string>{"</s>"}, std::optional<std::vector<int>>{std::vector<int>{100001}});
   registerConvTemplate(plain);
 
   // Alignment template
   auto alignment = std::make_shared<Conversation>("alignment", "", "", std::vector<std::string>{"", ""},
                                                   std::vector<std::vector<std::string>>{}, 0, SeparatorStyle::ALIGNMENT, "", "",
-                                                  std::vector<std::string>{"</s>"}, std::vector<int>{100001});
+                                                  std::optional<std::string>{"</s>"},
+                                                  std::optional<std::vector<int>>{std::vector<int>{100001}});
   registerConvTemplate(alignment);
 }
 

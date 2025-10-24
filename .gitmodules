@@ -25,3 +25,7 @@
 	path = mllm/ext/vendors/tokenizers-cpp
 	url = https://github.com/mlc-ai/tokenizers-cpp
 	update = none
+[submodule "mllm/ext/vendors/llvm-project"]
+	path = mllm/ext/vendors/llvm-project
+	url = https://github.com/llvm/llvm-project
+	update = none
