@@ -13,14 +13,14 @@
 #include <string>
 #include <unordered_map>
 
-#include "mllm/preprocessor/tokenizers/BPE.hpp"
+#include "mllm/preprocessor/tokenizers/BPEUTF8.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
 namespace mllm::models::deepseek_ocr {
 
 // Actually is LlamaTokenizer
-class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizer {
+class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
  public:
   explicit DpskOcrTokenizer(const std::string& file_path) {
     // Init
@@ -37,46 +37,14 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<｜▁pad▁｜>");
   }
 
-  std::vector<std::wstring> _tokenize(const std::string& str) override {
-    // Replace spaces with SentencePiece underline before processing
+  std::vector<int64_t> tokenize(const std::string& str) override {
     // TODO
-
-    auto processed_tokens = preTokenize(preprocessor::utf8string2WideString(str));
-    std::vector<std::wstring> ret;
-
-    return ret;
+    return {};
   }
 
-  std::vector<std::wstring> tokenize(const std::string& str) override { return _tokenize(str); }
-
-  std::wstring _detokenize(int64_t pos_idx) override {
+  std::string detokenize(int64_t pos_idx) override {
     // TODO
-    return L"";
-  }
-
-  std::wstring detokenize(int64_t pos_idx) override {
-    // TODO
-    return _detokenize(pos_idx);
-  }
-
-  std::vector<int64_t> convert2VectorIds(const std::vector<std::wstring>& strs) {
-    std::vector<int64_t> ids;
-    ids.reserve(strs.size());
-    for (const auto& str : strs) { ids.emplace_back(bpe_._lookup_vocab(str)); }
-    return ids;
-  }
-
-  Tensor convert2Ids(const std::vector<std::wstring>& strs) override {
-    std::vector<int64_t> ids;
-    ids.reserve(strs.size());
-    for (const auto& str : strs) { ids.emplace_back(bpe_._lookup_vocab(str)); }
-    Tensor ret = Tensor::empty({/*batch*/ 1, /*seq*/ (int32_t)ids.size()}, kInt64, kCPU)
-                     .setMemType(kExtraInput)
-                     .setName("llama-tokenizer-i0")
-                     .alloc();
-    auto ptr = ret.ptr<int64_t>();
-    for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
-    return ret;
+    return "";
   }
 
  private:
@@ -116,89 +84,150 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizer {
   //     }
   //   ]
   // }
-  std::vector<std::wstring> preTokenize(const std::wstring& str) {
-    std::vector<std::wstring> result;
-    size_t pos = 0;
+  std::vector<std::string> preprocessToken(const std::string& token) {
+    std::vector<std::string> out;
+    auto it = token.begin();
+    auto end = token.end();
 
-    while (pos < str.size()) {
-      std::wstring matched;
-      bool found_match = false;
+    while (it != end) {
+      auto seg_start = it;
+      int digit_cnt = 0;
+      auto tmp = it;
+      while (digit_cnt < 3) {
+        uint32_t cp = 0;
+        auto next = tmp;
+        utf8::next(next, end);
+        if (next == tmp) break;
+        cp = utf8::peek_next(tmp, end);
+        if (!is_digit(cp)) break;
+        tmp = next;
+        ++digit_cnt;
+      }
+      if (digit_cnt > 0) {
+        out.emplace_back(seg_start, tmp);
+        it = tmp;
+        continue;
+      }
 
-      // Pattern 1: Match 1-3 consecutive digits (\p{N}{1,3})
-      if (preprocessor::isDigit(str[pos])) {
-        size_t start = pos;
-        size_t count = 0;
-        while (pos < str.size() && preprocessor::isDigit(str[pos]) && count < 3) {
-          ++pos;
-          ++count;
+      uint32_t cp = utf8::peek_next(it, end);
+      if (is_cjk(cp)) {
+        auto tmp2 = it;
+        while (tmp2 != end) {
+          uint32_t nxt = utf8::peek_next(tmp2, end);
+          if (!is_cjk(nxt)) break;
+          utf8::next(tmp2, end);
         }
-        matched = str.substr(start, count);
-        found_match = true;
+        out.emplace_back(seg_start, tmp2);
+        it = tmp2;
+        continue;
       }
-      // Pattern 2: Match CJK characters ([一-龥぀-ゟ゠-ヿ]+)
-      else if ((str[pos] >= L'一' && str[pos] <= L'龥') ||   // Chinese characters
-               (str[pos] >= L'぀' && str[pos] <= L'ゟ') ||  // Hiragana
-               (str[pos] >= L'゠' && str[pos] <= L'ヿ')) {   // Katakana
-        size_t start = pos;
-        while (pos < str.size()
-               && ((str[pos] >= L'一' && str[pos] <= L'龥') || (str[pos] >= L'぀' && str[pos] <= L'ゟ')
-                   || (str[pos] >= L'゠' && str[pos] <= L'ヿ'))) {
-          ++pos;
+
+      if (is_punct_symbol(cp)) {
+        auto tmp3 = it;
+        utf8::next(tmp3, end);
+        if (tmp3 != end && is_letter(utf8::peek_next(tmp3, end))) {
+          utf8::next(tmp3, end);
+          out.emplace_back(seg_start, tmp3);
+          it = tmp3;
+          continue;
         }
-        matched = str.substr(start, pos - start);
-        found_match = true;
       }
-      // Pattern 3: Complex pattern for other characters
-      // [!\"#$%&'()*+,\\-./:;<=>?@\\[\\\\\\]^_`{|}~][A-Za-z]+|[^\r\n\\p{L}\\p{P}\\p{S}]?[\\p{L}\\p{M}]+|
-      // ?[\\p{P}\\p{S}]+[\r\n]*|\\s*[\r\n]+|\\s+(?!\\S)|\\s+
-      else {
-        // Handle punctuation followed by letters
-        if ((str[pos] >= L'!' && str[pos] <= L'/') || (str[pos] >= L':' && str[pos] <= L'@')
-            || (str[pos] >= L'[' && str[pos] <= L'`') || (str[pos] >= L'{' && str[pos] <= L'~')) {
-          size_t start = pos;
-          ++pos;  // consume the punctuation
-          // Check if followed by letters
-          if (pos < str.size() && preprocessor::isLetter(str[pos])) {
-            while (pos < str.size() && preprocessor::isLetter(str[pos])) { ++pos; }
-            matched = str.substr(start, pos - start);
-            found_match = true;
+
+      if (!is_letter(cp) && !is_space(cp) && !is_punct_symbol(cp)) {
+        auto tmp3 = it;
+        utf8::next(tmp3, end);
+        if (tmp3 != end && is_letter(utf8::peek_next(tmp3, end))) {
+          while (tmp3 != end) {
+            uint32_t nxt = utf8::peek_next(tmp3, end);
+            if (!is_letter(nxt)) break;
+            utf8::next(tmp3, end);
+          }
+          out.emplace_back(seg_start, tmp3);
+          it = tmp3;
+          continue;
+        }
+      }
+
+      if (is_punct_symbol(cp)) {
+        auto tmp3 = it;
+        while (tmp3 != end) {
+          uint32_t nxt = utf8::peek_next(tmp3, end);
+          if (!is_punct_symbol(nxt)) break;
+          utf8::next(tmp3, end);
+        }
+
+        while (tmp3 != end) {
+          uint32_t nxt = utf8::peek_next(tmp3, end);
+          if (nxt != 0x0A && nxt != 0x0D) break;
+          utf8::next(tmp3, end);
+        }
+        out.emplace_back(seg_start, tmp3);
+        it = tmp3;
+        continue;
+      }
+
+      if (is_space(cp)) {
+        auto tmp3 = it;
+        bool has_nl = false;
+        while (tmp3 != end) {
+          uint32_t nxt = utf8::peek_next(tmp3, end);
+          if (nxt == 0x0A || nxt == 0x0D) {
+            has_nl = true;
+            utf8::next(tmp3, end);
+          } else if (is_space(nxt)) {
+            utf8::next(tmp3, end);
           } else {
-            pos = start + 1;  // just consume the punctuation character
-            matched = str.substr(start, 1);
-            found_match = true;
+            break;
           }
         }
-        // Handle letters with optional prefix
-        else if (preprocessor::isLetter(str[pos])) {
-          size_t start = pos;
-          while (pos < str.size() && preprocessor::isLetter(str[pos])) { ++pos; }
-          matched = str.substr(start, pos - start);
-          found_match = true;
+        if (has_nl) {
+          out.emplace_back(seg_start, tmp3);
+          it = tmp3;
+          continue;
         }
-        // Handle whitespace
-        else if (std::iswspace(str[pos])) {
-          size_t start = pos;
-          while (pos < str.size() && std::iswspace(str[pos])) { ++pos; }
-          matched = str.substr(start, pos - start);
-          found_match = true;
+        auto tmp4 = tmp3;
+        while (tmp4 != end && is_space(utf8::peek_next(tmp4, end))) utf8::next(tmp4, end);
+        if (tmp4 == end) {
+          out.emplace_back(seg_start, tmp4);
+          it = tmp4;
+          continue;
         }
-        // Handle any other character
-        else {
-          matched = str.substr(pos, 1);
-          ++pos;
-          found_match = true;
+        while (tmp3 != end) {
+          uint32_t nxt = utf8::peek_next(tmp3, end);
+          if (!is_space(nxt)) break;
+          utf8::next(tmp3, end);
         }
+        out.emplace_back(seg_start, tmp3);
+        it = tmp3;
+        continue;
       }
-
-      // Add matched string to result
-      if (found_match) { result.push_back(matched); }
+      utf8::next(it, end);
+      out.emplace_back(seg_start, it);
     }
 
-    return result;
+    return out;
   }
 
+  static inline bool is_digit(uint32_t cp) { return cp >= 0x30 && cp <= 0x39; }
+
+  static inline bool is_cjk(uint32_t cp) {
+    return (cp >= 0x4E00 && cp <= 0x9FFF) ||  // CJK Unified Ideographs
+           (cp >= 0x3400 && cp <= 0x4DBF) ||  // CJK Extension A
+           (cp >= 0xF900 && cp <= 0xFAFF) ||  // CJK Compatibility
+           (cp >= 0x3040 && cp <= 0x309F) ||  // Hiragana
+           (cp >= 0x30A0 && cp <= 0x30FF);    // Katakana
+  }
+
+  static inline bool is_letter(uint32_t cp) { return (cp >= 0x41 && cp <= 0x5A) || (cp >= 0x61 && cp <= 0x7A); }
+
+  static inline bool is_punct_symbol(uint32_t cp) {
+    return (cp >= 0x21 && cp <= 0x2F) || (cp >= 0x3A && cp <= 0x40) || (cp >= 0x5B && cp <= 0x60) || (cp >= 0x7B && cp <= 0x7E);
+  }
+
+  static inline bool is_space(uint32_t cp) { return cp == 0x20 || cp == 0x09 || cp == 0x0A || cp == 0x0D; }
+
   // For text
-  preprocessor::BPE bpe_;
-  std::wstring SPIECE_UNDERLINE = L"▁";
+  preprocessor::BPEUTF8 bpe_;
+  std::string SPIECE_UNDERLINE = "▁";
 };
 }  // namespace mllm::models::deepseek_ocr

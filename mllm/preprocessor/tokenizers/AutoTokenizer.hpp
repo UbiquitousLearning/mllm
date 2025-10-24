@@ -16,6 +16,8 @@
 #include <nlohmann/json_fwd.hpp>
 using json = nlohmann::json;
 
+#include <utfcpp/utf8.h>
+
 #include "mllm/core/Tensor.hpp"
 
 #include <vector>
@@ -65,6 +67,18 @@ class AutoTokenizer {
   virtual std::wstring detokenize(int64_t pos_idx) = 0;
 
   virtual Tensor convert2Ids(const std::vector<std::wstring>& strs) = 0;
+
+ protected:
+  Trie special_tokens_trie_;
+};
+
+class AutoTokenizerUTF8 {
+ public:
+  void addSpecialToken(const std::string& special_token);
+
+  virtual std::vector<int64_t> tokenize(const std::string& str) = 0;
+
+  virtual std::string detokenize(int64_t pos_idx) = 0;
 
  protected:
   Trie special_tokens_trie_;
