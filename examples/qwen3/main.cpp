@@ -60,7 +60,7 @@ MLLM_MAIN({
 
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
-
+    
     qwen3.perfSummary();
   }
 

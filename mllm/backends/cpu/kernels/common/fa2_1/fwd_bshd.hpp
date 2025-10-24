@@ -11,7 +11,7 @@
 #include "mllm/utils/CPUArchHelper.hpp"
 #include "mllm/backends/cpu/kernels/common/fa2_1/arch.hpp"
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "mllm/backends/cpu/kernels/common/fa2_1/impl-arm.hpp"
 #else
 #include "mllm/backends/cpu/kernels/common/fa2_1/impl-any-simd.hpp"
