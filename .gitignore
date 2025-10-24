@@ -33,5 +33,7 @@ autotuner.log
 # Python virtual environment
 .venv/
 
-# Downloaded models and build artifacts
-models/
+# Downloaded models and build artifacts (root-only)
+/models/
+# Keep source model adapters tracked
+!tools/mllm-llm-benchmark/models/
