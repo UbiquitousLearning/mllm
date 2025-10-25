@@ -142,7 +142,7 @@ struct formatter<std::vector<int64_t>> {
         *out++ = ',';
         *out++ = ' ';
       }
-      out = fmt::format_to(out, "\"{}\"", vec[i]);
+      out = fmt::format_to(out, "{}", vec[i]);
     }
     *out++ = ']';
     return out;

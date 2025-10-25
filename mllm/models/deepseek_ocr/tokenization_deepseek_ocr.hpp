@@ -38,11 +38,15 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
     bpe_.initFromSentencePieceJson(file_path);
 
     // Add special tokens to trie
-    special_tokens_trie_.add(L"<|User|>");
-    special_tokens_trie_.add(L"<|Assistant|>");
-    special_tokens_trie_.add(L"<｜begin▁of▁sentence｜>");
-    special_tokens_trie_.add(L"<｜end▁of▁sentence｜>");
-    special_tokens_trie_.add(L"<｜▁pad▁｜>");
+    special_tokens_trie_.add("<|User|>");
+    special_tokens_trie_.add("<|Assistant|>");
+    special_tokens_trie_.add("<｜begin▁of▁sentence｜>");
+    special_tokens_trie_.add("<｜end▁of▁sentence｜>");
+    special_tokens_trie_.add("<｜▁pad▁｜>");
+    special_tokens_trie_.add("<image>");
+    special_tokens_trie_.add("<|grounding|>");
+    special_tokens_trie_.add("<tr>");
+    special_tokens_trie_.add("</tr>");
   }
 
   std::vector<int64_t> encode(const std::string& str) override {
@@ -53,28 +57,57 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
   }
 
   std::string decode(const std::vector<int64_t>& ids) override {
-    // TODO
-    return {};
+    std::vector<std::string> after_bpe_check;
+    for (auto& each_id : ids) {
+      auto each_str = bpe_._lookup_inverse_vocab(each_id);
+      after_bpe_check.emplace_back(each_str);
+    }
+    return detokenize(after_bpe_check);
   }
 
   std::vector<std::string> tokenize(const std::string& str) override {
-    auto after_regex_process = regexPreTokenizer(str);
-    std::vector<std::string> ret;
-    for (auto& ss : after_regex_process) {
-      auto after_bytes_process = byteLevelPreTokenizer(ss);
+    // Replace all blank token to underscore
 
-      // Perform BPE algorithm on each sub-token
-      for (auto& bbpe_str : after_bytes_process) {
-        auto bbpe_str_sub_tokens = bpe_._bpe(bbpe_str);
-        ret.insert(ret.end(), bbpe_str_sub_tokens.begin(), bbpe_str_sub_tokens.end());
+    std::vector<std::string> ret;
+    for (auto& each_str : special_tokens_trie_.split(str)) {
+      if (special_tokens_trie_.isSpecialToken(each_str)) {
+        ret.emplace_back(each_str);
+        continue;
+      }
+
+      // FIXME Should Regex:
+      auto after_regex_process = {each_str};
+
+      for (auto& ss : after_regex_process) {
+        auto after_bytes_process = byteLevelPreTokenizer(ss);
+
+        // Perform BPE algorithm on each sub-token
+        for (auto& bbpe_str : after_bytes_process) {
+          auto bbpe_str_sub_tokens = bpe_._bpe(bbpe_str);
+          ret.insert(ret.end(), bbpe_str_sub_tokens.begin(), bbpe_str_sub_tokens.end());
+        }
       }
     }
     return ret;
   }
 
   std::string detokenize(const std::vector<std::string>& tokenized_str) override {
-    // TODO
-    return {};
+    std::string ret;
+    for (auto& each_str : tokenized_str) {
+      if (special_tokens_trie_.isSpecialToken(each_str)) {
+        ret += each_str;
+        continue;
+      }
+      // Loop utf8 string
+      utf8::iterator it(each_str.begin(), each_str.begin(), each_str.end());
+      utf8::iterator end_it(each_str.end(), each_str.begin(), each_str.end());
+      for (; it != end_it; ++it) {
+        char32_t cp = *it;
+        auto b = unicode_utf8_to_byte(unicode_cpt_to_utf8(cp));
+        ret.push_back(b);
+      }
+    }
+    return ret;
   }
 
  private:
