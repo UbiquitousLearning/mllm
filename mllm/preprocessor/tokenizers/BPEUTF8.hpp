@@ -9,9 +9,13 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
 // CPP's support of UTF-8 is weak. We use the utfcpp library to handle UTF-8 strings.
 #include <utfcpp/utf8.h>
 #include <nlohmann/json_fwd.hpp>
+
+// Use XXHash
+#include <xxHash/xxhash.h>
 
 // Remember:
 // utfcpp use
@@ -21,15 +25,44 @@
 
 namespace mllm::preprocessor {
 
+namespace details {
+
+struct VectorUint32Hash {
+  std::size_t operator()(const std::vector<uint32_t>& v) const noexcept {
+    if (v.empty()) return 0;
+    return static_cast<std::size_t>(XXH64(v.data(), v.size() * sizeof(uint32_t), /*seed=*/0));
+  }
+};
+
+}  // namespace details
+
 struct BPEUTF8PairHash {
-  std::size_t operator()(const std::pair<std::string, std::string>& key) const {
-    std::size_t h1 = std::hash<std::string>{}(key.first + key.second);
-    return h1;
+  std::size_t operator()(const std::pair<std::vector<uint32_t>, std::vector<uint32_t>>& key) const noexcept {
+    const auto& a = key.first;
+    const auto& b = key.second;
+
+    const std::size_t bytes_a = a.size() * sizeof(uint32_t);
+    const std::size_t bytes_b = b.size() * sizeof(uint32_t);
+
+    if (bytes_a == 0 && bytes_b == 0) return 0;
+
+    XXH64_state_t* state = XXH64_createState();
+    if (!state) return 0;
+    XXH64_reset(state, /*seed=*/0);
+
+    if (!a.empty()) XXH64_update(state, a.data(), bytes_a);
+    if (!b.empty()) XXH64_update(state, b.data(), bytes_b);
+
+    std::size_t h = static_cast<std::size_t>(XXH64_digest(state));
+    XXH64_freeState(state);
+    return h;
   }
 };
 
 class BPEUTF8 {
  public:
+  using cpt_string_t = std::vector<uint32_t>;
+
   // BPE can accept sentence piece's json foramt.
   bool initFromSentencePieceJson(const std::string& file_path);
 
@@ -40,11 +73,22 @@ class BPEUTF8 {
   std::string _lookup_inverse_vocab(int64_t idx);
 
  private:
-  std::unordered_set<std::pair<std::string, std::string>, BPEUTF8PairHash> _get_pairs(const std::vector<std::string>& word);
+  inline std::vector<uint32_t> utf8String2Cpts(const std::string& str) {
+    std::vector<uint32_t> word32;
+    utf8::utf8to32(str.begin(), str.end(), std::back_inserter(word32));
+    return word32;
+  }
 
-  std::unordered_map<std::string, int64_t> vocab_;
-  std::unordered_map<int64_t, std::string> vocab_inverse_;
-  std::unordered_map<std::pair<std::string, std::string>, int64_t, BPEUTF8PairHash> bpe_ranks_;
+  inline std::string cpts2Utf8String(const std::vector<uint32_t>& cpts) {
+    std::string str;
+    utf8::utf32to8(cpts.begin(), cpts.end(), std::back_inserter(str));
+    return str;
+  }
+
+  std::unordered_set<std::pair<cpt_string_t, cpt_string_t>, BPEUTF8PairHash> _get_pairs(const std::vector<cpt_string_t>& word);
+  std::unordered_map<cpt_string_t, int64_t, details::VectorUint32Hash> vocab_;
+  std::unordered_map<int64_t, cpt_string_t> vocab_inverse_;
+  std::unordered_map<std::pair<cpt_string_t, cpt_string_t>, int64_t, BPEUTF8PairHash> bpe_ranks_;
 };
 
 }  // namespace mllm::preprocessor

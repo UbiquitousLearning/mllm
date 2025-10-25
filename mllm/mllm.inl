@@ -112,6 +112,44 @@ struct formatter<std::vector<int32_t>> {
 };
 
 template<>
+struct formatter<std::vector<std::string>> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const std::vector<std::string>& vec, FormatContext& ctx) const {
+    auto out = ctx.out();
+    *out++ = '[';
+    for (size_t i = 0; i < vec.size(); ++i) {
+      if (i > 0) {
+        *out++ = ',';
+        *out++ = ' ';
+      }
+      out = fmt::format_to(out, "\"{}\"", vec[i]);
+    }
+    *out++ = ']';
+    return out;
+  }
+};
+
+template<>
+struct formatter<std::vector<int64_t>> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const std::vector<int64_t>& vec, FormatContext& ctx) const {
+    auto out = ctx.out();
+    *out++ = '[';
+    for (size_t i = 0; i < vec.size(); ++i) {
+      if (i > 0) {
+        *out++ = ',';
+        *out++ = ' ';
+      }
+      out = fmt::format_to(out, "\"{}\"", vec[i]);
+    }
+    *out++ = ']';
+    return out;
+  }
+};
+
+template<>
 struct formatter<mllm::Tensor> {
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 

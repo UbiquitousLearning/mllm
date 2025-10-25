@@ -11,13 +11,21 @@
 #include <vector>
 #include <vector>
 #include <string>
-#include <unordered_map>
 
 #include "mllm/preprocessor/tokenizers/BPEUTF8.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
+#include "mllm/preprocessor/tokenizers/llama_cpp_unicode/unicode.h"
 
 namespace mllm::models::deepseek_ocr {
+
+namespace details {
+
+// Standard GPT2 regex
+// https://github.com/openai/gpt-2/blob/master/src/encoder.py#L53
+constexpr char GPT2_EXPR[] = R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)";
+
+}  // namespace details
 
 // Actually is LlamaTokenizer
 class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
@@ -37,17 +45,43 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
     special_tokens_trie_.add(L"<｜▁pad▁｜>");
   }
 
-  std::vector<int64_t> tokenize(const std::string& str) override {
+  std::vector<int64_t> encode(const std::string& str) override {
+    auto sub_tokens = tokenize(str);
+    auto ret = std::vector<int64_t>{};
+    for (auto& token : sub_tokens) { ret.emplace_back(bpe_._lookup_vocab(token)); }
+    return ret;
+  }
+
+  std::string decode(const std::vector<int64_t>& ids) override {
     // TODO
     return {};
   }
 
-  std::string detokenize(int64_t pos_idx) override {
+  std::vector<std::string> tokenize(const std::string& str) override {
+    auto after_regex_process = regexPreTokenizer(str);
+    std::vector<std::string> ret;
+    for (auto& ss : after_regex_process) {
+      auto after_bytes_process = byteLevelPreTokenizer(ss);
+
+      // Perform BPE algorithm on each sub-token
+      for (auto& bbpe_str : after_bytes_process) {
+        auto bbpe_str_sub_tokens = bpe_._bpe(bbpe_str);
+        ret.insert(ret.end(), bbpe_str_sub_tokens.begin(), bbpe_str_sub_tokens.end());
+      }
+    }
+    return ret;
+  }
+
+  std::string detokenize(const std::vector<std::string>& tokenized_str) override {
     // TODO
-    return "";
+    return {};
   }
 
  private:
+  std::vector<std::string> byteLevelPreTokenizer(const std::string& str) {
+    return unicode_regex_split(str, {std::string{details::GPT2_EXPR}});
+  }
+
   // "pre_tokenizer": {
   //   "type": "Sequence",
   //   "pretokenizers": [
@@ -84,7 +118,7 @@ class DpskOcrTokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
   //     }
   //   ]
   // }
-  std::vector<std::string> preprocessToken(const std::string& token) {
+  std::vector<std::string> regexPreTokenizer(const std::string& token) {
     std::vector<std::string> out;
     auto it = token.begin();
     auto end = token.end();

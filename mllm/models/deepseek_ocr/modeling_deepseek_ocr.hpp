@@ -81,7 +81,7 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
     // text_splits's length should be greater than images' length.
     // text_splits.size() - images.size() = 1
     for (int idx = 0; idx < std::min(images.size(), text_splits.size()); ++idx) {
-      auto tokenized_sep = tokenizer.tokenize(text_splits[idx]);
+      auto tokenized_sep = tokenizer.encode(text_splits[idx]);
       tokenized_str.insert(tokenized_str.end(), tokenized_sep.begin(), tokenized_sep.end());
       for (int _i = 0; _i < tokenized_sep.size(); ++_i) {
         images_seq_mask.emplace_back(0);  // emplace_back(false)
@@ -160,7 +160,7 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
     }
 
     // Processing last text split
-    auto tokenized_sep = tokenizer.tokenize(text_splits.back());
+    auto tokenized_sep = tokenizer.encode(text_splits.back());
     tokenized_str.insert(tokenized_str.end(), tokenized_sep.begin(), tokenized_sep.end());
     images_seq_mask.insert(images_seq_mask.end(), tokenized_sep.size(), false);
 

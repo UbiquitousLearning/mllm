@@ -29,12 +29,12 @@ bool BPEUTF8::initFromSentencePieceJson(const std::string& file_path) {
 
   for (const auto& [key, value] : json_data["model"]["vocab"].items()) {
     vocab_.insert({
-        key,
+        utf8String2Cpts(key),
         value,
     });
     vocab_inverse_.insert({
         value,
-        key,
+        utf8String2Cpts(key),
     });
   }
 
@@ -42,12 +42,12 @@ bool BPEUTF8::initFromSentencePieceJson(const std::string& file_path) {
     int64_t id = add_token.value()["id"];
     std::string content = add_token.value()["content"];
     vocab_.insert({
-        content,
+        utf8String2Cpts(content),
         id,
     });
     vocab_inverse_.insert({
         id,
-        content,
+        utf8String2Cpts(content),
     });
   }
 
@@ -60,9 +60,9 @@ bool BPEUTF8::initFromSentencePieceJson(const std::string& file_path) {
       auto blank_pos = wide_merge_item.find(' ');
       auto first = wide_merge_item.substr(0, blank_pos);
       auto second = wide_merge_item.substr(blank_pos + 1);
-      bpe_ranks_.insert({{first, second}, cnt++});
+      bpe_ranks_.insert({{utf8String2Cpts(first), utf8String2Cpts(second)}, cnt++});
     } else if (merge_item.is_array()) {
-      bpe_ranks_.insert({{merge_item[0], merge_item[1]}, cnt++});
+      bpe_ranks_.insert({{utf8String2Cpts(merge_item[0]), utf8String2Cpts(merge_item[1])}, cnt++});
     }
   }
 
@@ -71,9 +71,12 @@ bool BPEUTF8::initFromSentencePieceJson(const std::string& file_path) {
 
 // ByteLevel BPE
 std::vector<std::string> BPEUTF8::_bpe(const std::string& token) {
-  // Treats token as a sequence of bytes
-  std::vector<std::string> word;
-  for (const auto& w : token) word.emplace_back(1, w);
+  // Slice all tokens to word
+  std::vector<cpt_string_t> word;
+  {
+    auto cpts = utf8String2Cpts(token);
+    for (auto cpt : cpts) { word.push_back(cpt_string_t{cpt}); }
+  }
 
   auto pairs = _get_pairs(word);
   if (pairs.empty()) return {token};
@@ -81,7 +84,7 @@ std::vector<std::string> BPEUTF8::_bpe(const std::string& token) {
   while (true) {
     bool has_bigram = false;
     int64_t rank_bigram = std::numeric_limits<int64_t>::max();
-    std::pair<std::string, std::string> bigram;
+    std::pair<cpt_string_t, cpt_string_t> bigram;
 
     for (const auto& p : pairs) {
       if (bpe_ranks_.count(p)) {
@@ -97,7 +100,7 @@ std::vector<std::string> BPEUTF8::_bpe(const std::string& token) {
     if (!has_bigram) { break; }
 
     auto [first, second] = bigram;
-    std::vector<std::string> new_word;
+    std::vector<cpt_string_t> new_word;
     int i = 0;
 
     while (i < word.size()) {
@@ -110,7 +113,9 @@ std::vector<std::string> BPEUTF8::_bpe(const std::string& token) {
 
       // Check if we can merge at position j
       if (j < word.size() - 1 && word[j] == first && word[j + 1] == second) {
-        new_word.push_back(first + second);
+        auto __merged = first;
+        __merged.insert(std::end(__merged), std::begin(second), std::end(second));
+        new_word.push_back(__merged);
         i = j + 2;  // Skip both merged elements
       } else if (j < word.size()) {
         new_word.push_back(word[j]);
@@ -128,12 +133,17 @@ std::vector<std::string> BPEUTF8::_bpe(const std::string& token) {
     }
   }
 
-  return word;
+  std::vector<std::string> ret;
+  ret.reserve(word.size());
+  for (auto& cpt : word) { ret.push_back(cpts2Utf8String(cpt)); }
+
+  return ret;
 }
 
 int64_t BPEUTF8::_lookup_vocab(const std::string& token) {
-  if (vocab_.find(token) != vocab_.end()) {
-    return vocab_[token];
+  auto cpts = utf8String2Cpts(token);
+  if (vocab_.find(cpts) != vocab_.end()) {
+    return vocab_[cpts];
   } else {
     MLLM_WARN("Cannot find token: {} in BPEUTF8 vocab", token);
     return 0;
@@ -142,16 +152,16 @@ int64_t BPEUTF8::_lookup_vocab(const std::string& token) {
 
 std::string BPEUTF8::_lookup_inverse_vocab(int64_t idx) {
   if (vocab_inverse_.find(idx) != vocab_inverse_.end()) {
-    return vocab_inverse_[idx];
+    return cpts2Utf8String(vocab_inverse_[idx]);
   } else {
     MLLM_WARN("Cannot find token in BPEUTF8 vocab. When doing _lookup_inverse_vocab");
     return {};
   }
 }
 
-std::unordered_set<std::pair<std::string, std::string>, BPEUTF8PairHash> BPEUTF8::_get_pairs(
-    const std::vector<std::string>& word) {
-  std::unordered_set<std::pair<std::string, std::string>, BPEUTF8PairHash> pairs;
+std::unordered_set<std::pair<BPEUTF8::cpt_string_t, BPEUTF8::cpt_string_t>, BPEUTF8PairHash> BPEUTF8::_get_pairs(
+    const std::vector<BPEUTF8::cpt_string_t>& word) {
+  std::unordered_set<std::pair<cpt_string_t, cpt_string_t>, BPEUTF8PairHash> pairs;
   if (word.size() < 2) return pairs;
   auto prev_char = word[0];
   for (size_t i = 1; i < word.size(); ++i) {

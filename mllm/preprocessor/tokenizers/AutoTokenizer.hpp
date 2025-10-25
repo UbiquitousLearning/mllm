@@ -76,9 +76,13 @@ class AutoTokenizerUTF8 {
  public:
   void addSpecialToken(const std::string& special_token);
 
-  virtual std::vector<int64_t> tokenize(const std::string& str) = 0;
+  virtual std::vector<int64_t> encode(const std::string& str) = 0;
 
-  virtual std::string detokenize(int64_t pos_idx) = 0;
+  virtual std::string decode(const std::vector<int64_t>& ids) = 0;
+
+  virtual std::vector<std::string> tokenize(const std::string& str) = 0;
+
+  virtual std::string detokenize(const std::vector<std::string>& tokenized_str) = 0;
 
  protected:
   Trie special_tokens_trie_;
