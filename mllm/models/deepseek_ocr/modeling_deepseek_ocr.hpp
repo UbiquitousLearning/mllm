@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <optional>
 #include <algorithm>
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -18,6 +19,154 @@
 #include "mllm/models/deepseek_ocr/configuration_deepseek_ocr.hpp"
 
 namespace mllm::models::deepseek_ocr {
+
+class DeepseekV2MLP final : public nn::Module {
+  nn::Linear gate_proj_;
+  nn::Linear up_proj_;
+  nn::Linear down_proj_;
+  nn::SiLU act_;
+
+  int hidden_size_;
+  int intermediate_size_;
+
+ public:
+  DeepseekV2MLP() = default;
+
+  explicit DeepseekV2MLP(const std::string& name, const DpskOcrConfig& config,
+                         const std::optional<int>& hidden_size = std::nullopt,
+                         const std::optional<int>& intermediate_size = std::nullopt)
+      : nn::Module(name) {
+    hidden_size_ = hidden_size.value_or(config.hidden_size);
+    intermediate_size_ = intermediate_size.value_or(config.intermediate_size);
+
+    // clang-format off
+    gate_proj_ = reg<nn::Linear>("gate_proj", hidden_size_, intermediate_size_, false, config.llm_mlp_linear_impl_type);
+    up_proj_ = reg<nn::Linear>("up_proj", hidden_size_, intermediate_size_, false, config.llm_mlp_linear_impl_type);
+    down_proj_ = reg<nn::Linear>("down_proj", intermediate_size_, hidden_size_, false, config.llm_mlp_linear_impl_type);
+    act_ = reg<nn::SiLU>("act");
+    // clang-format on
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    return {down_proj_(act_(gate_proj_(inputs[0])) * up_proj_(inputs[0]))};
+  }
+};
+
+class MoEGate final : public nn::Module {
+  // FIXME: We may need to support more types
+  std::string scoring_func_ = "softmax";
+  std::string topk_method_ = "greedy";
+
+  int top_k_;
+  int n_routed_experts_;
+  float routed_scaling_factor_;
+  int n_group_;
+  int topk_group_;
+  bool norm_topk_prob_;
+
+  nn::Param weight_;
+
+ public:
+  MoEGate() = default;
+
+  MoEGate(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
+    top_k_ = config.num_experts_per_tok;
+    n_routed_experts_ = config.n_routed_experts;
+
+    // FIXME: Read from config.json instead of hard-coding
+    routed_scaling_factor_ = 1.f;
+    norm_topk_prob_ = false;
+
+    n_group_ = config.n_group;
+    topk_group_ = config.topk_group;
+
+    weight_ = reg<nn::Param>("weight", getModuleName() + ".weight");
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto hidden_states = inputs[0];
+    auto bsz = hidden_states.size(0);
+    auto seq_len = hidden_states.size(1);
+    auto h = hidden_states.size(2);
+
+    // Compute gating score
+    hidden_states = hidden_states.view({-1, h});
+    // hidden_states and weight must in fp32 to keep precision !!!
+    auto logits = nn::functional::matmul(hidden_states, weight_.weight(), false, true);
+    auto scores = nn::functional::softmax(logits, -1);
+    auto [topk_weight, topk_idx] = nn::functional::topk(scores, top_k_, -1, true, false);
+
+    // FIXME: Someone may need to Norm gate to sum 1.
+    // FIXME: Someone may need rescale topk_weight by routed_scaling_factor_, but here is hard-code to 1.f
+
+    return {topk_idx, topk_weight};
+  }
+};
+
+class DeepseekV2MoE final : public nn::Module {
+  int num_experts_per_tok_;
+
+  // FIXME: Should not hard-code
+  int ep_size_ = 1;
+  int experts_per_rank_;
+  int n_shared_experts_ = 0;
+
+  nn::ModuleList<DeepseekV2MLP> experts_;
+  MoEGate gate_;
+  nn::ModuleList<DeepseekV2MoE> shared_experts_;
+
+ public:
+  DeepseekV2MoE() = default;
+
+  DeepseekV2MoE(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
+    num_experts_per_tok_ = config.num_experts_per_tok;
+    experts_per_rank_ = config.n_routed_experts;
+    n_shared_experts_ = config.n_shared_experts;
+
+    // Init experts
+    experts_ = reg<nn::ModuleList<DeepseekV2MLP>>("experts", config.n_routed_experts, config, std::nullopt,
+                                                  config.moe_intermediate_size);
+    gate_ = reg<MoEGate>("gate", config);
+
+    if (n_shared_experts_ > 0) {
+      auto intermediate_size = config.moe_intermediate_size * config.n_shared_experts;
+      shared_experts_ =
+          reg<nn::ModuleList<DeepseekV2MoE>>("shared_experts", n_shared_experts_, config, std::nullopt, intermediate_size);
+    }
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto hidden_states = inputs[0];
+    auto identity = hidden_states;
+    auto orig_shape = hidden_states.shape();
+    auto topk_idx = Tensor::nil();
+    auto topk_weight = Tensor::nil();
+    auto gated_ret = gate_(hidden_states);
+    topk_idx = gated_ret[0];
+    topk_weight = gated_ret[1];
+    hidden_states = hidden_states.view({-1, hidden_states.size(-1)});
+    auto flat_topk_idx = topk_idx.view({-1});
+    auto y = moeInfer(hidden_states, topk_idx, topk_weight).view(orig_shape);
+    if (n_shared_experts_ > 0) { y = y + shared_experts_(identity)[0]; }
+    return {y};
+  }
+
+ private:
+  Tensor moeInfer(const Tensor& x, const Tensor& topk_ids, const Tensor& topk_weights) {
+    // TODO
+    return Tensor::nil();
+  }
+};
+
+class DeepseekV2Attention final : public nn::Module {
+ public:
+  // TODO
+};
+
+class DeepseekV2DecoderLayer final : public nn::Module {
+ public:
+  // TODO
+};
 
 class DeepSeekV2Model : public nn::Module {
  protected:

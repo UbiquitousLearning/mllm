@@ -184,6 +184,7 @@ struct DpskOcrConfig : protected ConfigFile {
   aops::LinearImplTypes sam_linear_impl_type = aops::LinearImplTypes::kDefault;
   aops::LinearImplTypes mlp_projector_linear_impl_type = aops::LinearImplTypes::kDefault;
   aops::LinearImplTypes lm_head_linear_impl_type = aops::LinearImplTypes::kDefault;
+  aops::LinearImplTypes llm_mlp_linear_impl_type = aops::LinearImplTypes::kDefault;
 };
 
 }  // namespace mllm::models::deepseek_ocr
