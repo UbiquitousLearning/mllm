@@ -87,7 +87,7 @@ class CLIPVisionEmbeddings final : public nn::Module {
     num_positions_ = num_patches_ + 1;
 
     // [embed_dim], aka [1024]
-    class_embedding_ = reg<nn::Param>("class_embedding");
+    class_embedding_ = reg<nn::Param>("class_embedding", getModuleName() + ".class_embedding");
     patch_embedding_ = reg<nn::Conv2D>("patch_embedding", 3, embed_dim_, Tensor::shape_t{14, 14}, Tensor::shape_t{14, 14},
                                        Tensor::shape_t{0, 0}, Tensor::shape_t{1, 1}, false);
     position_embedding_ = reg<nn::Embedding>("position_embedding", num_positions_, embed_dim_);
@@ -260,7 +260,7 @@ class NoTPTransformer final : public nn::Module {
  public:
   NoTPTransformer() = default;
 
-  NoTPTransformer(const std::string& name, const DpskOcrConfig& config) {
+  NoTPTransformer(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
     num_layers_ = 24;
     layers_ = reg<nn::ModuleList<NoTPTransformerBlock>>("layers", num_layers_, config);
     for (auto [idx, layer] : enumerate(layers_.list())) { layer.layer_id_ = idx; }
@@ -363,8 +363,8 @@ class Attention final : public nn::Module {
     qkv_ = reg<nn::Linear>("qkv", dim, dim * 3, qkv_bias, config.sam_linear_impl_type);
     proj_ = reg<nn::Linear>("proj", dim, dim, true, config.sam_linear_impl_type);
     if (use_rel_pos) {
-      rel_pos_h_ = reg<nn::Param>("rel_pos_h");
-      rel_pos_w_ = reg<nn::Param>("rel_pos_w");
+      rel_pos_h_ = reg<nn::Param>("rel_pos_h", getModuleName() + ".rel_pos_h");
+      rel_pos_w_ = reg<nn::Param>("rel_pos_w", getModuleName() + ".rel_pos_w");
     }
   }
 
@@ -640,7 +640,7 @@ class ImageEncoderViT final : public nn::Module {
 
   ImageEncoderViT(const std::string& name, const DpskOcrConfig& config) : nn::Module(name) {
     patch_embed_ = reg<PatchEmbed>("patch_embed", config);
-    pos_embed_ = reg<nn::Param>("pos_embed");
+    pos_embed_ = reg<nn::Param>("pos_embed", getModuleName() + ".pos_embed");
 
     // block_nums = 12
     // embed_dim = 768
@@ -652,7 +652,7 @@ class ImageEncoderViT final : public nn::Module {
     blocks_ = reg<Blocks>("blocks", 12, std::vector<int>{2, 5, 8, 11}, config);
 
     neck_ = reg<nn::Sequential>("neck")
-                .add<nn::Conv2D>(768, 12, Tensor::shape_t{1, 1}, Tensor::shape_t{1, 1}, Tensor::shape_t{0, 0},
+                .add<nn::Conv2D>(768, 256, Tensor::shape_t{1, 1}, Tensor::shape_t{1, 1}, Tensor::shape_t{0, 0},
                                  Tensor::shape_t{1, 1}, false)
                 .add<nn::LayerNorm2D>(256)
                 .add<nn::Conv2D>(256, 256, Tensor::shape_t{3, 3}, Tensor::shape_t{1, 1}, Tensor::shape_t{1, 1},

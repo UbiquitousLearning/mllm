@@ -123,7 +123,7 @@ struct formatter<std::vector<std::string>> {
         *out++ = ',';
         *out++ = ' ';
       }
-      out = fmt::format_to(out, "\"{}\"", vec[i]);
+      out = fmt::format_to(out, "{:?}", vec[i]);
     }
     *out++ = ']';
     return out;
@@ -145,6 +145,17 @@ struct formatter<std::vector<int64_t>> {
       out = fmt::format_to(out, "{}", vec[i]);
     }
     *out++ = ']';
+    return out;
+  }
+};
+
+template<>
+struct formatter<std::tuple<int, int>> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const std::tuple<int, int>& tuple, FormatContext& ctx) const {
+    auto out = ctx.out();
+    out = fmt::format_to(out, "tuple[{}, {}]", std::get<0>(tuple), std::get<1>(tuple));
     return out;
   }
 };

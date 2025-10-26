@@ -634,6 +634,12 @@ class Tensor {
     return *(offsettedPtr<T>(offsets));
   }
 
+  template<typename T>
+  T item() const {
+    MLLM_RT_ASSERT_EQ(numel(), 1);
+    return *(ptr<T>());
+  };
+
   /**
    * @brief Accesses a tensor element at specified coordinates (const version).
    * @tparam T Expected data type (must match tensor dtype).

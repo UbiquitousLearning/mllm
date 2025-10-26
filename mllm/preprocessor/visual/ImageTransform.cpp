@@ -96,9 +96,8 @@ Tensor Normalize::apply(const Tensor& input) const {
   MLLM_RT_ASSERT_EQ(static_cast<int>(mean_.size()), c);
   MLLM_RT_ASSERT_EQ(static_cast<int>(std_.size()), c);
 
-  // Work on a contiguous clone to simplify indexing
-  Tensor out = Tensor::empty(src.shape(), src.dtype(), src.device()).alloc();
-  float* ptr = out.ptr<float>();
+  // Asuming Work on a contiguous clone to simplify indexing
+  float* ptr = input.ptr<float>();
   const size_t plane = static_cast<size_t>(h) * static_cast<size_t>(w);
 
   for (int ch = 0; ch < c; ++ch) {
@@ -109,7 +108,7 @@ Tensor Normalize::apply(const Tensor& input) const {
     for (size_t i = 0; i < plane; ++i) { base[i] = (base[i] - m) / s; }
   }
 
-  return out;
+  return input;
 }
 
 // ========================= BasicImageTransform =========================

@@ -180,9 +180,10 @@ struct DpskOcrConfig : protected ConfigFile {
   int32_t vocab_size = 129280;
 
   // MLLM Related Stuff
-  aops::LinearImplTypes clip_linear_impl_type;
-  aops::LinearImplTypes sam_linear_impl_type;
-  aops::LinearImplTypes mlp_projector_linear_impl_type;
+  aops::LinearImplTypes clip_linear_impl_type = aops::LinearImplTypes::kDefault;
+  aops::LinearImplTypes sam_linear_impl_type = aops::LinearImplTypes::kDefault;
+  aops::LinearImplTypes mlp_projector_linear_impl_type = aops::LinearImplTypes::kDefault;
+  aops::LinearImplTypes lm_head_linear_impl_type = aops::LinearImplTypes::kDefault;
 };
 
 }  // namespace mllm::models::deepseek_ocr
