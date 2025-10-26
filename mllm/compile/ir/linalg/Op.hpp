@@ -69,6 +69,7 @@ class PadOp;
 class InterpolateOp;
 class EinsumOp;
 class StackOp;
+class MaskedScatterOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -223,5 +224,6 @@ LINALG_AOPS_DEFINE(PadOp, PADOP);
 LINALG_AOPS_DEFINE(InterpolateOp, INTERPOLATEOP);
 LINALG_AOPS_DEFINE(EinsumOp, EINSUMOP);
 LINALG_AOPS_DEFINE(StackOp, STACKOP);
+LINALG_AOPS_DEFINE(MaskedScatterOp, MASKEDSCATTEROP);
 
 }  // namespace mllm::ir::linalg

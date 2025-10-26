@@ -149,4 +149,6 @@ Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_facto
                           aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false,
                           bool antialias = false);
 
+void maskedScatter(const Tensor& dst, const Tensor& mask, const Tensor& src);
+
 }  // namespace mllm::nn::functional

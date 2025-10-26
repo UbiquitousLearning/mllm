@@ -207,10 +207,8 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
       }
     }
 
-    if (images_in_this_batch) {
-      // TODO
-      // inputs_embeds[idx].masked_scatter_(...)
-    }
+    // Scatter copy.
+    if (images_in_this_batch) { nn::functional::maskedScatter(inputs_embeds, images_seq_mask, images_in_this_batch); }
 
     // Normal forward with text and embedded image
     // TODO

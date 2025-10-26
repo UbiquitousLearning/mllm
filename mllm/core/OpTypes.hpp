@@ -82,6 +82,7 @@ enum class OpTypes : int32_t {
   kInterpolate = 62,
   kEinsum = 63,
   kStack = 64,
+  kMaskedScatter = 65,
 
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
@@ -155,6 +156,9 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kPad: return "Pad";
     case OpTypes::kInterpolate: return "Interpolate";
     case OpTypes::kStack: return "Stack";
+    case OpTypes::kEinsum: return "Einsum";
+    case OpTypes::kMaskedScatter: return "MaskedScatter";
+    case OpTypes::kDynamicOp_Start: return "DynamicOp_Start";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";
   }

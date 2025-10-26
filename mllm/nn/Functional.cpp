@@ -15,6 +15,7 @@
 #include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/core/aops/SiLUOp.hpp"
 #include "mllm/core/aops/PadOp.hpp"
+#include "mllm/core/aops/MaskedScatterOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/core/aops/StackOp.hpp"
 #include "mllm/engine/Context.hpp"
@@ -157,6 +158,10 @@ Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_facto
   opts.align_corners = align_corners;
   opts.antialias = antialias;
   return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
+}
+
+void maskedScatter(const Tensor& dst, const Tensor& mask, const Tensor& src) {
+  Context::instance().buildOpAndSubmitTask(OpTypes::kMaskedScatter, aops::MaskedScatterOpOptions{}, {dst, mask, src});
 }
 
 }  // namespace mllm::nn::functional
