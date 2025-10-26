@@ -24,9 +24,13 @@ void LayerNorm2DOp::trace(void* trace_context, const std::vector<Tensor>& inputs
   auto ir_ctx = (ir::IRContext*)trace_context;
 
   // Register Params
+  auto init_region = ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion();
   if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
-    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    ir::IRWriterGuard guard(ir_ctx, init_region);
     ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
+  }
+  if (bias_ && !ir_ctx->lookupSymbolTable(getName() + ".bias")) {
+    ir::IRWriterGuard guard(ir_ctx, init_region);
     ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_));
   }
 

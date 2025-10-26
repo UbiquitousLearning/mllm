@@ -347,7 +347,7 @@ bool Tensor::isContiguousN(int n) const { return impl()->isContiguousN(n); }
 
 int32_t Tensor::size(int32_t id) const {
   auto nid = id;
-  if (id < 0) { nid = rank() + id; }
+  if (id < 0) { nid = static_cast<int32_t>(rank()) + id; }
   return shape()[nid];
 }
 
@@ -436,6 +436,7 @@ Tensor Tensor::flatten(int32_t dim) {
 
   return view(new_shape);
 }
+
 Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }
 
 void Tensor::copy2(const Tensor& src) {

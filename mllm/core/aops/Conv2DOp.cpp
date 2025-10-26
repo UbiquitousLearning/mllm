@@ -33,7 +33,7 @@ void Conv2DOp::load(const ParameterFile::ptr_t& ploader) {
       if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
       break;
     }
-    default: NYI("Unsupported model file version")
+    default: NYI("Unsupported model file version");
   }
 }
 
@@ -41,10 +41,14 @@ void Conv2DOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std
   auto ir_ctx = (ir::IRContext*)trace_context;
 
   // Register Params
+  auto init_region = ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion();
   if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
-    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    ir::IRWriterGuard guard(ir_ctx, init_region);
     ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
-    if (options_.bias) { ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_)); }
+  }
+  if (options_.bias && bias_ && !ir_ctx->lookupSymbolTable(getName() + ".bias")) {
+    ir::IRWriterGuard guard(ir_ctx, init_region);
+    ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_));
   }
 
   auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
@@ -84,6 +88,10 @@ void Conv2DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   const auto& padding = options_.padding;    // [ph, pw] if available
   const auto& dilation = options_.dilation;  // [dh, dw] if available
   const int out_channels = options_.out_channels;
+  MLLM_RT_ASSERT_EQ(kernel.size(), 2);
+  MLLM_RT_ASSERT_EQ(stride.size(), 2);
+  MLLM_RT_ASSERT_EQ(padding.size(), 2);
+  MLLM_RT_ASSERT_EQ(dilation.size(), 2);
 
   // Output shape calculation for Conv2D
   auto out_shape = [](int dim_size, int kernel_size, int stride_size, int padding_size, int dilation_size) -> int32_t {

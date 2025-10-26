@@ -259,7 +259,7 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
 
         MLLM_RT_ASSERT_EQ(images_spatial_crop.dtype(), kInt64);
         int width_crop_num = images_spatial_crop.at<mllm_int64_t>({0, 0});
-        int height_crop_num = images_spatial_crop.at<mllm_int64_t>({0, 0});
+        int height_crop_num = images_spatial_crop.at<mllm_int64_t>({0, 1});
 
         global_features = global_features.view({h, w, n_dim});
         global_features = nn::functional::concat(

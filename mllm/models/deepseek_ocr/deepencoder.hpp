@@ -129,14 +129,14 @@ class CLIPVisionEmbeddings final : public nn::Module {
     auto pixel_values = Tensor::nil();
     auto patch_embeds = Tensor::nil();
 
-    auto batch_size = pixel_values.shape()[0];
-
     if (inputs.size() == 1) {
       pixel_values = inputs[0];
     } else if (inputs.size() == 2) {
       pixel_values = inputs[0];
       patch_embeds = inputs[1];
     }
+
+    auto batch_size = pixel_values.shape()[0];
 
     if (!patch_embeds) { patch_embeds = patch_embedding_(pixel_values); }
 
