@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(mllm)
+project(mllm CXX C ASM)
 
 # 添加编译选项来禁用所有警告
 # if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -11,6 +11,29 @@ project(mllm)
 
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
+
+
+# 添加Address Sanitizer选项
+option(USE_ASAN "Enable AddressSanitizer for memory leak detection" OFF)
+
+if(USE_ASAN)
+    message(STATUS "Enabling AddressSanitizer")
+    # 确保包含调试符号
+    if(NOT MSVC)
+        add_compile_options(-g)
+    endif()
+    
+    # 设置ASan编译选项
+    if(MSVC)
+        add_compile_options(/fsanitize=address)
+        add_link_options(/fsanitize:address)
+    else()
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    endif()
+endif()
+
+
 option(ARM "build on ARM" OFF)
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -31,17 +54,24 @@ add_compile_options(-Wno-gnu-string-literal-operator-template)
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
     set(ARM ON)
-    set(ANDROID_PLATFORM android-28)
+    # set(ANDROID_PLATFORM android-28)
 endif ()
 
 if (ARM)
-    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
+if(QNN)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm-qnn)
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+else()
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
+endif()
+    
     add_compile_definitions(__ARM_FEATURE_DOTPROD)
     # 检查是否使用的是 GCC 或 Clang 编译器
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         # 默认使用 armv8.2-a+dotprod，除非用户自定义了 CMAKE_CXX_FLAGS
         if(NOT DEFINED CMAKE_CXX_FLAGS OR CMAKE_CXX_FLAGS STREQUAL "")
-            set(CMAKE_CXX_FLAGS "-march=armv8.6-a+dotprod+i8mm")
+            set(CMAKE_CXX_FLAGS "-march=armv8.2-a+fp16+fp16fml+dotprod+i8mm")
         endif()
     endif()
 else ()
@@ -88,6 +118,32 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
 
+option(OPENCL "Enable OpenCL Backend" ON) 
+if(OPENCL)
+    if(ANDROID)
+        # 对于现代 NDK (r23+)，我们不再需要 find_library 或 find_package。
+        # NDK 工具链会在链接时自动找到像 OpenCL 这样的系统库。
+        # 我们只需确保启用了相关宏定义，并在链接目标时指明即可。
+        message(STATUS "OpenCL backend for Android enabled. Linking will be handled by the NDK toolchain.")
+        add_definitions(-DUSE_OPENCL)
+        add_definitions(-DMLLM_TARGET_ANDROID)
+        include_directories(${CMAKE_SOURCE_DIR}/mllm/backends/opencl/third_party/OpenCL-Headers)
+     
+    else()
+        # 对于非 Android 平台，保持原有的查找逻辑
+        find_package(OpenCL)
+        if(NOT OpenCL_FOUND)
+            message(STATUS "OpenCl backend not found.")
+            set(OPENCL OFF CACHE BOOL "Enable OpenCL Backend" FORCE)
+        else()
+            message(STATUS "OpenCL backend enabled.")
+            add_definitions(-DUSE_OPENCL)
+        endif()
+    endif()
+endif()
+
+
+
 # for XNNPACK, avoid invovle googltest twice.
 set(GOOGLETEST_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/googletest)
 add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
@@ -107,11 +163,11 @@ if (ARM AND NOT APK)
     set(MLLM_OPENMP_STATIC ON)
 endif ()
 # turn off openmp when build on mac or for mac
-if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
-    message(STATUS "mac detected, turn off openmp")
-    set(MLLM_OPENMP OFF)
-    set(MLLM_OPENMP_STATIC OFF)
-endif ()
+# if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+#     message(STATUS "mac detected, turn off openmp")
+#     set(MLLM_OPENMP OFF)
+#     set(MLLM_OPENMP_STATIC OFF)
+# endif ()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     message(STATUS "x86_64 detected")
@@ -127,18 +183,19 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATC
     endif()
 endif()
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm DIR_SRC)
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/express DIR_SRC_EXP)
+# directory for legacy code, which is not used in the current version(Graph,Net,Executor)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/legacy DIR_SRC_LEGACY)
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/processor DIR_SRC_PROCESSOE)
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/processor DIR_SRC_PROCESSOE)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/memory DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPARTY_AUDIO)
 
-include_directories(${PROJECT_SOURCE_DIR}/src)
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/mllm)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 
@@ -146,20 +203,21 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 # You can remove those lines if you just want to build mllm instead dev on it.
 include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
 
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/cpu)
+
+
+if(OPENCL)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/opencl)
+endif()
+# =========
 
 if(QNN) # QNN lib
     include_directories(
         # $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
-        ${PROJECT_SOURCE_DIR}/src/backends/qnn/sdk/include/QNN # QNN SDK include
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Log
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/PAL/include
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Model
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Utils
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/WrapperUtils
+        ${PROJECT_SOURCE_DIR}/mllm/backends/qnn/sdk/include/QNN # QNN SDK include
+        ${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn
     )   
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn)
 endif()
 
 option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
@@ -175,41 +233,88 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
     set(XNNPACK_BUILD_TESTS OFF)
     set(XNNPACK_BUILD_BENCHMARKS OFF)
     add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND=1)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/xnnpack)
 endif()
 
 # add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/*.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/*.hpp
 )
 
 # if compile to x86_64
 if(QUANT)
-    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
+    include_directories(${PROJECT_SOURCE_DIR}/tools/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/GemmPack.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/compute/GemmKleidiai.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ8.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ4.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ6.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ3.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ2.cpp
     )
+
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+        # 配置 kleidiai 库路径
+        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/kleidiai)
+        if(NOT EXISTS ${KLEIDIAI_SOURCE_DIR})
+            message(FATAL_ERROR "kleidiai library not found! Please place it in 'third_party/kleidiai'.")
+        endif()
+        # 添加所有源文件路径到 MLLM_QUANT
+       list(APPEND MLLM_QUANT
+            # QSI4_C32P (to FP32) 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p4x8_8x4x32_neon_i8mm.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p4x8_8x4x32_neon_i8mm_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.c
+
+            # [新增] QSI4_CXP (to FP16) 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp1x8_qsi4cxp4x8_1x4_neon_dotprod.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp1x8_qsi4cxp4x8_1x4_neon_dotprod_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp4x8_qsi4cxp4x8_16x4_neon_i8mm.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp4x8_qsi4cxp4x8_16x4_neon_i8mm_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f16_neon.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4cxp_qs4cxs1s0.c
+
+            # FP16 (f16*f16) 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.c
+
+            # FP32 (f32*f32) 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.c
+        )
+        include_directories(
+            ${KLEIDIAI_SOURCE_DIR}
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp 
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p
+        )
+    endif()
 
     file(GLOB_RECURSE MLLM_QUANTIZER
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/*.cpp
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/*.hpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/tools/quantizer/main_quantize.cpp)
     add_executable(
         quantize
-        ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/main_quantize.cpp
         ${MLLM_QUANT}
         ${MLLM_QUANTIZER}
-
-        # ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/ParamLoader.cpp
     )
-    target_link_libraries(quantize fmt::fmt-header-only)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+        message(STATUS "AArch64/arm64 architecture detected. Applying FP16 compile options to the target.")
+        target_compile_options(quantize PRIVATE "-march=armv8.2-a+fp16")
+    endif()
 
+    target_link_libraries(quantize fmt::fmt-header-only)
     if(FROM_GGUF)
         add_executable(
             from_gguf
@@ -219,7 +324,7 @@ if(QUANT)
             ${MLLM_QUANTIZER}
 
             # ${DIR_SRC}
-            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+            ${PROJECT_SOURCE_DIR}/mllm/ParamLoader.cpp
         )
         target_link_libraries(from_gguf fmt::fmt-header-only)
     endif()
@@ -229,61 +334,41 @@ if(TEST)
     add_subdirectory(test)
 endif()
 
-# add_executable(demo examples/demo.cpp)
-# target_link_libraries(demo fmt::fmt-header-only)
 add_subdirectory(examples)
 
 if(APK)
-    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE}
+    add_library(mllm_lib STATIC ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE} ${DIR_SRC_LEGACY}
         ${DIR_THIRDPARTY_AUDIO}
-        src/tokenizers/Tokenizer.cpp
+        mllm/tokenizers/Tokenizer.cpp
         tools/jni/LibHelper.cpp
-
-        # src/tokenizers/Tokenizer.hpp
-        # src/tokenizers/Unigram/Unigram.hpp
-        src/tokenizers/Unigram/Unigram.cpp
-
-        # src/tokenizers/Unigram/trie.hpp
-        src/tokenizers/BPE/Bpe.cpp
-
-        # src/tokenizers/BPE/Bpe.hpp
-        src/tokenizers/Unicode.cpp
-        src/tokenizers/UnicodeData.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/WordPiece/WordPiece.cpp
-
-        # models/bert/configuration_bert.hpp
-        # models/bert/modeling_bert.hpp
-        # models/bert/tokenization_bert.hpp
-        # models/fuyu/configuration_fuyu.hpp
-        # models/fuyu/modeling_fuyu.hpp
-        # models/fuyu/processing_fuyu.hpp
-        # models/phonelm/configuration_phonelm.hpp
-        # models/phonelm/modeling_phonelm.hpp
-        # models/qwen/configuration_qwen.hpp
-        # models/qwen/modeling_qwen.hpp
-        # models/qwen/tokenization_qwen.hpp
-        # models/smollm/tokenization_smollm.hpp
-        # tokenizers/Unigram/Unigram.hpp
+        mllm/tokenizers/Unigram/Unigram.cpp
+        mllm/tokenizers/BPE/Bpe.cpp
+        mllm/tokenizers/Unicode.cpp
+        mllm/tokenizers/UnicodeData.cpp
+        mllm/tokenizers/BPE/Bpe.cpp
+        mllm/tokenizers/WordPiece/WordPiece.cpp
     )
-    target_link_libraries(mllm_lib MLLM_CPU)
+    target_link_libraries(mllm_lib mllm_cpu)
+    if (OPENCL)
+        target_link_libraries(mllm_lib mllm_opencl)
+    endif()
 
     if(QNN)
-        target_link_libraries(mllm_lib MLLM_QNN)
+        target_link_libraries(mllm_lib mllm_qnn)
     endif()
 endif()
 
 if(MLLM_ENABLE_PYTHON)
-    target_compile_options(MLLM_CPU PRIVATE -fPIC)
+    target_compile_options(mllm_cpu PRIVATE -fPIC)
 
     find_package(Python3 COMPONENTS Interpreter Development)
     include_directories(${Python3_INCLUDE_DIRS})
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
 
     set(_py_dep_libs
-        MLLM_CPU
+        mllm_cpu
 
-        # MLLM_QNN
+        # mllm_qnn
         # ${CMAKE_DL_LIBS}
     )
 

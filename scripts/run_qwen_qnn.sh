@@ -20,7 +20,7 @@ else
 fi
 
 if [ -z "$QNN_SDK_ROOT" ]; then
-    export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
+    export QNN_SDK_ROOT=/root/research/dev/mllm/mllm/backends/qnn/sdk
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
     # exit 1
 else 
@@ -28,7 +28,7 @@ else
 fi
 
 ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
-OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
+OP_PATH=../mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 
 adb push $ANDR_LIB/libQnnHtp.so $DEST
@@ -38,6 +38,8 @@ adb push $ANDR_LIB/libQnnHtpProfilingReader.so $DEST
 adb push $ANDR_LIB/libQnnHtpOptraceProfilingReader.so $DEST
 adb push $ANDR_LIB/libQnnHtpV75CalculatorStub.so $DEST
 adb push $QNN_SDK_ROOT/lib/hexagon-v75/unsigned/libQnnHtpV75Skel.so $DEST
+adb push $QNN_SDK_ROOT/lib/aarch64-android/libQnnSystem.so $DEST
+
 adb push $OP_PATH/aarch64-android/libQnnLLaMAPackage.so $DEST/libQnnLLaMAPackage_CPU.so
 adb push $OP_PATH/hexagon-v75/libQnnLLaMAPackage.so $DEST/libQnnLLaMAPackage_HTP.so
 
@@ -47,5 +49,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-adb push ../bin-arm/demo_qwen_npu /data/local/tmp/mllm/bin/
+# adb shell "rm /data/local/tmp/mllm/bin/qnn_context.bin"
+adb push ../bin-arm-qnn/demo_qwen_npu /data/local/tmp/mllm/bin/
 adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_qwen_npu"

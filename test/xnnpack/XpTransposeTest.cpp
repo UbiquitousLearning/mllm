@@ -1,6 +1,7 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Types.hpp"
+#include "Context.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack.h"
@@ -29,14 +30,14 @@ TEST_F(XpTest, TransposeModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<TransposeModule>(1, 1);
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK].get() != nullptr, true);
     if (XnnpackBackend::enable_legacy_wrapper == false) {
         Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
         return;
     }
 
     // B, S ,H, D
-    Tensor x(1, 6, 8, 1, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 6, 8, 1, Backend::global_backends[MLLM_XNNPACK].get(), true);
     x.setTtype(TensorType::INPUT_TENSOR);
 
     float cnt = 0.f;
@@ -59,11 +60,11 @@ TEST_F(XpTest, TransposeModule) {
 }
 
 TEST(TransposeTest, RawXnnImpl) {
-    Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
+    Module::initBackend(MLLM_XNNPACK);
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
 
     // B, S, H, D
-    Tensor x(1, 1, 2048, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 2048, 1024, Backend::global_backends[MLLM_XNNPACK].get(), true);
 
     if (xnn_initialize(nullptr /* allocator */) != xnn_status_success) {
         ::mllm::xnnpack::Log::error("failed to initialize XNNPACK");
@@ -123,7 +124,7 @@ TEST(TransposeTest, RawXnnImpl) {
     }
 
     // create outexternal output.
-    Tensor out(1, 1, 2048, 4096, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor out(1, 1, 2048, 4096, Backend::global_backends[MLLM_XNNPACK].get(), true);
     std::array<size_t, 4> dims_out{1, 2048, 1, 4096};
     status = xnn_define_tensor_value(
         subgraph,
@@ -140,8 +141,8 @@ TEST(TransposeTest, RawXnnImpl) {
     }
 
     // create linear
-    Tensor weight(1, 1, 1024, 4096, Backend::global_backends[MLLM_XNNPACK], true);
-    Tensor bias(1, 1, 1, 4096, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor weight(1, 1, 1024, 4096, Backend::global_backends[MLLM_XNNPACK].get(), true);
+    Tensor bias(1, 1, 1, 4096, Backend::global_backends[MLLM_XNNPACK].get(), true);
     std::array<size_t, 2> dim_weight{1024, 4096};
     status = xnn_define_tensor_value(
         subgraph,

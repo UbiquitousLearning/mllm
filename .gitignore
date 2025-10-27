@@ -2,6 +2,7 @@
 .vscode/
 .idea/
 .cache/
+.DS_Store
 build*/
 build/
 bin/
@@ -26,15 +27,20 @@ models/*
 /.devcontainer/
 /.vscode/
 workflow.py
-src/backends/qnn/qualcomm_ai_engine_direct_220/*
-src/backends/qnn/HexagonSDK/*
+mllm/backends/qnn/qualcomm_ai_engine_direct_220/*
+mllm/backends/qnn/HexagonSDK/*
 tmp/
 py-build-out/
 mllm.egg-info/
 
-examples/demo_deepseek.cpp
-src/models/deepseek/*
-examples/demo.cpp
+mllm/backends/qnn/sdk*
 
-src/backends/qnn/sdk/*
-*.mllm
+
+
+.DS_Store
+examples/test.cpp
+examples/demo_bailing_moe2*
+mllm/models/ling2
+scripts/tmp.sh
+tools/convertor/gptq_converter.py
+*.patch

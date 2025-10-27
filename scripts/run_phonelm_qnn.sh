@@ -20,14 +20,14 @@ else
 fi
 
 if [ -z "$QNN_SDK_ROOT" ]; then
-    export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
+    export QNN_SDK_ROOT=/root/research/dev/mllm/mllm/backends/qnn/sdk
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
 else 
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
 fi
 
 ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
-OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
+OP_PATH=../mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 
 adb push $ANDR_LIB/libQnnHtp.so $DEST
@@ -46,5 +46,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-adb push ../bin-arm/demo_phonelm_npu /data/local/tmp/mllm/bin/
+adb push ../bin-arm-qnn/demo_phonelm_npu /data/local/tmp/mllm/bin/
 adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_phonelm_npu"

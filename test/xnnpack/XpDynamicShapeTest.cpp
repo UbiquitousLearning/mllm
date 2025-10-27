@@ -14,6 +14,7 @@
 #include "xnnpack.h"
 #include "Tensor.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "Context.hpp"
 
 using namespace mllm;
 
@@ -51,14 +52,14 @@ TEST_F(XpTest, XpDyanmicShape) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
     std::array<size_t, 4> input_1_shape{1, 16, 1, 2048};
     std::array<size_t, 4> output_1_shape{1, 16, 1, 1024};
-    Tensor inputs_1(1, 1, 16, 2048, Backend::global_backends[MLLM_XNNPACK], true);
-    Tensor outputs_1(1, 1, 16, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor inputs_1(1, 1, 16, 2048, Backend::global_backends[MLLM_XNNPACK].get(), true);
+    Tensor outputs_1(1, 1, 16, 1024, Backend::global_backends[MLLM_XNNPACK].get(), true);
 
     // define inputs 2 [B=1, S=32, H=1, D=2048].
     std::array<size_t, 4> input_2_shape{1, 32, 1, 2048};
     std::array<size_t, 4> output_2_shape{1, 32, 1, 1024};
-    Tensor inputs_2(1, 1, 32, 2048, Backend::global_backends[MLLM_XNNPACK], true);
-    Tensor outputs_2(1, 1, 32, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor inputs_2(1, 1, 32, 2048, Backend::global_backends[MLLM_XNNPACK].get(), true);
+    Tensor outputs_2(1, 1, 32, 1024, Backend::global_backends[MLLM_XNNPACK].get(), true);
 
     std::vector<xnn_external_value> exts;
 

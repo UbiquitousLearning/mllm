@@ -47,6 +47,7 @@ class LibHelper {
     PreProcessor *processor_;
     std::shared_ptr<Module> module_;
     std::shared_ptr<Module> prefill_module_;
+    std::shared_ptr<Module> prefill_embedding_;
 
     // Tokenizer *tokenizer_ = nullptr;
     unsigned int eos_id_ = 2;

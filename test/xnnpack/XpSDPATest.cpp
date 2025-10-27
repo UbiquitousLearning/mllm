@@ -32,7 +32,7 @@ TEST_F(XpTest, SDPAModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<SDPAModule>(3, 1);
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK].get() != nullptr, true);
     if (XnnpackBackend::enable_legacy_wrapper == false) {
         Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
         return;
@@ -45,11 +45,11 @@ TEST_F(XpTest, SDPAModule) {
     int S = 3;
     int H = 1;
     int D = 8;
-    Tensor Q(B, S, H, D, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor Q(B, S, H, D, Backend::global_backends[MLLM_XNNPACK].get(), true);
     Q.setTtype(TensorType::INPUT_TENSOR);
-    Tensor K(B, S, H, D, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor K(B, S, H, D, Backend::global_backends[MLLM_XNNPACK].get(), true);
     K.setTtype(TensorType::INPUT_TENSOR);
-    Tensor V(B, S, H, D, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor V(B, S, H, D, Backend::global_backends[MLLM_XNNPACK].get(), true);
     V.setTtype(TensorType::INPUT_TENSOR);
 
     // set data

@@ -28,13 +28,13 @@ TEST_F(XpTest, ReLUModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<ReLUModule>(1, 1);
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK].get() != nullptr, true);
     if (XnnpackBackend::enable_legacy_wrapper == false) {
         Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
         return;
     }
 
-    Tensor x(1, 1, 1024, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 1024, 1024, Backend::global_backends[MLLM_XNNPACK].get(), true);
     x.setTtype(TensorType::INPUT_TENSOR);
 
     for (int i = 0; i < 1024 * 1024; ++i) {

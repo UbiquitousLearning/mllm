@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/ds_qwen2_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ds-qwen-2-1.5b-q4_k.mllm");
     cmdParser.add<string>("billion", 'b', "only support ds-1.5B right now", false, "ds-1.5B");
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1040);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 300,
+            .max_new_tokens = 1000,
             .do_sample = true,
             .temperature = 0.3F,
             .top_k = 50,

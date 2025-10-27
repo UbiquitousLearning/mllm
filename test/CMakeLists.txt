@@ -13,7 +13,7 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
             ${PROJECT_SOURCE_DIR}/test/xnnpack/*.cpp
     )
     list(APPEND MLLM_XNNPACK_BACKEND_TEST_SRC ${_MLLM_XNNPACK_BACKEND_TEST_SRC})
-    list(APPEND MLLM_XNNPACK_BACKEND_TEST_DEP_LIB MllmXnnpackBackend)
+    list(APPEND MLLM_XNNPACK_BACKEND_TEST_DEP_LIB mllm_xnnpack)
     list(REMOVE_ITEM MLLM_XNNPACK_BACKEND_TEST_SRC ${PROJECT_SOURCE_DIR}/test/xnnpack/XpEmbeddingTest.cpp)
 endif()
 
@@ -37,13 +37,13 @@ add_executable(
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${PROJECT_SOURCE_DIR}/test/TestLoader.cpp
         ${MLLM_TEST}
-        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
-        ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.hpp
-        ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.cpp
-        ${PROJECT_SOURCE_DIR}/src/processor/FuyuPreProcess.hpp
-        ${PROJECT_SOURCE_DIR}/src/processor/FuyuPreProcess.cpp
-        ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.hpp
-        ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
+        ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
+        ${PROJECT_SOURCE_DIR}/mllm/processor/ClipPreProcess.hpp
+        ${PROJECT_SOURCE_DIR}/mllm/processor/ClipPreProcess.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/processor/FuyuPreProcess.hpp
+        ${PROJECT_SOURCE_DIR}/mllm/processor/FuyuPreProcess.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/processor/PreProcess.hpp
+        ${PROJECT_SOURCE_DIR}/mllm/processor/PreProcess.cpp
         ${PROJECT_SOURCE_DIR}/test/processor/ClipPreprocessorTest.cpp
 
         # xnnpack
@@ -53,10 +53,14 @@ add_executable(
 target_link_libraries(
         MLLM_TEST
         GTest::gtest_main
-        MLLM_CPU
+        mllm_cpu
         -fopenmp
         ${MLLM_XNNPACK_BACKEND_TEST_DEP_LIB}
 )
+
+if(OPENCL)
+    target_link_libraries(MLLM_TEST mllm_opencl)
+endif()
 # add_executable(
 #         memoryPoolTest
 #         ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp

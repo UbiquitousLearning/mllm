@@ -30,9 +30,7 @@ int main(int argc, char **argv) {
     LLaMAConfig config(tokens_limit, "7B", HFHUBROPE);
     auto is_down_sparse = true;
     auto model = SparseLLaMAModel(config, is_down_sparse);
-    // MultiFileParamLoader param_loader({model_path, predictor_path, "../ReLULlama_q4_k.mllm"});
-    MultiFileParamLoader param_loader({model_path, "../models/ReLULlama_q4_k.mllm"});
-    model.load(param_loader);
+    model.load_multifile({model_path, "../models/ReLULlama_q4_k.mllm"});
 
     vector<string> in_strs = {
         " Hello, who are you?",
