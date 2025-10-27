@@ -182,12 +182,16 @@ public:
                     transpose_matrix_efficient(src_ptr, dst_ptr, N, M);
                 }
             } else {
+#if defined(__aarch64__)
 #pragma omp parallel for num_threads(thread_count)
                 for (int h = 0; h < inputs[0]->head(); ++h) {
                     const mllm_fp16_t *src_ptr = inputs[0]->ptrAt<mllm_fp16_t>(0, h, 0, 0);
                     mllm_fp16_t *dst_ptr = outputs[0]->ptrAt<mllm_fp16_t>(0, h, 0, 0);
                     transpose_matrix_efficient_fp16(src_ptr, dst_ptr, N, M);
                 }
+#else
+                std::cout << "FP16 transpose not supported on non-aarch64 platform" << std::endl;
+#endif
             }
         }
         // for BSHD attention end

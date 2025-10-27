@@ -58,6 +58,8 @@
 #include "op/CPUTranspose.hpp"
 #include "op/CPUMean.hpp"
 #include "op/CPURange.hpp"
+#include "op/CPUVisionRoPECos.hpp"
+#include "op/CPUVisionRoPESin.hpp"
 #include "op/CPUWhere.hpp"
 #include "op/CPUReplace.hpp"
 #include "op/CPUPredictor.hpp"
@@ -169,6 +171,8 @@ void CPUBackend::registerOps() {
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
     addCreator(CONVOLUTION3D, (CPUBackend::Creator *)(new CPUConvolution3DCreator()));
     addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
+    addCreator(VISIONROPESIN, (CPUBackend::Creator *)(new CPUVisionRoPESinCreator()));
+    addCreator(VISIONROPECOS, (CPUBackend::Creator *)(new CPUVisionRoPECosCreator()));
     addCreator(MULTIMODALROPEPIP, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));

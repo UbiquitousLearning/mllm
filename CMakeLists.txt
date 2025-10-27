@@ -186,6 +186,8 @@ endif()
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
+# directory for legacy code, which is not used in the current version(Graph,Net,Executor)
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/legacy DIR_SRC_LEGACY)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/processor DIR_SRC_PROCESSOE)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
@@ -215,11 +217,6 @@ if(QNN) # QNN lib
         # $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
         ${PROJECT_SOURCE_DIR}/src/backends/qnn/sdk/include/QNN # QNN SDK include
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Log
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/PAL/include
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Model
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Utils
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/WrapperUtils
     )   
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 endif()
@@ -341,7 +338,7 @@ endif()
 add_subdirectory(examples)
 
 if(APK)
-    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE}
+    add_library(mllm_lib STATIC ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE} ${DIR_SRC_LEGACY}
         ${DIR_THIRDPARTY_AUDIO}
         src/tokenizers/Tokenizer.cpp
         tools/jni/LibHelper.cpp

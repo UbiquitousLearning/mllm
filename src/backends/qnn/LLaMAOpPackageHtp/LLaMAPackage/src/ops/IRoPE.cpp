@@ -8,6 +8,7 @@
 #include "HTP/core/optimize.h"
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
+#include "HTP/core/tensor.h"
 
 BEGIN_PKG_OP_DEFINITION(PKG_IRoPE);
 
@@ -124,7 +125,7 @@ GraphStatus iropeImpl(TensorType &out_0,
     sin_ptr += half_dimension * h_cnt_;
     cos_ptr += half_dimension * h_cnt_;
 
-    // float scale_ = in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale();
+    // float scale_ = in_0.interface_scale() * sin.interface_scale() * cos.interface_scale();
 
     if (pose_type_ == 4) {
         DType dtype = out_0.get_dtype();
@@ -141,8 +142,8 @@ GraphStatus iropeImpl(TensorType &out_0,
 
                             int sin_value = *(sin_ptr + d);
                             int cos_value = *(cos_ptr + d);
-                            float value = (in_value - 128) * (cos_value - 128) * cos.get_interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.get_interface_scale();
-                            float value2 = (in_value - 128) * (sin_value - 128) * sin.get_interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.get_interface_scale();
+                            float value = (in_value - 128) * (cos_value - 128) * cos.interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.interface_scale();
+                            float value2 = (in_value - 128) * (sin_value - 128) * sin.interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.interface_scale();
 
                             *out_ptr = value;
                             *(out_ptr + half_dimension) = value2;
@@ -171,8 +172,8 @@ GraphStatus iropeImpl(TensorType &out_0,
 
                             int sin_value = *(sin_ptr + d);
                             int cos_value = *(cos_ptr + d);
-                            float value = (in_value - 128) * (cos_value - 128) * cos.get_interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.get_interface_scale();
-                            float value2 = (in_value - 128) * (sin_value - 128) * sin.get_interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.get_interface_scale();
+                            float value = (in_value - 128) * (cos_value - 128) * cos.interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.interface_scale();
+                            float value2 = (in_value - 128) * (sin_value - 128) * sin.interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.interface_scale();
 
                             *out_ptr = static_cast<__fp16>(value);
                             *(out_ptr + half_dimension) = static_cast<__fp16>(value2);

@@ -21,6 +21,7 @@ ErrorCode QNNLayerNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 ErrorCode QNNLayerNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     uint32_t axesDim[1] = {1};
     uint32_t axes[1] = {3};
+    auto axesName = name() + ".axes";
     vector<Qnn_Param_t> params = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "epsilon",
@@ -31,7 +32,7 @@ ErrorCode QNNLayerNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
              .version = QNN_TENSOR_VERSION_1,
              .v1 = {
                  .id = 0,
-                 .name = "axes",
+                 .name = axesName.c_str(),
                  .type = QNN_TENSOR_TYPE_STATIC,
                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                  .dataType = QNN_DATATYPE_UINT_32,

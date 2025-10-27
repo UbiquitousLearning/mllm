@@ -24,14 +24,14 @@ public:
 TEST_F(XpTest, AddModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<AddModule>(2, 1);
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK].get() != nullptr, true);
     if (XnnpackBackend::enable_legacy_wrapper == false) {
         Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
         return;
     }
 
-    Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
-    Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK].get(), true);
+    Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK].get(), true);
     x1.setTtype(TensorType::INPUT_TENSOR);
     x2.setTtype(TensorType::INPUT_TENSOR);
 

@@ -1,6 +1,7 @@
 
 
 #include "CPUKVCache.hpp"
+#include "Context.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
 
@@ -102,9 +103,9 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
 
     // for sd
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isUsingDraft()) {
-        unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-        const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+    if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+        unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+        const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
         cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
         cache_->cache_seq_len_ = cache_seq_len_;
     }
@@ -137,8 +138,8 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs,
                               vector<shared_ptr<Tensor>> outputs) {
     // for sd
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isUsingDraft()) {
-        const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+    if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+        const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
         if (!last_verified_position_ids.empty()) {
             this->updateVerifiedKVCache(last_verified_position_ids);
         }

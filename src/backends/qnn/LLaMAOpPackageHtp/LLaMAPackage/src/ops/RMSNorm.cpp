@@ -839,7 +839,7 @@ GraphStatus rmsnormImpl(TensorType &out_0,
 
     } else if (dtype == DType::QUInt8) {
         auto out_ptr = (uint8_t *)out_0.raw_data();
-        float scale_ = out_0.get_interface_scale();
+        float scale_ = out_0.interface_scale();
 
         scale_ = 1.0f / scale_;
 

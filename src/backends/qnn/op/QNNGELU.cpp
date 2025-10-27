@@ -2,11 +2,12 @@
 #include "QNNGELU.hpp"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include "Context.hpp"
 
 namespace mllm {
 QNNGELU::QNNGELU(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-        scale_.setBackend(bn);
+    scale_.setBackend(Backend::global_backends[MLLM_CPU].get());
 }
 
 ErrorCode QNNGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -17,27 +18,11 @@ ErrorCode QNNGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //Todo: gelu do not supprt signed fix int8
-    return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true, &scale_);
-}
-
-ErrorCode QNNGELU::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordToRemove = "gelu";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
+    // Todo: gelu do not supprt signed fix int8
+    for (int i = 0; i < inputs.size(); ++i) {
+        outputs[i]->setDtype(inputs[i]->dtype());
     }
-
-    scale_.setName(scaleName + "input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    return Op::load(loader);
+    return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true);
 }
 
 } // namespace mllm
-

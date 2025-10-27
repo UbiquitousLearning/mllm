@@ -1,5 +1,6 @@
 
 #include "CPUIRoPE.hpp"
+#include "Context.hpp"
 #include "Log.h"
 #include "Types.hpp"
 #include <cassert>
@@ -138,9 +139,8 @@ ErrorCode CPUIRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         }
     }
 #ifdef USE_QNN
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()) {
+        h_cnt_ = Context::Instance().inference_state().getCurSequenceLength();
     }
 #endif
     return Op::reshape(inputs, outputs);
@@ -394,8 +394,8 @@ ErrorCode CPUIRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode CPUIRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // if use QNN, when a new prompt input, the seq should be reset to 0 here as the setUp is not called
 #ifdef USE_QNN
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
+    if (Context::Instance().inference_state().isStageSwitching() &&
+        Context::Instance().inference_state().getExecutionType() == PROMPT) {
         h_cnt_ = 0;
     }
 #endif

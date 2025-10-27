@@ -10,12 +10,9 @@ public:
     virtual ~QNNReLU() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode load(AbstructLoader &loader) override;
-
 
 private:
     int axis_ = 0;
-    Tensor scale_;
 };
 
 class QNNReLUCreator : public QNNBackend::Creator {

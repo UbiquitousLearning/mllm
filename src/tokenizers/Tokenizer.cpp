@@ -1,9 +1,9 @@
 //
 // Created by Xiang Li on 23-10-7.
 //
+#include "Backend.hpp"
 #include "ParamLoader.hpp"
 #include "Tokenizer.hpp"
-#include <Net.hpp>
 /* Vocab Structure
  * ┌──────┬──────┬─────┬────────┬──────┬──────┬───────┐
  * │      │      │     │        │      │      │       │
@@ -99,7 +99,7 @@ bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
 
 void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Tensor> input_tensor) {
     // auto input_tensor = std::make_shared<Tensor>();
-    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    input_tensor->setBackend(Backend::global_backends[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->alloc();
     // input_tensor->fullData<float>(1);
@@ -110,7 +110,7 @@ void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Ten
 
 void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
     // auto input_tensor = std::make_shared<Tensor>();
-    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    input_tensor->setBackend(Backend::global_backends[BackendType::MLLM_CPU].get());
     const auto bsize = static_cast<int>(tokens.size());
     input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
     input_tensor->alloc();

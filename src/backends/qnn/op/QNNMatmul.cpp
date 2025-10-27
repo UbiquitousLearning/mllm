@@ -25,7 +25,7 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          */
 
         assert(inputs[0]->dimension() == inputs[1]->sequence());
-        inputs[1]->transShape(SEQUENCE, DIMENSION);
+        // inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
 
     } else if (transpose1_) {
@@ -53,8 +53,8 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          batch |out_channel | seq_len               |  1
          */
         assert(inputs[0]->sequence() == inputs[1]->sequence());
-        inputs[0]->transShape(SEQUENCE, DIMENSION);
-        inputs[1]->transShape(SEQUENCE, DIMENSION);
+        // inputs[0]->transShape(SEQUENCE, DIMENSION);
+        // inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
 
@@ -62,6 +62,24 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    auto qnnDtype = QNN_DATATYPE_FLOAT_32;
+
+    if (inputs[0]->dtype() == MLLM_TYPE_I8) {
+        outputs[0]->setDtype(MLLM_TYPE_I8);
+        qnnDtype = QNN_DATATYPE_SFIXED_POINT_8;
+    } else if (inputs[0]->dtype() == MLLM_TYPE_I16) {
+        outputs[0]->setDtype(MLLM_TYPE_I16);
+        qnnDtype = QNN_DATATYPE_SFIXED_POINT_16;
+    }else if (inputs[0]->dtype() == MLLM_TYPE_F16) {
+        outputs[0]->setDtype(MLLM_TYPE_F16);
+        qnnDtype = QNN_DATATYPE_FLOAT_16;
+    } else if (inputs[0]->dtype() == MLLM_TYPE_F32) {
+        outputs[0]->setDtype(MLLM_TYPE_F32);
+        qnnDtype = QNN_DATATYPE_FLOAT_32;
+    } else {
+        return ErrorCode::NOT_SUPPORT;
+    }
+
     if (name().find("qkv") != string::npos) {
         // QKV matmul only transpose v
         uint32_t dimVTranspose[4];
@@ -73,7 +91,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0, 2, 1, 3};
 
-        auto paramsTransposeName = name() + "transpose_params";
+        auto paramsTransposeName = name() + ".v.transpose_params";
         vector<Qnn_Param_t> paramsTranspose = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "perm",
@@ -104,7 +122,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outVTransposeName.c_str(),
                     .type = QNN_TENSOR_TYPE_NATIVE,
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -137,7 +155,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outMatmulName.c_str(),
                     .type = QNN_TENSOR_TYPE_NATIVE,
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -164,7 +182,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outTransposeName.c_str(),
                     .type = getOutputTensorType(outputs[0]),
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -173,6 +191,29 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .memType = QNN_TENSORMEMTYPE_RAW,
                     .clientBuf = {.data = nullptr,
                                   .dataSize = 0}}}};
+
+        paramsTransposeName = name() + ".out.transpose_params";
+        paramsTranspose = {
+            {.paramType = QNN_PARAMTYPE_TENSOR,
+             .name = "perm",
+             .tensorParam =
+                 (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
+                                .v1 = {
+                                    .id = 0,
+                                    .name = paramsTransposeName.c_str(),
+                                    .type = QNN_TENSOR_TYPE_STATIC,
+                                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                    .dataType = QNN_DATATYPE_UINT_32,
+                                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                       QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                       {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                                .offset = 0}}},
+                                    .rank = 1,
+                                    .dimensions = transposeParamsDimension,
+                                    .memType = QNN_TENSORMEMTYPE_RAW,
+                                    .clientBuf = {.data = (uint8_t *)transposeParamsValue,
+                                                  .dataSize = 4 * sizeof(uint32_t)}}}}};
+
         return graphAddNode(name() + ".out_transpose", "Transpose", {outMatmulName}, outTranspose, paramsTranspose);
 
     } else {
@@ -187,7 +228,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0, 2, 1, 3};
 
-        auto paramsTransposeName = name() + "transpose_params";
+        auto paramsTransposeName = name() + ".q.transpose_params";
         vector<Qnn_Param_t> paramsTranspose = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "perm",
@@ -218,7 +259,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outQTransposeName.c_str(),
                     .type = QNN_TENSOR_TYPE_NATIVE,
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -244,7 +285,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outKTransposeName.c_str(),
                     .type = QNN_TENSOR_TYPE_NATIVE,
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -253,6 +294,28 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .memType = QNN_TENSORMEMTYPE_RAW,
                     .clientBuf = {.data = nullptr,
                                   .dataSize = 0}}}};
+
+        paramsTransposeName = name() + ".k.transpose_params";
+        paramsTranspose = {
+            {.paramType = QNN_PARAMTYPE_TENSOR,
+             .name = "perm",
+             .tensorParam =
+                 (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
+                                .v1 = {
+                                    .id = 0,
+                                    .name = paramsTransposeName.c_str(),
+                                    .type = QNN_TENSOR_TYPE_STATIC,
+                                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                    .dataType = QNN_DATATYPE_UINT_32,
+                                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                       QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                       {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                                .offset = 0}}},
+                                    .rank = 1,
+                                    .dimensions = transposeParamsDimension,
+                                    .memType = QNN_TENSORMEMTYPE_RAW,
+                                    .clientBuf = {.data = (uint8_t *)transposeParamsValue,
+                                                  .dataSize = 4 * sizeof(uint32_t)}}}}};
         graphAddNode(name() + ".k_transpose", "Transpose", {inputs[1]->name()}, outKTranspose, paramsTranspose);
 
         vector<Qnn_Param_t> paramsMatmul = {
@@ -278,7 +341,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .name = outName.c_str(),
                     .type = getOutputTensorType(outputs[0]),
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .dataType = qnnDtype,
                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},

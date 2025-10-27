@@ -1,6 +1,8 @@
 
 
 #include "CPUKVCacheNPU.hpp"
+#include "Context.hpp"
+#include "DataType.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
 
@@ -33,14 +35,15 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 #ifdef USE_QNN
     // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == AUTOREGRESSIVE) {
-        cache_seq_len_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()
+        && Context::Instance().inference_state().getExecutionType() == AUTOREGRESSIVE) {
+        cache_seq_len_ = Context::Instance().inference_state().getCurSequenceLength();
         isDecoding = true;
     }
     // if a new prompt is given, the cache should be updated
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
-        cache_seq_len_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()
+        && Context::Instance().inference_state().getExecutionType() == PROMPT) {
+        cache_seq_len_ = Context::Instance().inference_state().getCurSequenceLength();
         isDecoding = false;
     }
 #endif
@@ -48,7 +51,8 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
 
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
-        MLLM_LOG_ERROR_STREAM << "\n[ERROR]: Current tokens exceed cache limit: " << inputs[0]->sequence() + cache_seq_len_ << ">" << cache_limit_ << ";" << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
+        MLLM_LOG_ERROR_STREAM << "\n[ERROR]: Current tokens exceed cache limit: " << inputs[0]->sequence() + cache_seq_len_ << ">" << cache_limit_ << ";"
+                              << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
 
         exit(1);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_, inputs[0]->dimension());

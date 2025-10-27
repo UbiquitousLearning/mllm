@@ -32,7 +32,7 @@ public:
     }
 };
 
-class Qwen2VLConfig : public QWenConfig {
+class Qwen2VLConfig : virtual public QWenConfig {
 public:
     int vision_embed_dim;
     int spatial_merge_size = 2;
@@ -48,12 +48,53 @@ public:
     vector<int> mrope_section = {16, 24, 24};
 
     Qwen2VLNameConfig vision_names_config;
+
     Qwen2VLConfig(int token_limit, string billions = "1.5b", RoPEType type = HFHUBROPE, int vocab = 32064, string project_cls = "MLP") :
         QWenConfig(token_limit, billions, type) {
         // names_config.init(type);
         projection_cls = project_cls;
         vision_embed_dim = 1280;
         vision_names_config.init_qwen2vl();
+    }
+
+    Qwen2VLConfig(const Qwen2VLConfig &other) = default;
+    Qwen2VLConfig(Qwen2VLConfig &&other) noexcept = default;
+    Qwen2VLConfig &operator=(const Qwen2VLConfig &other) = default;
+    Qwen2VLConfig &operator=(Qwen2VLConfig &&other) noexcept {
+        if (this != &other) {
+            QWenConfig::operator=(std::move(other));
+            vision_embed_dim = other.vision_embed_dim;
+            spatial_merge_size = other.spatial_merge_size;
+            projection_cls = std::move(other.projection_cls);
+
+            bos_token_id = other.bos_token_id;
+            eos_token_id = other.eos_token_id;
+            vision_start_token_id = other.vision_start_token_id;
+            vision_end_token_id = other.vision_end_token_id;
+            vision_token_id = other.vision_token_id;
+            image_token_id = other.image_token_id;
+            video_token_id = other.video_token_id;
+
+            mrope_section = std::move(other.mrope_section);
+            vision_names_config = std::move(other.vision_names_config);
+        }
+        return *this;
+    }
+};
+
+class Qwen2VLNPUConfig : public Qwen2VLConfig, public QWenNPUConfig {
+public:
+    Qwen2VLNPUConfig(int token_limit, string billions = "1.5b", RoPEType type = HFHUBROPE, int vocab = 32064, string project_cls = "MLP") :
+        QWenConfig(token_limit, billions, type),
+        Qwen2VLConfig(token_limit, billions, type, vocab, project_cls),
+        QWenNPUConfig(token_limit, billions, type) {
+        std::cout << "use i32 bias: " << use_i32_bias << std::endl;
+        std::cout << "use high silu: " << use_high_precision_silu << std::endl;
+        std::cout << "shadow layers: ";
+        for (auto i : shadow_layers) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
     }
 };
 

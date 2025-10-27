@@ -2,6 +2,7 @@
 .vscode/
 .idea/
 .cache/
+.DS_Store
 build*/
 build/
 bin/
@@ -32,7 +33,7 @@ tmp/
 py-build-out/
 mllm.egg-info/
 
-src/backends/qnn/sdk/*
+src/backends/qnn/sdk*
 
 
 

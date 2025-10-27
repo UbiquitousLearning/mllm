@@ -48,11 +48,11 @@ ErrorCode QNNSuperSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     uint32_t paramsSuperSiLuDimension[1] = {1};
 
     vector<Qnn_Param_t> paramsSuperSiLu = {
-            {.paramType = QNN_PARAMTYPE_TENSOR,
+            (Qnn_Param_t){.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "a_scale",
-             {.tensorParam =
+             .tensorParam =
                   (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-                                 {.v1 = {
+                                 .v1 = {
                                       .id = 0,
                                       .name = paramsSuperSiLuNameA.c_str(),
                                       .type = QNN_TENSOR_TYPE_STATIC,
@@ -65,13 +65,13 @@ ErrorCode QNNSuperSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                                       .rank = 1,
                                       .dimensions = paramsSuperSiLuDimension,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                      {.clientBuf = {.data = (uint8_t *)&aScale,
-                                                     .dataSize = sizeof(float)}}}}}}},
-            {.paramType = QNN_PARAMTYPE_TENSOR,
+                                      .clientBuf = {.data = (uint8_t *)&aScale,
+                                                     .dataSize = sizeof(float)}}}},
+            (Qnn_Param_t){.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "b_scale",
-             {.tensorParam =
+             .tensorParam =
                   (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-                                 {.v1 = {
+                                 .v1 = {
                                       .id = 0,
                                       .name = paramsSuperSiLuNameB.c_str(),
                                       .type = QNN_TENSOR_TYPE_STATIC,
@@ -84,13 +84,13 @@ ErrorCode QNNSuperSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                                       .rank = 1,
                                       .dimensions = paramsSuperSiLuDimension,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                      {.clientBuf = {.data = (uint8_t *)&bScale,
-                                                     .dataSize = sizeof(float)}}}}}}},
-            {.paramType = QNN_PARAMTYPE_TENSOR,
+                                      .clientBuf = {.data = (uint8_t *)&bScale,
+                                                     .dataSize = sizeof(float)}}}},
+            (Qnn_Param_t){.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "o_scale",
-             {.tensorParam =
+             .tensorParam =
                   (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-                                 {.v1 = {
+                                 .v1 = {
                                       .id = 0,
                                       .name = paramsSuperSiLuNameO.c_str(),
                                       .type = QNN_TENSOR_TYPE_STATIC,
@@ -103,27 +103,26 @@ ErrorCode QNNSuperSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                                       .rank = 1,
                                       .dimensions = paramsSuperSiLuDimension,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                      {.clientBuf = {.data = (uint8_t *)&oScale,
-                                                     .dataSize = sizeof(float)}}}}}}},
-                                                     };
-        
+                                      .clientBuf = {.data = (uint8_t *)&oScale,
+                                                     .dataSize = sizeof(float)}}}}};
 
-    vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
-                                          {.v1 = {
-                                               .id = 0,
-                                               .name = outName.c_str(),
-                                               .type = getOutputTensorType(outputs[0]),
-                                               .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                               .dataType = QNN_DATATYPE_SFIXED_POINT_8,
-                                               .quantizeParams = {QNN_DEFINITION_DEFINED,
-                                                    QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                    {.scaleOffsetEncoding = {.scale  = oScale,
-                                                                            .offset = 0}}},
-                                               .rank = 4,
-                                               .dimensions = dimensionsOutput,
-                                               .memType = QNN_TENSORMEMTYPE_RAW,
-                                               {.clientBuf = {.data = nullptr,
-                                                              .dataSize = 0}}}}}};
+    vector<Qnn_Tensor_t> outputTensor = {
+        (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
+                       .v1 = {
+                           .id = 0,
+                           .name = outName.c_str(),
+                           .type = getOutputTensorType(outputs[0]),
+                           .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                           .dataType = QNN_DATATYPE_SFIXED_POINT_8,
+                           .quantizeParams = {QNN_DEFINITION_DEFINED,
+                                              QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                              {.scaleOffsetEncoding = {.scale = oScale,
+                                                                       .offset = 0}}},
+                           .rank = 4,
+                           .dimensions = dimensionsOutput,
+                           .memType = QNN_TENSORMEMTYPE_RAW,
+                           .clientBuf = {.data = nullptr,
+                                         .dataSize = 0}}}};
     return graphAddNode(name(), "LLaMASuperSiLU", {inputs[0]->name(), inputs[1]->name()}, outputTensor, paramsSuperSiLu, "LLaMAPackage");
 }
 

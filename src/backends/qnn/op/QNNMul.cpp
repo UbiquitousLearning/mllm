@@ -6,8 +6,6 @@
 namespace mllm {
 QNNMul::QNNMul(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-
-    scale_.setBackend(bn);
 }
 
 ErrorCode QNNMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -26,7 +24,8 @@ ErrorCode QNNMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
     if (inputs[0]->dtype() == MLLM_TYPE_I8) {
 
         outputs[0]->setDtype(MLLM_TYPE_I8);
-        return graphAddNode(name(), "ElementWiseMultiply", inputs, outputs, {}, "qti.aisw", true,  &scale_);
+        outputs[0]->quant_param.scale = inputs[0]->quant_param.scale;
+        return graphAddNode(name(), "ElementWiseMultiply", inputs, outputs, {}, "qti.aisw", true);
 
     } else {
 
@@ -72,22 +71,6 @@ ErrorCode QNNMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 }
 
 ErrorCode QNNMul::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordToRemove = "gate_proj.relu-00_mul_";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + "down_proj.input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    // std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-
     return Op::load(loader);
 }
 

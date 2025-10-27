@@ -8,6 +8,7 @@
 #include "HTP/core/optimize.h"
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
+#include "HTP/core/tensor.h"
 
 BEGIN_PKG_OP_DEFINITION(PKG_RoPE);
 
@@ -682,7 +683,7 @@ GraphStatus ropeImpl(TensorType &out_0,
             auto cos_ptr = (float *)cos.raw_data_const();
             auto out_ptr = (__fp16 *)out_0.raw_data();
 
-            float scale_ = in_0.get_interface_scale();
+            float scale_ = in_0.interface_scale();
 
             auto [b_in, h_in, w_in, d_in] = in_0.dims();
 

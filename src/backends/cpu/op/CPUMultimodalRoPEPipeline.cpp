@@ -1,5 +1,6 @@
 
 #include "CPUMultimodalRoPEPipeline.hpp"
+#include "Context.hpp"
 // #include "Timing.hpp"
 #include "Types.hpp"
 #include <cassert>
@@ -131,11 +132,10 @@ ErrorCode CPUMultimodalRoPEPipeline::reshape(vector<shared_ptr<Tensor>> inputs, 
     }
 
     // if in switching, reset the h_cnt_
-    auto cpuBackend = static_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
-        if (cpuBackend->getExecutionType() == PROMPT) {
+    if (Context::Instance().inference_state().isStageSwitching()) {
+        if (Context::Instance().inference_state().getExecutionType() == PROMPT) {
             // set to 0/chunk_size*iter when in prefill stage
-            h_cnt_ = cpuBackend->getCurSequenceLength();
+            h_cnt_ = Context::Instance().inference_state().getCurSequenceLength();
         } else {
             // when switch to decoding, reset the h_cnt_ to 0
             h_cnt_ = 0;
@@ -151,7 +151,7 @@ void CPUMultimodalRoPEPipeline::multimodal_rope_hf(shared_ptr<Tensor> input, sha
     assert(partial_dimension % 2 == 0);
 
     const int seq_offset = h_cnt_;
-    if (static_cast<CPUBackend *>(backend_)->getExecutionType() == PROMPT) {
+    if (Context::Instance().inference_state().getExecutionType() == PROMPT) {
         // increment the h_cnt_ when in prefill stage
         h_cnt_ += input->sequence();
     }

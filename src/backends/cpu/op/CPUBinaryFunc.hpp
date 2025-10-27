@@ -231,7 +231,7 @@ public:
         for (int n = 0; n < batch_; ++n) {
             auto n_0 = std::min(n, input0->batch() - 1);
             auto n_1 = std::min(n, input1->batch() - 1);
-#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+#pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)
             for (int c = 0; c < head_; ++c) {
                 auto c_0 = std::min(c, input0->head() - 1);
                 auto c_1 = std::min(c, input1->head() - 1);

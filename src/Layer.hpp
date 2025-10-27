@@ -11,6 +11,7 @@
 #include <memory>
 #include <utility>
 
+#include "Context.hpp"
 #include "OpDefined.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
@@ -113,6 +114,13 @@ public:
 protected:
     // 统一入口
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
+        //////////==============QNN only====================///////////
+        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+            auto backend = Backend::global_backends[MLLM_QNN].get();
+            return backend->runLayer(this, inputs, N);
+        }
+        //////////==============QNN only====================///////////
+
         // auto start_time = mllm_time_us();
         // ==================== [开始] op ====================//
         Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
@@ -619,6 +627,15 @@ public:
     }
 };
 
+class RoPESimple final : public Layer {
+public:
+    RoPESimple() = default;
+    explicit RoPESimple(int pose_type, std::string name) {
+        param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::ROPESIMPLE);
+    }
+};
+
 class IRoPE final : public Layer {
 public:
     IRoPE() = default;
@@ -833,6 +850,33 @@ public:
         return ts[0];
     }
 };
+
+class VisionRoPESin final : public Layer {
+public:
+    explicit VisionRoPESin(int dim_size, int spatial_merge_size, std::string name) {
+        param_["dim"] = (float)dim_size;
+        param_["spatial_merge_size"] = (float)spatial_merge_size;
+        init(std::move(name), OpType::VISIONROPESIN);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
+        return ts[0];
+    }
+};
+
+class VisionRoPECos final : public Layer {
+public:
+    explicit VisionRoPECos(int dim_size, int spatial_merge_size, std::string name) {
+        param_["dim"] = (float)dim_size;
+        param_["spatial_merge_size"] = (float)spatial_merge_size;
+        init(std::move(name), OpType::VISIONROPECOS);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
+        return ts[0];
+    }
+};
+
 class MultimodalRoPE final : public Layer {
 public:
     MultimodalRoPE() = default;
@@ -886,6 +930,18 @@ public:
 
 //  Only for QNN START
 
+class SiLU_Full_Precision final : public Layer {
+public:
+    SiLU_Full_Precision() = default;
+    SiLU_Full_Precision(std::string name) {
+        init(std::move(name), OpType::SILU_FULL_PRECISION);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
+        return ts[0];
+    }
+};
+
 class Quantize final : public Layer {
 public:
     explicit Quantize(bool isNSHD, std::string name, DataType type = MLLM_TYPE_I8) {
@@ -921,6 +977,21 @@ public:
         param_["isFP32"] = (float)isFP32;
         param_["inType"] = (float)inType;
         init(std::move(name), OpType::DEQUANTIZE);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
+        return ts[0];
+    }
+};
+
+class DequantizeAdd final : public Layer {
+public:
+    explicit DequantizeAdd(bool isNSHD, int out_features, std::string name, bool isFP32 = true, DataType inType = MLLM_TYPE_I8) {
+        param_["isNSHD"] = (float)isNSHD;
+        param_["out_features"] = out_features;
+        param_["isFP32"] = (float)isFP32;
+        param_["inType"] = (float)inType;
+        init(std::move(name), OpType::DEQUANTIZEADD);
     }
     Tensor operator()(Tensor input) {
         auto ts = run({input}, 1);
@@ -1123,6 +1194,38 @@ public:
 
     void clearCache() {
         return op_->clearCache();
+    }
+};
+
+class Split final : public Layer {
+public:
+    Split() = default;
+
+    explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
+        param_["split_num"] = (float)split_num;
+        param_["split_dim"] = (float)split_dim;
+        param_["split_dim_size"] = (float)split_dim_size;
+        init(std::move(name), OpType::SPLIT);
+    }
+
+    vector<Tensor> operator()(Tensor input) {
+        return run({input}, (int)param_["split_num"]);
+    }
+};
+
+class Scale final : public Layer {
+public:
+    Scale() = default;
+
+    explicit Scale(float scale, float bias, bool bias_after_scale, std::string name) {
+        param_["scale"] = (float)scale;
+        param_["bias"] = (float)bias;
+        param_["bias_after_scale"] = (float)bias_after_scale;
+        init(std::move(name), OpType::SCALE);
+    }
+
+    vector<Tensor> operator()(Tensor input) {
+        return run({input}, 1);
     }
 };
 

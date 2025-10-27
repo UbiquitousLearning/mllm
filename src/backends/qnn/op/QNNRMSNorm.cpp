@@ -3,12 +3,12 @@
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 #include <cstdint>
+#include "Context.hpp"
 
 namespace mllm {
 QNNRMSNorm::QNNRMSNorm(Backend *bn, string opName, int normSize, float epsilon, bool isFP32) :
     QNNCommonOp(bn, opName), normSize_(normSize), epsilon_(epsilon), isFP32_(isFP32) {
-    weight_.setBackend(bn);
-    scale_.setBackend(bn);
+    weight_.setBackend(Backend::global_backends[MLLM_CPU].get());
 }
 
 ErrorCode QNNRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -18,10 +18,6 @@ ErrorCode QNNRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0] / 127.0;
-    // quantScale = roundf(quantScale * 100000) / 100000;
-
     uint32_t dimWeight[4] = {(uint32_t)normSize_};
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
@@ -69,6 +65,8 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     } else {
         outputs[0]->setDtype(MLLM_TYPE_I8);
+        float quantScale = inputs[0]->quant_param.scale;
+        outputs[0]->quant_param.scale = quantScale;
         vector<Qnn_Tensor_t>
             out = {
                 (Qnn_Tensor_t){
@@ -92,6 +90,7 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode QNNRMSNorm::load(AbstructLoader &loader) {
+    // std::cout << "RMS load" << weight_.name() << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
@@ -103,20 +102,6 @@ ErrorCode QNNRMSNorm::load(AbstructLoader &loader) {
         weight_.setDtype(MLLM_TYPE_F32);
         weight_.alloc();
     }
-
-    string scaleName = name();
-
-    std::string wordToRemove = "post_attention_layernorm";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + "mlp.up_proj.input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
 
     return Op::load(loader);
 }

@@ -30,6 +30,7 @@ DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_QLayerNorm)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPESimple)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_WNop)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAAdd)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_IRoPE)
@@ -43,16 +44,16 @@ DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAQuantize)
 END_PKG_OPS_OPTS_LIST()
 
 // op package info
-static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
+static constexpr auto sg_packageName = THIS_PKG_NAME_STR; // package name passed in as compile flag
 
-static std::array<const char*, 20> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "MergeOutput", "LLaMAReLU", "CausalMask", "SiLU", "Attention", "QLayerNorm", "RoPE", "WNop", "LLaMAAdd", "IRoPE", "LLaMALinear", "SplitInput", "HeadMatmul", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize"}};
+static std::array<const char *, 21> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "MergeOutput", "LLaMAReLU", "CausalMask", "SiLU", "Attention", "QLayerNorm", "RoPE", "RoPESimple", "WNop", "LLaMAAdd", "IRoPE", "LLaMALinear", "SplitInput", "HeadMatmul", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize"}};
 
-static Qnn_ApiVersion_t sg_sdkApiVersion  = QNN_HTP_API_VERSION_INIT;
+static Qnn_ApiVersion_t sg_sdkApiVersion = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
 
 // global data
 static QnnOpPackage_GlobalInfrastructure_t sg_globalInfra =
-nullptr;  // global infrastructure not in use for now
+    nullptr; // global infrastructure not in use for now
 static bool sg_packageInitialized = false;
 
 /*
@@ -73,27 +74,26 @@ static bool sg_packageInitialized = false;
  * for alternative logging method provided by HTP core, please refer to log.h
  */
 static QnnLog_Callback_t sg_logCallback =
-    nullptr;  // user provided call back function pointer for logging
+    nullptr; // user provided call back function pointer for logging
 static QnnLog_Level_t sg_maxLogLevel =
-    (QnnLog_Level_t)0;  // maximal log level used in user provided logging
+    (QnnLog_Level_t)0; // maximal log level used in user provided logging
 static bool sg_logInitialized =
-    false;  // tracks whether user provided logging method has been initialized
-
+    false; // tracks whether user provided logging method has been initialized
 
 /*
-* op initialization
-* needs to be global in the package
-* one initialization per package before any op definitions
-* syntax: INIT_PACKAGE_OP_DEF()
-*/
+ * op initialization
+ * needs to be global in the package
+ * one initialization per package before any op definitions
+ * syntax: INIT_PACKAGE_OP_DEF()
+ */
 INIT_PACKAGE_OP_DEF()
 
 /*
-* optimization initialization
-* needs to be global in the package
-* one initialization per package before any optimization definitions
-* syntax: INIT_PACKAGE_OPTIMIZATION_DEF()
-*/
+ * optimization initialization
+ * needs to be global in the package
+ * one initialization per package before any optimization definitions
+ * syntax: INIT_PACKAGE_OPTIMIZATION_DEF()
+ */
 INIT_PACKAGE_OPTIMIZATION_DEF()
 
 /*
@@ -144,8 +144,8 @@ INIT_PACKAGE_PARAM_ORDER_DEF()
 // LIST_PACKAGE_PER_CHANNEL_QUANTIZED_OPS()
 
 /*
-* Declare and define the special intialize function for HTP Backend to load
-*/
+ * Declare and define the special intialize function for HTP Backend to load
+ */
 INIT_PKG_CORE_INIT_FUNC()
 
 /* op package API's */
@@ -154,43 +154,43 @@ Qnn_ErrorHandle_t LLaMAPackageInit(QnnOpPackage_GlobalInfrastructure_t infrastru
     if (sg_packageInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_ALREADY_INITIALIZED;
 
     /*
-    * op parameter order registration
-    * registers all defined op parameter orders in the package
-    * syntax: REGISTER_PACKAGE_PARAM_ORDERS()
-    */
+     * op parameter order registration
+     * registers all defined op parameter orders in the package
+     * syntax: REGISTER_PACKAGE_PARAM_ORDERS()
+     */
     REGISTER_PACKAGE_PARAM_ORDERS()
 
     /*
-    * op axis parameter name registration
-    * registers all axis parameter names in the package
-    * used with LIST_PACKAGE_AXIS_PARAMS(...)
-    * syntax: REGISTER_PACKAGE_AXIS_PARAMS()
-    */
+     * op axis parameter name registration
+     * registers all axis parameter names in the package
+     * used with LIST_PACKAGE_AXIS_PARAMS(...)
+     * syntax: REGISTER_PACKAGE_AXIS_PARAMS()
+     */
     REGISTER_PACKAGE_AXIS_PARAMS()
 
     /*
-    * per-channel scale op name registration
-    * registers all per-channel scale op names in the package
-    * used with LIST_PACKAGE_PER_CHANNEL_QUANTIZED_OPS(...)
-    * syntax: REGISTER_PACKAGE_PER_CHANNEL_QUANTIZED_OPS()
-    */
+     * per-channel scale op name registration
+     * registers all per-channel scale op names in the package
+     * used with LIST_PACKAGE_PER_CHANNEL_QUANTIZED_OPS(...)
+     * syntax: REGISTER_PACKAGE_PER_CHANNEL_QUANTIZED_OPS()
+     */
     REGISTER_PACKAGE_PER_CHANNEL_QUANTIZED_OPS()
 
-    sg_globalInfra        = infrastructure;
+    sg_globalInfra = infrastructure;
     sg_packageInitialized = true;
     return QNN_SUCCESS;
 }
 
-Qnn_ErrorHandle_t LLaMAPackageGetInfo(const QnnOpPackage_Info_t** info) {
+Qnn_ErrorHandle_t LLaMAPackageGetInfo(const QnnOpPackage_Info_t **info) {
     if (!sg_packageInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_NOT_INITIALIZED;
     if (!info) return QNN_OP_PACKAGE_ERROR_INVALID_INFO;
 
-    sg_packageInfo                = QNN_OP_PACKAGE_INFO_INIT;
-    sg_packageInfo.packageName    = sg_packageName;
+    sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
+    sg_packageInfo.packageName = sg_packageName;
     sg_packageInfo.operationNames = sg_opNames.data();
-    sg_packageInfo.numOperations  = sg_opNames.size();
-    sg_packageInfo.sdkBuildId     = QNN_SDK_BUILD_ID;
-    sg_packageInfo.sdkApiVersion  = &sg_sdkApiVersion;
+    sg_packageInfo.numOperations = sg_opNames.size();
+    sg_packageInfo.sdkBuildId = QNN_SDK_BUILD_ID;
+    sg_packageInfo.sdkApiVersion = &sg_sdkApiVersion;
 
     *info = &sg_packageInfo;
     return QNN_SUCCESS;
@@ -200,8 +200,8 @@ Qnn_ErrorHandle_t LLaMAPackageLogInitialize(QnnLog_Callback_t callback, QnnLog_L
     if (sg_logInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_ALREADY_INITIALIZED;
     if (!callback) return QNN_LOG_ERROR_INVALID_ARGUMENT;
     if (maxLogLevel < QNN_LOG_LEVEL_ERROR) return QNN_LOG_ERROR_INVALID_ARGUMENT;
-    sg_logCallback    = callback;
-    sg_maxLogLevel    = maxLogLevel;
+    sg_logCallback = callback;
+    sg_maxLogLevel = maxLogLevel;
     sg_logInitialized = true;
     return QNN_SUCCESS;
 }
@@ -214,13 +214,13 @@ Qnn_ErrorHandle_t LLaMAPackageLogSetLevel(QnnLog_Level_t maxLogLevel) {
 
 Qnn_ErrorHandle_t LLaMAPackageLogTerminate() {
     if (!sg_logInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_NOT_INITIALIZED;
-    sg_logCallback    = nullptr;
-    sg_maxLogLevel    = (QnnLog_Level_t)0;
+    sg_logCallback = nullptr;
+    sg_maxLogLevel = (QnnLog_Level_t)0;
     sg_logInitialized = false;
     return QNN_SUCCESS;
 }
 
-Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
+Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig(Qnn_OpConfig_t opConfig) {
     if (std::string(sg_packageName) != opConfig.v1.packageName) {
         return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
     }
@@ -229,113 +229,97 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
      * Check if op config type matches any registered ops
      * If a match is found, check number of inputs, outputs and params
      */
-    if (std::string(opConfig.v1.typeName) == "RMSNorm"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    if (std::string(opConfig.v1.typeName) == "RMSNorm") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "KVCache"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "KVCache") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMADequantizeAdd"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMADequantizeAdd") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAMul"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMAMul") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "MergeOutput"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "MergeOutput") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAReLU"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMAReLU") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "CausalMask"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "CausalMask") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "SiLU"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "SiLU") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "Attention"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "Attention") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "QLayerNorm"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "QLayerNorm") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "RoPE"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "RoPE") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "WNop"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "RoPESimple") {
+        if (opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAAdd"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "WNop") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "IRoPE"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMAAdd") {
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMALinear"){
-        if (opConfig.v1.numOfParams != 4 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "IRoPE") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "SplitInput"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMALinear") {
+        if (opConfig.v1.numOfParams != 4 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "HeadMatmul"){
-        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "SplitInput") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMADequantize"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "HeadMatmul") {
+        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMASuperSiLU"){
-        if (opConfig.v1.numOfParams != 3 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMADequantize") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAQuantize"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    } else if (std::string(opConfig.v1.typeName) == "LLaMASuperSiLU") {
+        if (opConfig.v1.numOfParams != 3 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
-    }
-    else{
+    } else if (std::string(opConfig.v1.typeName) == "LLaMAQuantize") {
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1) {
+            return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    } else {
         return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
     }
 
     /*
-    * additional validation code here
-    * */
+     * additional validation code here
+     * */
 
     return QNN_SUCCESS;
 }
@@ -353,36 +337,33 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
  */
 
 Qnn_ErrorHandle_t LLaMAPackageTerminate() {
-if (!sg_packageInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_NOT_INITIALIZED;
+    if (!sg_packageInitialized) return QNN_OP_PACKAGE_ERROR_LIBRARY_NOT_INITIALIZED;
 
-sg_globalInfra        = nullptr;
-sg_packageInitialized = false;
-return QNN_SUCCESS;
+    sg_globalInfra = nullptr;
+    sg_packageInitialized = false;
+    return QNN_SUCCESS;
 }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
 /* latest version */
-Qnn_ErrorHandle_t LLaMAPackageInterfaceProvider(QnnOpPackage_Interface_t* interface) {
-  if (!interface) return QNN_OP_PACKAGE_ERROR_INVALID_ARGUMENT;
-  interface->interfaceVersion      = {1, 4, 0};
-  interface->v1_4.init             = LLaMAPackageInit;
-  interface->v1_4.terminate        = LLaMAPackageTerminate;
-  interface->v1_4.getInfo          = LLaMAPackageGetInfo;
-  interface->v1_4.validateOpConfig = LLaMAPackageValidateOpConfig;
-  interface->v1_4.createOpImpl     = nullptr;
-  interface->v1_4.freeOpImpl       = nullptr;
-  interface->v1_4.logInitialize    = LLaMAPackageLogInitialize;
-  interface->v1_4.logSetLevel      = LLaMAPackageLogSetLevel;
-  interface->v1_4.logTerminate     = LLaMAPackageLogTerminate;
-  return QNN_SUCCESS;
+Qnn_ErrorHandle_t LLaMAPackageInterfaceProvider(QnnOpPackage_Interface_t *interface) {
+    if (!interface) return QNN_OP_PACKAGE_ERROR_INVALID_ARGUMENT;
+    interface->interfaceVersion = {1, 4, 0};
+    interface->v1_4.init = LLaMAPackageInit;
+    interface->v1_4.terminate = LLaMAPackageTerminate;
+    interface->v1_4.getInfo = LLaMAPackageGetInfo;
+    interface->v1_4.validateOpConfig = LLaMAPackageValidateOpConfig;
+    interface->v1_4.createOpImpl = nullptr;
+    interface->v1_4.freeOpImpl = nullptr;
+    interface->v1_4.logInitialize = LLaMAPackageLogInitialize;
+    interface->v1_4.logSetLevel = LLaMAPackageLogSetLevel;
+    interface->v1_4.logTerminate = LLaMAPackageLogTerminate;
+    return QNN_SUCCESS;
 }
 
 #ifdef __cplusplus
 }
 #endif
-
-

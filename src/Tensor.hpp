@@ -60,6 +60,20 @@ class Module;
  *        then the size of SEQUENCE dimension of the first Tensor is 2, the size of SEQUENCE dimension of the second Tensor is 1.
  *
  */
+
+class QuantParam {
+public:
+    QuantParam() :
+        scale(0.0f), zero_point(0) {
+    }
+    QuantParam(float s, int zp) :
+        scale(s), zero_point(zp) {
+    }
+
+    float scale;    // quantization scale
+    int zero_point; // quantization zero point
+};
+
 class Tensor : public std::enable_shared_from_this<Tensor> {
 protected:
     std::shared_ptr<TensorImpl> impl_; // 核心：使用shared_ptr管理实现
@@ -86,6 +100,7 @@ private:
 
 public:
     int cache_seq_len_;
+    QuantParam quant_param;
     bool inited() {
         return impl_ != nullptr && impl_->host_ptr_ != nullptr && impl_->name_ != "";
     }
@@ -943,7 +958,6 @@ public:
         setMasterTensor(source); // 建立父子关系的第一步
 
         // 步骤 1: 同步父子 Tensor 间的内存布局 (ctype)
-        // 这是原始代码中最复杂的部分，我们将其拆分到一个独立的辅助函数中。
         reconcileLayouts(source.get());
 
         // 步骤 2: 核心浅拷贝操作 - 共享数据指针和元数据
@@ -1430,6 +1444,7 @@ private:
         auto it = child_tensors_.begin();
         while (it != child_tensors_.end()) {
             if (auto child_sp = it->lock()) {
+                /*
                 vector<int> final_offset;
                 auto origin_shape_offset = child_sp->shapeOffset();
                 if (!origin_shape_offset.empty()) {
@@ -1437,7 +1452,22 @@ private:
                 } else if (!shape_offset.empty()) {
                     final_offset = shape_offset;
                 }
-
+                child_sp->shallowCopyFrom(source, false, final_offset, head_rep);
+                */
+                // merge qnn:
+                vector<int> final_offset;
+                auto origin_shape_offset = child_sp->shapeOffset();
+                if (!origin_shape_offset.empty()) {
+                    if (!shape_offset.empty()) {
+                        // 修改 origin_shape_offset 的第三个元素（索引为2）
+                        origin_shape_offset[2] = shape_offset[2];
+                    }
+                    final_offset = origin_shape_offset; // 使用修改后的 origin_shape_offset
+                } else if (!shape_offset.empty()) {
+                    final_offset = shape_offset;
+                } else {
+                    final_offset.clear(); // 或者保持默认的空 vector
+                }
                 child_sp->shallowCopyFrom(source, false, final_offset, head_rep);
 
                 it = child_tensors_.erase(it);
@@ -1781,7 +1811,6 @@ public:
             return;
         }
         // std::filesystem::create_directory("save_out");
-        // string directory = "save_out";
         struct stat info;
 #ifdef _WIN32
         _mkdir(directory.c_str());

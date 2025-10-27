@@ -2,6 +2,7 @@
 #include "Module.hpp"
 #include "Types.hpp"
 #include "xnnpack.h"
+#include "Context.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <array>
 #include <cstdint>
@@ -12,12 +13,12 @@
 using namespace mllm;
 
 TEST_F(XpTest, XNNPACK) {
-    Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
+    Module::initBackend(MLLM_XNNPACK);
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
 
     // inputs
     // B, S, H, D
-    Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK].get(), true);
 
     if (xnn_initialize(nullptr /* allocator */) != xnn_status_success) {
         ::mllm::xnnpack::Log::error("failed to initialize XNNPACK");
@@ -29,7 +30,7 @@ TEST_F(XpTest, XNNPACK) {
     xnn_create_subgraph(2, 0, &subgraph);
 
     // outputs
-    Tensor out(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor out(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK].get(), true);
 
     // define tensor
     {

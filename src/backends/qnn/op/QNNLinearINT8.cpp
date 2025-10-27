@@ -1,4 +1,4 @@
-
+#include "Context.hpp"
 #include "QNNLinearINT8.hpp"
 #include "Backend.hpp"
 #include "QnnTypes.h"
@@ -50,6 +50,9 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
 ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     outputs[0]->setDtype(MLLM_TYPE_I8);
+    float outputScale = 0;
+    outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
+    outputs[0]->quant_param.scale = outputScale;
     // add matmul param to qnn
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
@@ -115,8 +118,8 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     };
 
     // add weight tensor to qnn
-    uint32_t dimensionsWeight[4] = {1, 1, static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
-
+    // uint32_t dimensionsWeight[4] = {1, 1, static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
+    auto dimensionsWeight = new uint32_t[4]{1, 1, (uint32_t)in_features_, (uint32_t)out_features_};
     auto qnnQuantDefined = QNN_DEFINITION_UNDEFINED;
     float weightScale = 0;
 
@@ -143,19 +146,16 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     weight_.free();
 
     // dimensions of matmul output and bias
-    uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                    static_cast<uint32_t>(outputs[0]->sequence()),
-                                    static_cast<uint32_t>(outputs[0]->head()),
-                                    static_cast<uint32_t>(outputs[0]->dimension())};
+    // uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
+    //                                 static_cast<uint32_t>(outputs[0]->sequence()),
+    //                                 static_cast<uint32_t>(outputs[0]->head()),
+    //                                 static_cast<uint32_t>(outputs[0]->dimension())};
+    auto dimensionsOutput = new uint32_t[4]{(uint32_t)outputs[0]->batch(), (uint32_t)outputs[0]->sequence(), (uint32_t)outputs[0]->head(), (uint32_t)outputs[0]->dimension()};
 
     auto outName = outputs[0]->name();
 
     // if don't support bias, just dequantize and write to tensor with name of outputs[0]
     if (!support_bias_) {
-        float outputScale = 0;
-        outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-        // outputScale = roundf(outputScale * 100000) / 100000;
-
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
                                                 .id = 0,
@@ -207,10 +207,6 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     // free bias host memory
     bias_.free();
 
-    float outputScale = 0;
-    outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-    // outputScale = roundf(outputScale * 100000) / 100000;
-
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
                                         {.v1 = {
@@ -232,6 +228,9 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
 
 ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     outputs[0]->setDtype(MLLM_TYPE_I16);
+    float outputScale = 0;
+    outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
+    outputs[0]->quant_param.scale = outputScale;
     // add matmul param to qnn
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
@@ -325,19 +324,16 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     weight_.free();
 
     // dimensions of matmul output and bias
-    uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                    static_cast<uint32_t>(outputs[0]->sequence()),
-                                    static_cast<uint32_t>(outputs[0]->head()),
-                                    static_cast<uint32_t>(outputs[0]->dimension())};
+    // uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
+    //                                 static_cast<uint32_t>(outputs[0]->sequence()),
+    //                                 static_cast<uint32_t>(outputs[0]->head()),
+    //                                 static_cast<uint32_t>(outputs[0]->dimension())};
+    auto dimensionsOutput = new uint32_t[4]{(uint32_t)outputs[0]->batch(), (uint32_t)outputs[0]->sequence(), (uint32_t)outputs[0]->head(), (uint32_t)outputs[0]->dimension()};
 
     auto outName = outputs[0]->name();
 
     // if don't support bias, just dequantize and write to tensor with name of outputs[0]
     if (!support_bias_) {
-        float outputScale = 0;
-        outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-        // outputScale = roundf(outputScale * 100000) / 100000;
-
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
                                                 .id = 0,
@@ -390,10 +386,6 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     // free bias host memory
     bias_.free();
     delete biasBuffer;
-
-    float outputScale = 0;
-    outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-    // outputScale = roundf(outputScale * 100000) / 100000;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
@@ -454,7 +446,6 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
-
     return Op::load(loader);
 }
 

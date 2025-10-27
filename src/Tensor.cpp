@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdlib>
 // #include <exception>
-#include <express/ExpressBase.hpp>
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
@@ -18,12 +17,6 @@
 #include <vector>
 
 namespace mllm {
-
-/* Tensor类构造函数实现（对应头文件中的声明）*/
-// Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
-//     impl_(std::make_shared<TensorImpl>()) { // 初始化impl_
-//     reshape(batch, head, sequence, dimension);
-// }
 
 Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) :
     impl_(std::make_shared<TensorImpl>(bn)) { // 使用带Backend的TensorImpl构造函数
@@ -172,10 +165,24 @@ Tensor &Tensor::to(BackendType backend_type) {
         return *this;
     }
     // realloc the tensor
+    // realloc the tensor
     if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
-        this->free();
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type].get());
-        this->setBackend(Backend::global_backends[backend_type].get());
+        if (this->masterTensor() != nullptr) {
+            auto master_tensor = this->masterTensor();
+            master_tensor->free();
+            master_tensor->to(MLLM_QNN);
+            master_tensor->alloc();
+            for (auto &child_wp : master_tensor->childTensors()) {
+                // Lock the weak_ptr to get a shared_ptr
+                if (auto child_sp = child_wp.lock()) {
+                    child_sp->forceResetHostPointer(this->impl_->host_ptr_);
+                }
+            }
+        } else {
+            this->free();
+            module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type].get());
+            this->setBackend(Backend::global_backends[backend_type].get());
+        }
         return *this;
     }
     if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
@@ -364,9 +371,12 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
         }
     }
     auto backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU].get() : input_tensors[0].backend();
+    //////////==============QNN only====================///////////
     if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) { // 针对QNN的特殊处理
-        backend = Backend::global_backends[MLLM_QNN].get();
+        // backend = Backend::global_backends[MLLM_QNN].get();
+        backend = Backend::global_backends[MLLM_CPU].get(); // 想不到吧
     }
+    //////////==============QNN only====================///////////
     // 1. 使用更高效的键生成方式
     static std::unordered_map<size_t, std::shared_ptr<Op>> op_cache; // 改用size_t作为键类型
     param["type"] = type;
@@ -405,6 +415,9 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
     //     std::cout << name_o << " dispatch Func: " << type << " in " << (end_time - start_time) / 1000.0F << " ms" << std::endl;
     // }
     // 4. 使用缓存的或新创建的 Op 执行计算
+    if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) { // 针对QNN的特殊处理
+        backend = Backend::global_backends[MLLM_QNN].get();                                                                  // 想不到吧
+    }
     return backend->runOp(op_to_run.get(), input_tensors, out_names, in_place);
 }
 

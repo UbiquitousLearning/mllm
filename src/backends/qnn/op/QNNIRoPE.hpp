@@ -35,8 +35,6 @@ private:
 
     Tensor sinTensor_;
     Tensor cosTensor_;
-
-    Tensor scale_;
 };
 
 class QNNIRoPECreator : public QNNBackend::Creator {

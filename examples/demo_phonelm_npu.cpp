@@ -1,3 +1,6 @@
+
+
+#include "Context.hpp"
 #include "Module.hpp"
 #include "QNNBackend.hpp"
 #include "Types.hpp"
@@ -56,17 +59,15 @@ int main(int argc, char **argv) {
         if (!not_end) { return false; }
         return true;
     });
-    Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-    // turn on the multi-chunk prefilling
-    Module::isMultiChunkPrefilling = true;
+    Context::Instance().inference_state().setQnnGraphFrozen(true);
+    Context::Instance().inference_state().setCurSequenceLength(0);
+    Context::Instance().inference_state().setExecutionType(PROMPT);
+    Context::Instance().inference_state().toggleSwitching();
 
     // warmup END
     std::cout << "Warmup finished." << std::endl;
     if (!std::filesystem::exists("qnn_context.bin")) {
-        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN].get())->saveQNNContext();
     }
 
     vector<string> in_strs = {
@@ -78,86 +79,86 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications.",
         "\"Large Language Models (LLMs) are advanced artificial intelligence systems designed to understand and generate human-like text. These models are trained on vast amounts of data, enabling them to perform a wide range of tasks, from answering questions and summarizing text to generating creative content and engaging in conversational dialogue. LLMs like GPT-3 and GPT-4, developed by OpenAI, have set new benchmarks in natural language processing by leveraging deep learning architectures, particularly transformer models, which excel at capturing context and relationships within text. The scalability and versatility of LLMs make them invaluable tools for applications in education, customer service, content creation, and more. However, their deployment also raises ethical considerations, including issues of bias, misinformation, and the potential for misuse. As the field continues to evolve, ongoing research and responsible deployment strategies are essential to harnessing the full potential of these powerful AI systems while mitigating their risks.\"\nGenerate a title based on the above text."};
 
-    for (int i = 0; i < in_strs.size(); ++i) {
-        auto input_str = tokenizer.apply_chat_template(in_strs[i]);
-        auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
-        const int seq_length_padding = (chunk_size - real_seq_length % chunk_size) + real_seq_length;
-        const int chunk_num = seq_length_padding / chunk_size;
-        bool isSwitched = false;
-        // std::cout << "real seq length: " << real_seq_length << " padding to: " << seq_length_padding << " chunk num: " << chunk_num << std::endl;
-        std::cout << "[Q] " << in_strs[i] << std::endl;
-        std::cout << "[A] " << std::flush;
+    // for (int i = 0; i < in_strs.size(); ++i) {
+    //     auto input_str = tokenizer.apply_chat_template(in_strs[i]);
+    //     auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
+    //     const int seq_length_padding = (chunk_size - real_seq_length % chunk_size) + real_seq_length;
+    //     const int chunk_num = seq_length_padding / chunk_size;
+    //     bool isSwitched = false;
+    //     // std::cout << "real seq length: " << real_seq_length << " padding to: " << seq_length_padding << " chunk num: " << chunk_num << std::endl;
+    //     std::cout << "[Q] " << in_strs[i] << std::endl;
+    //     std::cout << "[A] " << std::flush;
 
-        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setTotalSequenceLength(real_seq_length);
-        // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setChunkSize(chunk_size);
+    //     // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+    //     Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
+    //     // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
+    //     Context::Instance().inference_state().setChunkSize(chunk_size);
 
-        // tensor vectors to save the chunked tensors of the QNN prefilling input
-        vector<Tensor> chunked_tensors(chunk_num);
-        LlmTextGeneratorOpts opt{
-            .max_new_tokens = 1,
-            .do_sample = false,
-            .is_padding = true,
-            .seq_before_padding = real_seq_length,
-            .chunk_size = chunk_size,
-        };
+    //     // tensor vectors to save the chunked tensors of the QNN prefilling input
+    //     vector<Tensor> chunked_tensors(chunk_num);
+    //     LlmTextGeneratorOpts opt{
+    //         .max_new_tokens = 1,
+    //         .do_sample = false,
+    //         .is_padding = true,
+    //         .seq_before_padding = real_seq_length,
+    //         .chunk_size = chunk_size,
+    //     };
 
-        for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU].get());
-            chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
-            chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
-            chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-            chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+    //     for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
+    //         chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU].get());
+    //         chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
+    //         chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
+    //         chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
+    //         chunked_tensors[chunk_id].shallowCopyFrom(input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
-            model.generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                // if (i != 0 && !isSwitched && chunk_id == 0) {
-                if (!isSwitched && chunk_id == 0) {
-                    // turn off switching at the first chunk of following inputs
-                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-                    isSwitched = true;
-                }
-                auto out_string = tokenizer.detokenize({out_token});
-                auto [not_end, output_string] = tokenizer.postprocess(out_string);
-                if (!not_end) { return false; }
-                if (chunk_id == chunk_num - 1) { // print the output of the last chunk
-                    std::cout << output_string << std::flush;
-                }
-                return true;
-            });
-            Module::isFirstChunk = false;
-        }
+    //         model.generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
+    //             // if (i != 0 && !isSwitched && chunk_id == 0) {
+    //             if (!isSwitched && chunk_id == 0) {
+    //                 // turn off switching at the first chunk of following inputs
+    //                 Context::Instance().inference_state().toggleSwitching();
+    //                 isSwitched = true;
+    //             }
+    //             auto out_string = tokenizer.detokenize({out_token});
+    //             auto [not_end, output_string] = tokenizer.postprocess(out_string);
+    //             if (!not_end) { return false; }
+    //             if (chunk_id == chunk_num - 1) { // print the output of the last chunk
+    //                 std::cout << output_string << std::flush;
+    //             }
+    //             return true;
+    //         });
+    //         Context::Instance().inference_state().setQnnGraphFrozen(true);
+    //     }
 
-        // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(AUTOREGRESSIVE);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+    //     // turn on switching, set sequence length and execution type
+    //     Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+    //     Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+    //     Context::Instance().inference_state().toggleSwitching();
 
-        LlmTextGeneratorOpts decoding_opt{
-            .max_new_tokens = 100,
-            .do_sample = false,
-            .temperature = 0.3f,
-            .top_k = 50,
-            .top_p = 0.f,
-            .is_padding = false,
-        };
-        isSwitched = false;
-        decoding_model.generate(chunked_tensors.back(), decoding_opt, [&](unsigned int out_token) -> bool {
-            if (!isSwitched) { // turn off switching
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-                isSwitched = true;
-            }
-            auto out_string = tokenizer.detokenize({out_token});
-            auto [not_end, output_string] = tokenizer.postprocess(out_string);
-            if (!not_end) { return false; }
-            std::cout << output_string << std::flush;
-            return true;
-        });
+    //     LlmTextGeneratorOpts decoding_opt{
+    //         .max_new_tokens = 100,
+    //         .do_sample = false,
+    //         .temperature = 0.3f,
+    //         .top_k = 50,
+    //         .top_p = 0.f,
+    //         .is_padding = false,
+    //     };
+    //     isSwitched = false;
+    //     decoding_model.generate(chunked_tensors.back(), decoding_opt, [&](unsigned int out_token) -> bool {
+    //         if (!isSwitched) { // turn off switching
+    //             Context::Instance().inference_state().toggleSwitching();
+    //             isSwitched = true;
+    //         }
+    //         auto out_string = tokenizer.detokenize({out_token});
+    //         auto [not_end, output_string] = tokenizer.postprocess(out_string);
+    //         if (!not_end) { return false; }
+    //         std::cout << output_string << std::flush;
+    //         return true;
+    //     });
 
-        // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-        std::cout << "\n";
-    }
+    //     // turn on switching, set sequence length and execution type
+    //     Context::Instance().inference_state().setCurSequenceLength(0);
+    //     Context::Instance().inference_state().setExecutionType(PROMPT);
+    //     Context::Instance().inference_state().toggleSwitching();
+    //     std::cout << "\n";
+    // }
 }

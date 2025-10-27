@@ -141,8 +141,6 @@ private:
 
 public:
     Module() {
-        idx = Module::graphIdx;
-        Module::graphIdx++;
     }
     virtual ~Module() = default;
 

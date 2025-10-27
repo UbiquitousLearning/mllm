@@ -1,5 +1,6 @@
 
 #include "CPURoPE.hpp"
+#include "Context.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
 #include <cassert>
@@ -224,9 +225,8 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         }
     }
 #ifdef USE_QNN
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()) {
+        h_cnt_ = Context::Instance().inference_state().getCurSequenceLength();
     }
 #endif
     return Op::reshape(inputs, outputs);

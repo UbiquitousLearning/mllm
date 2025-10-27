@@ -1,40 +1,41 @@
 #include <cstdint>
-#include <inttypes.h>
 
 #include <cstring>
 #include <iostream>
 #include <memory>
 
+#include "Backend.hpp"
+#include "Context.hpp"
 #include "Log.h"
 #include "Module.hpp"
+#include "Layer.hpp"
 #include "OpDefined.hpp"
 #include "QNNBackend.hpp"
-#include "ParamLoader.hpp"
-#include "QnnModel.hpp"
-#include "Utils/QnnSampleAppUtils.hpp"
-#include "Utils/IOTensor.hpp"
-#include "Utils/DynamicLoadUtil.hpp"
-#include "Log/Logger.hpp"
-#include "WrapperUtils/QnnWrapperUtils.hpp"
+#include "QNNUtils.hpp"
+#include "QNNModel.hpp"
 #include "QNNMemoryManager.hpp"
 #include "QnnTypes.h"
 #include "HTP/QnnHtpGraph.h"
-#include "Layer.hpp"
-#include "Layer.hpp"
+#include "HTP/QnnHtpDevice.h"
 
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
+#include "op/QNNDequantizeAdd.hpp"
 #include "op/QNNGELU.hpp"
+#include "op/QNNQuickGELU.hpp"
 #include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
 #include "op/QNNLayerNorm.hpp"
 #include "op/QNNRMSNorm.hpp"
 #include "op/QNNRoPE.hpp"
+#include "op/QNNRoPESimple.hpp"
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
+#include "op/QNNSiLUHigh.hpp"
 #include "op/QNNSoftMax.hpp"
+#include "op/QNNSplit.hpp"
 #include "op/QNNSubGraphFinalize.hpp"
 #include "op/QNNSubGraphStart.hpp"
 #include "op/QNNView.hpp"
@@ -53,10 +54,6 @@
 #include "Timing.hpp"
 #endif
 
-using namespace qnn;
-using namespace qnn::tools;
-using namespace qnn::tools::sample_app;
-
 // Flag to determine if Backend should node validation for each opNode added
 #ifdef QNN_VALIDATE_NODE
 #define DO_GRAPH_NODE_VALIDATIONS 1
@@ -73,9 +70,11 @@ void QNNBackend::registerOps() {
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
     addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(ROPESIMPLE, (QNNBackend::Creator *)(new QNNRoPESimpleCreator()));
     addCreator(IROPE, (QNNBackend::Creator *)(new QNNIRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
+    addCreator(SILU_FULL_PRECISION, (QNNBackend::Creator *)(new QNNSiLUHighCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
     addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
@@ -83,215 +82,161 @@ void QNNBackend::registerOps() {
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
+    addCreator(QUICKGLUE, (QNNBackend::Creator *)(new QNNQuickGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
+    addCreator(DEQUANTIZEADD, (QNNBackend::Creator *)(new QNNDequantizeAddCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
     addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
     addCreator(SUBGRAPHSTART, (QNNBackend::Creator *)(new QNNSubGraphStartCreator()));
     addCreator(SUBGRAPHFINALIZE, (QNNBackend::Creator *)(new QNNSubGraphFinalizeCreator()));
+    addCreator(SPLIT, (QNNBackend::Creator *)(new QNNSplitCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     type_ = BackendType::MLLM_QNN; // used in Tensor.device()
-    if (!log::initializeLogging()) {
-        MLLM_LOG_ERROR_STREAM << "ERROR: Unable to initialize logging!\n";
-        return;
-    }
-    // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_ERROR);
 
-    std::string backEndPath = "libQnnHtp.so";
-    std::string opPackagePaths = "libQnnLLaMAPackage_CPU.so:LLaMAPackageInterfaceProvider:CPU,libQnnLLaMAPackage_HTP.so:LLaMAPackageInterfaceProvider:HTP";
-
-    // TODO: make these configuable
+    QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN; // QNN_LOG_LEVEL_INFO; // QNN_LOG_LEVEL_WARN; // default QNN log level
+    m_profilingLevel = ProfilingLevel::DETAILED;
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
-    m_inputDataType = iotensor::InputDataType::NATIVE;
-    m_profilingLevel = ProfilingLevel::OFF;
 
-    m_isBackendInitialized = false;
-    m_isContextCreated = false;
+    loadQNNSymbol();
+    loadQNNSystemSymbol();
 
-    // config path strings
-    split(m_opPackagePaths, opPackagePaths, ',');
-
-    if (backEndPath.empty()) {
-        std::exit(EXIT_FAILURE);
-    }
-    MLLM_LOG_INFO_LEGACY("Backend: %s", backEndPath.c_str());
-
-    // Load backend and validate all the required function symbols are resolved
-    auto statusCode = dynamicloadutil::getQnnFunctionPointers(backEndPath,
-                                                              "",
-                                                              &m_qnnFunctionPointers,
-                                                              &m_backendLibraryHandle,
-                                                              false,
-                                                              nullptr);
-    if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
-        if (dynamicloadutil::StatusCode::FAIL_LOAD_BACKEND == statusCode) {
-            exitWithMessage(
-                "Error initializing QNN Function Pointers: could not load backend: " + backEndPath,
-                EXIT_FAILURE);
-        } else if (dynamicloadutil::StatusCode::FAIL_LOAD_MODEL == statusCode) {
-            exitWithMessage(
-                "Error initializing QNN Function Pointers: could not load model: ",
-                EXIT_FAILURE);
-        } else {
-            exitWithMessage("Error initializing QNN Function Pointers", EXIT_FAILURE);
-        }
+    mRuntime = QNNRuntime::create(m_profilingLevel, qnnLogLevel);
+    if (!mRuntime) {
+        MLLM_LOG_ERROR_STREAM << "Failed to create QNN Runtime\n";
+        exit(1);
     }
 
-    // init qnn resources
-    {
-        MLLM_LOG_INFO_LEGACY("Backend        build version: %s", getBackendBuildId().c_str());
-
-        // initialize logging in the backend
-        if (log::isLogInitialized()) {
-            auto logCallback = log::getLogCallback();
-            auto logLevel = log::getLogLevel();
-            // MLLM_LOG_INFO("Initializing logging in the backend. Callback: {}, Log Level: {}",
-            //               logCallback,
-            //               logLevel);
-            if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.logCreate(logCallback, logLevel, &m_logHandle)) {
-                MLLM_LOG_WARN_LEGACY("Unable to initialize logging in the backend.");
-            }
-        } else {
-            MLLM_LOG_WARN_LEGACY("Logging not available in the backend.");
-        }
-
-        // initialize QnnBackend
-        auto qnnStatus = m_qnnFunctionPointers.qnnInterface.backendCreate(
-            m_logHandle, (const QnnBackend_Config_t **)m_backendConfig, &m_backendHandle);
-        if (QNN_BACKEND_NO_ERROR != qnnStatus) {
-            MLLM_LOG_ERROR("Could not initialize backend due to error = {}", (unsigned int)qnnStatus);
-            this->reportError("Backend Initialization failure");
-        }
-        MLLM_LOG_INFO("Initialize Backend Returned Status = {}", (unsigned int)qnnStatus);
-        m_isBackendInitialized = true;
-
-        auto devicePropertySupportStatus = this->isDevicePropertySupported();
-        if (StatusCode::FAILURE != devicePropertySupportStatus) {
-            auto createDeviceStatus = this->createDevice();
-            if (StatusCode::SUCCESS != createDeviceStatus) {
-                this->reportError("Device Creation failure");
-            }
-        }
-
-        if (StatusCode::SUCCESS != this->initializeProfiling()) {
-            this->reportError("Profiling Initialization failure");
-        }
-
-        if (StatusCode::SUCCESS != this->registerOpPackages()) {
-            this->reportError("Register Op Packages failure");
-        }
+    // check QNN capability
+    char *backendBuildId{nullptr};
+    if (QNN_SUCCESS != mRuntime->qnnInterface.backendGetBuildId((const char **)&backendBuildId)) {
+        MLLM_LOG_ERROR_LEGACY("Unable to get build Id from the backend.");
+    }
+    MLLM_LOG_INFO_STREAM << "QNN Backend Build Id: " << (backendBuildId == nullptr ? "" : backendBuildId);
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports tensor sparsity");
+    }
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_DYNAMIC_DIMENSIONS) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports dynamic dimensions");
+    }
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports early termination");
     }
 
     // register ops
     this->registerOps();
 
+    bool contextStatus = false;
     // check if the qnn_context.bin file exists
     if (!std::filesystem::exists("qnn_context.bin")) {
-        // create qnn context
-        if (StatusCode::SUCCESS != this->createContext()) {
-            this->reportError("Context Creation failure");
-        }
+        contextStatus = mRuntime->createContext(m_context, nullptr);
     } else {
-        if (StatusCode::SUCCESS != this->retrieveQNNContext()) {
-            this->reportError("Context Retieve failure");
+        contextStatus = mRuntime->retrieveContext(m_context, graphsInfo_, nullptr);
+        // set the flag to indicate that the context is loaded from cache
+        isFromCache = true;
+        // fill qnnModelIndexMap_ info according to graphsInfo_
+        for (size_t i = 0; i < graphsInfo_.size(); i++) {
+            auto graphName = graphsInfo_[i]->graphName;
+            qnnModelIndexMap_.insert(std::make_pair(graphName, i));
         }
     }
+    if (!contextStatus) {
+        MLLM_LOG_ERROR_STREAM << "Failed to create QNN context\n";
+        exit(1);
+    }
+
     // assign context to qnn memory manager
 #ifdef QNN_ARM
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-    qnnMM->setQnnInterfaceAndContext(m_context);
+    qnnMM->setQnnInterfaceAndContext(mRuntime->qnnInterface, m_context);
 #endif
+
+    mPerf = QNNPerf::create(&mRuntime->qnnInterface);
+    mPerf->setPowerConfigBurst();
+    mPerf->setRpcLatencyAndPolling();
 }
 
 QNNBackend::~QNNBackend() {
-    terminateBackend();
     // free creaters in map_creator_
     for (auto &iter : map_creator_) {
         delete iter.second;
     }
     // free qnn backend resource
-    auto devicePropertySupportStatus = this->isDevicePropertySupported();
-    if (StatusCode::FAILURE != devicePropertySupportStatus) {
-        auto freeDeviceStatus = this->freeDevice();
-        if (StatusCode::SUCCESS != freeDeviceStatus) {
-            this->reportError("Device Free failure");
-        }
-    }
-    // free dynamic library handle
-    if (m_backendLibraryHandle) {
-        pal::dynamicloading::dlClose(m_backendLibraryHandle);
-    }
-    QNN_INFO("Free handle");
+    mRuntime.release();
 }
 
 void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    auto returnStatus = StatusCode::SUCCESS;
+    // if the graph already exists, just update the qnnModelIndex_ and set the input and output buffers
+    if (qnnModelIndexMap_.find(graphName) != qnnModelIndexMap_.end()) {
+        qnnModelIndex_ = qnnModelIndexMap_[graphName];
 
-    // create a new graph
+        inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
+        outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
+
+        currentInputBuffers = &inputBufferMap[graphName];
+        currentOutputBuffers = &outputBufferMap[graphName];
+
+        // push input tensors to the buffer list
+        for (int i = 0; i < inputs.size(); i++) {
+            (*currentInputBuffers)[i] = inputs[i]->hostPtr<uint8_t>();
+        }
+        return;
+    }
+    // else, create a QNNModel to build graph
     qnnModelIndex_ = qnnModels_.size();
     qnnModelIndexMap_.insert(std::make_pair(graphName, qnnModelIndex_));
-    qnnModels_.push_back(qnn_wrapper_api::QnnModel());
+    qnnModels_.push_back(QNNModel());
 
     // initialize qnn graph info, set graph info, graph count
-    // NOTE: currently not using it
-    QnnHtpGraph_CustomConfig_t customConfig;
-    // customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
-    // customConfig.numHvxThreads = 4; // set a number. MAX = number of HVX HW blocks for that SoC
-    customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
-    customConfig.vtcmSizeInMB = 8;
+    QnnHtpGraph_CustomConfig_t vtcmConfigInfo;
+    vtcmConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+    vtcmConfigInfo.vtcmSizeInMB = 8;
+    QnnGraph_Config_t vtcmConfig;
+    vtcmConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    vtcmConfig.customConfig = &vtcmConfigInfo;
 
-    QnnGraph_Config_t graphConfig;
-    graphConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-    graphConfig.customConfig = &customConfig;
+    // QnnHtpGraph_CustomConfig_t htpThreadConfig;
+    // htpThreadConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
+    // htpThreadConfig.numHvxThreads = 6; // set a number. MAX = number of HVX HW blocks for that SoC
+    // QnnGraph_Config_t threadConfig;
+    // threadConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    // threadConfig.customConfig = &htpThreadConfig;
 
-    const QnnGraph_Config_t *pGraphConfig[] = {&graphConfig, NULL};
+    // supported in 2.34
+    QnnHtpGraph_CustomConfig_t slcConfigInfo;
+    slcConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+    slcConfigInfo.optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_SLC_ALLOCATOR;
+    slcConfigInfo.optimizationOption.floatValue = 1;
+    QnnGraph_Config_t slcConfig;
+    slcConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    slcConfig.customConfig = &slcConfigInfo;
 
-    const QnnGraph_Config_t **graphConfigs = pGraphConfig;
+    const QnnGraph_Config_t *graphConfigList[] = {&vtcmConfig, &slcConfig, NULL};
 
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-
-    if (!isFromCache) {
-        err = qnnModels_[qnnModelIndex_].initialize(m_backendHandle,
-                                                    m_qnnFunctionPointers.qnnInterface,
-                                                    m_context,
-                                                    graphName.c_str(),
-                                                    m_debug,
-                                                    DO_GRAPH_NODE_VALIDATIONS,
-                                                    graphConfigs);
-    } else {
-        // set init from cache, the input and output tensor info still needs the QnnModel to maintain
-        // setting this is to avoid the tensor creation in the qnn graph
-        qnnModels_[qnnModelIndex_].setInitFromCache();
+    ModelError_t err = MODEL_NO_ERROR;
+    if ((err = qnnModels_[qnnModelIndex_].initialize(mRuntime->backendHandle,
+                                                     mRuntime->qnnInterface,
+                                                     m_context,
+                                                     graphName.c_str(),
+                                                     m_debug,
+                                                     DO_GRAPH_NODE_VALIDATIONS,
+                                                     graphConfigList))
+        != MODEL_NO_ERROR) {
+        MLLM_LOG_ERROR_STREAM << "QNNBackend graph initialization failed for graph: " << graphName
+                              << " with error code: " << static_cast<int>(err) << std::endl;
+        exit(1);
     }
 
-    if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
-        this->reportError("Graph Initialization failure: " + graphName);
-    }
-
-    // To avoid no input, we put inputs here.
-    // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
     for (auto &input : inputs) {
         Qnn_DataType_t data_type;
         auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
         auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
         float scale = 0.0f;
-        AbstructLoader *loader = nullptr;
-        if (Module::llm_model_ptr == nullptr) { // old frontend
-            loader = dataLoader_;
-        } else { // new frontend
-            loader = Module::llm_model_ptr->loader;
-        }
-        Tensor scaleTensor(this);
-        scaleTensor.reshape(1, 1, 1, 1);
-        scaleTensor.setDtype(MLLM_TYPE_F32);
-        scaleTensor.alloc();
-
         switch (input->dtype()) {
         case MLLM_TYPE_F32:
             data_type = QNN_DATATYPE_FLOAT_32;
@@ -303,102 +248,14 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
             quantizeDefined = QNN_DEFINITION_DEFINED;
             quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-            string scaleName = input->name();
-
-            std::string wordToRemove = "outtensor-";
-            int pos = scaleName.find(wordToRemove);
-            if (pos != -1) { // old frontend merge/split generated tensor
-                scaleName = scaleName.substr(wordToRemove.length());
-                wordToRemove = "or_split";
-                if (scaleName.find(wordToRemove) != -1) {
-                    pos = scaleName.find("or_split");
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // o
-                    scaleName += "o_proj.input_scale";
-                } else if (scaleName.find("ires_split") != -1) {
-                    pos = scaleName.find("ires_split");
-                    wordToRemove = "ires_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // q
-                    scaleName += "q_proj.input_scale";
-                } else if (scaleName.find("fres_split") != -1) {
-                    pos = scaleName.find("fres_split");
-                    wordToRemove = "fres_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // fc1
-                    scaleName += "up_proj.input_scale";
-                }
-            } else { // new frontend no merge/split condition
-                std::string prefix = "out-", suffix = ".quantize";
-                if (input->name().find(prefix) != std::string::npos) {
-                    scaleName = input->name().substr(prefix.length());
-                }
-                if (scaleName.find(suffix) != std::string::npos) {
-                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
-                }
-                scaleName += ".input_scale";
-            }
-            scaleTensor.setName(scaleName);
-            loader->load(&scaleTensor);
-            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
-            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
-            scaleTensor.free();
-
+            scale = input->quant_param.scale;
             break;
         }
         case MLLM_TYPE_I16: {
             data_type = QNN_DATATYPE_SFIXED_POINT_16;
             quantizeDefined = QNN_DEFINITION_DEFINED;
             quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-            string scaleName = input->name();
-
-            std::string wordToRemove = "outtensor-";
-            int pos = scaleName.find(wordToRemove);
-            if (pos != -1) { // old frontend merge/split generated tensor
-                scaleName = scaleName.substr(wordToRemove.length());
-                wordToRemove = "or_split";
-                if (scaleName.find(wordToRemove) != -1) {
-                    pos = scaleName.find("or_split");
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // o
-                    scaleName += "o_proj.input_scale";
-                } else if (scaleName.find("ires_split") != -1) {
-                    pos = scaleName.find("ires_split");
-                    wordToRemove = "ires_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // q
-                    scaleName += "q_proj.input_scale";
-                } else if (scaleName.find("fres_split") != -1) {
-                    pos = scaleName.find("fres_split");
-                    wordToRemove = "fres_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // fc1
-                    scaleName += "up_proj.input_scale";
-                }
-            } else { // new frontend no merge/split condition
-                std::string prefix = "out-", suffix = ".quantize";
-                if (input->name().find(prefix) != std::string::npos) {
-                    scaleName = input->name().substr(prefix.length());
-                }
-                if (scaleName.find(suffix) != std::string::npos) {
-                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
-                }
-                scaleName += ".input_scale";
-            }
-            scaleTensor.setName(scaleName);
-            loader->load(&scaleTensor);
-            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
-            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1);
-            scaleTensor.free();
-
+            scale = input->quant_param.scale;
             break;
         }
         default:
@@ -445,63 +302,51 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     }
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
+bool QNNBackend::graphFinilize() {
     // Populate the constructed graphs in provided output variables
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-    qnn_wrapper_api::GraphInfo_t *graphInfo = nullptr;
+    GraphInfo_t *graphInfo = nullptr;
 
     // Graph finalize
-    VALIDATE(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo), err);
-    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize(graphInfo->graph, m_profileBackendHandle, nullptr)) {
-        return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
+    CALL_QNN(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo));
+    if (QNN_GRAPH_NO_ERROR != mRuntime->qnnInterface.graphFinalize(graphInfo->graph, mRuntime->profileHandle, nullptr)) {
+        return false;
     }
+    CALL_QNN(qnnModels_[qnnModelIndex_].freeCachedTensors());
     if (ProfilingLevel::OFF != m_profilingLevel) {
-        extractBackendProfilingInfo(m_profileBackendHandle);
+        extractBackendProfilingInfo(mRuntime->profileHandle);
     }
     graphsInfo_.push_back(graphInfo);
 
-    return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    return true;
 }
 
+// finalize graph if needed, get qnn inputs and outputs tensors from graphInfo, register shared memory handles
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    // currentInputBuffers = &inputBufferMap[graphName];
-    // currentOutputBuffers = &outputBufferMap[graphName];
-    // qnnModelIndex_ = qnnModelIndexMap_[graphName];
-
     // online graph building, finalize graph
     if (!isFromCache) {
         PRINT_MEMORY_USAGE("before graph finilize")
-        auto status = graphFinilize();
-        PRINT_MEMORY_USAGE("after graph finilize")
-        if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
-            this->reportError("Graph Finalization failure");
+        if (!graphFinilize()) {
+            MLLM_LOG_ERROR("Graph Finalization failure");
+            exit(1);
         }
+        PRINT_MEMORY_USAGE("after graph finilize")
     }
-
-    auto returnStatus = StatusCode::SUCCESS;
-
-    Qnn_Tensor_t *qnnInputs = nullptr;
-    Qnn_Tensor_t *qnnOutputs = nullptr;
 
     auto graphInfo = graphsInfo_[qnnModelIndex_];
-
-    // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
-    if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
-        MLLM_LOG_ERROR_LEGACY("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
-        returnStatus = StatusCode::FAILURE;
-    }
+    Qnn_Tensor_t *qnnInputs = graphInfo->inputTensors;
+    Qnn_Tensor_t *qnnOutputs = graphInfo->outputTensors;
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
     // register input and output tensor to qnn shared buffers
     // must insure the inputs and outputs of mllm graph are the same as the qnn graph
-    // op created io tensors (kvcache, wnop...) should be solved
 #ifdef DEBUGPRINT
     std::cout << "input tensors num:" << graphInfo->numInputTensors << std::endl;
     std::cout << "output tensors num:" << graphInfo->numOutputTensors << std::endl;
 #endif
 
     for (int i = 0; i < graphInfo->numInputTensors; i++) {
+        qnnInputs[i].v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
         qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
         std::cout << "\nregistered input tensor backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
@@ -510,6 +355,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 #endif
     }
     for (int i = 0; i < graphInfo->numOutputTensors; i++) {
+        qnnOutputs[i].v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
         qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
         std::cout << "\nregistered output tensor backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
@@ -517,343 +363,127 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
     }
-
-    graphInfo->inputTensors = qnnInputs;
-    graphInfo->outputTensors = qnnOutputs;
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
     // to support multi-thread, we need local variable.
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
+    GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
 
-    qnn_wrapper_api::GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
-
-    // Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
-    Qnn_Tensor_t *inputs_ = graphInfo->inputTensors;
-    // Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
-    Qnn_Tensor_t *outputs_ = graphInfo->outputTensors;
-
-    Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
 #ifdef DEBUGPRINT
     uint64_t t_start = mllm_time_us();
 #endif
-    executeStatus =
-        m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo->graph,
-                                                        inputs_,
-                                                        graphInfo->numInputTensors,
-                                                        outputs_,
-                                                        graphInfo->numOutputTensors,
-                                                        m_profileBackendHandle,
-                                                        nullptr);
+    if (mRuntime->qnnInterface.graphExecute(graphInfo->graph,
+                                            graphInfo->inputTensors,
+                                            graphInfo->numInputTensors,
+                                            graphInfo->outputTensors,
+                                            graphInfo->numOutputTensors,
+                                            mRuntime->profileHandle,
+                                            nullptr)
+        != QNN_GRAPH_NO_ERROR) {
+        MLLM_LOG_ERROR_STREAM << "Error in executing graph: " << graphName << std::endl;
+    }
 #ifdef DEBUGPRINT
     uint64_t t_end = mllm_time_us();
     std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
 
-    if (QNN_GRAPH_NO_ERROR != executeStatus) {
-        MLLM_LOG_ERROR_STREAM << "Error in executing graph: " << graphName << std::endl;
-    }
-
     if (ProfilingLevel::OFF != m_profilingLevel) {
-        extractBackendProfilingInfo(m_profileBackendHandle);
+        extractBackendProfilingInfo(mRuntime->profileHandle);
     }
 }
 
-void QNNBackend::onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name) {
-}
-
-void QNNBackend::freeGraphDataStructure(string graphName) {
-    auto it = qnnModelIndexMap_.find(graphName);
-    if (it != qnnModelIndexMap_.end()) {
-        qnnModelIndex_ = it->second;
-
-        qnnModels_[qnnModelIndex_].freeTensors();
-        qnnModels_[qnnModelIndex_].clearGraph();
-    }
-
-    inputBufferMap[graphName].resize(0);
-    outputBufferMap[graphName].resize(0);
-}
-
-void QNNBackend::afterAllGraphsExecute() {
-    // clear old models.
-    qnnModelIndexMap_.clear();
-
-    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-    qnnMM->deRegisterQnnTensor();
-
-    this->freeContext();
-
-    inputBufferMap.clear();
-    outputBufferMap.clear();
-
-    graphsInfo_.clear();
-}
-
-std::string QNNBackend::getBackendBuildId() {
-    char *backendBuildId{nullptr};
-    if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.backendGetBuildId((const char **)&backendBuildId)) {
-        MLLM_LOG_ERROR_LEGACY("Unable to get build Id from the backend.");
-    }
-    return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
-}
-
-qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
-                                                       string nodeType,
-                                                       std::vector<string> inputTensorNames,
-                                                       std::vector<Qnn_Tensor_t> outputTensors,
-                                                       std::vector<Qnn_Param_t> params,
-                                                       string packageName) {
+void QNNBackend::graphAddNode(string name,
+                              string nodeType,
+                              std::vector<string> inputTensorNames,
+                              std::vector<Qnn_Tensor_t> outputTensors,
+                              std::vector<Qnn_Param_t> params,
+                              string packageName) {
+    // graph has been built
     if (isFromCache) {
-        for (auto &qnnTensor : outputTensors) {
-            if (qnnTensor.v1.type == QNN_TENSOR_TYPE_APP_READ) {
-                qnnModels_[qnnModelIndex_].addTensor(qnnTensor.v1.name, qnnTensor);
-            }
-        }
-        return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+        return;
     }
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
-    Qnn_Param_t *paramsPtr = nullptr;
-    if (!params.empty()) {
-        paramsPtr = params.data();
-    }
-    VALIDATE(qnnModels_[qnnModelIndex_].addNode(
-                 QNN_OPCONFIG_VERSION_1,  // Op_Config_t Version
-                 name.c_str(),            // Node Name
-                 packageName.c_str(),     // Package Name
-                 nodeType.c_str(),        // Qnn Node Type
-                 paramsPtr,               // Node Params
-                 params.size(),           // Num Node Params
-                 inputTensorNames,        // Input Tensor Names
-                 inputTensorNames.size(), // Num Input Tensor Names
-                 outputTensors.data(),    // Output Tensors
-                 outputTensors.size()     // Num Output Tensors
-                 ),
-             err);
-    return err;
+    CALL_QNN(qnnModels_[qnnModelIndex_].addNode(
+        QNN_OPCONFIG_VERSION_1, // Op_Config_t Version
+        name.c_str(),           // Node Name
+        packageName.c_str(),    // Package Name
+        nodeType.c_str(),       // Qnn Node Type
+        params,                 // Node Params
+        inputTensorNames,       // Input Tensor Names
+        outputTensors           // Output Tensors
+        ));
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
-    if (isFromCache && tensor.v1.type != QNN_TENSOR_TYPE_APP_READ) {
-        return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+void QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
+    // graph has been built
+    if (isFromCache) {
+        return;
     }
-    return qnnModels_[qnnModelIndex_].addTensor(nodeName.c_str(), tensor);
+    // std::cout << "nodeName" << nodeName << std::endl;
+    CALL_QNN(qnnModels_[qnnModelIndex_].addTensor(nodeName.c_str(), tensor));
 }
 
-StatusCode QNNBackend::initializeProfiling() {
-    if (ProfilingLevel::OFF != m_profilingLevel) {
-        MLLM_LOG_INFO_LEGACY("Profiling turned on; level = %d", (int)m_profilingLevel);
-        if (ProfilingLevel::BASIC == m_profilingLevel) {
-            MLLM_LOG_INFO_LEGACY("Basic profiling requested. Creating Qnn Profile object.");
-            if (QNN_PROFILE_NO_ERROR != m_qnnFunctionPointers.qnnInterface.profileCreate(m_backendHandle, QNN_PROFILE_LEVEL_BASIC, &m_profileBackendHandle)) {
-                MLLM_LOG_WARN_LEGACY("Unable to create profile handle in the backend.");
-                return StatusCode::FAILURE;
-            }
-        } else if (ProfilingLevel::DETAILED == m_profilingLevel) {
-            MLLM_LOG_INFO_LEGACY("Detailed profiling requested. Creating Qnn Profile object.");
-            if (QNN_PROFILE_NO_ERROR != m_qnnFunctionPointers.qnnInterface.profileCreate(m_backendHandle, QNN_PROFILE_LEVEL_DETAILED, &m_profileBackendHandle)) {
-                MLLM_LOG_ERROR_LEGACY("Unable to create profile handle in the backend.");
-                return StatusCode::FAILURE;
-            }
-        }
-    }
-    return StatusCode::SUCCESS;
-}
-
-// Simple method to report error from app to lib.
-void QNNBackend::reportError(const std::string &err) {
-    MLLM_LOG_ERROR_LEGACY("%s", err.c_str());
-    exit(1);
-}
-
-// Terminate the backend after done.
-StatusCode QNNBackend::terminateBackend() {
-    if ((m_isBackendInitialized && nullptr != m_qnnFunctionPointers.qnnInterface.backendFree) && QNN_BACKEND_NO_ERROR != m_qnnFunctionPointers.qnnInterface.backendFree(m_backendHandle)) {
-        MLLM_LOG_ERROR_LEGACY("Could not terminate backend");
-        return StatusCode::FAILURE;
-    }
-    m_isBackendInitialized = false;
-    return StatusCode::SUCCESS;
-}
-
-// Register op packages and interface providers supplied during
-// object creation. If there are multiple op packages, register
-// them sequentially in the order provided.
-StatusCode QNNBackend::registerOpPackages() {
-    const size_t pathIdx = 0;
-    const size_t interfaceProviderIdx = 1;
-    for (auto const &opPackagePath : m_opPackagePaths) {
-        std::vector<std::string> opPackage;
-        split(opPackage, opPackagePath, ':');
-        QNN_DEBUG("opPackagePath: %s", opPackagePath.c_str());
-        const char *target = nullptr;
-        const size_t targetIdx = 2;
-        if (opPackage.size() != 2 && opPackage.size() != 3) {
-            MLLM_LOG_ERROR_LEGACY("Malformed opPackageString provided: %s", opPackagePath.c_str());
-            return StatusCode::FAILURE;
-        }
-        if (opPackage.size() == 3) {
-            target = (char *)opPackage[targetIdx].c_str();
-        }
-        if (nullptr == m_qnnFunctionPointers.qnnInterface.backendRegisterOpPackage) {
-            MLLM_LOG_ERROR_LEGACY("backendRegisterOpPackageFnHandle is nullptr.");
-            return StatusCode::FAILURE;
-        }
-        if (QNN_BACKEND_NO_ERROR != m_qnnFunctionPointers.qnnInterface.backendRegisterOpPackage(m_backendHandle, (char *)opPackage[pathIdx].c_str(), (char *)opPackage[interfaceProviderIdx].c_str(), target)) {
-            MLLM_LOG_ERROR_LEGACY("Could not register Op Package: %s and interface provider: %s",
-                                  opPackage[pathIdx].c_str(),
-                                  opPackage[interfaceProviderIdx].c_str());
-            return StatusCode::FAILURE;
-        }
-        MLLM_LOG_INFO_LEGACY("Registered Op Package: %s and interface provider: %s",
-                             opPackage[pathIdx].c_str(),
-                             opPackage[interfaceProviderIdx].c_str());
-    }
-    return StatusCode::SUCCESS;
-}
-
-// Create a Context in a backend.
-StatusCode QNNBackend::createContext() {
-    if (QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextCreate(m_backendHandle, m_deviceHandle, (const QnnContext_Config_t **)&m_contextConfig, &m_context)) {
-        MLLM_LOG_ERROR_LEGACY("Could not create context");
-        return StatusCode::FAILURE;
-    }
-    m_isContextCreated = true;
-    return StatusCode::SUCCESS;
-}
-
-// Free context after done.
-StatusCode QNNBackend::freeContext() {
-    if (m_isContextCreated && QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle)) {
-        MLLM_LOG_ERROR_LEGACY("Could not free context");
-        return StatusCode::FAILURE;
-    }
-    m_isContextCreated = false;
-    return StatusCode::SUCCESS;
-}
-
-StatusCode QNNBackend::extractBackendProfilingInfo(
+void QNNBackend::extractBackendProfilingInfo(
     Qnn_ProfileHandle_t profileHandle) {
-    if (nullptr == m_profileBackendHandle) {
-        MLLM_LOG_ERROR_LEGACY("Backend Profile handle is nullptr; may not be initialized.");
-        return StatusCode::FAILURE;
+    if (nullptr == mRuntime->profileHandle) {
+        MLLM_LOG_ERROR("Backend Profile handle is nullptr; may not be initialized.");
+        return;
     }
     const QnnProfile_EventId_t *profileEvents{nullptr};
     uint32_t numEvents{0};
-    if (QNN_PROFILE_NO_ERROR != m_qnnFunctionPointers.qnnInterface.profileGetEvents(profileHandle, &profileEvents, &numEvents)) {
-        MLLM_LOG_ERROR_LEGACY("Failure in profile get events.");
-        return StatusCode::FAILURE;
+    if (QNN_PROFILE_NO_ERROR != mRuntime->qnnInterface.profileGetEvents(profileHandle, &profileEvents, &numEvents)) {
+        MLLM_LOG_ERROR("Failure in profile get events.");
+        return;
     }
-    QNN_DEBUG("ProfileEvents: [%p], numEvents: [%d]", profileEvents, numEvents);
+
+    MLLM_LOG_INFO_STREAM << "Profile Events: [" << profileEvents << "], numEvents: " << numEvents << std::endl;
     for (size_t event = 0; event < numEvents; event++) {
         extractProfilingEvent(*(profileEvents + event));
         extractProfilingSubEvents(*(profileEvents + event));
     }
-    return StatusCode::SUCCESS;
 }
 
-StatusCode QNNBackend::extractProfilingSubEvents(
+void QNNBackend::extractProfilingSubEvents(
     QnnProfile_EventId_t profileEventId) {
     const QnnProfile_EventId_t *profileSubEvents{nullptr};
     uint32_t numSubEvents{0};
-    if (QNN_PROFILE_NO_ERROR != m_qnnFunctionPointers.qnnInterface.profileGetSubEvents(profileEventId, &profileSubEvents, &numSubEvents)) {
+    if (QNN_PROFILE_NO_ERROR != mRuntime->qnnInterface.profileGetSubEvents(profileEventId, &profileSubEvents, &numSubEvents)) {
         MLLM_LOG_ERROR_LEGACY("Failure in profile get sub events.");
-        return StatusCode::FAILURE;
+        return;
     }
-    QNN_DEBUG("ProfileSubEvents: [%p], numSubEvents: [%d]", profileSubEvents, numSubEvents);
+    MLLM_LOG_INFO_STREAM << "ProfileSubEvents: [" << profileSubEvents << "], numSubEvents: " << numSubEvents << std::endl;
     for (size_t subEvent = 0; subEvent < numSubEvents; subEvent++) {
         extractProfilingEvent(*(profileSubEvents + subEvent));
         extractProfilingSubEvents(*(profileSubEvents + subEvent));
     }
-    return StatusCode::SUCCESS;
 }
 
-StatusCode QNNBackend::extractProfilingEvent(
+void QNNBackend::extractProfilingEvent(
     QnnProfile_EventId_t profileEventId) {
     QnnProfile_EventData_t eventData;
-    if (QNN_PROFILE_NO_ERROR != m_qnnFunctionPointers.qnnInterface.profileGetEventData(profileEventId, &eventData)) {
+    if (QNN_PROFILE_NO_ERROR != mRuntime->qnnInterface.profileGetEventData(profileEventId, &eventData)) {
         MLLM_LOG_ERROR_LEGACY("Failure in profile get event type.");
-        return StatusCode::FAILURE;
+        return;
     }
-    QNN_DEBUG("Printing Event Info - Event Type: [%d], Event Value: [%" PRIu64
-              "], Event Identifier: [%s], Event Unit: [%d]",
-              eventData.type,
-              eventData.value,
-              eventData.identifier,
-              eventData.unit);
-    return StatusCode::SUCCESS;
-}
-
-StatusCode QNNBackend::verifyFailReturnStatus(Qnn_ErrorHandle_t errCode) {
-    auto returnStatus = StatusCode::FAILURE;
-    switch (errCode) {
-    case QNN_COMMON_ERROR_SYSTEM_COMMUNICATION:
-        returnStatus = StatusCode::FAILURE_SYSTEM_COMMUNICATION_ERROR;
-        break;
-    case QNN_COMMON_ERROR_SYSTEM:
-        returnStatus = StatusCode::FAILURE_SYSTEM_ERROR;
-        break;
-    case QNN_COMMON_ERROR_NOT_SUPPORTED:
-        returnStatus = StatusCode::QNN_FEATURE_UNSUPPORTED;
-        break;
-    default:
-        break;
-    }
-    return returnStatus;
-}
-
-StatusCode QNNBackend::isDevicePropertySupported() {
-    if (nullptr != m_qnnFunctionPointers.qnnInterface.propertyHasCapability) {
-        auto qnnStatus =
-            m_qnnFunctionPointers.qnnInterface.propertyHasCapability(QNN_PROPERTY_GROUP_DEVICE);
-        if (QNN_PROPERTY_NOT_SUPPORTED == qnnStatus) {
-            MLLM_LOG_WARN_LEGACY("Device property is not supported");
-        }
-        if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnnStatus) {
-            MLLM_LOG_ERROR_LEGACY("Device property is not known to backend");
-            return StatusCode::FAILURE;
-        }
-    }
-    return StatusCode::SUCCESS;
-}
-
-StatusCode QNNBackend::createDevice() {
-    if (nullptr != m_qnnFunctionPointers.qnnInterface.deviceCreate) {
-        auto qnnStatus =
-            m_qnnFunctionPointers.qnnInterface.deviceCreate(m_logHandle, nullptr, &m_deviceHandle);
-        if (QNN_SUCCESS != qnnStatus && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnnStatus) {
-            MLLM_LOG_ERROR_LEGACY("Failed to create device");
-            return verifyFailReturnStatus(qnnStatus);
-        }
-    }
-    return StatusCode::SUCCESS;
-}
-
-StatusCode QNNBackend::freeDevice() {
-    if (nullptr != m_qnnFunctionPointers.qnnInterface.deviceFree) {
-        auto qnnStatus = m_qnnFunctionPointers.qnnInterface.deviceFree(m_deviceHandle);
-        if (QNN_SUCCESS != qnnStatus && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnnStatus) {
-            MLLM_LOG_ERROR_LEGACY("Failed to free device");
-            return verifyFailReturnStatus(qnnStatus);
-        }
-    }
-    return StatusCode::SUCCESS;
+    MLLM_LOG_INFO_STREAM << "Printing Event Info - Event Type: [" << eventData.type
+                         << "], Event Value: [" << eventData.value
+                         << "], Event Identifier: [" << eventData.identifier
+                         << "], Event Unit: [" << eventData.unit << "]" << std::endl;
 }
 
 void QNNBackend::saveQNNContext() {
     uint64_t binarySize, writtenSize;
-    m_qnnFunctionPointers.qnnInterface.contextGetBinarySize(m_context, &binarySize);
+
+    mRuntime->qnnInterface.contextGetBinarySize(m_context, &binarySize);
 
     std::unique_ptr<uint8_t[]> binaryBuffer(new uint8_t[binarySize]);
 
-    m_qnnFunctionPointers.qnnInterface.contextGetBinary(m_context, reinterpret_cast<void *>(binaryBuffer.get()), binarySize, &writtenSize);
+    mRuntime->qnnInterface.contextGetBinary(m_context, reinterpret_cast<void *>(binaryBuffer.get()), binarySize, &writtenSize);
 
     if (binarySize < writtenSize) {
-        QNN_ERROR(
-            "Illegal written buffer size [%d] bytes. Cannot exceed allocated memory of [%d] bytes",
-            binarySize,
-            writtenSize);
+        MLLM_LOG_ERROR_STREAM << "QNN context binary size mismatch: expected " << binarySize
+                              << " bytes, but wrote " << writtenSize << " bytes." << std::endl;
     }
     std::ofstream file("qnn_context.bin", std::ios::binary);
     file.write(reinterpret_cast<char *>(binaryBuffer.get()), writtenSize);
@@ -861,178 +491,203 @@ void QNNBackend::saveQNNContext() {
 
     std::cout << "QNN context saved to qnn_context.bin written " << writtenSize << std::endl;
 }
+std::vector<Tensor> QNNBackend::runOp(Op *op, std::vector<Tensor> inputs, std::vector<std::string> out_names, bool in_place) {
+    Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
+    assert(module != nullptr);
+    auto &activation_tensors = module->activation_tensors;
+    auto &activation_tensors_num = module->activation_tensors_num;
 
-StatusCode QNNBackend::retrieveQNNContext() {
-    auto returnStatus = StatusCode::SUCCESS;
-    // load qnn system function pointers
-    if (dynamicloadutil::StatusCode::SUCCESS != dynamicloadutil::getQnnSystemFunctionPointers("libQnnSystem.so", &m_qnnFunctionPointers)) {
-        reportError("Error initializing QNN System Function Pointers");
-    }
-
-    // Read the binary from qnn_context.bin and get the size in byte
-    std::ifstream file("qnn_context.bin", std::ios::binary | std::ios::ate);
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-    shared_ptr<uint8_t> binaryBuffer(new uint8_t[size], std::default_delete<uint8_t[]>());
-
-    file.read(reinterpret_cast<char *>(binaryBuffer.get()), size);
-    file.close();
-
-    // inspect binary info
-
-    QnnSystemContext_Handle_t sysCtxHandle{nullptr};
-    if (QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
-        QNN_ERROR("Could not create system handle.");
-        returnStatus = StatusCode::FAILURE;
-    }
-    const QnnSystemContext_BinaryInfo_t *binaryInfo{nullptr};
-    Qnn_ContextBinarySize_t binaryInfoSize{0};
-    if (StatusCode::SUCCESS == returnStatus && QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void *>(binaryBuffer.get()), size, &binaryInfo, &binaryInfoSize)) {
-        QNN_ERROR("Failed to get context binary info");
-        returnStatus = StatusCode::FAILURE;
-    }
-
-    qnn_wrapper_api::GraphInfo_t **graphsInfo = nullptr;
-    uint32_t graphNum;
-    // fill GraphInfo_t based on binary info
-    if (StatusCode::SUCCESS == returnStatus && !copyMetadataToGraphsInfo(binaryInfo, graphsInfo, graphNum)) {
-        QNN_ERROR("Failed to copy metadata.");
-        returnStatus = StatusCode::FAILURE;
-    }
-    m_qnnFunctionPointers.qnnSystemInterface.systemContextFree(sysCtxHandle);
-    sysCtxHandle = nullptr;
-
-    graphsInfo_.assign(graphsInfo, graphsInfo + graphNum);
-
-    Qnn_ContextBinarySize_t writtenSize = 0;
-    m_qnnFunctionPointers.qnnInterface.contextCreateFromBinary(m_backendHandle, m_deviceHandle, (const QnnContext_Config_t **)m_contextConfig, binaryBuffer.get(), size, &m_context, m_profileBackendHandle);
-
-    for (auto &g : graphsInfo_) {
-        if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.graphRetrieve(m_context, g->graphName, &g->graph)) {
-            QNN_ERROR("Unable to retrieve graph handle");
-            returnStatus = StatusCode::FAILURE;
+    std::vector<std::shared_ptr<Tensor>> output_ptrs;
+    for (const auto &out_name : out_names) {
+        if (activation_tensors.find(out_name) == activation_tensors.end()) {
+            Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
+            if (!inputs.empty()) {
+                backend_h = inputs[0].backend();
+            }
+            activation_tensors[out_name] = std::make_shared<Tensor>(backend_h);
+            activation_tensors[out_name]->setName(out_name);
+            activation_tensors[out_name]->setModule(module);
+            activation_tensors_num[out_name] = 0;
         }
+        output_ptrs.push_back(activation_tensors[out_name]);
+    }
+    Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
+    if (!inputs.empty()) {
+        backend_h = inputs[0].backend();
+    }
+    if (module->doLoad) {
+        std::vector<Tensor> results;
+        for (auto &out_tensor : output_ptrs) {
+            results.push_back(*activation_tensors[out_tensor->name()]);
+        }
+        return results;
     }
 
-    this->isFromCache = true;
+    std::vector<std::shared_ptr<Tensor>> input_ptrs;
+    for (auto &tensor : inputs) {
+        input_ptrs.push_back(activation_tensors[tensor.name()]);
+    }
 
-    MLLM_LOG_INFO_STREAM << "QNN context retrieved from qnn_context.bin";
-    return returnStatus;
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
+
+    switch (Tensor::tensor_status) {
+    case TENSOR_STATIC_INIT:
+        op->reshape(input_ptrs, output_ptrs);
+        op->setUp(input_ptrs, output_ptrs);
+        break;
+    case TENSOR_STATIC_READY:
+        op->execute(input_ptrs, output_ptrs);
+        break;
+    case TENSOR_STATIC_TRACE:
+        if (backend_h->type() == BackendType::MLLM_CPU) {
+            Tracer::addOp(op, input_ptrs, output_ptrs);
+        } else if (op->type() == SUBGRAPHSTART) { // begin of QNN graph
+            Tracer::addModule(input_ptrs, {}, op->name());
+        }
+        break;
+        break;
+    default:
+        break;
+    }
+#ifdef DEBUGOPTIME
+    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
+        auto end_t = mllm_time_us();
+        std::cout << (out_names.empty() ? "" : out_names[0]) << " | "
+                  << Tensor::tensor_status << " time: "
+                  << (end_t - start_t) / 1000.0F << "ms" << std::endl;
+    }
+#endif
+
+#ifdef DEBUGSAVETENSOR
+    for (auto &out_name : out_names) {
+        activation_tensors[out_name]->saveNData<float>();
+    }
+#endif
+
+    std::vector<Tensor> results;
+    for (auto &out_tensor : output_ptrs) {
+        results.emplace_back(*activation_tensors[out_tensor->name()]);
+    }
+    return results;
 }
 
-// std::vector<Tensor> QNNBackend::runFunc(std::vector<std::string> out_names,
-//                                         TensorFuncType type,
-//                                         std::vector<float> float_args,
-//                                         std::vector<Tensor> input_tensors,
-//                                         bool in_place) {
-//     Module *module = input_tensors.empty() ? Module::llm_model_ptr : input_tensors[0].module();
-//     assert(module != nullptr);
-//     auto &activation_tensors = module->activation_tensors;
-//     auto &activation_tensors_num = module->activation_tensors_num;
+/*
+std::vector<Tensor> QNNBackend::runFunc(std::vector<std::string> out_names,
+                                        TensorFuncType type,
+                                        std::vector<float> float_args,
+                                        std::vector<std::shared_ptr<Tensor>> input_tensors,
+                                        bool in_place) {
+    Module *module = input_tensors.empty() ? Module::llm_model_ptr : input_tensors[0]->module();
+    assert(module != nullptr);
+    auto &activation_tensors = module->activation_tensors;
+    auto &activation_tensors_num = module->activation_tensors_num;
 
-//     std::vector<std::shared_ptr<Tensor>> output_ptrs;
-//     for (const auto &out_name : out_names) {
-//         if (activation_tensors.find(out_name) == activation_tensors.end()) {
-//             Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
-//             if (!input_tensors.empty()) {
-//                 backend_h = input_tensors[0].backend();
-//             }
-//             activation_tensors[out_name] = std::make_shared<Tensor>(backend_h);
-//             activation_tensors[out_name]->setName(out_name);
-//             activation_tensors[out_name]->setModule(module);
-//             activation_tensors_num[out_name] = 0;
-//         }
-//         output_ptrs.push_back(activation_tensors[out_name]);
-//     }
+    std::vector<std::shared_ptr<Tensor>> output_ptrs;
+    for (const auto &out_name : out_names) {
+        if (activation_tensors.find(out_name) == activation_tensors.end()) {
+            Backend *backend_h = Context::Instance().globalBackends(MLLM_CPU);
+            if (!input_tensors.empty()) {
+                backend_h = input_tensors[0]->backend();
+            }
+            activation_tensors[out_name] = std::make_shared<Tensor>(backend_h);
+            activation_tensors[out_name]->setName(out_name);
+            activation_tensors[out_name]->setModule(module);
+            activation_tensors_num[out_name] = 0;
+        }
+        output_ptrs.push_back(activation_tensors[out_name]);
+    }
 
-//     if (module->doLoad) {
-//         std::vector<Tensor> results;
-//         for (auto &out_tensor : output_ptrs) {
-//             results.push_back(*activation_tensors[out_tensor->name()]);
-//         }
-//         return results;
-//     }
+    if (module->doLoad) {
+        std::vector<Tensor> results;
+        for (auto &out_tensor : output_ptrs) {
+            results.push_back(*activation_tensors[out_tensor->name()]);
+        }
+        return results;
+    }
 
-//     Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
-//     if (!input_tensors.empty()) {
-//         backend_h = input_tensors[0].backend();
-//     }
-//     TensorFunction *func = backend_h->funcCreate(type);
+    Backend *backend_h = Context::Instance().globalBackends(MLLM_CPU);
+    if (!input_tensors.empty()) {
+        backend_h = input_tensors[0]->backend();
+    }
+    TensorFunction *func = backend_h->funcCreate(type);
 
-//     std::vector<std::shared_ptr<Tensor>> input_ptrs;
-//     for (auto &tensor : input_tensors) {
-//         input_ptrs.push_back(activation_tensors[tensor.name()]);
-//     }
-//     // if (in_place) {
-//     //     for (size_t i = 0; i < input_tensors.size() && i < out_names.size(); ++i) {
-//     //         input_tensors[i].setName(out_names[i]);
-//     //         output_ptrs.push_back(input_tensors[i]);
-//     //     }
-//     // }
+    std::vector<std::shared_ptr<Tensor>> input_ptrs;
+    for (auto &tensor : input_tensors) {
+        input_ptrs.push_back(activation_tensors[tensor->name()]);
+    }
+    // if (in_place) {
+    //     for (size_t i = 0; i < input_tensors.size() && i < out_names.size(); ++i) {
+    //         input_tensors[i]->setName(out_names[i]);
+    //         output_ptrs.push_back(input_tensors[i]);
+    //     }
+    // }
 
-// #ifdef DEBUGOPTIME
-//     auto start_t = mllm_time_us();
-// #endif
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
 
-//     switch (Tensor::tensor_status) {
-//     case TENSOR_STATIC_INIT:
-//         func->reshape(output_ptrs, input_ptrs, float_args);
-//         func->setUp(output_ptrs, input_ptrs, float_args);
-//         break;
-//     case TENSOR_STATIC_READY:
-//         func->execute(output_ptrs, input_ptrs, float_args);
-//         break;
-//     case TENSOR_STATIC_TRACE:
-//         if (backend_h->type() == BackendType::MLLM_CPU) {
-//             Tracer::addTensorFunction(func, input_ptrs, output_ptrs, float_args);
-//         }
-//         break;
-//     default:
-//         break;
-//     }
+    switch (Tensor::tensor_status) {
+    case TENSOR_STATIC_INIT:
+        func->reshape(output_ptrs, input_ptrs, float_args);
+        func->setUp(output_ptrs, input_ptrs, float_args);
+        break;
+    case TENSOR_STATIC_READY:
+        func->execute(output_ptrs, input_ptrs, float_args);
+        break;
+    case TENSOR_STATIC_TRACE:
+        if (backend_h->type() == BackendType::MLLM_CPU) {
+            Tracer::addTensorFunction(func, input_ptrs, output_ptrs, float_args);
+        }
+        break;
+    default:
+        break;
+    }
 
-//     // if (Backend::global_backends.size() == 1) {
-//     //     for (auto input_tensor : input_ptrs) {
-//     //         auto it = activation_tensors_num.find(input_tensor->name());
-//     //         if (it != activation_tensors_num.end()) {
-//     //             switch (Tensor::tensor_status) {
-//     //             case TENSOR_STATIC_INIT:
-//     //                 it->second += 1;
-//     //                 break;
-//     //             case TENSOR_STATIC_READY:
-//     //                 it->second -= 1;
-//     //                 break;
-//     //             default:
-//     //                 break;
-//     //             }
-//     //             if (it->second == 0 && module_tensors[input_tensor->name()]->sequence() > 1 && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
-//     //                 activation_tensors[input_tensor->name()]->free();
-//     //             }
-//     //         }
-//     //     }
-//     // }
+    // if (Backend::global_backends.size() == 1) {
+    //     for (auto input_tensor : input_ptrs) {
+    //         auto it = activation_tensors_num.find(input_tensor->name());
+    //         if (it != activation_tensors_num.end()) {
+    //             switch (Tensor::tensor_status) {
+    //             case TENSOR_STATIC_INIT:
+    //                 it->second += 1;
+    //                 break;
+    //             case TENSOR_STATIC_READY:
+    //                 it->second -= 1;
+    //                 break;
+    //             default:
+    //                 break;
+    //             }
+    //             if (it->second == 0 && module_tensors[input_tensor->name()]->sequence() > 1 && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
+    //                 activation_tensors[input_tensor->name()]->free();
+    //             }
+    //         }
+    //     }
+    // }
 
-// #ifdef DEBUGOPTIME
-//     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-//         auto end_t = mllm_time_us();
-//         std::cout << (out_names.empty() ? "" : out_names[0]) << " | "
-//                   << Tensor::tensor_status << " time: "
-//                   << (end_t - start_t) / 1000.0F << "ms" << std::endl;
-//     }
-// #endif
+#ifdef DEBUGOPTIME
+    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
+        auto end_t = mllm_time_us();
+        std::cout << (out_names.empty() ? "" : out_names[0]) << " | "
+                  << Tensor::tensor_status << " time: "
+                  << (end_t - start_t) / 1000.0F << "ms" << std::endl;
+    }
+#endif
 
-// #ifdef DEBUGSAVETENSOR
-//     for (auto &out_name : out_names) {
-//         activation_tensors[out_name]->saveNData<float>();
-//     }
-// #endif
+#ifdef DEBUGSAVETENSOR
+    for (auto &out_name : out_names) {
+        activation_tensors[out_name]->saveNData<float>();
+    }
+#endif
 
-//     std::vector<Tensor> results;
-//     for (auto &out_tensor : output_ptrs) {
-//         results.emplace_back(*activation_tensors[out_tensor->name()]);
-//     }
-//     return results;
-// }
+    std::vector<Tensor> results;
+    for (auto &out_tensor : output_ptrs) {
+        results.emplace_back(*activation_tensors[out_tensor->name()]);
+    }
+    return results;
+}
+*/
 std::string name_num_to_X(const std::string &input_string) {
     std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
     std::string replacement = ".X.";      // The string to replace the matched pattern with
@@ -1077,38 +732,59 @@ void init_reset_KVCache(string input_name, Module *module, int saved_list_idx, m
         activation_tensors[name]->setModule(module);
     }
 }
-
 std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> inputs, int N) {
     Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
     map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
     auto &activation_tensors_num = module->activation_tensors_num;
     // Module::runlistIdx = saved_list_idx;
     bool do_init = false;
+
     if (module->doLoad || !layer->inited_loaded) {
         // set backend to current module device and try to create op
         // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
-        layer->backend_ = Backend::global_backends[Module::tmp_device];
+        // layer->backend_ = Context::Instance().globalBackends(Module::tmp_device);
+        layer->backend_ = Backend::global_backends[Module::tmp_device].get();
         do_init = !layer->inited_loaded;
-
+        if (layer->op_ == nullptr) {
+            // std::cout << "asdsa  " << layer->name_ << std::endl;
+            if (layer->param_["type"] == KVCACHE || layer->param_["type"] == KVCACHENPU) {
+                // std::cout << layer->name_ << std::endl;
+                if (kv_cache_map.find(layer->name_) == kv_cache_map.end()) {
+                    // std::cout << layer->name_ << " is first used" << std::endl;
+                    // for the prefill part, we need to create a new op
+                    layer->param_["type"] = KVCACHENPU;
+                    layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
+                    kv_cache_map[layer->name_] = layer->op_;
+                } else {
+                    // #ifdef DEBUGPRINT
+                    // std::cout << layer->name_ << " is shared used" << std::endl;
+                    // #endif
+                    // for the decoding part, we need to get created op from global container
+                    layer->op_ = kv_cache_map[layer->name_];
+                }
+            } else {
+                layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
+            }
+        }
         if (layer->param_["type"] == SUBGRAPHFINALIZE) {
             for (auto &input : inputs) {
                 activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
             }
         }
-        // if (module->doLoad) {
-        //     layer->op_->load(*module->loader);
-        //     layer->inited_loaded = true;
-        // } else if (layer->loaded_param) {
-        //     layer->inited_loaded = layer->loaded_param;
-        // } else {
-        //     if (!layer->inited_loaded) {
-        //         // module->loader = new ParamLoader("");
-        //         // op_->load(*module->loader);
-        //         auto empty_loader = new ParamLoader("");
-        //         layer->op_->load(*empty_loader);
-        //         layer->inited_loaded = true;
-        //     }
-        // }
+        if (module->doLoad) {
+            layer->op_->load(*module->loader);
+            layer->inited_loaded = true;
+        } else if (layer->loaded_param) {
+            layer->inited_loaded = layer->loaded_param;
+        } else {
+            if (!layer->inited_loaded) {
+                // module->loader = new ParamLoader("");
+                // op_->load(*module->loader);
+                auto empty_loader = new ParamLoader("");
+                layer->op_->load(*empty_loader);
+                layer->inited_loaded = true;
+            }
+        }
         vector<string> layer_next_names = {};
         if (N > 1) {
             for (int i = 0; i < N; ++i) {
@@ -1119,6 +795,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         }
         for (const auto &layer_next_name : layer_next_names) {
             string next_name;
+            // NOTE: QNN is using CPU ViT
             if (Layer::use_layername_2_tensorname) {
                 if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
                     if (layer->param_["type"] == KVCACHE) {
@@ -1129,16 +806,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     }
                 }
                 next_name = Layer::layername_2_tensorname[layer_next_name];
-            } else if (layer_next_name.find("visual") != string::npos) {
-                // QNN VLM trick: visual model use act tensor sharing
-                if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
-                    if (layer->param_["type"] == KVCACHE) {
-                        Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
-                        init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
-                    } else {
-                        Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                    }
-                }
+            } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
                 next_name = Layer::layername_2_tensorname[layer_next_name];
             } else {
                 next_name = layer_next_name;
@@ -1150,13 +818,30 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                 activation_tensors_num[next_name] = 0;
             }
         }
-
-        vector<Tensor> output_result = {};
-        for (const auto &layer_next_name : layer_next_names) {
-            string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
-            output_result.push_back(*activation_tensors[next_name]);
+        if (module->doLoad) {
+            vector<Tensor> output_result = {};
+            for (const auto &layer_next_name : layer_next_names) {
+                string next_name;
+                // NOTE: QNN is using CPU ViT
+                if (Layer::use_layername_2_tensorname) {
+                    if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                        if (layer->param_["type"] == KVCACHE) {
+                            Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                            init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                        } else {
+                            Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                        }
+                    }
+                    next_name = Layer::layername_2_tensorname[layer_next_name];
+                } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+                    next_name = Layer::layername_2_tensorname[layer_next_name];
+                } else {
+                    next_name = layer_next_name;
+                }
+                output_result.push_back(*activation_tensors[next_name]);
+            }
+            return output_result;
         }
-        return output_result;
     }
     // input_tensors
     vector<shared_ptr<Tensor>> input_tensors;
@@ -1182,7 +867,23 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
     }
     vector<shared_ptr<Tensor>> output_tensors = {};
     for (const auto &layer_next_name : layer_next_names) {
-        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+        string next_name;
+        // NOTE: QNN is using CPU ViT
+        if (Layer::use_layername_2_tensorname) {
+            if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                if (layer->param_["type"] == KVCACHE) {
+                    Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                    init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                } else {
+                    Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+            }
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else {
+            next_name = layer_next_name;
+        }
         output_tensors.push_back(activation_tensors[next_name]);
     }
 #ifdef DEBUGOPTIME
@@ -1190,18 +891,27 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN) {
-        } else {
-            layer->op_->reshape(input_tensors, output_tensors);
-            layer->op_->setUp(input_tensors, output_tensors);
+        if (Context::Instance().inference_state().isQnnGraphFrozen() && layer->backend_->type() == MLLM_QNN) {
+            break;
         }
+        // std::cout << "================={Layer: " << std::endl;
+        // std::cout << layer->op_->name() << std::endl;
+        // for (const auto &in_tensor : input_tensors) {
+        //     std::cout << "    in tensor: " << in_tensor->name() << " dtype=" << in_tensor->dtype() << " " << in_tensor->batch() << ",  " << in_tensor->head() << ", " << in_tensor->sequence() << ",  " << in_tensor->dimension() << "   ctype " << in_tensor->ctype() << "   dtype " << in_tensor->dtype() << std::endl;
+        // }
+        layer->op_->reshape(input_tensors, output_tensors);
+        layer->op_->setUp(input_tensors, output_tensors);
+        // for (const auto &in_tensor : output_tensors) {
+        //     std::cout << "    ot tensor: " << in_tensor->name() << " dtype=" << in_tensor->dtype() << " " << in_tensor->batch() << ",  " << in_tensor->head() << ", " << in_tensor->sequence() << ",  " << in_tensor->dimension() << "   ctype " << in_tensor->ctype() << "   dtype " << in_tensor->dtype() << std::endl;
+        // }
+        // std::cout << "=================Layer}: " << std::endl;
         break;
     }
     case TENSOR_STATIC_READY: {
-        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN && layer->param_["type"] != SUBGRAPHSTART) {
-        } else {
-            layer->op_->execute(input_tensors, output_tensors);
+        if (Context::Instance().inference_state().isQnnGraphFrozen() && layer->backend_->type() == MLLM_QNN && layer->param_["type"] != SUBGRAPHSTART) {
+            break;
         }
+        layer->op_->execute(input_tensors, output_tensors);
         break;
     }
     case TENSOR_STATIC_TRACE: {
@@ -1216,29 +926,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         break;
     }
     }
-// if (Backend::global_backends.size() == 1) {
-//     for (auto input_tensor : input_tensors) {
-//         if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
-//             switch (Tensor::tensor_status) {
-//             case TENSOR_STATIC_INIT: {
-//                 activation_tensors_num[input_tensor->name()] += 1;
-//                 break;
-//             }
-//             case TENSOR_STATIC_READY: {
-//                 activation_tensors_num[input_tensor->name()] -= 1;
-//                 break;
-//             }
-//             default: {
-//             }
-//             }
-//             if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
-//                 && activation_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
-//                 activation_tensors[input_tensor->name()]->free();
-//                 // std::cout << input_tensor->name() << "|" << std::endl;
-//             }
-//         }
-//     }
-// }
+
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
         auto end_t = mllm_time_us();
@@ -1247,7 +935,23 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     vector<Tensor> output_result = {};
     for (const auto &layer_next_name : layer_next_names) {
-        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+        string next_name;
+        // NOTE: QNN is using CPU ViT
+        if (Layer::use_layername_2_tensorname) {
+            if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                if (layer->param_["type"] == KVCACHE) {
+                    Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                    init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                } else {
+                    Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+            }
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else {
+            next_name = layer_next_name;
+        }
 #ifdef DEBUGSAVETENSOR
         activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
@@ -1256,25 +960,12 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
     return output_result;
 }
 std::vector<Tensor> QNNBackend::runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) {
-    // set static tmp_device to device_ to init layers' op
-    // auto previoud_device = Module::tmp_device;
-    // Module::tmp_device = module->device_;
     // Module Loading
     if (Module::llm_model_ptr && Module::llm_model_ptr->doLoad) {
         auto outputs = module->Forward(inputs, args);
-        // for inner module, set output tensors to GRAPH_OUTPUT
-        // if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
-        //     for (auto &output : outputs) {
-        //         inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
-        //     }
-        // }
-        // // set Module::tmp_device to previous device
-        // Module::tmp_device = previoud_device;
         return outputs;
     }
-    // if (false) {
-    //     inputs[0].setTtype(TensorType::INPUT_TENSOR);
-    // }
+
     // Module setUp & execute
     if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
         if (module->prefilling_token_size_ == 0) { // first time init
@@ -1306,79 +997,344 @@ std::vector<Tensor> QNNBackend::runForward(Module *module, std::vector<Tensor> i
         Module::llm_model_ptr->op_transposed_flag = true;
         return output;
     } else { // inner Modules
-        // offload according to the backends' info inited during loading
-        if (Tensor::tensor_status == TENSOR_STATIC_INIT && module->device_ != MLLM_CPU) { // backend specific module reshape & setup
-            if (Module::isMultiChunkPrefilling && !Module::isFirstChunk) {                // set to TENSOR_UNDEFINED and SKIP executing qnn layers
-                Tensor::tensor_status = TENSOR_UNDEFINED;
-                auto outputs = module->Forward(inputs, args);
-                Tensor::tensor_status = TENSOR_STATIC_INIT;
-                return outputs;
-            }
-            auto inputs_vec = vector<shared_ptr<Tensor>>();
-            auto outputs_vec = vector<shared_ptr<Tensor>>();
-            for (auto &i : inputs) {
-                inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-            }
-
-            Backend::global_backends[module->device_]->onSetUpStart(inputs_vec, outputs_vec, module->getUniqueName());
-
-            // for xnnpack currently
-            for (auto &i : inputs) {
-                i.uuid() = inputs[0].module()->activation_tensors[i.name()]->uuid();
-            }
-
-            auto outputs = module->Forward(inputs, args);
-            for (auto &output : outputs) {
-                outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-            }
-            Backend::global_backends[module->device_]->onSetUpEnd(inputs_vec, outputs_vec, module->getUniqueName());
-
-            // for xnnpack currently
-            for (auto &o : outputs) {
-                o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
-            }
-
-            return outputs;
-        } else if (Tensor::tensor_status == TENSOR_STATIC_READY && module->device_ != MLLM_CPU) { // backend specific module execute
-            auto inputs_vec = vector<shared_ptr<Tensor>>();
-            auto outputs_vec = vector<shared_ptr<Tensor>>();
-            for (auto &i : inputs) {
-                inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-            }
-
-            auto outputs = module->Forward(inputs, args);
-
-            for (auto &output : outputs) {
-                outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-            }
-            Backend::global_backends[module->device_]->onExecuteStart(inputs_vec, outputs_vec, module->getUniqueName());
-
-            Backend::global_backends[module->device_]->onExecuteEnd(outputs_vec, module->getUniqueName());
-
-            // for xnnpack currently
-            for (auto &o : outputs) {
-                o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
-                o.forceResetHostPointer(outputs[0].module()->activation_tensors[o.name()]->rawHostPtr());
-            }
-
-            return outputs;
-        } else if (Tensor::tensor_status == TENSOR_STATIC_TRACE && module->device_ != MLLM_CPU) {
-            auto inputs_vec = vector<shared_ptr<Tensor>>();
-            auto outputs_vec = vector<shared_ptr<Tensor>>();
-            for (auto &i : inputs) {
-                inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-            }
-
-            auto outputs = module->Forward(inputs, args);
-
-            for (auto &output : outputs) {
-                outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-            }
-            Tracer::addModule(inputs_vec, outputs_vec, module->getUniqueName());
-            return outputs;
-        }
         return module->Forward(inputs, args);
     }
+}
+
+QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE *qnnInterface) {
+    assert(qnnInterface != nullptr);
+    mQnnInterface = qnnInterface;
+
+    QnnDevice_Infrastructure_t deviceInfra = nullptr;
+    CALL_QNN(mQnnInterface->deviceGetInfrastructure(&deviceInfra));
+    QnnHtpDevice_Infrastructure_t *htpInfra = static_cast<QnnHtpDevice_Infrastructure_t *>(deviceInfra);
+    mPerfInfra = htpInfra->perfInfra;
+
+    uint32_t deviceId = 0;
+    uint32_t coreId = 0;
+    CALL_QNN(mPerfInfra.createPowerConfigId(deviceId, coreId, &mPowerConfigId));
+
+    mPowerConfigBurst = {
+        .option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_DCVS_V3,
+        .dcvsV3Config = {
+            .contextId = mPowerConfigId, // use the power config id created
+            .setDcvsEnable = 1,
+            .dcvsEnable = 0, // 1- To enable Dcvs and consider dcvs power mode, 0- To disable dcvs
+            .powerMode = QNN_HTP_PERF_INFRASTRUCTURE_POWERMODE_PERFORMANCE_MODE,
+            .setSleepLatency = 1, // True to consider Latency parameter otherwise False
+            .sleepLatency = 40,   // set dsp sleep latency ranges 10-65535 micro sec, refer hexagon sdk
+            .setSleepDisable = 1, // True to consider sleep disable/enable parameter otherwise False
+            .sleepDisable = 1,    // True to disable sleep, False to re-enable sleep
+            .setBusParams = 1,    // True to consider Bus parameter otherwise False
+            .busVoltageCornerMin = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+            .busVoltageCornerTarget = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+            .busVoltageCornerMax = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+            .setCoreParams = 1, // True to consider Core parameter otherwise False
+            .coreVoltageCornerMin = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+            .coreVoltageCornerTarget = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+            .coreVoltageCornerMax = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
+        },
+    };
+
+    mPowerConfigBalanced = {
+        .option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_DCVS_V3,
+        .dcvsV3Config = {
+            .contextId = mPowerConfigId, // use the power config id created
+            .setDcvsEnable = 1,
+            .dcvsEnable = 1, // 1- To enable Dcvs and consider dcvs power mode, 0- To disable dcvs
+            .powerMode = QNN_HTP_PERF_INFRASTRUCTURE_POWERMODE_ADJUST_UP_DOWN,
+            .setSleepLatency = 1, // True to consider Latency parameter otherwise False
+            .sleepLatency = 1000, // set dsp sleep latency ranges 10-65535 micro sec, refer hexagon sdk
+            .setSleepDisable = 1, // True to consider sleep disable/enable parameter otherwise False
+            .sleepDisable = 0,    // True to disable sleep, False to re-enable sleep
+            .setBusParams = 1,    // True to consider Bus parameter otherwise False
+            .busVoltageCornerMin = DCVS_VOLTAGE_VCORNER_TURBO,
+            .busVoltageCornerTarget = DCVS_VOLTAGE_VCORNER_TURBO,
+            .busVoltageCornerMax = DCVS_VOLTAGE_VCORNER_TURBO,
+            .setCoreParams = 1, // True to consider Core parameter otherwise False
+            .coreVoltageCornerMin = DCVS_VOLTAGE_VCORNER_TURBO,
+            .coreVoltageCornerTarget = DCVS_VOLTAGE_VCORNER_TURBO,
+            .coreVoltageCornerMax = DCVS_VOLTAGE_VCORNER_TURBO,
+        },
+    };
+}
+
+// destory power config
+QNNPerf::~QNNPerf() {
+    CALL_QNN(mPerfInfra.destroyPowerConfigId(mPowerConfigId));
+}
+
+void QNNPerf::setRpcLatencyAndPolling() {
+    // set RPC Control Latency
+    QnnHtpPerfInfrastructure_PowerConfig_t rpcControlLatency; // refer QnnHtpPerfInfrastructure.h
+    ::memset(&rpcControlLatency, 0, sizeof(rpcControlLatency));
+    rpcControlLatency.option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_RPC_CONTROL_LATENCY;
+    rpcControlLatency.rpcControlLatencyConfig = 100; // use rpc control latency recommended 100 us, refer hexagon sdk
+    const QnnHtpPerfInfrastructure_PowerConfig_t *powerConfigs1[] = {&rpcControlLatency, NULL};
+
+    CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs1)); // set RPC latency config on power config ID created
+
+    // set RPC Polling
+    QnnHtpPerfInfrastructure_PowerConfig_t rpcPollingTime; // refer QnnHtpPerfInfrastructure.h
+    ::memset(&rpcPollingTime, 0, sizeof(rpcPollingTime));
+    rpcPollingTime.option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_RPC_POLLING_TIME;
+    rpcPollingTime.rpcPollingTimeConfig = 9999; // use rpc polling time recommended 0-10000 us
+    const QnnHtpPerfInfrastructure_PowerConfig_t *powerConfigs2[] = {&rpcPollingTime, NULL};
+
+    CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs2)); // set RPC polling config on power config ID created
+}
+
+void QNNPerf::setPowerConfigBurst() {
+    const QnnHtpPerfInfrastructure_PowerConfig_t *powerConfigs[] = {&mPowerConfigBurst, NULL};
+    CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs));
+}
+
+void QNNPerf::setPowerConfigBalanced() {
+    const QnnHtpPerfInfrastructure_PowerConfig_t *powerConfigs[] = {&mPowerConfigBalanced, NULL};
+    CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs));
+}
+
+QNNRuntime::~QNNRuntime() {
+    // Free Profile
+    if (profileHandle != nullptr) {
+        CALL_QNN(qnnInterface.profileFree(profileHandle));
+    }
+
+    // Free Device
+    CALL_QNN(qnnInterface.deviceFree(deviceHandle));
+
+    // Free Backend
+    CALL_QNN(qnnInterface.backendFree(backendHandle));
+
+    // Free Log
+    CALL_QNN(qnnInterface.logFree(logHandle));
+}
+
+void __mllmLoggerCallback4QnnLogger(const char *fmt, QnnLog_Level_t level, uint64_t times_tamp,
+                                    va_list argp) {
+    const char *level_str = "";
+    switch (level) {
+    case QNN_LOG_LEVEL_ERROR: level_str = "[ERROR]"; break;
+    case QNN_LOG_LEVEL_WARN: level_str = "[WARN]"; break;
+    case QNN_LOG_LEVEL_INFO: level_str = "[INFO]"; break;
+    case QNN_LOG_LEVEL_DEBUG: level_str = "[DEBUG]"; break;
+    case QNN_LOG_LEVEL_VERBOSE: level_str = "[VERBOSE]"; break;
+    case QNN_LOG_LEVEL_MAX: level_str = "[UNKNOWN]"; break;
+    }
+
+    double ms = (double)times_tamp / 1000000.0;
+
+    {
+        fprintf(stdout, "QnnLogger(%8.1fms, %ld) %s: ", ms, times_tamp, level_str);
+        vfprintf(stdout, fmt, argp);
+    }
+}
+
+QNNRuntime *QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_t qnnLogLevel) {
+    // Create Interface
+    QNN_INTERFACE_VER_TYPE qnnInterface{};
+    {
+        QnnInterface_t **interfaceProviders = nullptr;
+        uint32_t numProviders = 0;
+        if (QnnInterface_getProviders((const QnnInterface_t ***)&interfaceProviders, &numProviders) != QNN_SUCCESS) {
+            MLLM_LOG_ERROR_STREAM << "Failed to call 'QnnInterface_getProviders'." << std::endl;
+            return nullptr;
+        }
+        if (interfaceProviders == nullptr) {
+            MLLM_LOG_ERROR_STREAM << "Failed to get interface providers: null interface providers received." << std::endl;
+            return nullptr;
+        }
+        if (numProviders == 0) {
+            MLLM_LOG_ERROR_STREAM << "Failed to get interface providers: 0 interface providers." << std::endl;
+            return nullptr;
+        }
+        bool foundValidInterface = false;
+        for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
+            if (QNN_API_VERSION_MAJOR == interfaceProviders[pIdx]->apiVersion.coreApiVersion.major && QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor) {
+                foundValidInterface = true;
+                qnnInterface = interfaceProviders[pIdx]->QNN_INTERFACE_VER_NAME;
+                break;
+            }
+        }
+        if (!foundValidInterface) {
+            MLLM_LOG_ERROR_STREAM << "Failed to find a valid QNN interface provider." << std::endl;
+            return nullptr;
+        }
+    }
+
+    // Create Log
+    Qnn_LogHandle_t logHandle = nullptr;
+    {
+        QnnLog_Callback_t logCallback = __mllmLoggerCallback4QnnLogger;
+
+        if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, QNN_LOG_LEVEL_ERROR, &logHandle)) != QNN_SUCCESS) || (logHandle == nullptr)) {
+            MLLM_LOG_ERROR_STREAM << "Failed to initialize logging in the backend." << std::endl;
+            return nullptr;
+        }
+    }
+
+    // Create Backend
+    Qnn_BackendHandle_t backendHandle = nullptr;
+    {
+        const QnnBackend_Config_t **backendConfig = nullptr;
+        if ((QNN_GET_ERROR_CODE(qnnInterface.backendCreate(logHandle, backendConfig, &backendHandle)) != QNN_SUCCESS) || (backendHandle == nullptr)) {
+            MLLM_LOG_ERROR_STREAM << "Failed to create the backend." << std::endl;
+            return nullptr;
+        }
+    }
+
+    // Create Device
+    Qnn_DeviceHandle_t deviceHandle = nullptr;
+    {
+        // Check whether the device API is supported.
+        if (nullptr != qnnInterface.propertyHasCapability) {
+            auto qnnStatus =
+                qnnInterface.propertyHasCapability(QNN_PROPERTY_GROUP_DEVICE);
+            if (QNN_PROPERTY_NOT_SUPPORTED == qnnStatus) {
+                MLLM_LOG_WARN_LEGACY("Device property is not supported");
+                return nullptr;
+            }
+            if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnnStatus) {
+                MLLM_LOG_ERROR_LEGACY("Device property is not known to backend");
+                return nullptr;
+            }
+        }
+    }
+
+    // Initialize Profiling
+    Qnn_ProfileHandle_t profileHandle = nullptr;
+    {
+        if (ProfilingLevel::OFF != profilingLevel) {
+            MLLM_LOG_INFO_LEGACY("Profiling turned on; level = %d", (int)profilingLevel);
+            if (ProfilingLevel::BASIC == profilingLevel) {
+                MLLM_LOG_INFO_LEGACY("Basic profiling requested. Creating Qnn Profile object.");
+                if (QNN_PROFILE_NO_ERROR != qnnInterface.profileCreate(backendHandle, QNN_PROFILE_LEVEL_BASIC, &profileHandle)) {
+                    MLLM_LOG_WARN_LEGACY("Unable to create profile handle in the backend.");
+                    return nullptr;
+                }
+            } else if (ProfilingLevel::DETAILED == profilingLevel) {
+                MLLM_LOG_INFO_LEGACY("Detailed profiling requested. Creating Qnn Profile object.");
+                if (QNN_PROFILE_NO_ERROR != qnnInterface.profileCreate(backendHandle, QNN_PROFILE_LEVEL_DETAILED, &profileHandle)) {
+                    MLLM_LOG_ERROR_LEGACY("Unable to create profile handle in the backend.");
+                    return nullptr;
+                }
+            }
+        }
+    }
+
+    // Register Custom OpPackages
+    {
+        struct OpPackageInfo {
+            std::string path;
+            std::string interfaceProvider;
+            std::string target;
+        };
+
+        std::vector<OpPackageInfo> opPackages = {
+            {"libQnnLLaMAPackage_CPU.so", "LLaMAPackageInterfaceProvider", "CPU"},
+            {"libQnnLLaMAPackage_HTP.so", "LLaMAPackageInterfaceProvider", "HTP"}};
+
+        for (const auto &pkg : opPackages) {
+            if (!qnnInterface.backendRegisterOpPackage) {
+                MLLM_LOG_ERROR_LEGACY("backendRegisterOpPackageFnHandle is nullptr.");
+                return nullptr;
+            }
+            if (QNN_BACKEND_NO_ERROR != qnnInterface.backendRegisterOpPackage(backendHandle, pkg.path.c_str(), pkg.interfaceProvider.c_str(), pkg.target.c_str())) {
+                MLLM_LOG_ERROR_LEGACY("Could not register Op Package: %s and interface provider: %s",
+                                      pkg.path.c_str(), pkg.interfaceProvider.c_str());
+                return nullptr;
+            }
+            MLLM_LOG_INFO_LEGACY("Registered Op Package: %s and interface provider: %s",
+                                 pkg.path.c_str(), pkg.interfaceProvider.c_str());
+        }
+    }
+
+    // Create QNN System Interface
+    QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface;
+    {
+        QnnSystemInterface_t **systemInterfaceProviders{nullptr};
+        uint32_t numProviders{0};
+        if (QNN_SUCCESS != QnnSystemInterface_getProviders((const QnnSystemInterface_t ***)&systemInterfaceProviders, &numProviders)) {
+            MLLM_LOG_ERROR_LEGACY("Failed to get system interface providers.");
+            return nullptr;
+        }
+        if (0 == numProviders) {
+            MLLM_LOG_ERROR_LEGACY("Failed to get interface providers: 0 interface providers.");
+            return nullptr;
+        }
+        bool foundValidSystemInterface = false;
+        for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
+            foundValidSystemInterface = true;
+            if (QNN_SYSTEM_API_VERSION_MAJOR == systemInterfaceProviders[pIdx]->systemApiVersion.major && QNN_SYSTEM_API_VERSION_MINOR <= systemInterfaceProviders[pIdx]->systemApiVersion.minor) {
+                qnnSystemInterface = systemInterfaceProviders[pIdx]->QNN_SYSTEM_INTERFACE_VER_NAME;
+                break;
+            }
+        }
+        if (!foundValidSystemInterface) {
+            MLLM_LOG_ERROR_LEGACY("Unable to find a valid system interface.");
+            return nullptr;
+        }
+    }
+
+    return new QNNRuntime(qnnInterface, qnnSystemInterface, logHandle, backendHandle, deviceHandle, profileHandle);
+}
+
+bool QNNRuntime::createContext(Qnn_ContextHandle_t &context, QnnContext_Config_t **contextConfig) {
+    if (QNN_CONTEXT_NO_ERROR != qnnInterface.contextCreate(backendHandle, deviceHandle, (const QnnContext_Config_t **)&contextConfig, &context)) {
+        MLLM_LOG_ERROR("Could not create context");
+        return false;
+    }
+    return true;
+}
+bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t &context,
+                                 std::vector<GraphInfo_t *> &graphsInfo,
+                                 QnnContext_Config_t **contextConfig) {
+    // Read the binary from qnn_context.bin and get the size in byte
+    std::ifstream file("qnn_context.bin", std::ios::binary | std::ios::ate);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    shared_ptr<uint8_t> binaryBuffer(new uint8_t[size], std::default_delete<uint8_t[]>());
+
+    file.read(reinterpret_cast<char *>(binaryBuffer.get()), size);
+    file.close();
+
+    // inspect binary info
+    QnnSystemContext_Handle_t sysCtxHandle{nullptr};
+    if (QNN_SUCCESS != qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
+        MLLM_LOG_ERROR("Could not create system handle.");
+        return false;
+    }
+    const QnnSystemContext_BinaryInfo_t *binaryInfo{nullptr};
+    Qnn_ContextBinarySize_t binaryInfoSize{0};
+    if (QNN_SUCCESS != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void *>(binaryBuffer.get()), size, &binaryInfo, &binaryInfoSize)) {
+        MLLM_LOG_ERROR("Failed to get context binary info");
+        return false;
+    }
+
+    GraphInfo_t **tmpGraphsInfo = nullptr;
+    uint32_t graphNum;
+    // fill GraphInfo_t based on binary info
+    if (!copyMetadataToGraphsInfo(binaryInfo, tmpGraphsInfo, graphNum)) {
+        MLLM_LOG_ERROR("Failed to copy metadata.");
+        return false;
+    }
+    qnnSystemInterface.systemContextFree(sysCtxHandle);
+    sysCtxHandle = nullptr;
+
+    graphsInfo.assign(tmpGraphsInfo, tmpGraphsInfo + graphNum);
+
+    Qnn_ContextBinarySize_t writtenSize = 0;
+    qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t **)contextConfig, binaryBuffer.get(), size, &context, profileHandle);
+
+    for (auto &g : graphsInfo) {
+        if (QNN_SUCCESS != qnnInterface.graphRetrieve(context, g->graphName, &g->graph)) {
+            MLLM_LOG_ERROR("Unable to retrieve graph handle");
+            return false;
+        }
+    }
+
+    MLLM_LOG_INFO_STREAM << "QNN context retrieved from qnn_context.bin";
+    return true;
 }
 
 } // namespace mllm

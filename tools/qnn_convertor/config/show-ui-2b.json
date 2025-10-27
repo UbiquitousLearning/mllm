@@ -1,0 +1,39 @@
+{
+    "profile_config": {
+        "dataset_path": "path/to/ScreenSpot",
+        "output_path": "./dis/showui_rot_screenqa_nobias_dis.json",
+        "num_samples": 2,
+        "no_bias": true,
+
+        "model_config": {
+            "model_type": "qwen2-vl",
+            "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
+            "model_name": "path/to/ShowUI-2B",
+
+            "online_rotation": true,
+            "rotate_vit": true,
+            "no_quantize": true,
+            "random_rotate": true,
+            "save_rotation": "./R/ShowUI-2B-rotation-matrix.bin"
+        }
+    },
+    "export_config": {
+        "scale_file": "./dis/showui_rot_screenqa_nobias_dis.json",
+        "output_model": "path/to/ShowUI-2B-Rot-QNN.pth",
+
+        "t01m_clip_threshold": 64,
+        "quant_bias": false,
+        "quantize_vit": true,
+
+        "model_config": {
+            "model_type": "qwen2-vl",
+            "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
+            "model_name": "path/to/ShowUI-2B",
+
+            "online_rotation": true,
+            "rotate_vit": true,
+            "no_quantize": true,
+            "R_path": "mllm_qnn_convertor/R/ShowUI-2B-R.bin"
+        }
+    }
+}

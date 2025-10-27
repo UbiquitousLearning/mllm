@@ -15,9 +15,6 @@
 
 using namespace mllm;
 
-// current version of showui/qwen2-vl don't need shadow layers
-std::set qwenvlShadowLayers = {100};
-
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {
 protected:
@@ -45,7 +42,7 @@ protected:
 
 public:
     QwenDecoderNPUPart1() = default;
-    QwenDecoderNPUPart1(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart1(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -54,17 +51,23 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -97,7 +100,7 @@ class QwenDecoderNPUPart1WithRes final : public QwenDecoderNPUPart1 {
 
 public:
     QwenDecoderNPUPart1WithRes() = default;
-    QwenDecoderNPUPart1WithRes(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart1WithRes(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -111,17 +114,23 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -166,7 +175,7 @@ class QwenQKVmm final : public Module {
 
 public:
     QwenQKVmm() = default;
-    QwenQKVmm(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenQKVmm(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -174,8 +183,8 @@ public:
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
 
-        k_cache = KVCache(config.num_key_value_heads, head_dim, config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
-        v_cache = KVCache(config.num_key_value_heads, head_dim, config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
+        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
+        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
@@ -183,8 +192,6 @@ public:
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        // TODO: remove it
-        // auto qkv_start = mllm_time_ms();
         auto position_ids = inputs[3];
 
         auto q = inputs[0];
@@ -203,10 +210,6 @@ public:
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
-
-        // TODO: remove it
-        // auto qkv_end = mllm_time_ms();
-        // std::cout << "QKV mm time: " << qkv_end - qkv_start << "ms" << std::endl;
 
         return {o};
     }
@@ -249,7 +252,7 @@ protected:
 
 public:
     QwenDecoderNPUPart2() = default;
-    QwenDecoderNPUPart2(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart2(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -271,7 +274,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -326,7 +335,7 @@ public:
 class QwenDecoderNPUPart2WithShadow final : public QwenDecoderNPUPart2 {
 public:
     QwenDecoderNPUPart2WithShadow() = default;
-    QwenDecoderNPUPart2WithShadow(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart2WithShadow(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -348,7 +357,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -423,9 +438,12 @@ class QwenNPU_CPUDecoder final : public Module {
     QwenQKVmm qkv_mm;
     unique_ptr<QwenDecoderNPUPart2> part2;
 
+    std::set<int> shadowLayer;
+
 public:
     QwenNPU_CPUDecoder() = default;
-    QwenNPU_CPUDecoder(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenNPU_CPUDecoder(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) :
+        shadowLayer(config.shadow_layers) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -439,7 +457,7 @@ public:
         layer_idx = std::stoi(match[0]);
         num_layers = config.num_hidden_layers;
 
-        if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
             pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
@@ -461,7 +479,7 @@ public:
         auto position_ids = inputs[1];
 
         Tensor x, q, k, v, res;
-        if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             x = input_layernorm(inputs[0]);
 
             x = pre_attn_quantize(x);
@@ -518,9 +536,12 @@ class QwenNPU_CPUDecoderWithShadow final : public Module {
     SubgraphStart _SubgraphStart_1, _SubgraphStart_2;
     SubgraphFinalize _SubgraphEnd_1, _SubgraphEnd_2;
 
+    std::set<int> shadowLayer;
+
 public:
     QwenNPU_CPUDecoderWithShadow() = default;
-    QwenNPU_CPUDecoderWithShadow(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenNPU_CPUDecoderWithShadow(const Qwen2VLNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) :
+        shadowLayer(config.shadow_layers) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -534,7 +555,7 @@ public:
         layer_idx = std::stoi(match[0]);
         num_layers = config.num_hidden_layers;
 
-        if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
             pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
@@ -558,7 +579,7 @@ public:
         auto position_ids = inputs[1];
 
         Tensor x, q, k, v, res;
-        if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             x = input_layernorm(inputs[0]);
             x = pre_attn_quantize(x);
 
@@ -614,7 +635,7 @@ class Qwen2VL_ImagePatchAndEmbedding final : public Module {
     int64_t vision_start_token_id;
 
 public:
-    explicit Qwen2VL_ImagePatchAndEmbedding(const Qwen2VLConfig &config) {
+    explicit Qwen2VL_ImagePatchAndEmbedding(const Qwen2VLNPUConfig &config) {
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
         auto head_size = config.num_attention_heads;
@@ -631,6 +652,7 @@ public:
         vision_start_token_id = config.vision_start_token_id;
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
+        // visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
         visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, config.attn_implementation, vision_names, vision_names.vison_model_name);
     }
 
@@ -686,6 +708,8 @@ private:
         // NOTE: changed from original
         const size_t seq_len = batch_size > 0 ? (padding_to > input_ids.sequence() ? padding_to : input_ids.sequence()) : 0; // batch_size > 0 ? input_ids[0].size() : 0;
 
+        // Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU].get()), true);
+        // Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU].get()), true);
         Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU].get(), true);
         Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU].get(), true);
         bool has_vision = (image_grid_thw.sequence() > 0) || (video_grid_thw.sequence() > 0); // image_grid_thw || video_grid_thw;
@@ -847,7 +871,7 @@ class Qwen2VL_PrefillBody final : public Module {
     bool tie_embedding_words;
 
     template <typename T1, typename SHADOW, typename... Args>
-    static vector<unique_ptr<Module>> ListWithShadow(int n, Args &&...args) {
+    static vector<unique_ptr<Module>> ListWithShadow(int n, std::set<int> &shadowLayer, Args &&...args) {
         static_assert(std::is_base_of<Module, T1>::value, "T1 must be a subclass of Module");
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
@@ -856,7 +880,7 @@ class Qwen2VL_PrefillBody final : public Module {
         // for index in shadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
-            if (qwenvlShadowLayers.find(listIdx) != qwenvlShadowLayers.end()) {
+            if (shadowLayer.find(listIdx) != shadowLayer.end()) {
                 modules.push_back(std::make_unique<SHADOW>(std::apply([&](auto &&...args) { return SHADOW(std::forward<decltype(args)>(args)...); }, new_args)));
             } else {
                 modules.push_back(std::make_unique<T1>(std::apply([&](auto &&...args) { return T1(std::forward<decltype(args)>(args)...); }, new_args)));
@@ -868,8 +892,7 @@ class Qwen2VL_PrefillBody final : public Module {
     }
 
 public:
-    explicit Qwen2VL_PrefillBody(const Qwen2VLConfig &config, int chunk_size) {
-        // Module::initBackend(MLLM_QNN);
+    explicit Qwen2VL_PrefillBody(const Qwen2VLNPUConfig &config, int chunk_size, std::set<int> &shadowLayer) {
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
         auto head_size = config.num_attention_heads;
@@ -878,12 +901,12 @@ public:
 
         num_layer = config.num_hidden_layers;
 
-        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, qwen_names, chunk_size, qwen_names.blk_name);
+        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, shadowLayer, config, qwen_names, chunk_size, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
         } else {
-            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
+            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.token_embd_name);
         }
     }
 
@@ -891,8 +914,8 @@ public:
         auto hidden_states = inputs[0];
         auto position_ids = inputs[1];
 
-        for (auto &block : blocks) {
-            hidden_states = (*block)({hidden_states, position_ids})[0];
+        for (auto i = 0; i < blocks.size(); ++i) {
+            hidden_states = (*blocks[i])({hidden_states, position_ids})[0];
         }
 
         hidden_states = norm(hidden_states);
@@ -902,6 +925,7 @@ public:
         } else {
             hidden_states = lm_head_layer(hidden_states);
         }
+
         return {hidden_states};
     }
 };

@@ -14,9 +14,6 @@ namespace mllm {
 // The llm_model_ptr is a pointer to the outmost module
 Module *Module::llm_model_ptr;
 
-bool Module::isMultiChunkPrefilling = false;
-bool Module::isFirstChunk = true;
-
 int Module::listIdx;
 std::stack<int> Module::listIdxStack;
 // int Module::runlistIdx;
@@ -24,8 +21,6 @@ std::stack<int> Module::listIdxStack;
 BackendType Module::tmp_device = MLLM_CPU;
 std::unordered_map<string, shared_ptr<Op>> Module::tensor_func_ops;
 bool Module::alloc_mmap = true;
-
-int Module::graphIdx = 0;
 
 vector<double> Module::profiling(string name) {
     vector<double> output;

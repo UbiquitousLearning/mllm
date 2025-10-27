@@ -14,9 +14,20 @@ ErrorCode QNNSubGraphStart::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
 }
 
 ErrorCode QNNSubGraphStart::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    for(auto input : inputs) {
+    for (auto input : inputs) {
         input->to(MLLM_QNN);
         input->alloc();
+        if (!input->childTensors().empty()) {
+            // for (auto &child_tensor : input->childTensors()) {
+            //     child_tensor->shallowCopyFrom(input.get(), false);
+            // }
+            for (auto &child_wp : input->childTensors()) {
+                // Lock the weak_ptr to get a shared_ptr
+                if (auto child_sp = child_wp.lock()) {
+                    child_sp->shallowCopyFrom(input, false);
+                }
+            }
+        }
     }
 
     this->backend_->onSetUpStart(inputs, outputs, name_);
@@ -31,7 +42,5 @@ ErrorCode QNNSubGraphStart::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
     this->backend_->onExecuteStart(inputs, outputs, name_);
     return MLLM_NO_ERROR;
 }
-
-
 
 } // namespace mllm

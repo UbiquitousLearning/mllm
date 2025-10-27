@@ -18,6 +18,7 @@ ErrorCode QNNSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode QNNSoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->setDtype(inputs[0]->dtype());
     vector<Qnn_Param_t> params = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "axis",

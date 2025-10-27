@@ -128,12 +128,12 @@ func_vlm_add_executable(demo_qwen2_vl_vtp)
 func_vlm_add_executable(demo_showui_vtp)
 
 if(QNN)
+    # func_llm_add_executable(demo_phonelm_npu)
     func_llm_add_executable(demo_qwen_npu)
-    func_llm_add_executable(demo_phonelm_npu)
-    func_llm_add_executable(demo_qwen2.5_npu)
+    # func_llm_add_executable(demo_qwen_npu_pipeline)
     func_vlm_add_executable(demo_qwen2_vl_npu)
-    func_vlm_add_executable(demo_showui_npu)
 endif()
+
 
 if(MLLM_BUILD_XNNPACK_BACKEND)
     func_llm_add_executable(demo_qwen_xp)

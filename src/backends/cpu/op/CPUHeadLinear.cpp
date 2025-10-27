@@ -1,5 +1,6 @@
 
 #include "CPUHeadLinear.hpp"
+#include "Context.hpp"
 #include "Types.hpp"
 #include <iostream>
 #include <memory>
@@ -76,8 +77,8 @@ ErrorCode CPUHeadLinear::load(AbstructLoader &loader) {
 
 ErrorCode CPUHeadLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    int seqLength = cpuBackend->getTotalSequenceLength();
-    int chunk_size = cpuBackend->getChunkSize();
+    int seqLength = Context::Instance().inference_state().getTotalSequenceLength();
+    int chunk_size = Context::Instance().inference_state().getChunkSize();
 
     shared_ptr<Tensor> tmp_in = std::make_shared<Tensor>(backend_);
     tmp_in->reshape(1, 1, 1, inputs[0]->dimension());

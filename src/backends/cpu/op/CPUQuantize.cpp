@@ -82,6 +82,19 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
 }
 
 ErrorCode CPUQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    float quantScale;
+    switch (activation_dtype_) {
+    case MLLM_TYPE_I8:
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
+        outputs[0]->quant_param.scale = quantScale;
+        break;
+    case MLLM_TYPE_I16:
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
+        outputs[0]->quant_param.scale = quantScale;
+        break;
+    default:
+        return NOT_SUPPORT;
+    }
     return Op::setUp(inputs, outputs);
 }
 

@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include "Context.hpp"
 #include <cassert>
 #include <cmath>
 
@@ -12,7 +13,7 @@ QNNQuantize::QNNQuantize(Backend *bn, string opName, DataType type, bool isNSHD)
     isNSHD_ = isNSHD;
     assert(type == MLLM_TYPE_I8 || type == MLLM_TYPE_I16);
     activation_dtype_ = type;
-    scale_.setBackend(bn);
+    scale_.setBackend(Backend::global_backends[MLLM_CPU].get());
 }
 
 ErrorCode QNNQuantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -52,7 +53,7 @@ ErrorCode QNNQuantize::setUpI8(vector<shared_ptr<Tensor>> &inputs, vector<shared
 
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-    // quantScale = roundf(quantScale * 100000) / 100000;
+    outputs[0]->quant_param.scale = quantScale;
 
     uint32_t paramsQuantizeDimension[1] = {1};
     auto paramsQuantizeName = name() + "quantize_params";
@@ -97,6 +98,9 @@ ErrorCode QNNQuantize::setUpI8(vector<shared_ptr<Tensor>> &inputs, vector<shared
 
 ErrorCode QNNQuantize::setUpI16(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     outputs[0]->setDtype(MLLM_TYPE_I16);
+    float quantScale = 0;
+    quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
+    outputs[0]->quant_param.scale = quantScale;
     auto outName = outputs[0]->name();
 
     uint32_t dimensionsOutput[4];
@@ -112,10 +116,7 @@ ErrorCode QNNQuantize::setUpI16(vector<shared_ptr<Tensor>> &inputs, vector<share
         dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->sequence());
         dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
     }
-
-    float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-    // quantScale = roundf(quantScale * 100000) / 100000;
+    // std::cout << "isNSHD_ " << isNSHD_ << " dimensionsOutput " << dimensionsOutput[0] << " " << dimensionsOutput[1] << " " << dimensionsOutput[2] << " " << dimensionsOutput[3] << std::endl;
 
     uint32_t paramsQuantizeDimension[1] = {1};
     auto paramsQuantizeName = name() + "quantize_params";

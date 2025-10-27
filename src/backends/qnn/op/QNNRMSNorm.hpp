@@ -18,8 +18,6 @@ private:
     Tensor weight_;
     int normSize_;
     bool isFP32_;
-
-    Tensor scale_;
 };
 
 class QNNRMSNormCreator : public QNNBackend::Creator {

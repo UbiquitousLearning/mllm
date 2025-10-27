@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Types.hpp"
 #include "cmdline.h"
+#include "Context.hpp"
 
 // tiny llama
 #include "models/tinyllama/modeling_tinyllama.hpp"

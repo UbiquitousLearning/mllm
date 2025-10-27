@@ -30,13 +30,13 @@ TEST_F(XpTest, CausalMaskModule) {
     auto model = mllm::xnnpack::wrap2xnn<CausalMaskModule>(1, 1);
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK].get() != nullptr, true);
     if (XnnpackBackend::enable_legacy_wrapper == false) {
         Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
         return;
     }
 
-    Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK].get(), true);
     x.setTtype(TensorType::INPUT_TENSOR);
 
     auto start = std::chrono::high_resolution_clock::now();

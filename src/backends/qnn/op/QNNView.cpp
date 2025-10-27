@@ -15,8 +15,6 @@ QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_
     data_dim1_ = data_dims[1];
     data_dim2_ = data_dims[2];
     data_dim3_ = data_dims[3];
-
-    scale_.setBackend(bn);
 }
 
 ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -82,124 +80,14 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->setDtype(inputs[0]->dtype());
 
-    if (outputs[0]->dtype() == MLLM_TYPE_I8 || outputs[0]->dtype() == MLLM_TYPE_I16)
-        return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
-    else {
-        return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, nullptr);
+    if (outputs[0]->dtype() == MLLM_TYPE_I8 || outputs[0]->dtype() == MLLM_TYPE_I16) {
+        outputs[0]->quant_param = inputs[0]->quant_param;
     }
+    return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true);
 }
 
 ErrorCode QNNView::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordSplit = ".or_split";
-
-    int spos = scaleName.find(wordSplit);
-    if (spos != -1) {
-        // KVMerge
-        scaleName.erase(spos, wordSplit.length());
-
-        string scale_type_name = ".input_scale";
-        std::string split_variable;
-        std::string wordToRemove = "-00_view_";
-
-        int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".o_proj";
-        }
-
-        wordToRemove = "-01_view_";
-        pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".q_proj";
-        }
-
-        scale_.setName(scaleName + split_variable + scale_type_name);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        loader.load(&scale_);
-
-    } else if (scaleName.find(".ires_split") != -1) {
-        spos = scaleName.find(".ires_split");
-
-        wordSplit = ".ires_split";
-        scaleName.erase(spos, wordSplit.length());
-
-        string scale_type_name = ".input_scale";
-        std::string split_variable;
-        std::string wordToRemove = "-00_view_";
-
-        int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".q_proj";
-        }
-
-        scale_.setName(scaleName + split_variable + scale_type_name);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        loader.load(&scale_);
-
-    } else if (scaleName.find(".fres_split") != -1) {
-        spos = scaleName.find(".fres_split");
-
-        wordSplit = ".fres_split";
-        scaleName.erase(spos, wordSplit.length());
-
-        string scale_type_name = ".input_scale";
-        std::string split_variable;
-        std::string wordToRemove = "-00_view_";
-
-        int pos = scaleName.find(wordToRemove);
-        while (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".up_proj";
-            pos = scaleName.find(wordToRemove);
-        }
-
-        scale_.setName(scaleName + split_variable + scale_type_name);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        loader.load(&scale_);
-
-    } else {
-        // common view
-        std::string wordToRemove = "-00_view_";
-        int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-        }
-
-        string scale_type_name = ".output_scale";
-
-        wordToRemove = ".quantize";
-        pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            scale_type_name = ".input_scale";
-        }
-
-        wordToRemove = ".post_attention_layernorm";
-        pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            scale_type_name = ".mlp.up_proj.input_scale";
-        }
-
-        scale_.setName(scaleName + scale_type_name);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        loader.load(&scale_);
-    }
-
     return Op::load(loader);
 }
-
 
 } // namespace mllm

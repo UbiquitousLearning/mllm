@@ -135,6 +135,20 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = false;
+        } else if (billionsType == "1.8b-rotated") {
+            attention_dropout = 0.0;
+            std::string hidden_act = "silu";
+            hidden_size = 2048;
+            intermediate_size = 5504;
+            max_position_embeddings = 32768;
+            num_attention_heads = 16;
+            num_hidden_layers = 24;
+            num_key_value_heads = 16;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = false;
         } else if (billionsType == "1.5b") {
             attention_dropout = 0.0;
             std::string hidden_act = "silu";
@@ -150,7 +164,7 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = true;
-        } else if ((billionsType == "1.5b-rotated") || (billionsType == "1.5b-lm")) {
+        } else if ((billionsType == "1.5b-rotated") || (billionsType == "1.5b-lm") || (billionsType == "1.5b-vl") || (billionsType == "1.5b-vl-rotated")) {
             attention_dropout = 0.0;
             std::string hidden_act = "silu";
             hidden_size = 1536;
@@ -211,7 +225,7 @@ struct QWenConfig : public TransformerConfig {
             vocab_size = 152064;
             tie_embedding_words = false;
         } else {
-            throw std::runtime_error("Unsupported model size");
+            throw std::runtime_error("QWenConfig Unsupported model size");
         }
         RoPE_type = type;
     };
@@ -238,6 +252,46 @@ struct QWenConfig : public TransformerConfig {
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;
     QWenNameConfig names_config;
+};
+
+struct QWenNPUConfig : virtual public QWenConfig {
+    explicit QWenNPUConfig(int token_limit, string billions = "1.8B", RoPEType type = RoPEType::HFHUBROPE) :
+        QWenConfig(token_limit, billions, type) {
+        string billionsType;
+        std::transform(billions.begin(), billions.end(), std::back_inserter(billionsType),
+                       ::tolower);
+        if (billionsType == "1.8b") {
+            shadow_layers = {1, 2, 26};
+        } else if (billionsType == "1.8b-rotated") {
+            shadow_layers = {};
+            use_i32_bias = false;
+        } else if (billionsType == "1.5b") { // qwen2.5 1.5B
+            shadow_layers = {1, 2, 4, 5, 26};
+            use_high_precision_silu = true;
+        } else if (billionsType == "1.5b-vl") { // qwen-2-vl
+            shadow_layers = {1, 26};
+            use_high_precision_silu = false;
+            tie_embedding_words = false;
+        } else if (billionsType == "1.5b-rotated") { // qwen2.5 1.5B rotated model
+            shadow_layers = {};
+            use_i32_bias = false;
+            use_high_precision_silu = true;
+        } else if (billionsType == "1.5b-vl-rotated") { // qwen-2-vl rotated model
+            shadow_layers = {};
+            use_high_precision_silu = true;
+            use_i32_bias = false;
+            tie_embedding_words = false;
+        } else {
+            throw std::runtime_error("QWenNPUConfig Unsupported model size");
+        }
+    }
+
+    std::set<int> shadow_layers;
+    // use i32/fp32 bias for Linear in QNN, when using fp32 bias, bias will be added by DequantizeAdd
+    bool use_i32_bias = true;
+    // there are two types of QNNSiLU, a approximate int version and a (sigmoid * x) version
+    // for qwen2.5, input of silu act has a large range, config here to use the (sigmoid * x)
+    bool use_high_precision_silu = false;
 };
 
 #endif //! CONFIG_QWEN_HPP

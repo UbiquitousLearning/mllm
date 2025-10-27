@@ -21,8 +21,6 @@ private:
     int data_dim1_;
     int data_dim2_;
     int data_dim3_;
-
-    Tensor scale_;
 };
 
 class QNNViewCreator : public QNNBackend::Creator {

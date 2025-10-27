@@ -26,12 +26,14 @@ static std::unordered_map<string, Op *> kv_cache_map;
 class TensorFunction {
 public:
     virtual void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
-    virtual void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {};
+    virtual void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args){};
     virtual void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
 };
 class Backend {
+    friend class Context;
+
 public:
-    Backend() {};
+    Backend(){};
     Backend(shared_ptr<MemoryManager> &mm) :
         mem_manager_(mm) {
     }
@@ -68,7 +70,7 @@ public:
         assert(type_ != MLLM_CPU && "copy_to_host should be handled by specific backends");
     }
 
-    virtual void convert_fp_data(Tensor *src, Tensor *dest) {};
+    virtual void convert_fp_data(Tensor *src, Tensor *dest){};
 
     /**
      * \brief Creates an operation(Op) with the given parameters.
@@ -95,10 +97,10 @@ public:
     virtual std::vector<Tensor> runOp(Op *op, std::vector<Tensor> input, std::vector<std::string> out_names, bool in_place) = 0;
     virtual std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) = 0;
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = "") {};
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = ""){};
 
     /**
      * \brief Registers all the operations supported by the backend.

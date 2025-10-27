@@ -128,7 +128,6 @@ public:
         if (inputs[0]->masterTensor() != nullptr && inputs[0]->name() == outputs[0]->name()) {
             inputs[0]->shallowCopyFrom(inputs[0]->masterTensor(), false, inputs[0]->shapeOffset());
         }
-
         return MLLM_NO_ERROR;
     }
 

@@ -195,6 +195,16 @@ public:
             }
             o = Tensor::mm(qk, v);
             o = o.transpose(HEAD, SEQUENCE);
+        } else if (attn_implementation_ == "eager_notrans") { // eager no transpose mplementation
+            q = q / std::sqrt(head_dim_);
+            k = k.transpose(SEQUENCE, DIMENSION);
+            auto qk = Tensor::mm(q, k);
+            if (k_cache.ready() && v_cache.ready() && k_cache.getCacheSeqLen() != qk.sequence() && qk.sequence() > 1) {
+                qk = softmax(qk, k_cache.getCacheSeqLen());
+            } else {
+                qk = softmax(qk);
+            }
+            o = Tensor::mm(qk, v);
         }
         o = o.view(-1, 1, -1, head_dim_ * num_heads_);
         o = o_proj(o);

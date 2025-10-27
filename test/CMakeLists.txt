@@ -37,7 +37,7 @@ add_executable(
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${PROJECT_SOURCE_DIR}/test/TestLoader.cpp
         ${MLLM_TEST}
-        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
+        ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
         ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.hpp
         ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/FuyuPreProcess.hpp

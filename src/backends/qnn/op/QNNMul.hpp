@@ -11,9 +11,6 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
-
-private:
-    Tensor scale_;
 };
 
 class QNNMulCreator : public QNNBackend::Creator {

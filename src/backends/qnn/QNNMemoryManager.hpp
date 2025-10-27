@@ -1,17 +1,11 @@
 #ifndef MLLM_QNNMEMORY_SYSTEM_H
 #define MLLM_QNNMEMORY_SYSTEM_H
-#include "Log.h"
-#include "Log/Logger.hpp"
 #include "MemoryManager.hpp"
-#include "PAL/DynamicLoading.hpp"
-#include "Utils/DynamicLoadUtil.hpp"
+#include "QnnInterface.h"
 #include "QnnTypes.h"
 #include <cstddef>
-#include <iostream>
 #include <map>
 #include <set>
-#include <vector>
-#include <dlfcn.h>
 
 namespace mllm {
 
@@ -29,10 +23,9 @@ public:
     void alloc(void **ptr, size_t size, size_t alignment) override;
     void free(void *ptr) override;
 
-    void setQnnInterfaceAndContext(void *context);
+    void setQnnInterfaceAndContext(QNN_INTERFACE_VER_TYPE qnnInterface,void *context);
 
     void registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor);
-    void deRegisterQnnTensor();
 
 private:
     QNN_INTERFACE_VER_TYPE qnnInterface_;
@@ -40,7 +33,7 @@ private:
 
     // memHandle set, to check if the ptr is allocted by rpcmem_alloc
     std::set<void *> qnnMemPtrMap_;
-    std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
+    std::map<void *, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
 
     RpcMemAllocFn_t rpcmem_alloc;
     RpcMemFreeFn_t rpcmem_free;

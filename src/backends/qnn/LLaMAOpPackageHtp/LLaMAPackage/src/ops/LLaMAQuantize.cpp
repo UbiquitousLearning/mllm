@@ -1700,6 +1700,62 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
         }
     }
 
+    if (dtype == DType::Float32 && out_0.get_dtype() == DType::QUInt8) {
+        auto out_ptr = (int8_t *)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    for (Idx d = 0; d < d_in; d++) {
+                        float inval = in_0(b, h, w, d);
+
+                        // float result = Round(inval / scale_);
+
+                        long v = lroundf(inval / scale_);
+
+                        if (v > 127)
+                            v = 127;
+
+                        if (v < -128)
+                            v = -128;
+
+                        v += 128;
+
+                        *out_ptr++ = static_cast<uint8_t>(v);
+                    }
+                }
+            }
+        }
+    }
+
+    if (dtype == DType::Float16 && out_0.get_dtype() == DType::QUInt16) {
+        auto out_ptr = (int16_t *)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    for (Idx d = 0; d < d_in; d++) {
+                        float inval = in_0(b, h, w, d);
+
+                        // float result = Round(inval / scale_);
+
+                        long v = lroundf(inval / scale_);
+
+                        if (v > 32767)
+                            v = 32767;
+
+                        if (v < -32768)
+                            v = -32768;
+
+                        v += 32768;
+
+                        *out_ptr++ = static_cast<uint16_t>(v);
+                    }
+                }
+            }
+        }
+    }
+
     return GraphStatus::Success;
 }
 #endif

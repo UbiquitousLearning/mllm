@@ -681,6 +681,74 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
         </OpDef>
 
         <OpDef>
+            <Name>RoPESimple</Name>
+            <Description>
+                <Content>
+                    LLaMA RoPE Simple
+                    Only calculate:
+                    value1 = in_value * cos_value - in_value_2 * sin_value and 
+                    value2 = in_value * sin_value + in_value_2 * cos_value.
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>RoPE sin weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ seq, hidden state ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[2]</Name>
+                <Description>
+                    <Content>RoPE cos weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ seq, hidden state  ]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
             <Name>LLaMADequantize</Name>
             <Description>
                 <Content>
@@ -1484,7 +1552,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_16</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
             </Output>
         </SupplementalOpDef>
 

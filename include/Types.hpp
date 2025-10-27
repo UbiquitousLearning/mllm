@@ -19,7 +19,6 @@ using std::vector;
 using std::map;
 
 typedef map<std::string, float> OpParam;
-
 // #define DEBUGSAVETENSOR
 // #define DEBUGOPTIME
 

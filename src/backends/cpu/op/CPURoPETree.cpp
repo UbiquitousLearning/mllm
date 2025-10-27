@@ -1,5 +1,6 @@
 
 #include "CPURoPE.hpp"
+#include "Context.hpp"
 #include "CPURoPETree.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
@@ -87,17 +88,17 @@ ErrorCode CPURoPETree::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     }
 #ifdef USE_QNN
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()) {
+        h_cnt_ = Context::Instance().inference_state().getCurSequenceLength();
     }
 #else
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
 #endif
 
     // for sd
-    if (cpuBackend->isUsingDraft()) {
-        unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-        const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+    if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+        unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+        const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
         h_cnt_ = h_cnt_ - (last_draft_length) + last_verified_position_ids.size();
         if (h_cnt_ < 0) {
             h_cnt_ = 0;

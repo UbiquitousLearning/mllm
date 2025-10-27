@@ -251,8 +251,8 @@ if __name__ == "__main__":
         key, tensor = process(key, tensor, args.model_type)
         if (
             tensor.dtype != torch.bool
-            or tensor.dtype != torch.int8
-            or tensor.dtype != torch.uint8
+            and tensor.dtype != torch.int8
+            and tensor.dtype != torch.uint8
         ):
             tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)

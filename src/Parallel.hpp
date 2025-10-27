@@ -8,7 +8,6 @@
 #include "Types.hpp"
 #include "tokenizers/Tokenizer.hpp"
 #include <memory>
-#include <omp.h>
 
 namespace mllm {
 
@@ -54,12 +53,15 @@ public:
             if (i == 0) {
                 Tracer::refleshInputTensor({chunked_tensors[chunk_id]});
             }
-
+#ifdef DEBUGPRINT
             auto graph_start = mllm_time_us();
+#endif
             auto &graph = Tracer::model_[i];
             graph->Forward({}, {chunk_id});
+#ifdef DEBUGPRINT
             auto graph_end = mllm_time_us();
             std::cout << "chunk_id: " << chunk_id << ", graphIdx: " << i << ", graph time: " << (graph_end - graph_start) / 1000.0F << "ms" << std::endl;
+#endif
         };
         auto start_t = mllm_time_us();
         omp_set_max_active_levels(3);
@@ -68,10 +70,10 @@ public:
             for (int i = chunk_id * 2; i < num_graph + chunk_id * 2 + 5; ++i) {
 #pragma omp parallel for num_threads(2)
                 for (int pair_idx = 0; pair_idx < 2; ++pair_idx) {
-                    executeFunc(chunk_id * 2 + pair_idx, i - pair_idx * 4);
+                    executeFunc((chunk_id * 2) + pair_idx, i - (pair_idx * 4));
                 }
 #pragma omp barrier
-                std::cout << "---------------------------" << std::endl;
+                // std::cout << "---------------------------" << std::endl;
             }
         }
         auto end_t = mllm_time_us();

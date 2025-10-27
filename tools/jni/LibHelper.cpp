@@ -30,7 +30,7 @@
 using namespace mllm;
 
 #ifdef USE_QNN
-#include "models/qwen/modeling_qwen_npu.hpp"
+#include "models/qwen/modeling_qwen_npu_v2.hpp"
 #include "models/phonelm/modeling_phonelm_npu.hpp"
 #include "models/qwen2_vl/modeling_qwen2_vl_npu.hpp"
 #endif
@@ -114,11 +114,11 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
                 if (!not_end) { return false; }
                 return true;
             });
-            Module::isFirstChunk = false;
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-            Module::isMultiChunkPrefilling = true;
+            Context::Instance().inference_state().setQnnGraphFrozen(true);
+            Context::Instance().inference_state().setCurSequenceLength(0);
+            Context::Instance().inference_state().setExecutionType(PROMPT);
+            Context::Instance().inference_state().toggleSwitching();
+
             // warmup END
             LOGE("QNN Warmup finished.");
         }
@@ -182,11 +182,11 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
                 if (!not_end) { return false; }
                 return true;
             });
-            Module::isFirstChunk = false;
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
-            Module::isMultiChunkPrefilling = true;
+            Context::Instance().inference_state().setQnnGraphFrozen(true);
+            Context::Instance().inference_state().setCurSequenceLength(0);
+            Context::Instance().inference_state().setExecutionType(PROMPT);
+            Context::Instance().inference_state().toggleSwitching();
+
             // warmup END
             LOGE("QNN Warmup finished.");
         }
@@ -224,9 +224,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             bool isSwitched = false;
 
             // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setTotalSequenceLength(real_seq_length);
+            Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
             // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setChunkSize(chunk_size);
+            Context::Instance().inference_state().setChunkSize(chunk_size);
 
             LlmTextGeneratorOpts opt{
                 .max_new_tokens = 1,
@@ -244,9 +244,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
                 prefill_module_->generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                    if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->isStageSwitching()) {
+                    if (!isSwitched && chunk_id == 0 && Context::Instance().inference_state().isStageSwitching()) {
                         // turn off switching at the first chunk of following inputs
-                        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+                        Context::Instance().inference_state().toggleSwitching();
                         isSwitched = true;
                     }
                     // switch_flag = true;
@@ -266,11 +266,11 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     }
                     return true;
                 });
-                Module::isFirstChunk = false;
+                Context::Instance().inference_state().setQnnGraphFrozen(true);
             }
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(real_seq_length);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(AUTOREGRESSIVE);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+            Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+            Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+            Context::Instance().inference_state().toggleSwitching();
 
             opt = LlmTextGeneratorOpts{
                 .max_new_tokens = max_new_tokens - 1,
@@ -283,7 +283,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             isSwitched = false;
             module_->generate(chunked_tensors.back(), opt, [&](unsigned int out_token) -> bool {
                 if (!isSwitched) {
-                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+                    Context::Instance().inference_state().toggleSwitching();
                     isSwitched = true;
                 }
                 auto out_token_string = tokenizer_->detokenize({out_token});
@@ -301,9 +301,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 if (!not_end) { return false; }
                 return true;
             });
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+            Context::Instance().inference_state().setCurSequenceLength(0);
+            Context::Instance().inference_state().setExecutionType(PROMPT);
+            Context::Instance().inference_state().toggleSwitching();
         } else { // CPU
             auto input_tensor = tokenizer_->tokenize(input_str);
             max_new_tokens = tokens_limit - input_tensor.sequence();
@@ -504,9 +504,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             bool isSwitched = false;
 
             // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setTotalSequenceLength(real_seq_length);
+            Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
             // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setChunkSize(chunk_size);
+            Context::Instance().inference_state().setChunkSize(chunk_size);
 
             LlmTextGeneratorOpts opt{
                 .max_new_tokens = 1,
@@ -527,7 +527,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     // if (switch_flag && !isSwitched && chunk_id == 0) {
                     if (!isSwitched && chunk_id == 0) {
                         // turn off switching at the first chunk of following inputs
-                        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+                        Context::Instance().inference_state().toggleSwitching();
                         isSwitched = true;
                     }
                     // switch_flag = true;
@@ -548,11 +548,11 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     if (!not_end) { return false; }
                     return true;
                 });
-                Module::isFirstChunk = false;
+                Context::Instance().inference_state().setQnnGraphFrozen(true);
             }
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(real_seq_length);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(AUTOREGRESSIVE);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+            Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+            Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+            Context::Instance().inference_state().toggleSwitching();
 
             opt = LlmTextGeneratorOpts{
                 .max_new_tokens = max_new_tokens - 1,
@@ -565,7 +565,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             isSwitched = false;
             module_->generate(chunked_tensors.back(), opt, [&](unsigned int out_token) -> bool {
                 if (!isSwitched) {
-                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+                    Context::Instance().inference_state().toggleSwitching();
                     isSwitched = true;
                 }
                 auto out_token_string = tokenizer_->detokenize({out_token});
@@ -583,9 +583,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 if (!not_end) { return false; }
                 return true;
             });
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
+            Context::Instance().inference_state().setCurSequenceLength(0);
+            Context::Instance().inference_state().setExecutionType(PROMPT);
+            Context::Instance().inference_state().toggleSwitching();
         } else { // CPU
             auto input_tensor = tokenizer_->tokenize(input_str);
             max_new_tokens = tokens_limit - input_tensor.sequence();
