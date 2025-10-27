@@ -270,8 +270,7 @@ class DeepseekV2MoE final : public nn::Module {
     auto final_out_shape = topk_ids.shape();
     final_out_shape.emplace_back(-1);
     auto final_out =
-        new_x.view(final_out_shape).to(topk_weights.dtype()).mul_(topk_weights.unsqueeze(-1).sum(1).to(new_x.dtype()));
-
+        new_x.view(final_out_shape).to(topk_weights.dtype()).mul_(topk_weights.unsqueeze(-1)).sum(1).to(new_x.dtype());
     return final_out;
   }
 };
@@ -480,7 +479,8 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
         auto local_features_2 = vision_model_(patches, local_features_1)[0];
         auto local_features = nn::functional::concat(
             {
-                local_features_2[{kAll, {1, kAll}}],
+                // FIXME: contiguous is not needed. We use contiguous because mllm has weak performance in this case.
+                local_features_2[{kAll, {1, kAll}, kAll}].contiguous(),
                 local_features_1.flatten(2).permute({0, 2, 1}),
             },
             -1);
@@ -491,7 +491,8 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
         auto global_features_2 = vision_model_(image_ori, global_features_1)[0];
         auto global_features = nn::functional::concat(
             {
-                global_features_2[{kAll, {1, kAll}}],
+                // FIXME: contiguous is not needed. We use contiguous because mllm has weak performance in this case.
+                global_features_2[{kAll, {1, kAll}, kAll}].contiguous(),
                 global_features_1.flatten(2).permute({0, 2, 1}),
             },
             -1);
@@ -566,7 +567,7 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
         auto global_features_2 = vision_model_(image_ori, global_features_1)[0];
         auto global_features = nn::functional::concat(
             {
-                global_features_2[{kAll, {1, kAll}}],
+                global_features_2[{kAll, {1, kAll}, kAll}],
                 global_features_1.flatten(2).permute({0, 2, 1}),
             },
             -1);

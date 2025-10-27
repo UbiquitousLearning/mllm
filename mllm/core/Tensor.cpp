@@ -388,7 +388,7 @@ Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
 }
 
 Tensor Tensor::unsqueeze(int32_t dim) {
-  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim; }
+  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim + 1; }
   auto this_shape = shape();
   this_shape.insert(this_shape.begin() + dim, 1);
   return view(this_shape);

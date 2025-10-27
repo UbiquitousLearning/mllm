@@ -93,7 +93,7 @@ class CLIPVisionEmbeddings final : public nn::Module {
     position_embedding_ = reg<nn::Embedding>("position_embedding", num_positions_, embed_dim_);
 
     // Register a buffer
-    registerBuffer("position_ids", Tensor::arange(0, num_positions_, 1, kInt64, kCPU));
+    registerBuffer("position_ids", Tensor::arange(0, num_positions_, 1, kInt64, kCPU).view({1, -1}));
   }
 
   Tensor getAbsPos(Tensor abs_pos, int32_t tgt_size) {
@@ -103,8 +103,8 @@ class CLIPVisionEmbeddings final : public nn::Module {
 
     auto dim = abs_pos.size(-1);
     auto abs_pos_new = abs_pos.squeeze(0);
-    auto cls_token = abs_pos[{{kAll, 1}, kAll}].contiguous();
-    auto old_pos_embed = abs_pos[{{1, kAll}, kAll}].contiguous();
+    auto cls_token = abs_pos_new[{{kAll, 1}, kAll}].contiguous();
+    auto old_pos_embed = abs_pos_new[{{1, kAll}, kAll}].contiguous();
 
     auto src_size = int(std::sqrt(abs_pos_new.shape()[0] - 1));
     tgt_size = int(std::sqrt(tgt_size));
@@ -141,13 +141,12 @@ class CLIPVisionEmbeddings final : public nn::Module {
     if (!patch_embeds) { patch_embeds = patch_embedding_(pixel_values); }
 
     // Flatten and transpose.
-    // patch_embeds original shape is [batch(1), out_channel, width, grid, grid]
-    patch_embeds = patch_embeds.flatten(2).transpose(1, 2);  // [batch(1), width * grid * grid, out_channel]
+    // patch_embeds original shape is [batch, out_channel, width, grid, grid]
+    patch_embeds = patch_embeds.flatten(2).transpose(1, 2);  // [batch, width * grid * grid, out_channel]
 
-    // TODO bugs. Assume batch is always 1
-    MLLM_RT_ASSERT_EQ(batch_size, 1);
-    // [batch(1), 1, 1024]
-    auto class_embeds = class_embedding_.weight().view({1, 1, 1024});
+    // [batch, 1, 1024]
+    // Same as expand(batch_size, 1, -1)
+    auto class_embeds = class_embedding_.weight().view({1, 1, -1}).repeat(batch_size, 0);
 
     auto embeddings = nn::functional::concat({class_embeds, patch_embeds}, 1);
     embeddings = embeddings + getAbsPos(position_embedding_(getBuffer("position_ids")), embeddings.size(1));
@@ -205,16 +204,17 @@ class NoTPAttention final : public nn::Module {
     xqkv = xqkv.view({bsz, seqlen, 3, num_heads_, head_dim_});
     auto [xq, xk, xv] = nn::functional::split<3>(xqkv, 2);
 
-    xq = xq.squeeze(2);
-    xk = xk.squeeze(2);
-    xv = xv.squeeze(2);
+    // FIXME: contiguous is not needed, actually.
+    xq = xq.contiguous().squeeze(2);
+    xk = xk.contiguous().squeeze(2);
+    xv = xv.contiguous().squeeze(2);
 
     xq = xq.permute({0, 2, 1, 3});
     xk = xk.permute({0, 2, 1, 3});
     xv = xv.permute({0, 2, 1, 3});
 
     auto output = nn::functional::scaledDotProductAttention(xq, xk, xv);
-    output = output.permute({0, 2, 1, 3}).reshape({bsz, seqlen, -1});
+    output = output.permute({0, 2, 1, 3}).view({bsz, seqlen, -1});
     output = out_proj_(output);
     return {output};
   }
