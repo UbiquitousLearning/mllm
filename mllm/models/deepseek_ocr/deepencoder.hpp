@@ -144,7 +144,7 @@ class CLIPVisionEmbeddings final : public nn::Module {
     // patch_embeds original shape is [batch(1), out_channel, width, grid, grid]
     patch_embeds = patch_embeds.flatten(2).transpose(1, 2);  // [batch(1), width * grid * grid, out_channel]
 
-    // Assume batch is always 1
+    // TODO bugs. Assume batch is always 1
     MLLM_RT_ASSERT_EQ(batch_size, 1);
     // [batch(1), 1, 1024]
     auto class_embeds = class_embedding_.weight().view({1, 1, 1024});
@@ -352,6 +352,8 @@ class Attention final : public nn::Module {
   nn::Param rel_pos_w_;
 
  public:
+  int layer_idx_;
+
   Attention() = default;
 
   Attention(const std::string& name, int dim, int num_heads, bool qkv_bias, bool use_rel_pos,
@@ -502,6 +504,10 @@ class Attention final : public nn::Module {
     qkv = qkv.view({3, B * num_heads_, H * W, -1});
     auto [q, k, v] = nn::functional::split<3>(qkv, 0);
 
+    q = q.view({B * num_heads_, H * W, -1});
+    k = k.view({B * num_heads_, H * W, -1});
+    v = v.view({B * num_heads_, H * W, -1});
+
     auto rel_h = Tensor::nil();
     auto rel_w = Tensor::nil();
 
@@ -516,6 +522,15 @@ class Attention final : public nn::Module {
     if (use_rel_pos_) {
       rel_h = rel_h.view({B, num_heads_, rel_h.size(1), rel_h.size(2), rel_h.size(3)});
       rel_w = rel_w.view({B, num_heads_, rel_w.size(1), rel_w.size(2), rel_w.size(3)});
+
+      // Dual broadcast is not supported in cpu backend. So we need to repeat rel_h and rel_w
+      // torch.Size([54, 12, 196, 14, 1])
+      // torch.Size([54, 12, 196, 1, 14])
+      auto _dim_neg_1 = rel_w.size(4);
+      auto _dim_neg_2 = rel_h.size(3);
+      rel_h = rel_h.repeat(_dim_neg_1, -1);
+      rel_w = rel_w.repeat(_dim_neg_2, -2);
+      MLLM_RT_ASSERT_EQ(rel_h.shape(), rel_w.shape());
       auto attn_bias = (rel_h + rel_w).view({B, num_heads_, rel_h.size(2), rel_h.size(3) * rel_w.size(4)});
       x = nn::functional::scaledDotProductAttention(q, k, v, attn_bias);
     } else {
@@ -531,11 +546,13 @@ class Attention final : public nn::Module {
 class Block final : public nn::Module {
   nn::LayerNorm norm1_;
   nn::LayerNorm norm2_;
-  Attention attn_;
   MLPBlock mlp_;
   int window_size_;
 
  public:
+  Attention attn_;
+  int layer_idx_;
+
   Block() = default;
 
   Block(const std::string& name, int dim, int num_heads, float mlp_ratio, bool qkv_bias, bool use_rel_pos, int window_size,
@@ -586,8 +603,6 @@ class Block final : public nn::Module {
     auto shortcut = x;
     x = norm1_(x);
 
-    print(x.shape(), window_size_);
-
     // Window partition
     int H = 0;
     int W = 0;
@@ -597,9 +612,6 @@ class Block final : public nn::Module {
       W = x.size(2);
       std::tie(x, pad_hw) = windowPartition(x, window_size_);
     }
-
-    print(x.shape(), H, W, pad_hw);
-    exit(0);
 
     x = attn_(x)[0];
 
@@ -626,6 +638,8 @@ class Blocks final : public nn::Module {
       auto this_block_window_size = is_in ? 14 : 0;
       blocks_.emplace_back(reg<Block>(std::to_string(i), 768, 12, 4.0, true, true, this_block_window_size,
                                       std::make_optional(std::make_tuple(1024 / 16, 1024 / 16)), config));
+      blocks_[i].layer_idx_ = i;
+      blocks_[i].attn_.layer_idx_ = i;
     }
   };
 

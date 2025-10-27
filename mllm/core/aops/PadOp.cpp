@@ -28,7 +28,7 @@ void PadOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outp
   const int in_dims = i.shape().size();
   const auto& pad = options_.pad;  // [dim_last_low, dim_last_high, ...]
 
-  std::vector<int32_t> out_shape(i.shape().begin(), i.shape().end());
+  std::vector<int32_t> out_shape = i.shape();
   for (int d = 0; d < in_dims; ++d) {
     int idx = (in_dims - 1 - d) * 2;
     int32_t low = (idx < pad.size()) ? pad[idx] : 0;

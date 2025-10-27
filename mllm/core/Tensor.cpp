@@ -382,6 +382,7 @@ Tensor Tensor::view(const Tensor::shape_t& indicies) {
 
 Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
   if (multiplier == 1) { return *this; }
+  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim; }
   return Context::instance().buildOpAndSubmitTask(OpTypes::kRepeat,
                                                   aops::RepeatOpOptions{.dim = dim, .repeat_times = multiplier}, {*this})[0];
 }
