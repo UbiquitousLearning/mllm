@@ -278,6 +278,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("EinsumOp"))
     op.derive(Cls("StackOp"))
     op.derive(Cls("MaskedScatterOp"))
+    op.derive(Cls("ScatterOp"))
+    op.derive(Cls("GatherOp"))
+    op.derive(Cls("ArgsortOp"))
 
     # value
 

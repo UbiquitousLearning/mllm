@@ -108,4 +108,8 @@ LINALG_AOPS_DECL(OpTypes::kEinsum, EinsumOp);
 LINALG_AOPS_DECL(OpTypes::kStack, StackOp);
 LINALG_AOPS_DECL(OpTypes::kMaskedScatter, MaskedScatterOp);
 
+LINALG_AOPS_DECL(OpTypes::kScatter, ScatterOp);
+LINALG_AOPS_DECL(OpTypes::kGather, GatherOp);
+LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
+
 }  // namespace mllm::ir::linalg

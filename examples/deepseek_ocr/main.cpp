@@ -10,9 +10,6 @@ MLLM_MAIN({
   auto tokenizer = mllm::models::deepseek_ocr::DpskOcrTokenizer("/Volumes/D/mllm-models/DeepSeek-OCR-w32a32/tokenizer.json");
   model.load(mllm::load("/Volumes/D/mllm-models/DeepSeek-OCR-w32a32/model.mllm", mllm::ModelFileVersion::kV2));
 
-  mllm::print(model);
-  return 0;
-
   model.infer(tokenizer, "<image>\n<|grounding|>Convert the document to markdown. ", "/Volumes/D/mllm/.tmp/dpsk-ocr-pr.png",
               "/Volumes/D/mllm/.tmp/dpsk-ocr");
 });

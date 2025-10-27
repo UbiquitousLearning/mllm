@@ -76,9 +76,6 @@ void Conv2DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   const int in_height = ishape[2];    // height axis
   const int in_width = ishape[3];     // width axis
 
-  // Current only support single batch
-  MLLM_RT_ASSERT_EQ(batch, 1);
-
   MLLM_RT_ASSERT_EQ(in_channels, options_.in_channels);
 
   // Retrieve convolution parameters from options_

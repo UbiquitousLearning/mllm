@@ -75,6 +75,12 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto& padding = options_.padding;
   auto& dilation = options_.dilation;
 
+  MLLM_RT_ASSERT_EQ(input.rank(), 4);
+  auto batch_size = input.size(0);
+  auto _1 = input.size(1);
+  auto _2 = input.size(2);
+  auto _3 = input.size(3);
+
   switch (input.dtype()) {
     case kFloat32: {
       switch (options_.impl_type) {
@@ -95,60 +101,65 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
           int MATMUL_K = options_.in_channels * kernel_size[0] * kernel_size[1];
           int MATMUL_N = output.shape()[2] * output.shape()[3];
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
           // step 1. im2col inputs to tmp
           auto packed_inputs = Tensor::empty({MATMUL_K, MATMUL_N}, input.dtype(), input.device()).alloc();
-          arm::conv2d_fp32_im2col_input(input.ptr<mllm_fp32_t>(), options_.in_channels, input.shape()[2], input.shape()[3],
-                                        kernel_size[0], kernel_size[1], padding[0], padding[1], stride[0], stride[1],
-                                        dilation[0], dilation[1], packed_inputs.ptr<mllm_fp32_t>());
-          // step 2. Do matmul
-          switch (mt) {  // NOLINT
-            case aops::MatMulOpType::kBLAS: {
-#if defined(MLLM_USE_BLAS)
-              blas::matmul_fp32(weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(),
-                                nullptr, MATMUL_M, MATMUL_N, MATMUL_K, false, false);
 
-              // Add Bias
-              if (options_.bias) {
-                auto out_ptr = output.ptr<mllm_fp32_t>();
-                const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
-                for (int m = 0; m < MATMUL_M; ++m) {
-                  const float b = bias_ptr[m];
-                  for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
-                }
-              }
-#else
-              NYI("BLAS not supported. Pls set MLLM_USE_BLAS=ON to enable BLAS supports in cmake.");
-#endif
-              break;
-            }
-            case aops::MatMulOpType::kMllmBlas: {
-              auto thread_count = options_.getThreads();
+          for (int _b_idx = 0; _b_idx < batch_size; ++_b_idx) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-              arm::mllm_blas_matmul_fp32(MATMUL_M, MATMUL_K, MATMUL_N, output.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
-                                         packed_inputs.ptr<mllm_fp32_t>(), nullptr, false, false, thread_count);
-              // Add Bias
-              if (options_.bias) {
-                auto out_ptr = output.ptr<mllm_fp32_t>();
-                const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
-                for (int m = 0; m < MATMUL_M; ++m) {
-                  const float b = bias_ptr[m];
-                  for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
+
+            arm::conv2d_fp32_im2col_input(input.ptr<mllm_fp32_t>() + _b_idx * (_1 * _2 * _3), options_.in_channels,
+                                          input.shape()[2], input.shape()[3], kernel_size[0], kernel_size[1], padding[0],
+                                          padding[1], stride[0], stride[1], dilation[0], dilation[1],
+                                          packed_inputs.ptr<mllm_fp32_t>());
+            // step 2. Do matmul
+            switch (mt) {  // NOLINT
+              case aops::MatMulOpType::kBLAS: {
+#if defined(MLLM_USE_BLAS)
+                blas::matmul_fp32(weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(),
+                                  nullptr, MATMUL_M, MATMUL_N, MATMUL_K, false, false);
+
+                // Add Bias
+                if (options_.bias) {
+                  auto out_ptr = output.ptr<mllm_fp32_t>();
+                  const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
+                  for (int m = 0; m < MATMUL_M; ++m) {
+                    const float b = bias_ptr[m];
+                    for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
+                  }
                 }
+#else
+                NYI("BLAS not supported. Pls set MLLM_USE_BLAS=ON to enable BLAS supports in cmake.");
+#endif
+                break;
               }
+              case aops::MatMulOpType::kMllmBlas: {
+                auto thread_count = options_.getThreads();
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+                arm::mllm_blas_matmul_fp32(MATMUL_M, MATMUL_K, MATMUL_N, output.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
+                                           packed_inputs.ptr<mllm_fp32_t>(), nullptr, false, false, thread_count);
+                // Add Bias
+                if (options_.bias) {
+                  auto out_ptr = output.ptr<mllm_fp32_t>();
+                  const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
+                  for (int m = 0; m < MATMUL_M; ++m) {
+                    const float b = bias_ptr[m];
+                    for (int n = 0; n < MATMUL_N; ++n) { out_ptr[m * MATMUL_N + n] += b; }
+                  }
+                }
 #else
-              NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
+                NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
 #endif
-              break;
+                break;
+              }
+              default: {
+                NYI("Unsupported matmul type");
+              }
             }
-          }
 #else
-          MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unsupported architecture for perform im2col conv2d.");
+            MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unsupported architecture for perform im2col conv2d.");
 #endif
-          break;
-        }
-        default: {
-          NYI("Unsupported impl type");
+            break;
+          }
         }
       }
       break;

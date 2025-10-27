@@ -70,6 +70,9 @@ class InterpolateOp;
 class EinsumOp;
 class StackOp;
 class MaskedScatterOp;
+class ScatterOp;
+class GatherOp;
+class ArgsortOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -225,5 +228,8 @@ LINALG_AOPS_DEFINE(InterpolateOp, INTERPOLATEOP);
 LINALG_AOPS_DEFINE(EinsumOp, EINSUMOP);
 LINALG_AOPS_DEFINE(StackOp, STACKOP);
 LINALG_AOPS_DEFINE(MaskedScatterOp, MASKEDSCATTEROP);
+LINALG_AOPS_DEFINE(ScatterOp, SCATTEROP);
+LINALG_AOPS_DEFINE(GatherOp, GATHEROP);
+LINALG_AOPS_DEFINE(ArgsortOp, ARGSORTOP);
 
 }  // namespace mllm::ir::linalg

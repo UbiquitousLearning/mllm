@@ -1,4 +1,4 @@
-// Auto generated: 2025-10-26 17:03:51
+// Auto generated: 2025-10-27 11:05:42
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -200,6 +200,15 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_MASKEDSCATTEROP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_MaskedScatterOp && (v)->getKind() <= RK_Op_LinalgIROp_MaskedScatterOp
+
+#define RTTI_RK_OP_LINALGIROP_SCATTEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ScatterOp && (v)->getKind() <= RK_Op_LinalgIROp_ScatterOp
+
+#define RTTI_RK_OP_LINALGIROP_GATHEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_GatherOp && (v)->getKind() <= RK_Op_LinalgIROp_GatherOp
+
+#define RTTI_RK_OP_LINALGIROP_ARGSORTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ArgsortOp && (v)->getKind() <= RK_Op_LinalgIROp_ArgsortOp
 
 #define RTTI_RK_OP_GRAPHIROP_IMPL(v) return (v)->getKind() >= RK_Op_GraphIROp && (v)->getKind() <= RK_Op_GraphIROp_Last
 

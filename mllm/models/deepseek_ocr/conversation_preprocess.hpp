@@ -2,19 +2,21 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
-#include <map>
 #include <memory>
-#include <stdexcept>
+#include <limits>
 #include <cassert>
 #include <variant>
 #include <optional>
-#include <limits>
-#include <nlohmann/json.hpp>
-#include <set>
-#include <algorithm>
+#include <stdexcept>
+
 #include <cmath>
+#include <algorithm>
+
+#include <nlohmann/json.hpp>
 
 #include "mllm/preprocessor/visual/Image.hpp"
 

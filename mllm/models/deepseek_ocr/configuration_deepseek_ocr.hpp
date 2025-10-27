@@ -180,6 +180,7 @@ struct DpskOcrConfig : protected ConfigFile {
   int32_t vocab_size = 129280;
 
   // MLLM Related Stuff
+  int32_t max_cache_length = 2048;
   aops::LinearImplTypes clip_linear_impl_type = aops::LinearImplTypes::kDefault;
   aops::LinearImplTypes sam_linear_impl_type = aops::LinearImplTypes::kDefault;
   aops::LinearImplTypes mlp_projector_linear_impl_type = aops::LinearImplTypes::kDefault;

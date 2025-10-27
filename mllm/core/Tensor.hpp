@@ -176,6 +176,14 @@ class Tensor {
   static Tensor empty(const std::vector<int32_t>& shape, DataTypes dtype = kFloat32, DeviceTypes device = kCPU);
 
   /**
+   * @brief Creates an uninitialized tensor with the same shape and attributes as another tensor.
+   *
+   * @param liked_tensor
+   * @return Tensor
+   */
+  static Tensor emptyLike(const Tensor& liked_tensor);
+
+  /**
    * @brief If this tensor is not initialized
    *
    * @note explicit must be set to avoid auto i = tensor. But i is set as bool type.
@@ -267,6 +275,8 @@ class Tensor {
   Tensor operator/(const Tensor& rhs);
   /// @}
 
+  Tensor mul_(const Tensor& rhs);
+
   /// @name Scalar Operations
   /// Element-wise operations with scalar values.
   /// @{
@@ -295,6 +305,15 @@ class Tensor {
    * @return Tensor with absolute values
    */
   Tensor abs();
+
+  /**
+   * @brief Argsort
+   *
+   * @param dim
+   * @param descending
+   * @return Tensor
+   */
+  Tensor argsort(int dim = -1, bool descending = false);
 
   /**
    * @brief Clips (limits) the values in a tensor.

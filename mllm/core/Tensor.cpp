@@ -21,6 +21,7 @@
 #include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/X2XOp.hpp"
+#include "mllm/core/aops/ArgsortOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -68,6 +69,11 @@ Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceT
   auto storage = TensorStorage::create(shape, dtype, device);
   auto impl = TensorViewImpl::create(shape, storage);
   return Tensor(impl);
+}
+
+Tensor Tensor::emptyLike(const Tensor& liked_tensor) {
+  auto ret = Tensor::empty(liked_tensor.shape(), liked_tensor.dtype(), liked_tensor.device());
+  return ret;
 }
 
 Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const std::vector<int32_t>& shape, DataTypes dtype,
@@ -127,6 +133,12 @@ Tensor Tensor::operator*(const Tensor& rhs) {
 
 Tensor Tensor::operator/(const Tensor& rhs) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs})[0];
+}
+
+Tensor Tensor::mul_(const Tensor& rhs) {
+  auto opts = aops::MulOpOptions{};
+  opts.setInplace(true);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator+(float rhs) {
@@ -242,6 +254,11 @@ Tensor Tensor::operator/(std::complex<float> rhs) {
 }
 
 Tensor Tensor::abs() { return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0]; }
+
+Tensor Tensor::argsort(int dim, bool descending) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kArgsort,
+                                                  aops::ArgsortOpOptions{.dim = dim, .descending = descending}, {*this})[0];
+}
 
 Tensor Tensor::clip(float min_val, float max_val) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kClip, aops::ClipOpOptions{.min_val = min_val, .max_val = max_val},
@@ -370,6 +387,7 @@ Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
 }
 
 Tensor Tensor::unsqueeze(int32_t dim) {
+  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim; }
   auto this_shape = shape();
   this_shape.insert(this_shape.begin() + dim, 1);
   return view(this_shape);

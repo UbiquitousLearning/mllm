@@ -506,7 +506,7 @@ class Attention final : public nn::Module {
     auto rel_w = Tensor::nil();
 
     if (use_rel_pos_) {
-      std::tie(rel_h, rel_w) = addDecomposedRelPos(q, rel_pos_h_.weight(), rel_pos_w_.weight(), {H, W}, {W, H});
+      std::tie(rel_h, rel_w) = addDecomposedRelPos(q, rel_pos_h_.weight(), rel_pos_w_.weight(), {H, W}, {H, W});
     }
 
     q = q.view({B, num_heads_, H * W, -1});
@@ -586,6 +586,8 @@ class Block final : public nn::Module {
     auto shortcut = x;
     x = norm1_(x);
 
+    print(x.shape(), window_size_);
+
     // Window partition
     int H = 0;
     int W = 0;
@@ -595,6 +597,9 @@ class Block final : public nn::Module {
       W = x.size(2);
       std::tie(x, pad_hw) = windowPartition(x, window_size_);
     }
+
+    print(x.shape(), H, W, pad_hw);
+    exit(0);
 
     x = attn_(x)[0];
 
@@ -617,7 +622,7 @@ class Blocks final : public nn::Module {
   Blocks(const std::string& name, int nums, const std::vector<int>& global_attn_indexes, const DpskOcrConfig& config)
       : nn::Module(name) {
     for (int i = 0; i < nums; ++i) {
-      bool is_in = std::find(global_attn_indexes.begin(), global_attn_indexes.end(), i) != global_attn_indexes.end();
+      bool is_in = std::find(global_attn_indexes.begin(), global_attn_indexes.end(), i) == global_attn_indexes.end();
       auto this_block_window_size = is_in ? 14 : 0;
       blocks_.emplace_back(reg<Block>(std::to_string(i), 768, 12, 4.0, true, true, this_block_window_size,
                                       std::make_optional(std::make_tuple(1024 / 16, 1024 / 16)), config));
