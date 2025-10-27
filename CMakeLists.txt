@@ -127,7 +127,7 @@ if(OPENCL)
         message(STATUS "OpenCL backend for Android enabled. Linking will be handled by the NDK toolchain.")
         add_definitions(-DUSE_OPENCL)
         add_definitions(-DMLLM_TARGET_ANDROID)
-        include_directories(${CMAKE_SOURCE_DIR}/src/backends/opencl/third_party/OpenCL-Headers)
+        include_directories(${CMAKE_SOURCE_DIR}/mllm/backends/opencl/third_party/OpenCL-Headers)
      
     else()
         # 对于非 Android 平台，保持原有的查找逻辑
@@ -183,20 +183,19 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATC
     endif()
 endif()
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm DIR_SRC)
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/express DIR_SRC_EXP)
 # directory for legacy code, which is not used in the current version(Graph,Net,Executor)
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/legacy DIR_SRC_LEGACY)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/legacy DIR_SRC_LEGACY)
 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/processor DIR_SRC_PROCESSOE)
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/processor DIR_SRC_PROCESSOE)
+aux_source_directory(${PROJECT_SOURCE_DIR}/mllm/memory DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPARTY_AUDIO)
 
-include_directories(${PROJECT_SOURCE_DIR}/src)
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/mllm)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 
@@ -204,21 +203,21 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 # You can remove those lines if you just want to build mllm instead dev on it.
 include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
 
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/cpu)
 
 
 if(OPENCL)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/opencl)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/opencl)
 endif()
 # =========
 
 if(QNN) # QNN lib
     include_directories(
         # $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
-        ${PROJECT_SOURCE_DIR}/src/backends/qnn/sdk/include/QNN # QNN SDK include
-        ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn
+        ${PROJECT_SOURCE_DIR}/mllm/backends/qnn/sdk/include/QNN # QNN SDK include
+        ${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn
     )   
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn)
 endif()
 
 option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
@@ -234,31 +233,31 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
     set(XNNPACK_BUILD_TESTS OFF)
     set(XNNPACK_BUILD_BENCHMARKS OFF)
     add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND=1)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/xnnpack)
 endif()
 
 # add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/*.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/*.hpp
 )
 
 # if compile to x86_64
 if(QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/tools/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/GemmPack.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmKleidiai.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ8.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ4.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ6.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ3.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ2.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/GemmPack.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/compute/GemmKleidiai.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ8.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ4.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ6.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ3.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/ggml/QuantizeQ2.cpp
     )
 
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
         # 配置 kleidiai 库路径
-        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/kleidiai)
+        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/mllm/backends/cpu/third_party/kleidiai)
         if(NOT EXISTS ${KLEIDIAI_SOURCE_DIR})
             message(FATAL_ERROR "kleidiai library not found! Please place it in 'third_party/kleidiai'.")
         endif()
@@ -308,7 +307,7 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/tools/quantizer/main_quantize.cpp
         ${MLLM_QUANT}
         ${MLLM_QUANTIZER}
-        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+        ${PROJECT_SOURCE_DIR}/mllm/ParamLoader.cpp
     )
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
         message(STATUS "AArch64/arm64 architecture detected. Applying FP16 compile options to the target.")
@@ -325,7 +324,7 @@ if(QUANT)
             ${MLLM_QUANTIZER}
 
             # ${DIR_SRC}
-            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+            ${PROJECT_SOURCE_DIR}/mllm/ParamLoader.cpp
         )
         target_link_libraries(from_gguf fmt::fmt-header-only)
     endif()
@@ -340,14 +339,14 @@ add_subdirectory(examples)
 if(APK)
     add_library(mllm_lib STATIC ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE} ${DIR_SRC_LEGACY}
         ${DIR_THIRDPARTY_AUDIO}
-        src/tokenizers/Tokenizer.cpp
+        mllm/tokenizers/Tokenizer.cpp
         tools/jni/LibHelper.cpp
-        src/tokenizers/Unigram/Unigram.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/Unicode.cpp
-        src/tokenizers/UnicodeData.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/WordPiece/WordPiece.cpp
+        mllm/tokenizers/Unigram/Unigram.cpp
+        mllm/tokenizers/BPE/Bpe.cpp
+        mllm/tokenizers/Unicode.cpp
+        mllm/tokenizers/UnicodeData.cpp
+        mllm/tokenizers/BPE/Bpe.cpp
+        mllm/tokenizers/WordPiece/WordPiece.cpp
     )
     target_link_libraries(mllm_lib mllm_cpu)
     if (OPENCL)

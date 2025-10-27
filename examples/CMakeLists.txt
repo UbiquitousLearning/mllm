@@ -3,17 +3,17 @@ set(COMMON_SRC
     ${DIR_SRC_MEM_MANAGER}
     ${DIR_SRC_EXP}
     ${DIR_SRC}
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tiktoken/tiktoken.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
-    ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/Tokenizer.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/BPE/Bpe.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/WordPiece/WordPiece.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/Tiktoken/tiktoken.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/Unicode.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/UnicodeData.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/processor/PreProcess.cpp
 )
 
 set(VLM_SPECIFIC_SRC
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Unigram/Unigram.cpp
+    ${PROJECT_SOURCE_DIR}/mllm/tokenizers/Unigram/Unigram.cpp
     ${DIR_SRC_PROCESSOE}
     ${DIR_THIRDPARTY_AUDIO}
 )

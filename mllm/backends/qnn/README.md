@@ -12,7 +12,7 @@ Version requirements:
 * QNN: [Linux v2.34+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
 * Hexagon SDK: [Linux 5.x](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
-**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/v2.34.0.250424` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
+**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/v2.34.0.250424` to `mllm/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `mllm/backends/qnn/sdk`.
 
 After downloading and installing the two SDKs use "qpm-cli", set up the sdk environment by running the following commands:
 
@@ -31,7 +31,7 @@ After setting up the environment, you will have following ENV variables:
 To use QNN offload, the CPU & HTP QNN op package are needed, the following scripts will build QNN op package needed by the project. `QNN_SDK_ROOT`, `HEXAGON_SDK_ROOT` and `ANDROID_NDK_ROOT` should be set in the environment.
 
 ```bash
-cd mllm/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
+cd mllm/mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
 make htp_aarch64 && make htp_v75
 ```
 
@@ -232,6 +232,6 @@ To enable LSP for HVX, you can set clangd path to `$HEXAGON_SDK_ROOT/tools/HEXAG
 Then you need to generate the `compile_commands.json` file for the Op package, you can use the following command:
 
 ```bash
-cd mllm/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
+cd mllm/mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
 compiledb make htp_v75 -C .
 ```

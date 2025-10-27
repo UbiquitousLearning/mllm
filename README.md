@@ -32,7 +32,7 @@ mllm is a lightweight, fast, and easy-to-use (multimodal) on-device LLM inferenc
 - [2024 November 21] Support new model: Phi 3 Vision https://github.com/UbiquitousLearning/mllm/pull/186
 - [2024 August 30] Support new model: MiniCPM 2B https://github.com/UbiquitousLearning/mllm/pull/132
 - [2024 August 15] Support new model: Phi 3 mini https://github.com/UbiquitousLearning/mllm/pull/119
-- [2024 Aug 10] Supporting Qualcomm NPU: https://github.com/UbiquitousLearning/mllm/pull/112 | [try it out](https://github.com/UbiquitousLearning/mllm/tree/main/src/backends/qnn) | [paper](https://arxiv.org/pdf/2407.05858v1)
+- [2024 Aug 10] Supporting Qualcomm NPU: https://github.com/UbiquitousLearning/mllm/pull/112 | [try it out](https://github.com/UbiquitousLearning/mllm/tree/main/mllm/backends/qnn) | [paper](https://arxiv.org/pdf/2407.05858v1)
 
 
 ### Contents
@@ -131,7 +131,7 @@ git clone https://github.com/UbiquitousLearning/mllm
 cd mllm
 git submodule update --init --recursive \
   third_party/googletest \
-  src/backends/cpu/third_party/kleidiai
+  mllm/backends/cpu/third_party/kleidiai
 ```
 
 ### Check prerequisites
@@ -149,7 +149,7 @@ Building mllm requires following tools:
 
 *`NOTE:` The QNN backend is preliminary version which can do end-to-end inference. It is still under active development for better performance and more supported models.*
 
-We support running several Qwen family models including Qwen-2-vl using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
+We support running several Qwen family models including Qwen-2-vl using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./mllm/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
 
 Specifically, we support the following models (similar architecture models are also supported):
 - Qwen 1.5 1.8B (demo_qwen_npu, demo_qwen_pipeline)
@@ -163,7 +163,7 @@ cd ../script
 ./build_qnn_android.sh
 ```
 
-Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions to download the model. You can also export Pytorch models for QNN backend with int8 weight quantization and apply rotation quantization. Details can be found in backend specific [README](./src/backends/qnn/README.md).
+Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions to download the model. You can also export Pytorch models for QNN backend with int8 weight quantization and apply rotation quantization. Details can be found in backend specific [README](./mllm/backends/qnn/README.md).
 
 ```bash
 mkdir ../models && cd ../models
@@ -172,7 +172,7 @@ wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1
 wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-q4k.mllm?download=true  -O qwen-1.5-1.8b-chat-q4k.mllm
 ```
 
-Currently, QNN backend uses models with W8A8 or W8A16 quantization. (It is determined by Quantize & Dequantize ops in modeling class, you can refer to `src/models/qwen/modeling_qwen_npu_v2.hpp` for more details.)
+Currently, QNN backend uses models with W8A8 or W8A16 quantization. (It is determined by Quantize & Dequantize ops in modeling class, you can refer to `mllm/models/qwen/modeling_qwen_npu_v2.hpp` for more details.)
 
 Run on an android phone with at least 16GB of memory as building the QNN graphs on device will consume a lot of memory. After building and saving QNN graphs to qnn_context.bin, the runtime memory usage will meet the expectation. The `demo_qwen_pipeline.cpp` will show the pipeline parallel execution for QNN models, which will nearly has 1.5x speedup compared with the original execution.
 

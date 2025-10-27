@@ -20,8 +20,8 @@ else
 fi
 
 if [ -z "$QNN_SDK_ROOT" ]; then
-    export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
-    # export HEXAGON_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/HexagonSDK/5.4.0
+    export QNN_SDK_ROOT=/root/research/dev/mllm/mllm/backends/qnn/sdk
+    # export HEXAGON_SDK_ROOT=/root/research/dev/mllm/mllm/backends/qnn/HexagonSDK/5.4.0
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
     # exit 1
 else 
@@ -29,7 +29,7 @@ else
 fi
 
 ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
-OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
+OP_PATH=../mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 
 adb push $ANDR_LIB/libQnnHtp.so $DEST

@@ -1,7 +1,7 @@
 adb shell mkdir -p /data/local/tmp/mllm/qnn-lib
 
 ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
-OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
+OP_PATH=../mllm/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 
 adb push $ANDR_LIB/libQnnHtp.so $DEST
