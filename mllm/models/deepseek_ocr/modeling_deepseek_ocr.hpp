@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <iostream>
 #include <optional>
 #include <algorithm>
 #include <filesystem>
@@ -476,9 +477,6 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
       if (nn::functional::sum(patches).item<float>() != 0) {
         // Local features
         auto local_features_1 = sam_model_(patches)[0];
-        print(local_features_1.shape());
-        print(local_features_1);
-        exit(0);
         auto local_features_2 = vision_model_(patches, local_features_1)[0];
         auto local_features = nn::functional::concat(
             {
@@ -616,7 +614,9 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
     }
 
     // Scatter copy.
-    if (images_in_this_batch) { nn::functional::maskedScatter(inputs_embeds, images_seq_mask, images_in_this_batch); }
+    if (images_in_this_batch) {
+      nn::functional::maskedScatter(inputs_embeds, images_seq_mask.unsqueeze(-1), images_in_this_batch);
+    }
 
     auto sequence = DeepSeekV2Model::forward({inputs_embeds, rope_embedding_sin, rope_embedding_cos}, args)[0];
 
@@ -897,7 +897,7 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
         [&](int64_t token_id) {
           auto decode = tokenizer.decode({token_id});
           result << decode;
-          fmt::print("{}", decode);
+          std::cout << decode << std::flush;
         });
     print("\n");  ///< flush
 
