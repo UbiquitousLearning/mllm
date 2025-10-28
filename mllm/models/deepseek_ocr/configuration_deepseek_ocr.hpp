@@ -96,6 +96,11 @@ struct DpskOcrConfig : protected ConfigFile {
     use_mla = data()["use_mla"];
     v_head_dim = data()["v_head_dim"];
     vocab_size = data()["vocab_size"];
+    clip_linear_impl_type = aops::str2LinearImplTypes(data()["clip_linear_impl_type"]);
+    llm_mlp_linear_impl_type = aops::str2LinearImplTypes(data()["llm_mlp_linear_impl_type"]);
+    lm_head_linear_impl_type = aops::str2LinearImplTypes(data()["lm_head_linear_impl_type"]);
+    mlp_projector_linear_impl_type = aops::str2LinearImplTypes(data()["mlp_projector_linear_impl_type"]);
+    sam_linear_impl_type = aops::str2LinearImplTypes(data()["sam_linear_impl_type"]);
   }
 
   // Nested structs for complex configuration

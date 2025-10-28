@@ -707,6 +707,9 @@ class ImageEncoderViT final : public nn::Module {
     x = x + getAbsPosSam(pos_embed_.weight(), x.size(1));
     for (auto& blk : blocks_.list()) { x = blk(x)[0]; }
 
+    print(x);
+    exit(0);
+
     x = neck_(x.permute({0, 3, 1, 2}))[0];
     x = net_2_(x);
     x = net_3_(x);

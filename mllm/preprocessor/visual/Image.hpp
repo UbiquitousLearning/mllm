@@ -28,7 +28,7 @@ class Image {
  public:
   static Image open(const std::string& fp);
 
-  Image resize(int new_w, int new_h);
+  Image resize(int new_w, int new_h, const std::string& method = "bilinear");
 
   // Crop the image with PIL-style box (left, upper, right, lower).
   // Out-of-bounds areas are padded with zeros. Returns a new Image.

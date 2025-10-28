@@ -40,6 +40,7 @@ option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
 # Performance components
 option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
+option(MLLM_TRACY_ENABLE "Enable Tracy. A more advanced profiler" OFF)
 
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")

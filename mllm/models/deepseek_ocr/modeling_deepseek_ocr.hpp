@@ -476,6 +476,9 @@ class DeepseekOCRModel final : public DeepSeekV2Model {
       if (nn::functional::sum(patches).item<float>() != 0) {
         // Local features
         auto local_features_1 = sam_model_(patches)[0];
+        print(local_features_1.shape());
+        print(local_features_1);
+        exit(0);
         auto local_features_2 = vision_model_(patches, local_features_1)[0];
         auto local_features = nn::functional::concat(
             {

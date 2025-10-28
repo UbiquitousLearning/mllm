@@ -39,7 +39,7 @@ Image Image::open(const std::string& fp) {
   return ret_image;
 }
 
-Image Image::resize(int new_w, int new_h) {
+Image Image::resize(int new_w, int new_h, const std::string& method) {
   Image new_img;
   new_img.w_ = new_w;
   new_img.h_ = new_h;
@@ -47,9 +47,14 @@ Image Image::resize(int new_w, int new_h) {
 
   unsigned char* output_data = nullptr;
 
-  // stb will alloc memory for us
-  output_data = stbir_resize_uint8_linear(static_cast<unsigned char*>(image_ptr_->ptr_), w_, h_, 0, output_data, new_w, new_h,
-                                          0, STBIR_RGB);
+  if (method == "bilinear") {
+    // stb will alloc memory for us
+    output_data = stbir_resize_uint8_linear(static_cast<unsigned char*>(image_ptr_->ptr_), w_, h_, 0, output_data, new_w, new_h,
+                                            0, STBIR_RGB);
+  } else if (method == "bicubic") {
+    output_data = (unsigned char*)stbir_resize(static_cast<const void*>(image_ptr_->ptr_), w_, h_, 0, (void*)output_data, new_w,
+                                               new_h, 0, STBIR_RGB, STBIR_TYPE_UINT8, STBIR_EDGE_CLAMP, STBIR_FILTER_MITCHELL);
+  }
 
   new_img.image_ptr_ = std::make_shared<_ImagePtr>();
   new_img.image_ptr_->ptr_ = output_data;
@@ -164,7 +169,7 @@ Image Image::pad(int target_w, int target_h, unsigned char r, unsigned char g, u
   new_h = std::max(1, new_h);
 
   // Resize current image to the computed size
-  Image resized = this->resize(new_w, new_h);
+  Image resized = this->resize(new_w, new_h, "bicubic");
 
   // Prepare output canvas filled with color
   Image out;
@@ -192,10 +197,12 @@ Image Image::pad(int target_w, int target_h, unsigned char r, unsigned char g, u
   // Blit resized image onto the canvas
   for (int y = 0; y < new_h; ++y) {
     const int dy = offset_y + y;
+    if (dy < 0 || dy >= target_h) continue;
     for (int x = 0; x < new_w; ++x) {
       const int dx = offset_x + x;
-      unsigned char* dst_px = canvas + (static_cast<size_t>(dy) * target_w + dx) * out.c_;
-      const unsigned char* src_px = src + (static_cast<size_t>(y) * new_w + x) * resized.c_;
+      if (dx < 0 || dx >= target_w) continue;
+      unsigned char* dst_px = canvas + (static_cast<size_t>(dy) * target_w + dx) * 3;
+      const unsigned char* src_px = src + (static_cast<size_t>(y) * new_w + x) * 3;
       dst_px[0] = src_px[0];
       dst_px[1] = src_px[1];
       dst_px[2] = src_px[2];

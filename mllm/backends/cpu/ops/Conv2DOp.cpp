@@ -76,10 +76,14 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto& dilation = options_.dilation;
 
   MLLM_RT_ASSERT_EQ(input.rank(), 4);
+  MLLM_RT_ASSERT_EQ(output.rank(), 4);
   auto batch_size = input.size(0);
   auto _1 = input.size(1);
   auto _2 = input.size(2);
   auto _3 = input.size(3);
+  auto _out_1 = output.size(1);
+  auto _out_2 = output.size(2);
+  auto _out_3 = output.size(3);
 
   switch (input.dtype()) {
     case kFloat32: {
@@ -115,12 +119,13 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
             switch (mt) {  // NOLINT
               case aops::MatMulOpType::kBLAS: {
 #if defined(MLLM_USE_BLAS)
-                blas::matmul_fp32(weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(),
-                                  nullptr, MATMUL_M, MATMUL_N, MATMUL_K, false, false);
+                blas::matmul_fp32(weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(),
+                                  output.ptr<mllm_fp32_t>() + _b_idx * (_out_1 * _out_2 * _out_3), nullptr, MATMUL_M, MATMUL_N,
+                                  MATMUL_K, false, false);
 
                 // Add Bias
                 if (options_.bias) {
-                  auto out_ptr = output.ptr<mllm_fp32_t>();
+                  auto out_ptr = output.ptr<mllm_fp32_t>() + _b_idx * (_out_1 * _out_2 * _out_3);
                   const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
                   for (int m = 0; m < MATMUL_M; ++m) {
                     const float b = bias_ptr[m];
@@ -135,11 +140,12 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
               case aops::MatMulOpType::kMllmBlas: {
                 auto thread_count = options_.getThreads();
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-                arm::mllm_blas_matmul_fp32(MATMUL_M, MATMUL_K, MATMUL_N, output.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
-                                           packed_inputs.ptr<mllm_fp32_t>(), nullptr, false, false, thread_count);
+                arm::mllm_blas_matmul_fp32(
+                    MATMUL_M, MATMUL_K, MATMUL_N, output.ptr<mllm_fp32_t>() + _b_idx * (_out_1 * _out_2 * _out_3),
+                    weight_.ptr<mllm_fp32_t>(), packed_inputs.ptr<mllm_fp32_t>(), nullptr, false, false, thread_count);
                 // Add Bias
                 if (options_.bias) {
-                  auto out_ptr = output.ptr<mllm_fp32_t>();
+                  auto out_ptr = output.ptr<mllm_fp32_t>() + _b_idx * (_out_1 * _out_2 * _out_3);
                   const auto bias_ptr = bias_.ptr<mllm_fp32_t>();
                   for (int m = 0; m < MATMUL_M; ++m) {
                     const float b = bias_ptr[m];
@@ -158,7 +164,6 @@ void CPUConv2DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #else
             MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unsupported architecture for perform im2col conv2d.");
 #endif
-            break;
           }
         }
       }
