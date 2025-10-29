@@ -802,7 +802,7 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
         } else if (base_size == 1280) {
           valid_img_tokens += (int)(400 * ratio);
         } else {
-          MLLM_RT_ASSERT(false);
+          // Just resize. for 512 and 640
         }
 
         images_list.emplace_back(image_transform(global_view));
@@ -903,6 +903,7 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
           std::cout << decode << std::flush;
         });
     print("\n");  ///< flush
+    perfSummary();
 
     // Post process data
     // TODO
