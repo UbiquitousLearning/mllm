@@ -1,3 +1,19 @@
-add_executable(mllm-minicpm-o main.cpp)
-target_link_libraries(mllm-minicpm-o PRIVATE MllmRT MllmCPUBackend)
-target_include_directories(mllm-minicpm-o PRIVATE ${MLLM_INCLUDE_DIR})
+cmake_minimum_required(VERSION 3.10)
+include_directories($ENV{HOME}/local/include)
+link_directories($ENV{HOME}/local/lib)
+
+add_executable(main_minicpm_o main.cpp)
+target_link_libraries(main_minicpm_o PRIVATE MllmRT MllmCPUBackend cnpy z)
+target_include_directories(main_minicpm_o PRIVATE ${MLLM_INCLUDE_DIR})
+
+add_executable(main_minicpm_o2 mainllm.cpp)
+target_link_libraries(main_minicpm_o2 PRIVATE MllmRT MllmCPUBackend cnpy z)
+target_include_directories(main_minicpm_o2 PRIVATE ${MLLM_INCLUDE_DIR})
+
+add_executable(main_minicpm_dbg main_dbg.cpp)
+target_link_libraries(main_minicpm_dbg PRIVATE MllmRT MllmCPUBackend cnpy z)
+target_include_directories(main_minicpm_dbg PRIVATE ${MLLM_INCLUDE_DIR})
+
+add_executable(tokenizer_test tokenizer_test.cpp)
+target_link_libraries(tokenizer_test PRIVATE MllmRT MllmCPUBackend)
+target_include_directories(tokenizer_test PRIVATE ${MLLM_INCLUDE_DIR})
