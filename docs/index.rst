@@ -324,6 +324,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   service/index
+
+.. toctree::
+   :maxdepth: 2
+
    arch/index
 
 .. toctree::
