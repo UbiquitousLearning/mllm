@@ -105,3 +105,8 @@ if(MLLM_BUILD_CUDA_BACKEND)
     MLLM_CUDA_BACKEND
   )
 endif()
+
+# Extension
+if(MLLM_EXT_ENABLE)
+  add_subdirectory(ext)
+endif()

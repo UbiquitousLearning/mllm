@@ -64,7 +64,15 @@ class ExpOp;
 class SinOp;
 class CosOp;
 class PagedAttnOp;
-
+class LayerNorm2DOp;
+class PadOp;
+class InterpolateOp;
+class EinsumOp;
+class StackOp;
+class MaskedScatterOp;
+class ScatterOp;
+class GatherOp;
+class ArgsortOp;
 class CustomizedOp;
 }  // namespace mllm
 
@@ -215,6 +223,16 @@ LINALG_AOPS_DEFINE(TopKOp, TOPKOP);
 LINALG_AOPS_DEFINE(MeanOp, MEANOP);
 LINALG_AOPS_DEFINE(ClipOp, CLIPOP);
 LINALG_AOPS_DEFINE(PagedAttnOp, PAGEDATTNOP);
+
+LINALG_AOPS_DEFINE(LayerNorm2DOp, LAYERNORM2DOP);
+LINALG_AOPS_DEFINE(PadOp, PADOP);
+LINALG_AOPS_DEFINE(InterpolateOp, INTERPOLATEOP);
+LINALG_AOPS_DEFINE(EinsumOp, EINSUMOP);
+LINALG_AOPS_DEFINE(StackOp, STACKOP);
+LINALG_AOPS_DEFINE(MaskedScatterOp, MASKEDSCATTEROP);
+LINALG_AOPS_DEFINE(ScatterOp, SCATTEROP);
+LINALG_AOPS_DEFINE(GatherOp, GATHEROP);
+LINALG_AOPS_DEFINE(ArgsortOp, ARGSORTOP);
 
 /**
  * @brief CustomizedOp: A generic operation type for implementing backend-specific operations

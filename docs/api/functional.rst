@@ -78,6 +78,36 @@ Shape Operations
    :param dim: Dimension along which to concatenate
    :return: Concatenated tensor
 
+.. cpp:function:: Tensor mllm::nn::functional::pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode = aops::PadMode::kConstant, float value = 0.0f)
+
+   Pad a tensor along the last N dimensions as specified.
+
+   :param x: Input tensor
+   :param pad: Padding sizes ordered from the last dimension to the first, e.g. [last_left, last_right, ..., first_left, first_right]
+   :param mode: Padding mode (kConstant, kReflect, kReplicate, kCircular). Default: kConstant
+   :param value: Constant value used when mode is kConstant. Default: 0.0
+   :return: Padded tensor
+
+.. cpp:function:: Tensor mllm::nn::functional::interpolate(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false, bool antialias = false)
+
+   Resize a tensor to the target spatial size.
+
+   :param x: Input tensor (supports 1D/2D/3D spatial resizing depending on mode)
+   :param size: Target spatial size (e.g., [H_out, W_out] for 2D)
+   :param mode: Interpolation mode (kNearest, kLinear, kBilinear, kBicubic, kTrilinear). Default: kNearest
+   :param align_corners: Align corners for linear/bilinear/trilinear interpolation. Default: false
+      :return: Resized tensor
+
+.. cpp:function:: Tensor mllm::nn::functional::interpolate(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode = aops::InterpolateOpMode::kNearest, bool align_corners = false)
+
+   Resize a tensor by scale factors per spatial dimension.
+
+   :param x: Input tensor (supports 1D/2D/3D spatial resizing depending on mode)
+   :param scale_factor: Scale factors per spatial dimension (e.g., [sh, sw] for 2D)
+   :param mode: Interpolation mode (kNearest, kLinear, kBilinear, kBicubic, kTrilinear). Default: kNearest
+   :param align_corners: Align corners for linear/bilinear/trilinear interpolation. Default: false
+   :return: Resized tensor
+
 Attention Operations
 --------------------
 

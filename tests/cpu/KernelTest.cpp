@@ -838,6 +838,128 @@ TEST_F(FlashAttn2KernelTest, fwd_bshd) {
 }
 #endif
 
+//===----------------------------------------------------------------------===//
+// Conv2D Test
+//
+// auto in_channel = cfg.at("in_channel");
+// auto out_channel = cfg.at("out_channel");
+// auto I_H = cfg.at("I_H");
+// auto I_W = cfg.at("I_W");
+// auto K_H = cfg.at("K_H");
+// auto K_W = cfg.at("K_W");
+// auto S_H = cfg.at("S_H");
+// auto S_W = cfg.at("S_W");
+// auto P_H = cfg.at("P_H");
+// auto P_W = cfg.at("P_W");
+// auto bias = cfg.at("bias");
+//
+// In deepseek-ocr we have
+// CASE 1:
+//  in_channel = 3
+//  out_channel = 1024
+//  I_H = 224
+//  I_W = 224
+//  K_H = 14
+//  K_W = 14
+//  S_H = 14
+//  S_W = 14
+//  P_H = 0
+//  P_W = 0
+//  bias = false
+// CASE 2:
+//
+//===----------------------------------------------------------------------===//
+#include "Conv2DKernelTest.hpp"
+TEST_F(Conv2DKernelTest, im2col) {
+  EXPECT_EQ(testConv2D({
+                // CLIP patch embedding
+                {
+                    {"in_channel", 3},
+                    {"out_channel", 1024},
+                    {"I_H", 224},
+                    {"I_W", 224},
+                    {"K_H", 14},
+                    {"K_W", 14},
+                    {"S_H", 14},
+                    {"S_W", 14},
+                    {"P_H", 0},
+                    {"P_W", 0},
+                    {"bias", 0},
+                },
+                // SAM PatchEmbed.proj
+                {
+                    {"in_channel", 3},
+                    {"out_channel", 768},
+                    {"I_H", 1024},
+                    {"I_W", 1024},
+                    {"K_H", 16},
+                    {"K_W", 16},
+                    {"S_H", 16},
+                    {"S_W", 16},
+                    {"P_H", 0},
+                    {"P_W", 0},
+                    {"bias", 1},
+                },
+                // neck: Conv2D(768 -> 12, 1x1, stride=1, pad=0, bias=false)
+                {
+                    {"in_channel", 768},
+                    {"out_channel", 12},
+                    {"I_H", 64},
+                    {"I_W", 64},
+                    {"K_H", 1},
+                    {"K_W", 1},
+                    {"S_H", 1},
+                    {"S_W", 1},
+                    {"P_H", 0},
+                    {"P_W", 0},
+                    {"bias", 0},
+                },
+                // neck: Conv2D(256 -> 256, 3x3, stride=1, pad=1, bias=false)
+                {
+                    {"in_channel", 256},
+                    {"out_channel", 256},
+                    {"I_H", 64},
+                    {"I_W", 64},
+                    {"K_H", 3},
+                    {"K_W", 3},
+                    {"S_H", 1},
+                    {"S_W", 1},
+                    {"P_H", 1},
+                    {"P_W", 1},
+                    {"bias", 0},
+                },
+                // net_2_: Conv2D(256 -> 512, 3x3, stride=2, pad=1, bias=false)
+                {
+                    {"in_channel", 256},
+                    {"out_channel", 512},
+                    {"I_H", 64},
+                    {"I_W", 64},
+                    {"K_H", 3},
+                    {"K_W", 3},
+                    {"S_H", 2},
+                    {"S_W", 2},
+                    {"P_H", 1},
+                    {"P_W", 1},
+                    {"bias", 0},
+                },
+                // net_3_: Conv2D(512 -> 1024, 3x3, stride=2, pad=1, bias=false)
+                {
+                    {"in_channel", 512},
+                    {"out_channel", 1024},
+                    {"I_H", 32},
+                    {"I_W", 32},
+                    {"K_H", 3},
+                    {"K_W", 3},
+                    {"S_H", 2},
+                    {"S_W", 2},
+                    {"P_H", 1},
+                    {"P_W", 1},
+                    {"bias", 0},
+                },
+            }),
+            true);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

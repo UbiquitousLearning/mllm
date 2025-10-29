@@ -272,6 +272,15 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("SinOp"))
     op.derive(Cls("CosOp"))
     op.derive(Cls("PagedAttnOp"))
+    op.derive(Cls("LayerNorm2DOp"))
+    op.derive(Cls("PadOp"))
+    op.derive(Cls("InterpolateOp"))
+    op.derive(Cls("EinsumOp"))
+    op.derive(Cls("StackOp"))
+    op.derive(Cls("MaskedScatterOp"))
+    op.derive(Cls("ScatterOp"))
+    op.derive(Cls("GatherOp"))
+    op.derive(Cls("ArgsortOp"))
 
     # customized ops
     op.derive(Cls("CustomizedOp"))

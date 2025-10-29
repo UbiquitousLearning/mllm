@@ -21,3 +21,11 @@
 [submodule "mllm/ffi/vendors/tvm-ffi"]
 	path = mllm/ffi/vendors/tvm-ffi
 	url = https://github.com/apache/tvm-ffi
+[submodule "mllm/ext/vendors/llvm-project"]
+	path = mllm/ext/vendors/llvm-project
+	url = https://github.com/llvm/llvm-project
+	update = none
+[submodule "mllm/ext/vendors/tokenizers"]
+	path = mllm/ext/vendors/tokenizers
+	url = https://github.com/meta-pytorch/tokenizers.git
+	update = none

@@ -176,6 +176,14 @@ class Tensor {
   static Tensor empty(const std::vector<int32_t>& shape, DataTypes dtype = kFloat32, DeviceTypes device = kCPU);
 
   /**
+   * @brief Creates an uninitialized tensor with the same shape and attributes as another tensor.
+   *
+   * @param liked_tensor
+   * @return Tensor
+   */
+  static Tensor emptyLike(const Tensor& liked_tensor);
+
+  /**
    * @brief If this tensor is not initialized
    *
    * @note explicit must be set to avoid auto i = tensor. But i is set as bool type.
@@ -267,6 +275,8 @@ class Tensor {
   Tensor operator/(const Tensor& rhs);
   /// @}
 
+  Tensor mul_(const Tensor& rhs);
+
   /// @name Scalar Operations
   /// Element-wise operations with scalar values.
   /// @{
@@ -295,6 +305,15 @@ class Tensor {
    * @return Tensor with absolute values
    */
   Tensor abs();
+
+  /**
+   * @brief Argsort
+   *
+   * @param dim
+   * @param descending
+   * @return Tensor
+   */
+  Tensor argsort(int dim = -1, bool descending = false);
 
   /**
    * @brief Clips (limits) the values in a tensor.
@@ -483,6 +502,14 @@ class Tensor {
   [[nodiscard]] bool isContiguousN(int n) const;
 
   /**
+   * @brief
+   *
+   * @param id
+   * @return int32_t
+   */
+  [[nodiscard]] int32_t size(int32_t id) const;
+
+  /**
    * @brief Creates contiguous copy if non-contiguous.
    * @return Contiguous tensor (may be a view or copy).
    */
@@ -527,6 +554,14 @@ class Tensor {
    * @return Tensor
    */
   Tensor squeeze(int32_t dim = 0x7fffffff);
+
+  /**
+   * @brief
+   *
+   * @param dim
+   * @return Tensor
+   */
+  Tensor flatten(int32_t dim = 0x7fffffff);
 
   /**
    * @brief clone a tensor
@@ -623,6 +658,12 @@ class Tensor {
   T& at(const std::vector<int32_t>& offsets) {
     return *(offsettedPtr<T>(offsets));
   }
+
+  template<typename T>
+  T item() const {
+    MLLM_RT_ASSERT_EQ(numel(), 1);
+    return *(ptr<T>());
+  };
 
   /**
    * @brief Accesses a tensor element at specified coordinates (const version).

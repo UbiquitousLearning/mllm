@@ -23,6 +23,7 @@
 #include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/X2XOp.hpp"
+#include "mllm/core/aops/ArgsortOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -70,6 +71,11 @@ Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceT
   auto storage = TensorStorage::create(shape, dtype, device);
   auto impl = TensorViewImpl::create(shape, storage);
   return Tensor(impl);
+}
+
+Tensor Tensor::emptyLike(const Tensor& liked_tensor) {
+  auto ret = Tensor::empty(liked_tensor.shape(), liked_tensor.dtype(), liked_tensor.device());
+  return ret;
 }
 
 Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const std::vector<int32_t>& shape, DataTypes dtype,
@@ -129,6 +135,12 @@ Tensor Tensor::operator*(const Tensor& rhs) {
 
 Tensor Tensor::operator/(const Tensor& rhs) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs})[0];
+}
+
+Tensor Tensor::mul_(const Tensor& rhs) {
+  auto opts = aops::MulOpOptions{};
+  opts.setInplace(true);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator+(float rhs) {
@@ -244,6 +256,11 @@ Tensor Tensor::operator/(std::complex<float> rhs) {
 }
 
 Tensor Tensor::abs() { return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0]; }
+
+Tensor Tensor::argsort(int dim, bool descending) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kArgsort,
+                                                  aops::ArgsortOpOptions{.dim = dim, .descending = descending}, {*this})[0];
+}
 
 Tensor Tensor::clip(float min_val, float max_val) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kClip, aops::ClipOpOptions{.min_val = min_val, .max_val = max_val},
@@ -364,6 +381,12 @@ bool Tensor::isContiguous() const { return impl()->isContiguous(); }
 
 bool Tensor::isContiguousN(int n) const { return impl()->isContiguousN(n); }
 
+int32_t Tensor::size(int32_t id) const {
+  auto nid = id;
+  if (id < 0) { nid = static_cast<int32_t>(rank()) + id; }
+  return shape()[nid];
+}
+
 Tensor Tensor::contiguous() {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kContiguous, aops::ContiguousOpOptions{}, {*this})[0];
 }
@@ -378,11 +401,13 @@ Tensor Tensor::view(const Tensor::shape_t& indicies) {
 
 Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
   if (multiplier == 1) { return *this; }
+  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim; }
   return Context::instance().buildOpAndSubmitTask(OpTypes::kRepeat,
                                                   aops::RepeatOpOptions{.dim = dim, .repeat_times = multiplier}, {*this})[0];
 }
 
 Tensor Tensor::unsqueeze(int32_t dim) {
+  if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim + 1; }
   auto this_shape = shape();
   this_shape.insert(this_shape.begin() + dim, 1);
   return view(this_shape);
@@ -421,6 +446,33 @@ Tensor Tensor::squeeze(int32_t dim) {
     // If specified dimension does not have size 1, return original tensor
     return *this;
   }
+}
+
+Tensor Tensor::flatten(int32_t dim) {
+  const auto old_shape = shape();
+  const int32_t ndim = static_cast<int32_t>(old_shape.size());
+
+  if (dim == 0x7fffffff) {
+    int32_t total = 1;
+    for (auto s : old_shape) total *= s;
+    return view({total});
+  }
+
+  if (ndim == 0) return view({1});
+
+  if (dim < 0) dim += ndim;
+  if (dim < 0 || dim >= ndim) throw std::out_of_range("flatten dim out of range");
+
+  std::vector<int32_t> new_shape;
+  new_shape.reserve(dim + 1);
+
+  for (int32_t i = 0; i < dim; ++i) new_shape.push_back(old_shape[i]);
+
+  int32_t flatten_size = 1;
+  for (int32_t i = dim; i < ndim; ++i) flatten_size *= old_shape[i];
+  new_shape.push_back(flatten_size);
+
+  return view(new_shape);
 }
 
 Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }

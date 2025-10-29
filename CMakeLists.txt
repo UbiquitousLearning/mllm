@@ -22,6 +22,11 @@ option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
+# Extension Enable
+option(MLLM_EXT_ENABLE OFF)
+option(MLLM_EXT_ENABLE_LLVM_PROJECT OFF)
+option(MLLM_EXT_ENABLE_META_TORCH_TOKENIZERS OFF)
+
 # CPU Backend: BLAS
 option(MLLM_USE_BLAS "Enable BLAS" OFF)
 option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
@@ -35,6 +40,7 @@ option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
 # Performance components
 option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
+option(MLLM_TRACY_ENABLE "Enable Tracy. A more advanced profiler" OFF)
 
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
@@ -206,6 +212,7 @@ set(MLLM_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/half/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/xxHash/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/utfcpp/include>
     $<INSTALL_INTERFACE:include/mllm>
     $<INSTALL_INTERFACE:include/third_party/>)
 set(MLLM_JSON_INCLUDE_DIR
@@ -310,6 +317,13 @@ install(
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/dlpack/include/dlpack/
   DESTINATION include/dlpack/
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp")
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/utfcpp/include/utfcpp/
+  DESTINATION include/utfcpp/
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp")

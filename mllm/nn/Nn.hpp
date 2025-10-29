@@ -17,6 +17,7 @@
 #include "mllm/nn/layers/LayerNorm.hpp"       // IWYU pragma: export
 #include "mllm/nn/layers/Softmax.hpp"         // IWYU pragma: export
 #include "mllm/nn/layers/VisionRoPE.hpp"      // IWYU pragma: export
+#include "mllm/nn/layers/Conv2D.hpp"          // IWYU pragma: export
 #include "mllm/nn/layers/Conv3D.hpp"          // IWYU pragma: export
 #include "mllm/nn/layers/CausalMask.hpp"      // IWYU pragma: export
 #include "mllm/nn/layers/RoPE.hpp"            // IWYU pragma: export
@@ -27,3 +28,4 @@
 #include "mllm/nn/layers/STFT.hpp"            // IWYU pragma: export
 #include "mllm/nn/layers/PagedAttn.hpp"       // IWYU pragma: export
 #include "mllm/nn/layers/RadixAttn.hpp"       // IWYU pragma: export
+#include "mllm/nn/layers/LayerNorm2D.hpp"     // IWYU pragma: export

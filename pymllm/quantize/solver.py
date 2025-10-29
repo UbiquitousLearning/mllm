@@ -25,6 +25,9 @@ class QuantizeSolver:
     def stream_quantize_params_size(
         self, quant_cfg, tensor_dict: Dict, **kwargs
     ) -> int:
+        if quant_cfg is None:
+            quant_cfg = {}
+
         param_groups: Dict[str, List[Any, Dict]] = {}
         for k, v in quant_cfg.items():
             sub_group: Dict[str, QuantizePlanPayload] = {}
@@ -78,6 +81,9 @@ class QuantizeSolver:
             raise NotImplementedError(
                 "stream_quantize only support type: ModelFileV2 currently."
             )
+
+        if quant_cfg is None:
+            quant_cfg = {}
 
         # Planning
         param_groups: Dict[str, List[Any, Dict]] = {}

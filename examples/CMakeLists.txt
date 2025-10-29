@@ -6,8 +6,7 @@ add_subdirectory(llama)
 add_subdirectory(minicpm_o)
 add_subdirectory(qwen3)
 add_subdirectory(qwen3_service)
-
+add_subdirectory(deepseek_ocr)
 if(MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen_npu)
 endif()
-

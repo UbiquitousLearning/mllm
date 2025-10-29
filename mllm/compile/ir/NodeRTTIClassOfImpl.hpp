@@ -1,4 +1,5 @@
-// Auto generated: 2025-10-21 10:57:29
+// Auto generated: 2025-10-27 11:05:42
+
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -182,6 +183,34 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_PAGEDATTNOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_PagedAttnOp && (v)->getKind() <= RK_Op_LinalgIROp_PagedAttnOp
+
+
+#define RTTI_RK_OP_LINALGIROP_LAYERNORM2DOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_LayerNorm2DOp && (v)->getKind() <= RK_Op_LinalgIROp_LayerNorm2DOp
+
+#define RTTI_RK_OP_LINALGIROP_PADOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_PadOp && (v)->getKind() <= RK_Op_LinalgIROp_PadOp
+
+#define RTTI_RK_OP_LINALGIROP_INTERPOLATEOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_InterpolateOp && (v)->getKind() <= RK_Op_LinalgIROp_InterpolateOp
+
+#define RTTI_RK_OP_LINALGIROP_EINSUMOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_EinsumOp && (v)->getKind() <= RK_Op_LinalgIROp_EinsumOp
+
+#define RTTI_RK_OP_LINALGIROP_STACKOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_StackOp && (v)->getKind() <= RK_Op_LinalgIROp_StackOp
+
+#define RTTI_RK_OP_LINALGIROP_MASKEDSCATTEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_MaskedScatterOp && (v)->getKind() <= RK_Op_LinalgIROp_MaskedScatterOp
+
+#define RTTI_RK_OP_LINALGIROP_SCATTEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ScatterOp && (v)->getKind() <= RK_Op_LinalgIROp_ScatterOp
+
+#define RTTI_RK_OP_LINALGIROP_GATHEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_GatherOp && (v)->getKind() <= RK_Op_LinalgIROp_GatherOp
+
+#define RTTI_RK_OP_LINALGIROP_ARGSORTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ArgsortOp && (v)->getKind() <= RK_Op_LinalgIROp_ArgsortOp
 
 #define RTTI_RK_OP_LINALGIROP_CUSTOMIZEDOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_CustomizedOp && (v)->getKind() <= RK_Op_LinalgIROp_CustomizedOp

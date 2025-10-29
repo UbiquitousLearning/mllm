@@ -102,6 +102,18 @@ LINALG_AOPS_DECL(OpTypes::kMean, MeanOp);
 LINALG_AOPS_DECL(OpTypes::kClip, ClipOp);
 LINALG_AOPS_DECL(OpTypes::kPagedAttn, PagedAttnOp);
 
+
+LINALG_AOPS_DECL(OpTypes::kLayerNorm2D, LayerNorm2DOp);
+LINALG_AOPS_DECL(OpTypes::kPad, PadOp);
+LINALG_AOPS_DECL(OpTypes::kInterpolate, InterpolateOp);
+LINALG_AOPS_DECL(OpTypes::kEinsum, EinsumOp);
+LINALG_AOPS_DECL(OpTypes::kStack, StackOp);
+LINALG_AOPS_DECL(OpTypes::kMaskedScatter, MaskedScatterOp);
+
+LINALG_AOPS_DECL(OpTypes::kScatter, ScatterOp);
+LINALG_AOPS_DECL(OpTypes::kGather, GatherOp);
+LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
+
 // special implementation for CustomizedOp
 CustomizedOp ::~CustomizedOp() = default;
 CustomizedOp ::CustomizedOp(const BaseOp ::ptr_t& aop) : LinalgIROp(RK_Op_LinalgIROp_CustomizedOp) {

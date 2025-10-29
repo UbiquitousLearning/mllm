@@ -14,6 +14,10 @@
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/core/aops/SiLUOp.hpp"
+#include "mllm/core/aops/PadOp.hpp"
+#include "mllm/core/aops/MaskedScatterOp.hpp"
+#include "mllm/core/aops/InterpolateOp.hpp"
+#include "mllm/core/aops/StackOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -40,6 +44,10 @@ std::vector<Tensor> split(const Tensor& x, const std::vector<int32_t>& split_siz
 
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kConcat, aops::ConcatOpOptions{.dim = dim}, ins)[0];
+}
+
+Tensor stack(const std::vector<Tensor>& ins, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kStack, aops::StackOpOptions{.dim = dim}, ins)[0];
 }
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V) {
@@ -116,6 +124,44 @@ Tensor silu_(const Tensor& x) {
 void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim) {
   Context::instance().buildOpAndSubmitTask(OpTypes::kScatter2Shards, aops::Scatter2ShardsOpOptions{.dim = dim},
                                            {src, shards_pointer});
+}
+
+Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor& V, const Tensor& mask) {
+  float scale = Q.size(-1);
+  scale = (1.f / std::sqrtf((float)scale));
+  auto attn_weight = matmul(Q, K, false, true) * scale;
+  if (mask) { attn_weight = attn_weight + mask; }
+  attn_weight = softmax(attn_weight, -1);
+  return matmul(attn_weight, V);
+}
+
+Tensor pad(const Tensor& x, const std::vector<int32_t>& pad, aops::PadMode mode, float value) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kPad, aops::PadOpOptions{.pad = pad, .mode = mode, .value = value},
+                                                  {x})[0];
+}
+
+Tensor interpolateBySize(const Tensor& x, const std::vector<int32_t>& size, aops::InterpolateOpMode mode, bool align_corners,
+                         bool antialias) {
+  aops::InterpolateOpOptions opts{};
+  opts.size.assign(size.begin(), size.end());
+  opts.mode = mode;
+  opts.align_corners = align_corners;
+  opts.antialias = antialias;
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
+}
+
+Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_factor, aops::InterpolateOpMode mode,
+                          bool align_corners, bool antialias) {
+  aops::InterpolateOpOptions opts{};
+  opts.scale_factor = scale_factor;
+  opts.mode = mode;
+  opts.align_corners = align_corners;
+  opts.antialias = antialias;
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kInterpolate, opts, {x})[0];
+}
+
+void maskedScatter(const Tensor& dst, const Tensor& mask, const Tensor& src) {
+  Context::instance().buildOpAndSubmitTask(OpTypes::kMaskedScatter, aops::MaskedScatterOpOptions{}, {dst, mask, src});
 }
 
 }  // namespace mllm::nn::functional

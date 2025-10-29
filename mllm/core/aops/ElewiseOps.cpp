@@ -47,6 +47,10 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     MLLM_WARN(#name "::forward is not implemented");                                                       \
   }                                                                                                        \
   void name::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {                    \
+    if (options_.isInplace()) {                                                                            \
+      outputs.emplace_back(inputs[0]);                                                                     \
+      return;                                                                                              \
+    }                                                                                                      \
     std::vector<std::vector<int>> input_shapes;                                                            \
     input_shapes.reserve(inputs.size());                                                                   \
     for (const auto& input : inputs) { input_shapes.push_back(input.shape()); }                            \
@@ -58,7 +62,10 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     }                                                                                                      \
     outputs.emplace_back(output_0);                                                                        \
   }                                                                                                        \
-  void name::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+  void name::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {                      \
+    if (options_.isInplace()) { return; }                                                                  \
+    BaseOp::setup(inputs, outputs);                                                                        \
+  }
 
 // for unary ops, reshape don't consider shape broadcast, and dtype of output needs to be handled for Abs op
 #define __MLLM_ELEWISE_UNARY_OP_IMPL(types, name)                                                          \
