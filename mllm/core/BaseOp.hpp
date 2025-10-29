@@ -74,7 +74,7 @@ class BaseOpOptions {
  private:
   bool inplace_ = false;
   bool redirect_ = false;
-  int threads_ = 4;
+  int threads_ = 8;
   std::vector<DataTypes> inputs_dtypes_;
   std::vector<DataTypes> outputs_dtypes_;
   std::vector<uint8_t> inputs_constant_;

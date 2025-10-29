@@ -18,5 +18,5 @@ MLLM_MAIN({
   auto tokenizer = mllm::models::deepseek_ocr::DpskOcrTokenizer(tokenizer_path.get());
   model.load(mllm::load(model_path.get(), mllm::ModelFileVersion::kV2));
 
-  model.infer(tokenizer, "<image>\n<|grounding|>Convert the document to markdown. ", "dpsk-ocr-pr.png", ".");
+  model.infer(tokenizer, "<image>\n<|grounding|>Convert the document to markdown. ", "dpsk-ocr-640-640.png", ".", 512);
 });
