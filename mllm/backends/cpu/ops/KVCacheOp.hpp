@@ -17,6 +17,8 @@ class CPUKVCacheOp final : public aops::KVCacheOp {
 
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  void clearCache() override;
+
  private:
   nn::StaticCache cache_;
 };

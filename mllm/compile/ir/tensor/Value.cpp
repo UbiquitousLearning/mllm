@@ -76,6 +76,8 @@ void TensorValue::dump(IRPrinter& p) {
     p.print("constant: {}", getAttr("constant")->cast_<ir::VectorFP32Attr>()->data());
     IRPrinter::rsbracket();
   }
+
+  dumpAttributes(p);
 }
 
 }  // namespace mllm::ir::tensor

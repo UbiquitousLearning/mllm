@@ -64,6 +64,8 @@ class Context {
 
   void loadOpPackage(const std::string& path);
 
+  int32_t registerCustomizedOp(DeviceTypes device_type, const std::string& name, const std::shared_ptr<BaseOpFactory>& factory);
+
   int32_t lookupCustomizedOpId(DeviceTypes device_type, const std::string& name);
 
  private:

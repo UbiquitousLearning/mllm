@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/backends/base/PluginInterface.hpp"
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
@@ -101,6 +102,7 @@ LINALG_AOPS_DECL(OpTypes::kMean, MeanOp);
 LINALG_AOPS_DECL(OpTypes::kClip, ClipOp);
 LINALG_AOPS_DECL(OpTypes::kPagedAttn, PagedAttnOp);
 
+
 LINALG_AOPS_DECL(OpTypes::kLayerNorm2D, LayerNorm2DOp);
 LINALG_AOPS_DECL(OpTypes::kPad, PadOp);
 LINALG_AOPS_DECL(OpTypes::kInterpolate, InterpolateOp);
@@ -111,5 +113,26 @@ LINALG_AOPS_DECL(OpTypes::kMaskedScatter, MaskedScatterOp);
 LINALG_AOPS_DECL(OpTypes::kScatter, ScatterOp);
 LINALG_AOPS_DECL(OpTypes::kGather, GatherOp);
 LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
+
+// special implementation for CustomizedOp
+CustomizedOp ::~CustomizedOp() = default;
+CustomizedOp ::CustomizedOp(const BaseOp ::ptr_t& aop) : LinalgIROp(RK_Op_LinalgIROp_CustomizedOp) {
+  setAOp(aop->getOpType(), aop);
+}
+::mllm ::ir ::linalg ::CustomizedOp ::ptr_t CustomizedOp ::build(
+    IRContext* ctx, const BaseOp ::ptr_t& aop, const std ::vector<::mllm ::ir ::tensor ::TensorValue ::ptr_t>& ins,
+    const std ::vector<::mllm ::ir ::tensor ::TensorValue ::ptr_t>& ous) {
+  auto op = std ::make_shared<::mllm ::ir ::linalg ::CustomizedOp>(aop);
+  for (auto& i : ins) { (*i)-- > op; }
+  for (auto& o : ous) { (*op)-- > o; }
+  op->setDevice(aop->getDevice());
+  return op;
+}
+void CustomizedOp ::dump(IRPrinter& p) {
+  p.print("linalg.{}.{}", deviceTypes2Str(getDevice()),
+          std::static_pointer_cast<mllm::plugin::interface::CustomizedOp>(op_)->getCustomOpTypeName());
+  if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }
+  Op ::dump(p);
+}
 
 }  // namespace mllm::ir::linalg

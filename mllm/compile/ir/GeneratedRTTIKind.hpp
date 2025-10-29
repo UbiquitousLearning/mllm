@@ -1,5 +1,4 @@
 // Auto generated: 2025-10-27 11:05:42
-// do not modify this file
 #pragma once
 
 #include <cstdint>
@@ -80,6 +79,7 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_ScatterOp,
   RK_Op_LinalgIROp_GatherOp,
   RK_Op_LinalgIROp_ArgsortOp,
+  RK_Op_LinalgIROp_CustomizedOp,
   RK_Op_LinalgIROp_Last,
   RK_Op_GraphIROp,
   RK_Op_GraphIROp_SubGraphOp,

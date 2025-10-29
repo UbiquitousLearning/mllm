@@ -42,4 +42,6 @@ void CPUKVCacheOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   outputs[1] = std::move(updated_v);
 }
 
+void CPUKVCacheOp::clearCache() { cache_.clearCache(); }
+
 }  // namespace mllm::cpu

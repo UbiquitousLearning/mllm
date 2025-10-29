@@ -5,6 +5,14 @@
 #include "QnnTypes.h"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
+#include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
+#include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
+#include "mllm/backends/qnn/op/QNNRMSNormOp.hpp"
+#include "mllm/backends/qnn/op/QNNSiLUOp.hpp"
+#include "mllm/backends/qnn/op/QNNTransposeOp.hpp"
+#include "mllm/backends/qnn/op/QNNViewOp.hpp"
+#include "mllm/backends/qnn/op/QNNX2XOp.hpp"
+#include "mllm/backends/qnn/passes/CustomOpPatterns.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
@@ -21,7 +29,14 @@
 
 namespace mllm::qnn {
 
-QNNGraphBuildPass::QNNGraphBuildPass() { regPattern<QNNLinearPattern>(); }
+QNNGraphBuildPass::QNNGraphBuildPass() {
+  regPattern<QNNAddPattern, QNNMulPattern, QNNLinearPattern, QNNRMSNormPattern, QNNViewPattern, QNNTransposePattern,
+             QNNX2XPattern, QNNCastTypePattern, QNNSiLUPattern>();
+
+  // register custom op patterns
+  patterns_.emplace((mllm::OpTypes)mllm::Context::instance().lookupCustomizedOpId(mllm::kQNN, "DequantizeAdd"),
+                    std::make_shared<QNNDequantizeAddPattern>());
+}
 
 uint8_t QNNGraphBuildPass::run(const ir::node_ptr_t& op) {
   // The top op should be ModuleOp
@@ -47,13 +62,7 @@ uint8_t QNNGraphBuildPass::run(const ir::node_ptr_t& op) {
       if (symbol_attr) {
         auto sub_graph_name = symbol_attr->str();
 
-        MLLM_INFO("Found SubGraphOp: {}", sub_graph_name);
-
-        if (sub_graph_op->getDevice() == DeviceTypes::kQNN) {
-          graphs_ir_to_be_compiled.push_back(sub_graph_op);
-
-          MLLM_INFO("pushing {} to be compiled", sub_graph_name);
-        }
+        if (sub_graph_op->getDevice() == DeviceTypes::kQNN) { graphs_ir_to_be_compiled.push_back(sub_graph_op); }
       }
     }
   }
@@ -102,9 +111,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
 
   std::string graph_name = sub_graph_op->getSymbolAttr()->str();
 
-  MLLM_INFO("Building QNN graph '{}' with {} inputs, {} outputs", graph_name, sub_graph_op->inputs().size(),
-            sub_graph_op->outputs().size());
-
   // Create QNN model using the backend
   auto qnn_model = qnn_backend->createQnnGraph(graph_name);
   if (!qnn_model) {
@@ -126,8 +132,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
     }
     auto qnn_tensor =
         qnn_model->addTensor(input_tensor->name(), QNN_TENSOR_TYPE_APP_WRITE, input_tensor->tensor_, quantize_param);
-
-    MLLM_INFO("Added input tensor '{}' to QNN model", input_tensor->name());
   }
 
   // Process each operation in the subgraph
@@ -161,8 +165,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
     MLLM_ERROR("Failed to finalize QNN graph '{}'", graph_name);
     return;
   }
-
-  MLLM_INFO("QNN graph '{}' build completed", graph_name);
 }
 
 }  // namespace mllm::qnn

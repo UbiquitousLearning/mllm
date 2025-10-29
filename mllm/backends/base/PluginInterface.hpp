@@ -16,8 +16,12 @@
 namespace mllm::plugin::interface {
 
 class CustomizedOp : public BaseOp {
+  std::string op_type_name_;
+
  public:
-  explicit CustomizedOp(const std::string& name) : BaseOp(OpTypes::kDynamicOp_Start) { setName(name); }
+  explicit CustomizedOp(const std::string& typeName) : BaseOp(OpTypes::kDynamicOp_Start) { op_type_name_ = typeName; }
+
+  [[nodiscard]] std::string getCustomOpTypeName() const { return op_type_name_; }
 };
 
 template<typename CargoT>

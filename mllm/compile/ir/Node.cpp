@@ -222,6 +222,16 @@ void IRContext::setValueName(const val_ptr_t& val, const std::string& name) { va
 
 std::string IRContext::getAutoIndexedValueName() { return std::to_string(auto_indexed_value_name_cnt_++); }
 
+std::string IRContext::getUniqueModuleName(const std::string& base_name) {
+  auto& counter = module_name_counters_[base_name];
+  if (counter == 0) {
+    counter = 1;
+    return base_name;
+  } else {
+    return base_name + "_" + std::to_string(counter++);
+  }
+}
+
 void IRContext::resetRegion(const region_ptr_t& region) { cur_insert_region_ = region; }
 
 const IRContext::region_ptr_t& IRContext::getCurInsertRegion() { return cur_insert_region_; }

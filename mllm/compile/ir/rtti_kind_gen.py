@@ -282,6 +282,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("GatherOp"))
     op.derive(Cls("ArgsortOp"))
 
+    # customized ops
+    op.derive(Cls("CustomizedOp"))
+
     # value
 
     # attr

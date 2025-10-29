@@ -35,6 +35,8 @@ class LayerImpl : public AbstractNnNode {
 
   void setInstancedOp(const BaseOp::ptr_t& op);
 
+  void __forceSetOpType(OpTypes op_type) { op_type_ = op_type; }
+
  private:
   OpTypes op_type_;
   BaseOpOptionsBase options_;

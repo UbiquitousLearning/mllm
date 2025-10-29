@@ -58,8 +58,13 @@ void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_
   // Make sure there has a memory that we can register to.
   MLLM_RT_ASSERT(qnnMemPtrSet_.count(ptr));
 
-  // Make sure this memory space is not registered yet.
-  MLLM_RT_ASSERT(ptrToFdAndMemHandleMap_.count(ptr) == 0);
+  // if already registered, just set the mem handle
+  if (ptrToFdAndMemHandleMap_.count(ptr) > 0) {
+    Qnn_MemHandle_t mem_handle = ptrToFdAndMemHandleMap_[ptr].second;
+    QNN_TENSOR_SET_MEM_TYPE(qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
+    QNN_TENSOR_SET_MEM_HANDLE(qnn_tensor, mem_handle);
+    return;
+  }
 
   // Get the file id of this memory space.
   int mem_fd = rpcmem_to_fd(ptr);

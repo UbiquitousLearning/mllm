@@ -3,9 +3,14 @@
 
 #pragma once
 
+#include <memory>
+#include "mllm/core/BaseOp.hpp"
+#include "mllm/core/DeviceTypes.hpp"
+#include "mllm/engine/Context.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNDispatcher.hpp"
+#include "CustomLayers.hpp"
 
 namespace mllm {
 
@@ -27,5 +32,9 @@ void initQnnBackend() {
   // 3. Initialize dispatcher manager
   ctx.dispatcherManager()->registerDispatcher(
       createQNNDispatcher(ctx.dispatcherManager()->getExecutor(), qnn::QNNDispatcherOptions()));
+
+  // register QNN custom ops
+  Context::instance().registerCustomizedOp(kQNN, "DequantizeAdd",
+                                           std::shared_ptr<BaseOpFactory>((BaseOpFactory*)(new qnn::DequantizeAddFactory())));
 }
 }  // namespace mllm
