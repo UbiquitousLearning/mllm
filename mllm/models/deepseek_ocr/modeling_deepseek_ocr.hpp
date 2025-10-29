@@ -650,6 +650,9 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
                                 kCPU,                                             // device_type
                                 true                                              // use_fa2
     );
+
+    // eos
+    eos_token_id_ = config.eos_token_id;
   }
 
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
