@@ -155,8 +155,8 @@ struct MiniCPMOMessage {
   std::string audio_file_path;
   std::string system_prompt = "You are Qwen, created by Alibaba Clound. You are a helpful assistant.";
 
-  // 格式: <|im_start|>{role}\n{content}<|im_end|>\n
   [[nodiscard]]std::string buildChatMessage() const {
+    // For now, one picture only
     std::string result="";
     // System message
     if (!system_prompt.empty()) {

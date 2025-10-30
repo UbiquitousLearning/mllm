@@ -31,16 +31,12 @@ inline Tensor get2DSinCosPosEmbed(int32_t embed_dim, const std::vector<int32_t>&
     for (int32_t h = 0; h < grid_h_size; ++h) {
         for (int32_t w = 0; w < grid_w_size; ++w) {
 
-            // Width encoding: first half_dim dimensions (根据Python输出推断)
-            // [0:half_dim/2] = sin(w*omega), [half_dim/2:half_dim] = cos(w*omega)
             for (int32_t i = 0; i < half_dim / 2; ++i) {
                 float omega = 1.0f / std::pow(10000.0f, 2.0f * i / half_dim);
                 *pos_embed.offsettedPtr<float>({h, w, i}) = std::sin(w * omega);
                 *pos_embed.offsettedPtr<float>({h, w, i + half_dim / 2}) = std::cos(w * omega);
             }
 
-            // Height encoding: second half_dim dimensions
-            // [half_dim:half_dim+half_dim/2] = sin(h*omega), [half_dim+half_dim/2:embed_dim] = cos(h*omega)
             for (int32_t i = 0; i < half_dim / 2; ++i) {
                 float omega = 1.0f / std::pow(10000.0f, 2.0f * i / half_dim);
                 *pos_embed.offsettedPtr<float>({h, w, half_dim + i}) = std::sin(h * omega);
@@ -172,7 +168,6 @@ public:
         auto attn_weights = nn::functional::matmul(q, k, false, true) * scale;  // [num_heads, num_queries, seq_len]
 
         if (has_key_padding_mask && key_padding_mask.numel() > 0) {
-            mllm::print("Applying key padding mask in ResamplerAttention");
             auto mask_value = -std::numeric_limits<float>::infinity();
             for (int32_t h = 0; h < num_heads_; ++h) {
                 for (int32_t q_idx = 0; q_idx < num_queries; ++q_idx) {
@@ -192,14 +187,14 @@ public:
         auto attn_output = nn::functional::matmul(attn_weights, v);  // [num_heads, num_queries, head_dim]
 
         auto attn_output_reshaped = Tensor::empty({num_queries, embed_dim_}, kFloat32).alloc();
-for(int h = 0; h < num_heads_; h++) {
-    for(int nq = 0; nq < num_queries; nq++) {
-        for(int d = 0; d < head_dim_; d++) {
+        for(int h = 0; h < num_heads_; h++) {
+          for(int nq = 0; nq < num_queries; nq++) {
+            for(int d = 0; d < head_dim_; d++) {
             float val = attn_output.at<float>({h, nq, d});
             *attn_output_reshaped.offsettedPtr<float>({nq, h * head_dim_ + d}) = val;
+          }
         }
-    }
-}
+        }
 attn_output = attn_output_reshaped;
 
         return {out_proj_(attn_output)};

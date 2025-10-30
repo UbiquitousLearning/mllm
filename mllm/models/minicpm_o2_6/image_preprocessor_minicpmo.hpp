@@ -19,7 +19,6 @@
 
 namespace mllm::models::minicpmo {
 
-// Utility functions for image slicing (similar to MiniCPMV)
 class ImageSliceProcessor {
 public:
     ImageSliceProcessor() = default;

@@ -109,9 +109,6 @@ public:
     //AudioProjectionLayer audio_projection_layer_;
     //TTSProjector tts_projector_;
 
-    // Debug flag to control whether to load Python embeddings
-    bool loadPythonEmbedding = false;
-
 private:
     nn::StaticCache kv_cache_;
 
@@ -161,52 +158,7 @@ public:
         // Process vision inputs if provided - ONLY in prefill stage
         if (!pixel_values.isNil() && !tgt_sizes.isNil() && !is_decode_stage) {
             auto vision_outputs = vpm_(pixel_values, tgt_sizes)[0];
-            // std::vector<float> vision_outputs_vec;
-            // vision_outputs_vec.reserve(10*1036*1152);
-            // for(int i=0;i<10;i++){
-            //   for(int j=0;j<1036;j++){
-            //     for(int k=0;k<1152;k++){
-            //       vision_outputs_vec.push_back(vision_outputs.at<float>({i,j,k}));
-            //     }
-            //   }
-            // }
-            // cnpy::npy_save("vision_outputs.npy", 
-            //    vision_outputs_vec.data(), 
-            //    {10, 1036, 1152}, 
-            //    "w");
             auto vision_embeddings = resampler_(vision_outputs, tgt_sizes)[0];
-            std::vector<float> vision_embeddings_vec;
-            vision_embeddings_vec.reserve(10*64*3584);
-            for(int i=0;i<10;i++){
-              for(int j=0;j<64;j++){
-                for(int k=0;k<3584;k++){
-                  vision_embeddings_vec.push_back(vision_embeddings.at<float>({i,j,k}));
-                }
-              }
-            }
-            cnpy::npy_save("vision_embeddings.npy", 
-               vision_embeddings_vec.data(), 
-               {10, 64, 3584}, 
-               "w");
-            mllm::print(vision_embeddings.shape());
-            mllm::print(vision_embeddings.at<float>({0,0,0}));
-            mllm::print(vision_embeddings.at<float>({0,14,175}));
-            mllm::print(vision_embeddings.at<float>({1,28,2995}));
-            mllm::print(vision_embeddings.at<float>({1,33,1365}));
-            mllm::print(vision_embeddings.at<float>({2,8,764}));
-            mllm::print(vision_embeddings.at<float>({3,49,2222}));
-            mllm::print(vision_embeddings.at<float>({4,62,2003}));
-            mllm::print(vision_embeddings.at<float>({5,55,1013}));
-            mllm::print(vision_embeddings.at<float>({6,19,75}));
-            mllm::print(vision_embeddings.at<float>({7,21,196}));
-            mllm::print(vision_embeddings.at<float>({8,50,1997}));
-            mllm::print(vision_embeddings.at<float>({9,33,2958}));
-            mllm::print(vision_embeddings.at<float>({8,2,2598}));
-            mllm::print(vision_embeddings.at<float>({7,5,338}));
-            mllm::print(vision_embeddings.at<float>({6,41,1157}));
-            mllm::print(vision_embeddings.at<float>({5,61,2075}));
-            mllm::print(vision_embeddings.at<float>({4,55,312}));
-
             if (!image_bounds.isNil()) {
                 input_embeddings = merge_vision_text_embeddings(input_embeddings, vision_embeddings, image_bounds);
             }
@@ -308,6 +260,7 @@ public:
                     int vision_idx = 0;
                     auto start_pos = image_bounds.at<int32_t>({bound_idx, 0}) + 1;
                     auto end_pos = image_bounds.at<int32_t>({bound_idx, 1}) - 1;
+                      // exactly replace <unk> tokens between <slice> and </slice>
                         for (int pos = start_pos; pos <= end_pos && vision_idx < vision_seq_len; ++pos, ++vision_idx) {
                           for (int d = 0; d < embed_dim; ++d) {
                                 text_embeddings.at<float>({b, pos, d}) = vision_embeddings.at<float>({bound_idx, vision_idx, d});
@@ -316,22 +269,6 @@ public:
                 }
             }
         }
-
-        mllm::print("finished merging!");
-
-         // Debug: Load and replace with Python-saved embeddings
-         if (loadPythonEmbedding) {
-          cnpy::NpyArray arr = cnpy::npy_load("../../models/merged_input_embedding.npy");
-          float* data_ptr = arr.data<float>();
-          std::vector<float> vec(data_ptr, data_ptr + arr.num_vals);
-          auto tt = mllm::Tensor::fromVector(vec, {1,699,3584}, mllm::kFloat32);
-             mllm::print(tt.shape());
-             mllm::print(text_embeddings.shape());
-             text_embeddings = tt;
-             mllm::print("✅ Loaded Python embedding for debugging!");
-             return tt;
-         }
-
         return text_embeddings;
     }
 
