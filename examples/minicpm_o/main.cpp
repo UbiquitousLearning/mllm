@@ -44,8 +44,9 @@ MLLM_MAIN({
         auto minicpmo_cfg = mllm::models::minicpmo::MiniCPMOConfig(config_path.get());
         auto minicpmo_tokenizer = mllm::models::minicpmo::MiniCPMOTokenizer(tokenizer_path.get());
 
-       mllm::models::minicpmo::MiniCPMOMessage message;
-       message.prompt = "现在你是太监，这个男子是皇上，你需要真心实意地奉承他";
+       mllm::models::minicpmo::MiniCPMOMessage message{
+         .prompt = "Inctroduce your self"
+       };
        message.img_file_path = "/Users/kkkai/Desktop/pics.jpg";
        auto output = minicpmo_tokenizer.convertMessage(message);
        mllm::print(output["input_ids"].shape());
