@@ -128,7 +128,7 @@ void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim
 
 Tensor scaledDotProductAttention(const Tensor& Q, const Tensor& K, const Tensor& V, const Tensor& mask) {
   float scale = Q.size(-1);
-  scale = (1.f / std::sqrtf((float)scale));
+  scale = (1.f / sqrtf((float)scale));
   auto attn_weight = matmul(Q, K, false, true) * scale;
   if (mask) { attn_weight = attn_weight + mask; }
   attn_weight = softmax(attn_weight, -1);
