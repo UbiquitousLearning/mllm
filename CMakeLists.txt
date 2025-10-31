@@ -300,6 +300,15 @@ if(MLLM_BUILD_SDK_C_BINDING)
     RUNTIME DESTINATION bin)
 endif()
 
+if(MLLM_TRACY_ENABLE)
+  install(
+    TARGETS MllmTracy
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
+endif()
+
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm/
   DESTINATION include/mllm
