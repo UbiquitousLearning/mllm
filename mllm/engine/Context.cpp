@@ -7,6 +7,7 @@
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/SessionTCB.hpp"
 #include "mllm/engine/DispatcherManager.hpp"
+#include "mllm/tracy_perf/Tracy.hpp"
 
 namespace mllm {
 
@@ -42,6 +43,7 @@ Backend::ptr_t Context::getBackend(const DeviceTypes& device) {
 
 std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
                                                   const std::vector<Tensor>& inputs, DeviceTypes special_device) {
+  MLLM_TRACY_ZONE_SCOPED;
   auto device = special_device != kDeviceTypes_End ? special_device : inputs[0].device();
 
   // If input device and special device are different, prefer non-CPU device

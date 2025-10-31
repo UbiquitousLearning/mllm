@@ -5,6 +5,7 @@
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/nn/Module.hpp"
+#include "mllm/tracy_perf/Tracy.hpp"
 
 #ifdef MLLM_PERFETTO_ENABLE
 #include "mllm/engine/Perf.hpp"
@@ -39,6 +40,7 @@ TaskResult::sender_t CPUDispatcher::asyncReceive(const Task::ptr_t& task) {
 }
 
 void CPUDispatcher::process(const Task::ptr_t& task) {
+  MLLM_TRACY_ZONE_SCOPED;
   switch (task->type) {
     case TaskTypes::kExecuteOp: {
 #ifdef MLLM_PERFETTO_ENABLE

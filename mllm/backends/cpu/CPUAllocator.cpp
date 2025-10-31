@@ -3,6 +3,7 @@
 
 #include "mllm/backends/cpu/CPUAllocator.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
+#include "mllm/tracy_perf/Tracy.hpp"
 
 namespace mllm::cpu {
 
@@ -18,12 +19,20 @@ void align_alloc(void** ptr, size_t required_bytes, size_t align) {
     *ptr = nullptr;
     return;
   }
+#if defined(MLLM_TRACY_ENABLE) && MLLM_TRACY_ENABLE == 1
+  TracyAlloc(p1, required_bytes + offset);
+#endif
   p2 = (void**)(((size_t)(p1) + offset) & ~(align - 1));  // NOLINT
   p2[-1] = p1;
   *ptr = p2;
 }
 
-void align_free(void* ptr) { free(((void**)ptr)[-1]); }
+void align_free(void* ptr) {
+  free(((void**)ptr)[-1]);
+#if defined(MLLM_TRACY_ENABLE) && MLLM_TRACY_ENABLE == 1
+  TracyFree(((void**)ptr)[-1]);
+#endif
+}
 
 bool CPUAllocator::alloc(Storage* storage) {
   void* ptr;
