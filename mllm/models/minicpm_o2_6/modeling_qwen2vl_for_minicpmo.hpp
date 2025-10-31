@@ -264,7 +264,6 @@ inline auto makeMultimodalPositionEmbedding(Tensor& position_ids, const Tensor& 
     }
   }
 
-
   return {sin, cos};
 }
 

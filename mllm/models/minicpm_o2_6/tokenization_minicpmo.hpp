@@ -155,25 +155,19 @@ struct MiniCPMOMessage {
   std::string audio_file_path;
   std::string system_prompt = "You are Qwen, created by Alibaba Clound. You are a helpful assistant.";
 
-  [[nodiscard]]std::string buildChatMessage() const {
+  [[nodiscard]] std::string buildChatMessage() const {
     // For now, one picture only
-    std::string result="";
+    std::string result = "";
     // System message
-    if (!system_prompt.empty()) {
-      result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n";
-    }
+    if (!system_prompt.empty()) { result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n"; }
 
     result += "<|im_start|>user\n";
 
     // Image placeholder
-    if (!img_file_path.empty()) {
-      result += "(<image>./</image>)"; 
-    }
+    if (!img_file_path.empty()) { result += "(<image>./</image>)"; }
 
     // Audio placeholder
-    if (!audio_file_path.empty()) {
-      result += "(<audio>./</audio>)"; 
-    }
+    if (!audio_file_path.empty()) { result += "(<audio>./</audio>)"; }
 
     result += "\n" + prompt + "<|im_end|>\n";
 
@@ -185,18 +179,18 @@ struct MiniCPMOMessage {
 };
 
 struct MiniCPMOInput {
-    std::string prompt;
-    std::string img_file_path = "";
-    std::string audio_file_path = "";
-    std::vector<std::string> image_paths = {};
-    std::vector<std::string> audio_paths = {};
+  std::string prompt;
+  std::string img_file_path = "";
+  std::string audio_file_path = "";
+  std::vector<std::string> image_paths = {};
+  std::vector<std::string> audio_paths = {};
 };
 
 class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   explicit MiniCPMOTokenizer(const std::string& file_path, int32_t patch_size = 14)
-    //: image_preprocessor_(patch_size) 
-      {
+  //: image_preprocessor_(patch_size)
+  {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
@@ -244,7 +238,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<|tts_eos|>");
   }
 
-  std::vector<std::wstring> _tokenize(const std::string& str) override {
+  std::vector<std::wstring> _tokenize(const std::string& str) {
     std::vector<std::wstring> ret;
     std::vector<std::wstring> splitted;
     ::mllm::models::minicpmo::miniCPMORegex(str, splitted);
@@ -261,7 +255,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  std::vector<std::wstring> tokenize(const std::string& str) override {
+  std::vector<std::wstring> tokenize(const std::string& str) {
     auto tokens = special_tokens_trie_.split(preprocessor::utf8string2WideString(str));
     std::vector<std::wstring> all_tokens;
     for (const auto& token : tokens) {
@@ -284,7 +278,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return {mllm::preprocessor::utf8string2WideString(utf_8_str)};
   }
 
-  Tensor convert2Ids(const std::vector<std::wstring>& strs) override {
+  Tensor convert2Ids(const std::vector<std::wstring>& strs) {
     std::vector<int64_t> ids;
     ids.reserve(strs.size());
     for (const auto& str : strs) { ids.emplace_back(bpe_._lookup_vocab(str)); }
@@ -299,184 +293,162 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
- ARGenerationOutputPast convertMessage(const MiniCPMOMessage& message) {
+  ARGenerationOutputPast convertMessage(const MiniCPMOMessage& message) {
     // 构建完整的聊天消息
     auto applied_string = message.buildChatMessage();
     // Process Image
     if (!message.img_file_path.empty()) {
-        auto [img_tensors, original_size, tgt_sizes, grid] = image_preprocessor_.process(message.img_file_path);
-        //Checked with Python, all correct
+      auto [img_tensors, original_size, tgt_sizes, grid] = image_preprocessor_.process(message.img_file_path);
+      // Checked with Python, all correct
 
-        std::regex pattern(R"(\(<image>\./</image>\))");
-        std::vector<std::string> image_tags;
-        std::sregex_iterator iter(applied_string.begin(), applied_string.end(), pattern);
-        std::sregex_iterator end;
+      std::regex pattern(R"(\(<image>\./</image>\))");
+      std::vector<std::string> image_tags;
+      std::sregex_iterator iter(applied_string.begin(), applied_string.end(), pattern);
+      std::sregex_iterator end;
 
-        for(; iter != end; ++iter){
-          image_tags.push_back(iter->str());
-        }
+      for (; iter != end; ++iter) { image_tags.push_back(iter->str()); }
 
-        std::vector<std::string> text_chunks;
-        int32_t pos = 0;
-        for(const auto& tag : image_tags){
-          auto found = applied_string.find(tag, pos);
-          if(found != std::string::npos){
-            text_chunks.push_back(applied_string.substr(pos, found - pos));
-            pos = found + tag.size();
-          }
+      std::vector<std::string> text_chunks;
+      int32_t pos = 0;
+      for (const auto& tag : image_tags) {
+        auto found = applied_string.find(tag, pos);
+        if (found != std::string::npos) {
+          text_chunks.push_back(applied_string.substr(pos, found - pos));
+          pos = found + tag.size();
         }
-        text_chunks.push_back(applied_string.substr(pos));
-        std::string final_text = "";
-        for(size_t i = 0; i < image_tags.size(); ++i){
-          final_text += text_chunks[i];
-          final_text += image_preprocessor_.get_slice_image_placeholder(original_size[i] , grid, i);
-        }
-        final_text += "\n";
-        final_text += text_chunks.back();
-        auto input_ids = tokenize(final_text);
-        std::vector<int64_t> input_ids_vec;
-        input_ids_vec.reserve(input_ids.size());
-        for (const auto& id_str : input_ids) {
-            input_ids_vec.emplace_back(bpe_._lookup_vocab(id_str));
-        }
+      }
+      text_chunks.push_back(applied_string.substr(pos));
+      std::string final_text = "";
+      for (size_t i = 0; i < image_tags.size(); ++i) {
+        final_text += text_chunks[i];
+        final_text += image_preprocessor_.get_slice_image_placeholder(original_size[i], grid, i);
+      }
+      final_text += "\n";
+      final_text += text_chunks.back();
+      auto input_ids = tokenize(final_text);
+      std::vector<int64_t> input_ids_vec;
+      input_ids_vec.reserve(input_ids.size());
+      for (const auto& id_str : input_ids) { input_ids_vec.emplace_back(bpe_._lookup_vocab(id_str)); }
 
-        auto [input_ids_new, image_bounds] = image_preprocessor_.calc_bounds(input_ids_vec, bpe_);
-        auto result = Convert2Tensors(input_ids_new, img_tensors, tgt_sizes, image_bounds);
-        return result;
+      auto [input_ids_new, image_bounds] = image_preprocessor_.calc_bounds(input_ids_vec, bpe_);
+      auto result = Convert2Tensors(input_ids_new, img_tensors, tgt_sizes, image_bounds);
+      return result;
     } else {
-        // 处理纯文本消息（无图像输入）
-        // // 处理音频占位符
-        // if (!message.audio_file_path.empty()) {
-        //   size_t audio_placeholder_pos = applied_string.find("(<audio>./</audio>)");
-        //   if (audio_placeholder_pos != std::string::npos) {
-        //     // TODO: 实现音频placeholder生成
-        //     std::string audio_placeholder = "<|audio_start|><unk><|audio_end|>"; // 简化版本
-        //     applied_string.replace(audio_placeholder_pos, 17, audio_placeholder);
-        //   }
-        //   }
+      // 处理纯文本消息（无图像输入）
+      // // 处理音频占位符
+      // if (!message.audio_file_path.empty()) {
+      //   size_t audio_placeholder_pos = applied_string.find("(<audio>./</audio>)");
+      //   if (audio_placeholder_pos != std::string::npos) {
+      //     // TODO: 实现音频placeholder生成
+      //     std::string audio_placeholder = "<|audio_start|><unk><|audio_end|>"; // 简化版本
+      //     applied_string.replace(audio_placeholder_pos, 17, audio_placeholder);
+      //   }
+      //   }
 
-        // 对最终字符串进行tokenization
-        auto sequence_str = tokenize(applied_string);
-        std::vector<int64_t> ids;
-        ids.reserve(sequence_str.size());
-        for (const auto& str : sequence_str) {
-          ids.emplace_back(bpe_._lookup_vocab(str));
-        }
+      // 对最终字符串进行tokenization
+      auto sequence_str = tokenize(applied_string);
+      std::vector<int64_t> ids;
+      ids.reserve(sequence_str.size());
+      for (const auto& str : sequence_str) { ids.emplace_back(bpe_._lookup_vocab(str)); }
 
+      // Get sequence Tensor
+      Tensor sequence = Tensor::empty({/*batch*/ 1, /*seq*/ (int32_t)ids.size()}, kInt64, kCPU)
+                            .setMemType(kNormal)
+                            .setName("minicpmo-tokenizer-i0")
+                            .alloc();
 
-        // Get sequence Tensor
-        Tensor sequence = Tensor::empty({/*batch*/ 1, /*seq*/ (int32_t)ids.size()}, kInt64, kCPU)
-                              .setMemType(kNormal)
-                              .setName("minicpmo-tokenizer-i0")
-                              .alloc();
+      auto ptr = sequence.ptr<int64_t>();
+      for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
 
-        auto ptr = sequence.ptr<int64_t>();
-        for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
+      ARGenerationOutputPast result = {
+          {"input_ids", sequence},
+      };
 
-        ARGenerationOutputPast result = {
-            {"input_ids", sequence},
-        };
+      // if (!message.img_file_path.empty() && img.isNotEmpty()) {
+      //   result["img"] = img;
+      //   result["grid_thw"] = grid_thw;
+      // }
 
-
-        // if (!message.img_file_path.empty() && img.isNotEmpty()) {
-        //   result["img"] = img;
-        //   result["grid_thw"] = grid_thw;
-        // }
-
-        return result;
+      return result;
     }
   }
 
-private:
-  ARGenerationOutputPast Convert2Tensors(
-      std::vector<int64_t>& input_ids_vec,
-      std::vector<Tensor>& img_tensors,
-      std::vector<std::pair<int, int>>& tgt_sizes,
-      std::vector<std::pair<int, int>>& image_bounds) {
-
+ private:
+  ARGenerationOutputPast Convert2Tensors(std::vector<int64_t>& input_ids_vec, std::vector<Tensor>& img_tensors,
+                                         std::vector<std::pair<int, int>>& tgt_sizes,
+                                         std::vector<std::pair<int, int>>& image_bounds) {
     ARGenerationOutputPast result;
 
     // Convert input_ids_new (std::vector<std::wstring>) to Tensor
     if (!input_ids_vec.empty()) {
-        Tensor input_ids_tensor = Tensor::empty({1, (int32_t)input_ids_vec.size()}, kInt64, kCPU)
-                                      .setMemType(kExtraInput)
-                                      .setName("input_ids")
-                                      .alloc();
-        auto input_ids_ptr = input_ids_tensor.ptr<int64_t>();
-        for (size_t i = 0; i < input_ids_vec.size(); ++i) {
-            input_ids_ptr[i] = input_ids_vec[i];
-        }
-        result["input_ids"] = input_ids_tensor;
+      Tensor input_ids_tensor =
+          Tensor::empty({1, (int32_t)input_ids_vec.size()}, kInt64, kCPU).setMemType(kExtraInput).setName("input_ids").alloc();
+      auto input_ids_ptr = input_ids_tensor.ptr<int64_t>();
+      for (size_t i = 0; i < input_ids_vec.size(); ++i) { input_ids_ptr[i] = input_ids_vec[i]; }
+      result["input_ids"] = input_ids_tensor;
     }
 
     // Convert img_tensors (std::vector<Tensor>) to single Tensor
     // **ADD PADDING HERE!**
     if (!img_tensors.empty()) {
-        if (img_tensors.size() == 1) {
-            result["pixel_values"] = img_tensors[0];
-        } else {
-            int channels = img_tensors[0].shape()[0];
-            int patch_size = img_tensors[0].shape()[1];
-            int HW_patch_size = img_tensors[0].shape()[2];
-            for(int i=0;i<img_tensors.size();i++){
-              if(img_tensors[i].shape()[2] > HW_patch_size){
-                HW_patch_size = img_tensors[i].shape()[2];
-              }
-            }
-            Tensor pixel_values = Tensor::empty({(int)img_tensors.size(),channels, patch_size, HW_patch_size}, kFloat32, kCPU)
-                                      .setMemType(kExtraInput)
-                                      .setName("pixel_values")
-                                      .alloc();
-            auto pixel_values_ptr = pixel_values.ptr<float32_t>();
-            for(int b = 0; b < (int)img_tensors.size(); b++){
-              for(int c = 0; c < channels; c++){
-                for(int p = 0; p < patch_size; p++){
-                  for(int hw = 0; hw < HW_patch_size; hw++){
-                    int dst_idx = b * channels * patch_size * HW_patch_size +
-                                  c * patch_size * HW_patch_size +
-                                  p * HW_patch_size +
-                                  hw;
-                    if(hw > img_tensors[b].shape()[2]){
-                      pixel_values_ptr[dst_idx]=0;
-                    }
-                    else{
-                      pixel_values_ptr[dst_idx]=img_tensors[b].at<float>({c, p, hw});
-                    }
-                  }
+      if (img_tensors.size() == 1) {
+        result["pixel_values"] = img_tensors[0];
+      } else {
+        int channels = img_tensors[0].shape()[0];
+        int patch_size = img_tensors[0].shape()[1];
+        int HW_patch_size = img_tensors[0].shape()[2];
+        for (const auto& img_tensor : img_tensors) {
+          if (img_tensor.shape()[2] > HW_patch_size) { HW_patch_size = img_tensor.shape()[2]; }
+        }
+        Tensor pixel_values = Tensor::empty({(int)img_tensors.size(), channels, patch_size, HW_patch_size}, kFloat32, kCPU)
+                                  .setMemType(kExtraInput)
+                                  .setName("pixel_values")
+                                  .alloc();
+        auto pixel_values_ptr = pixel_values.ptr<float_t>();
+        for (int b = 0; b < (int)img_tensors.size(); b++) {
+          for (int c = 0; c < channels; c++) {
+            for (int p = 0; p < patch_size; p++) {
+              for (int hw = 0; hw < HW_patch_size; hw++) {
+                int dst_idx =
+                    b * channels * patch_size * HW_patch_size + c * patch_size * HW_patch_size + p * HW_patch_size + hw;
+                if (hw > img_tensors[b].shape()[2]) {
+                  pixel_values_ptr[dst_idx] = 0;
+                } else {
+                  pixel_values_ptr[dst_idx] = img_tensors[b].at<float>({c, p, hw});
                 }
               }
             }
-
-            result["pixel_values"] = pixel_values;
+          }
         }
+
+        result["pixel_values"] = pixel_values;
+      }
     }
 
     // Convert tgt_sizes (std::vector<std::pair<int, int>>) to Tensor
     if (!tgt_sizes.empty()) {
-        Tensor tgt_sizes_tensor = Tensor::empty({(int32_t)tgt_sizes.size(), 2}, kInt32, kCPU)
-                                     .setMemType(kExtraInput)
-                                     .setName("tgt_sizes")
-                                     .alloc();
-        auto tgt_sizes_ptr = tgt_sizes_tensor.ptr<int32_t>();
-        for (size_t i = 0; i < tgt_sizes.size(); ++i) {
-            tgt_sizes_ptr[i * 2] = tgt_sizes[i].first;
-            tgt_sizes_ptr[i * 2 + 1] = tgt_sizes[i].second;
-        }
-        result["tgt_sizes"] = tgt_sizes_tensor;
+      Tensor tgt_sizes_tensor =
+          Tensor::empty({(int32_t)tgt_sizes.size(), 2}, kInt32, kCPU).setMemType(kExtraInput).setName("tgt_sizes").alloc();
+      auto tgt_sizes_ptr = tgt_sizes_tensor.ptr<int32_t>();
+      for (size_t i = 0; i < tgt_sizes.size(); ++i) {
+        tgt_sizes_ptr[i * 2] = tgt_sizes[i].first;
+        tgt_sizes_ptr[i * 2 + 1] = tgt_sizes[i].second;
+      }
+      result["tgt_sizes"] = tgt_sizes_tensor;
     }
 
     // Convert image_bounds (std::vector<std::pair<int,int>>) to Tensor
     if (!image_bounds.empty()) {
-        Tensor image_bounds_tensor = Tensor::empty({(int32_t)image_bounds.size(), 2}, kInt32, kCPU)
-                                        .setMemType(kExtraInput)
-                                        .setName("image_bounds")
-                                        .alloc();
-        auto image_bounds_ptr = image_bounds_tensor.ptr<int32_t>();
-        for (size_t i = 0; i < image_bounds.size(); ++i) {
-            image_bounds_ptr[i * 2] = image_bounds[i].first;
-            image_bounds_ptr[i * 2 + 1] = image_bounds[i].second;
-        }
-        result["image_bounds"] = image_bounds_tensor;
+      Tensor image_bounds_tensor = Tensor::empty({(int32_t)image_bounds.size(), 2}, kInt32, kCPU)
+                                       .setMemType(kExtraInput)
+                                       .setName("image_bounds")
+                                       .alloc();
+      auto image_bounds_ptr = image_bounds_tensor.ptr<int32_t>();
+      for (size_t i = 0; i < image_bounds.size(); ++i) {
+        image_bounds_ptr[i * 2] = image_bounds[i].first;
+        image_bounds_ptr[i * 2 + 1] = image_bounds[i].second;
+      }
+      result["image_bounds"] = image_bounds_tensor;
     }
 
     return result;
@@ -490,7 +462,6 @@ private:
   preprocessor::BPE bpe_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
-
 };
 
 }  // namespace mllm::models::minicpmo
