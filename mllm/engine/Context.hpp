@@ -68,6 +68,10 @@ class Context {
 
   int32_t lookupCustomizedOpId(DeviceTypes device_type, const std::string& name);
 
+  void setCpuOpThreads(int32_t num_threads);
+
+  int32_t getCpuOpThreads() const;
+
  private:
   // NOTE: Context should be made private in singleton design pattern.
   Context();
@@ -85,6 +89,9 @@ class Context {
   SymbolTable<DeviceTypes, Backend::ptr_t> backends_;
 
   DispatcherManager::ptr_t dispatcher_manager_ = nullptr;
+
+  // Op's exec thread for cpu
+  int32_t cpu_op_threads_ = 8;
 
   int print_precision_ = 4;
   int print_max_elements_per_dim_ = 12;

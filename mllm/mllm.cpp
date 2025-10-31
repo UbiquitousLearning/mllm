@@ -3,8 +3,38 @@
 
 #include "mllm/mllm.hpp"
 #include "mllm/core/ParameterFile.hpp"
+#include "mllm/engine/Context.hpp"
+#include "mllm/engine/Dispatcher.hpp"
+#include "mllm/engine/io/CpuMemoryDiskDispatcher.hpp"
+#include "mllm/utils/Argparse.hpp"
 
 namespace mllm {
+
+EngineConfigArg engineArgAttach() {
+  auto& cpu_op_thread =
+      Argparse::add<int32_t>("-engine_cpu_op_thread|--engine_cpu_op_thread").help("config cpu op thread number");
+  auto& dispatch_thread = Argparse::add<int32_t>("-engine_dispatcher_thread|--engine_dispatcher_thread")
+                              .help("config dispatcher pool thread number");
+  return {
+      .cpu_op_thread = cpu_op_thread,
+      .dispatch_thread = dispatch_thread,
+  };
+}
+
+void configEngineWithArgs(const EngineConfigArg& args) {
+  if (args.cpu_op_thread.isSet()) {
+    Context::instance().setCpuOpThreads(args.cpu_op_thread.get());
+    MLLM_INFO("Mllm engine set cpu op thread number to {}", args.cpu_op_thread.get());
+  }
+
+  if (args.dispatch_thread.isSet()) { MLLM_WARN("Mllm engine cannot reset dispatcher pool thread number right now"); }
+}
+
+void enableCpuMemDiskAsyncIOFeature() {
+  auto& ctx = Context::instance();
+  ctx.dispatcherManager()->registerDispatcher(
+      async::io::createCpuMemoryDiskDispatcher(ctx.dispatcherManager()->getExecutor(), {}));
+}
 
 void shutdownContext() {
   auto all_threads = Context::instance().refSessionThreads();
@@ -250,6 +280,8 @@ std::vector<Tensor> wait(std::pair<TaskResult::sender_t, Task::ptr_t>& sender) {
   stdexec::sync_wait(std::move(sender.first));
   return sender.second->outputs;
 }
+
+void wait(TaskResult::sender_t& sender) { stdexec::sync_wait(std::move(sender)); }
 
 }  // namespace async
 

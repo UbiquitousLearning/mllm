@@ -125,6 +125,8 @@ std::array<std::vector<Tensor>, sizeof...(__Args)> wait(__Args&&... args) {
   return {std::forward<__Args>(args).second->outputs...};
 }
 
+void wait(TaskResult::sender_t& sender);
+
 }  // namespace mllm::async
 
 // The inline file should be included at the last of all head
@@ -134,6 +136,11 @@ std::array<std::vector<Tensor>, sizeof...(__Args)> wait(__Args&&... args) {
 #include "mllm/backends/cpu/CPUBackend.hpp"  // IWYU pragma: export
 
 namespace mllm {
+
+struct EngineConfigArg {
+  Argument<int32_t>& cpu_op_thread;
+  Argument<int32_t>& dispatch_thread;
+};
 
 inline void initializeContext() {
   auto& ctx = Context::instance();
@@ -149,6 +156,12 @@ inline void initializeContext() {
   ctx.dispatcherManager()->registerDispatcher(
       cpu::createCPUDispatcher(ctx.dispatcherManager()->getExecutor(), cpu::CPUDispatcherOptions()));
 }
+
+EngineConfigArg engineArgAttach();
+
+void configEngineWithArgs(const EngineConfigArg& args);
+
+void enableCpuMemDiskAsyncIOFeature();
 
 void shutdownContext();
 
