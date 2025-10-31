@@ -151,4 +151,8 @@ int32_t Context::lookupCustomizedOpId(DeviceTypes device_type, const std::string
   return op_plugin_system_.lookupCustomizedOp(device_type, name);
 }
 
+void Context::setCpuOpThreads(int32_t num_threads) { cpu_op_threads_ = num_threads; }
+
+int32_t Context::getCpuOpThreads() const { return cpu_op_threads_; }
+
 }  // namespace mllm
