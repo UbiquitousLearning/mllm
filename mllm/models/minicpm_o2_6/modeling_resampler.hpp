@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "mllm/core/SlicePrimitives.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_vector_quantize.hpp"
 #include "mllm/nn/Module.hpp"
@@ -83,45 +84,21 @@ class ResamplerAttention : public nn::Module {
 
     // Perform packed in-projection: [query|key|value] = input @ in_proj_weight.T + in_proj_bias
     // For cross-attention: q comes from query, k,v come from key_value
+    auto q_weight = in_proj_weight_.weight()[{{0, embed_dim_}, kAll}];
+    auto k_weight = in_proj_weight_.weight()[{{embed_dim_, 2 * embed_dim_}, kAll}];
+    auto v_weight = in_proj_weight_.weight()[{{2 * embed_dim_, 3 * embed_dim_}, kAll}];
 
-    auto q_weight = Tensor::empty({embed_dim_, embed_dim_}, kFloat32).alloc();
-    auto k_weight = Tensor::empty({embed_dim_, embed_dim_}, kFloat32).alloc();
-    auto v_weight = Tensor::empty({embed_dim_, embed_dim_}, kFloat32).alloc();
-    for (int i = 0; i < embed_dim_; i++) {
-      for (int j = 0; j < embed_dim_; j++) {
-        *q_weight.offsettedPtr<float>({i, j}) = in_proj_weight_.weight().at<float>({i, j});
-        *k_weight.offsettedPtr<float>({i, j}) = in_proj_weight_.weight().at<float>({embed_dim_ + i, j});
-        *v_weight.offsettedPtr<float>({i, j}) = in_proj_weight_.weight().at<float>({2 * embed_dim_ + i, j});
-      }
-    }
-
-    auto q_bias = Tensor::empty({embed_dim_}, kFloat32).alloc();
-    auto k_bias = Tensor::empty({embed_dim_}, kFloat32).alloc();
-    auto v_bias = Tensor::empty({embed_dim_}, kFloat32).alloc();
-    for (int i = 0; i < embed_dim_; i++) {
-      *q_bias.offsettedPtr<float>({i}) = in_proj_bias_.weight().at<float>({i});
-      *k_bias.offsettedPtr<float>({i}) = in_proj_bias_.weight().at<float>({embed_dim_ + i});
-      *v_bias.offsettedPtr<float>({i}) = in_proj_bias_.weight().at<float>({2 * embed_dim_ + i});
-    }
+    auto q_bias = in_proj_bias_.weight()[{{0, embed_dim_}}];
+    auto k_bias = in_proj_bias_.weight()[{{embed_dim_, 2 * embed_dim_}}];
+    auto v_bias = in_proj_bias_.weight()[{{2 * embed_dim_, 3 * embed_dim_}}];
 
     auto q = nn::functional::matmul(query, q_weight, false, true);
     auto k = nn::functional::matmul(key, k_weight, false, true);
     auto v = nn::functional::matmul(value, v_weight, false, true);
 
-    for (int i = 0; i < num_queries; i++) {
-      for (int j = 0; j < embed_dim_; j++) { *q.offsettedPtr<float>({i, j}) += q_bias.at<float>({j}); }
-    }
-
-    for (int i = 0; i < seq_len; i++) {
-      for (int j = 0; j < embed_dim_; j++) {
-        *k.offsettedPtr<float>({i, j}) += k_bias.at<float>({j});
-        *v.offsettedPtr<float>({i, j}) += v_bias.at<float>({j});
-      }
-    }
-
-    for (int i = 0; i < seq_len; i++) {
-      for (int j = 0; j < embed_dim_; j++) { *k.offsettedPtr<float>({i, j}) += k_bias.at<float>({j}); }
-    }
+    q = q + q_bias;
+    k = k + k_bias;
+    v = v + v_bias;
 
     auto q_reshaped = Tensor::empty({num_heads_, num_queries, head_dim_}, kFloat32).alloc();
     for (int nq = 0; nq < num_queries; nq++) {
@@ -153,6 +130,10 @@ class ResamplerAttention : public nn::Module {
       }
     }
     v = v_reshaped;
+
+    // q = q.view({num_queries, num_heads_, head_dim_}).transpose(0, 1).contiguous();  // [num_heads, num_queries, head_dim]
+    // k = k.view({seq_len, num_heads_, head_dim_}).transpose(0, 1).contiguous();      // [num_heads, seq_len, head_dim]
+    // v = v.view({seq_len, num_heads_, head_dim_}).transpose(0, 1).contiguous();      // [num_heads, seq_len, head_dim]
 
     auto scale = 1.0f / std::sqrt(static_cast<float>(head_dim_));
     auto attn_weights = nn::functional::matmul(q, k, false, true) * scale;  // [num_heads, num_queries, seq_len]
@@ -313,28 +294,26 @@ class Resampler : public nn::Module {
     std::vector<Tensor> outputs;
     for (int32_t b = 0; b < batch_size; ++b) {
       // x for this batch
-      Tensor x_b = Tensor::empty({seq_len, embed_dim_}, kFloat32).alloc();
-      for (int i = 0; i < seq_len; i++) {
-        for (int j = 0; j < embed_dim_; j++) { x_b.at<float>({i, j}) = x.at<float>({b, i, j}); }
-      }
+      Tensor x_b = x[make_slice(b), kAll, kAll].view({seq_len, embed_dim_});
 
       // pos_embed for this batch
-      Tensor pos_embed_b = Tensor::empty({seq_len, embed_dim_}, kFloat32).alloc();
-      for (int i = 0; i < seq_len; i++) {
-        for (int j = 0; j < embed_dim_; j++) {
-          if (i < max_patch_len) {
-            pos_embed_b.at<float>({i, j}) = pos_embed_padded.at<float>({b, i, j});
-          } else {
-            pos_embed_b.at<float>({i, j}) = 0.0f;
-          }
-        }
-      }
+      // Tensor pos_embed_b = Tensor::empty({seq_len, embed_dim_}, kFloat32).alloc();
+      // for (int i = 0; i < seq_len; i++) {
+      //   for (int j = 0; j < embed_dim_; j++) {
+      //     if (i < max_patch_len) {
+      //       pos_embed_b.at<float>({i, j}) = pos_embed_padded.at<float>({b, i, j});
+      //     } else {
+      //       pos_embed_b.at<float>({i, j}) = 0.0f;
+      //     }
+      //   }
+      // }
+      // TODO: handle 'set 0'
+      Tensor pos_embed_b = pos_embed_padded[make_slice(b), kAll, kAll].view({seq_len, embed_dim_});
 
       auto kv_input = x_b + pos_embed_b;
 
       // key_padding_mask for this batch
-      Tensor key_padding_mask_b = Tensor::empty({max_patch_len}, kUInt8).alloc();
-      for (int i = 0; i < max_patch_len; i++) { key_padding_mask_b.at<uint8_t>({i}) = key_padding_mask.at<uint8_t>({b, i}); }
+      Tensor key_padding_mask_b = key_padding_mask[make_slice(b), kAll].view({max_patch_len});
 
       bool has_padding = false;
       for (int i = 0; i < seq_len; i++) {
@@ -350,11 +329,13 @@ class Resampler : public nn::Module {
     }
 
     auto out_tensor = Tensor::empty({batch_size, num_queries_, embed_dim_}, kFloat32).alloc();
-    for (int i = 0; i < batch_size; i++) {
+    // Optimize: Use memcpy for contiguous memory copy instead of nested loops
+    const int32_t query_embed_size = num_queries_ * embed_dim_;
+    for (int32_t i = 0; i < batch_size; i++) {
       auto& out_i = outputs[i];
-      for (int j = 0; j < num_queries_; j++) {
-        for (int k = 0; k < embed_dim_; k++) { *out_tensor.offsettedPtr<float>({i, j, k}) = out_i.at<float>({j, k}); }
-      }
+      float* dst_ptr = out_tensor.offsettedPtr<float>({i, 0, 0});
+      const float* src_ptr = out_i.ptr<float>();
+      std::memcpy(dst_ptr, src_ptr, query_embed_size * sizeof(float));
     }
 
     out_tensor = ln_post_(out_tensor);

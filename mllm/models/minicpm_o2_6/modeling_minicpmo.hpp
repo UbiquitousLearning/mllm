@@ -11,6 +11,7 @@
 #include "mllm/models/minicpm_o2_6/modeling_resampler.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_qwen2vl_for_minicpmo.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/utils/Log.hpp"
 
 namespace mllm::models::minicpmo {
 
@@ -124,7 +125,7 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
     } else if (inputs.count("sequence")) {
       input_ids = inputs.at("sequence");
     } else {
-      mllm::print("ERROR: No input_ids or sequence found!");
+      MLLM_ERROR("No input_ids or sequence found!");
       return {};
     }
 
@@ -209,9 +210,6 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
   // }
 
   Tensor merge_vision_text_embeddings(Tensor& text_embeddings, Tensor& vision_embeddings, Tensor& image_bounds) {
-    mllm::print(text_embeddings.shape());
-    mllm::print(vision_embeddings.shape());
-    mllm::print(image_bounds);
     auto batch_size = text_embeddings.shape()[0];  // text_embeddings: [1, seq_len, embed_dim]
     auto seq_len = text_embeddings.shape()[1];
     auto embed_dim = text_embeddings.shape()[2];
@@ -227,9 +225,9 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
           auto end_pos = image_bounds.at<int32_t>({bound_idx, 1}) - 1;
           // exactly replace <unk> tokens between <slice> and </slice>
           for (int pos = start_pos; pos <= end_pos && vision_idx < vision_seq_len; ++pos, ++vision_idx) {
-            for (int d = 0; d < embed_dim; ++d) {
-              text_embeddings.at<float>({b, pos, d}) = vision_embeddings.at<float>({bound_idx, vision_idx, d});
-            }
+            float* dst_ptr = text_embeddings.offsettedPtr<float>({b, pos, 0});
+            const float* src_ptr = vision_embeddings.offsettedPtr<float>({bound_idx, vision_idx, 0});
+            std::memcpy(dst_ptr, src_ptr, embed_dim * sizeof(float));
           }
         }
       }
