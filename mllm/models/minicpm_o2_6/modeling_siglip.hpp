@@ -44,10 +44,12 @@ class SiglipVisionEmbeddings final : public nn::Module {
 
     auto batch_size = pixel_values.shape()[0];
 
-    // Patch embedding: [B, C, H, W] -> [B, embed_dim, 1, H*W]
-    auto patch_embeds = patch_embedding_(pixel_values);
-    // [B, embed_dim, 1, H*W] -> [B, H*W, embed_dim]
-    auto embeddings = patch_embeds.squeeze(2).transpose(1, 2);
+    // Conv expects 4D input
+    pixel_values = pixel_values.view({1, pixel_values.shape()[0], pixel_values.shape()[1], pixel_values.shape()[2]});
+    auto patch_embeds = patch_embedding_(pixel_values);  // Patch embedding: [B, C, H, W] -> [B, embed_dim, 1, H*W]
+    pixel_values = pixel_values.view({pixel_values.shape()[1], pixel_values.shape()[2], pixel_values.shape()[3]});
+
+    auto embeddings = patch_embeds.squeeze(2).transpose(1, 2);  // [B, embed_dim, 1, H*W] -> [B, H*W, embed_dim]
 
     // Create position embeddings
     if (!tgt_sizes.isNil() && !patch_attention_mask.isNil()) {
@@ -279,6 +281,10 @@ class SiglipEncoderLayer final : public nn::Module {
     auto hidden_states = inputs[0];
     auto attention_mask = inputs.size() > 1 ? inputs[1] : Tensor::nil();
 
+    // TODO: Perf Issue
+    // attention > 800ms (1k tokens)
+    // mlp > 600ms
+
     // Self attention with residual connection
     auto residual = hidden_states;
     auto normed = layer_norm1_(hidden_states);
@@ -314,10 +320,7 @@ class SiglipVisionEncoder final : public nn::Module {
     auto attention_mask = inputs.size() > 1 ? inputs[1] : Tensor::nil();
 
     auto hidden_states = inputs_embeds;
-    for (auto& layer : layers_) {
-      hidden_states = layer(hidden_states, attention_mask)[0];
-      // break; // For testing, run only one layer
-    }
+    for (auto& layer : layers_) { hidden_states = layer(hidden_states, attention_mask)[0]; }
     return {hidden_states};
   }
 };
@@ -377,6 +380,7 @@ class SiglipVisionModel final : public nn::Module {
     patch_attention_mask = patch_attention_mask.squeeze(1);  // [B, max_patches]
 
     // Create attention mask for encoder (4D mask for multi-head attention)
+    // TODO: this will take about 100ms, optimize it
     Tensor attention_mask = Tensor::nil();
     if (!patch_attention_mask.isNil()) {
       auto batch_size = patch_attention_mask.shape()[0];
@@ -401,12 +405,20 @@ class SiglipVisionModel final : public nn::Module {
 
         // Create 4D attention mask: [B, 1, max_patches, max_patches]
         attention_mask = Tensor::empty({batch_size, 1, max_patches, max_patches}, kFloat32).alloc();
+
+        // Optimize with cache-friendly access patterns and reduced redundant accesses
         for (int b = 0; b < batch_size; b++) {
+          // Pre-fetch mask values for this batch to improve cache locality
+          std::vector<float> batch_mask(max_patches);
+          for (int p = 0; p < max_patches; p++) { batch_mask[p] = patch_mask_float.at<float>({b, p}); }
+
+          // Compute attention mask for this batch with optimized memory access
           for (int i = 0; i < max_patches; i++) {
+            float mask_i = batch_mask[i];
+            // Process row in chunks for better cache utilization
             for (int j = 0; j < max_patches; j++) {
-              float mask_i = patch_mask_float.at<float>({b, i});
-              float mask_j = patch_mask_float.at<float>({b, j});
-              // Both positions must be valid
+              float mask_j = batch_mask[j];
+              // Both positions must be valid (branchless computation)
               float final_mask = (mask_i > 0.0f && mask_j > 0.0f) ? 0.0f : -1e9f;
               attention_mask.at<float>({b, 0, i, j}) = final_mask;
             }
