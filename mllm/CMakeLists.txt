@@ -78,6 +78,11 @@ if(MLLM_PERFETTO_ENABLE)
   endif ()
 endif()
 
+if(MLLM_TRACY_ENABLE)
+  add_subdirectory(tracy_perf)
+  target_link_libraries(MllmRT PUBLIC MllmTracy)
+endif()
+
 # Host backend will be build by default
 add_subdirectory(backends/cpu)
 

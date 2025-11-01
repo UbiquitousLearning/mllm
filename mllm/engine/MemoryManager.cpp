@@ -3,6 +3,7 @@
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/engine/MemoryManager.hpp"
+#include "mllm/tracy_perf/Tracy.hpp"
 
 #ifdef MLLM_PERFETTO_ENABLE
 #include "mllm/engine/Perf.hpp"
@@ -25,6 +26,7 @@ void MemoryManager::registerAllocator(const DeviceTypes& device, const Allocator
 }
 
 void MemoryManager::alloc(Storage* s) {
+  MLLM_TRACY_ZONE_SCOPED;
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
 
@@ -58,6 +60,7 @@ void MemoryManager::alloc(Storage* s) {
 void MemoryManager::alloc(const std::shared_ptr<Storage>& s) { alloc(s.get()); }
 
 void MemoryManager::free(Storage* s) {
+  MLLM_TRACY_ZONE_SCOPED;
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
 

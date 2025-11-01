@@ -1,0 +1,6 @@
+if(MLLM_TRACY_ENABLE)
+  add_library(MllmTracy SHARED Tracy.cpp)
+  target_link_libraries(MllmTracy PUBLIC Tracy::TracyClient)
+  target_include_directories(MllmTracy PUBLIC ${MLLM_INCLUDE_DIR})
+  target_compile_definitions(MllmTracy PUBLIC MLLM_TRACY_ENABLE)
+endif()

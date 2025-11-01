@@ -6,10 +6,11 @@
 #include <cstdint>
 #include <memory>
 
-#include "mllm/core/BaseOp.hpp"
-#include "mllm/utils/AnyValue.hpp"
 #include <exec/any_sender_of.hpp>
 #include <stdexec/execution.hpp>
+
+#include "mllm/core/BaseOp.hpp"
+#include "mllm/utils/AnyValue.hpp"
 
 namespace mllm {
 
@@ -19,6 +20,8 @@ using __mllm_any_sender_of = typename exec::any_receiver_ref<stdexec::completion
 enum class TaskTypes : int32_t {
   kExecuteOp = 0,
   kExecuteModule = 1,
+
+  kOtherDispatcherTaskOffsets = 4096,
 };
 
 struct Task {

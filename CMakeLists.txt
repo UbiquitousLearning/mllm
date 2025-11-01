@@ -192,6 +192,19 @@ if(MLLM_PERFETTO_ENABLE)
   add_compile_definitions(MLLM_PERFETTO_ENABLE=1)
 endif()
 
+if(MLLM_TRACY_ENABLE)
+  # Fetch Tracy
+  FetchContent_Declare (
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG v0.12.2
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+  )
+  FetchContent_MakeAvailable(tracy)
+  add_compile_definitions(MLLM_TRACY_ENABLE=1)
+endif()
+
 # Handle Windows Symbols.
 if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -281,6 +294,15 @@ install(
 if(MLLM_BUILD_SDK_C_BINDING)
   install(
     TARGETS MllmSdkC
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
+endif()
+
+if(MLLM_TRACY_ENABLE)
+  install(
+    TARGETS MllmTracy
     EXPORT MllmTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib

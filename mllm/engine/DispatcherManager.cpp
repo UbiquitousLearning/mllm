@@ -5,6 +5,7 @@
 #include "exec/static_thread_pool.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/tracy_perf/Tracy.hpp"
 
 namespace mllm {
 
@@ -14,7 +15,10 @@ DispatcherManager::DispatcherManager(const DispatcherManagerOptions& options)
   exec::numa_policy numa{exec::no_numa_policy{}};
 }
 
-void DispatcherManager::submit(dispatcher_id_t id, const Task::ptr_t& task) { dispatchers_[id]->receive(task); }
+void DispatcherManager::submit(dispatcher_id_t id, const Task::ptr_t& task) {
+  MLLM_TRACY_ZONE_SCOPED;
+  dispatchers_[id]->receive(task);
+}
 
 TaskResult::sender_t DispatcherManager::asyncSubmit(dispatcher_id_t id, const Task::ptr_t& task) {
   return dispatchers_[id]->asyncReceive(task);

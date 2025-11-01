@@ -4,6 +4,7 @@ add_subdirectory(utils)
 add_subdirectory(plugin)
 add_subdirectory(engine)
 add_subdirectory(compile)
+add_subdirectory(async_io)
 
 # Backends
 add_subdirectory(cpu)
