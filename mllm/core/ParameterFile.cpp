@@ -192,7 +192,7 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
 
       // Allocate memory and read data
       s->name_ = desc.name_;
-      s->mem_type_ = kGlobal;
+      s->mem_type_ = kParamsNormal;
       p_file->push(desc.name_, Tensor(t).alloc());
       file.read(static_cast<char*>(s->ptr_), desc.descriptor_.data_len);
     }
