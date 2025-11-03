@@ -238,7 +238,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<|tts_eos|>");
   }
 
-  std::vector<std::wstring> _tokenize(const std::string& str) {
+  std::vector<std::wstring> _tokenize(const std::string& str) override {
     std::vector<std::wstring> ret;
     std::vector<std::wstring> splitted;
     ::mllm::models::minicpmo::miniCPMORegex(str, splitted);
@@ -255,7 +255,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  std::vector<std::wstring> tokenize(const std::string& str) {
+  std::vector<std::wstring> tokenize(const std::string& str) override {
     auto tokens = special_tokens_trie_.split(preprocessor::utf8string2WideString(str));
     std::vector<std::wstring> all_tokens;
     for (const auto& token : tokens) {
@@ -278,7 +278,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return {mllm::preprocessor::utf8string2WideString(utf_8_str)};
   }
 
-  Tensor convert2Ids(const std::vector<std::wstring>& strs) {
+  Tensor convert2Ids(const std::vector<std::wstring>& strs) override {
     std::vector<int64_t> ids;
     ids.reserve(strs.size());
     for (const auto& str : strs) { ids.emplace_back(bpe_._lookup_vocab(str)); }

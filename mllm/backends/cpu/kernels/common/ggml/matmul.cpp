@@ -33,7 +33,6 @@ void mllm_add_fp32(float* a, float* b, float* c, int n) {
 
 namespace mllm::cpu::ggml {
 
-// FIXME: still have some issues with LLAMAFILE_SGEMM
 #define LLAMAFILE_SGEMM
 
 /**
@@ -140,8 +139,8 @@ llamafile_fallback:;
 
   // Convert src0 to vec_dot_type if needed
   auto not_vec_dot_type = src0_dtype != vec_dot_type;
-  Tensor to;  // temporary tensor for conversion
-  const Tensor* src0 = &src0_;
+  Tensor quantized_src0;        // temporary tensor for conversion
+  const Tensor* src0 = &src0_;  // NOTE: after quantization, should not use src0_
 
   auto src0_stride = src0_.stride();
   auto src1_stride = src1.stride();
@@ -151,8 +150,8 @@ llamafile_fallback:;
     // convert x.dtype to vec_dot_type
     // so that we can use vec_dot to calculate dot product
     assert(src0_dtype == MLLM_TYPE_F32);  // x should be fp32
-    to = Tensor::empty(src0_.shape(), vec_dot_type, src0_.device()).alloc();
-    auto to_stride = to.stride();
+    quantized_src0 = Tensor::empty(src0_.shape(), vec_dot_type, src0_.device()).alloc();
+    auto to_stride = quantized_src0.stride();
 
     int64_t i_processed = 0;
     if ((from_float_to_mat != nullptr) && (gemv != nullptr) && src0_shape.size() >= 2) {
@@ -163,9 +162,10 @@ llamafile_fallback:;
               size_t src0_offset = b * src0_stride[src0_stride.size() - 3] + s * src0_stride[src0_stride.size() - 2];
               size_t to_offset = b * to_stride[to_stride.size() - 3] + s * to_stride[to_stride.size() - 2];
 
-              from_float_to_mat((src0_.ptr<float>() + src0_offset),
-                                (to.ptr<mllm_byte_t>() + to_offset / lanesOfType(vec_dot_type) * bytesOfType(vec_dot_type)), 4,
-                                src0->shape().back(), blck_size_interleave);
+              from_float_to_mat(
+                  (src0_.ptr<float>() + src0_offset),
+                  (quantized_src0.ptr<mllm_byte_t>() + to_offset / lanesOfType(vec_dot_type) * bytesOfType(vec_dot_type)), 4,
+                  src0->shape().back(), blck_size_interleave);
             });
         i_processed = src0_shape[src0_shape.size() - 2] - src0_shape[src0_shape.size() - 2] % 4;
       }
@@ -183,11 +183,11 @@ llamafile_fallback:;
       size_t to_offset = (b > 0 ? to_stride[to_stride.size() - 3] * b : 0) + s * to_stride[to_stride.size() - 2];
 
       x_to_vec_dot_type(src0_.ptr<float>() + src0_offset,
-                        (to.ptr<mllm_byte_t>() + to_offset / lanesOfType(vec_dot_type) * bytesOfType(vec_dot_type)),
+                        (quantized_src0.ptr<mllm_byte_t>() + to_offset / lanesOfType(vec_dot_type) * bytesOfType(vec_dot_type)),
                         src0_shape.back());
     });
 
-    src0 = &to;
+    src0 = &quantized_src0;
     src0_dtype = src0->dtype();
     src0_type_size = bytesOfType(src0->dtype());
     src0_blck_size = lanesOfType(src0->dtype());
@@ -199,7 +199,7 @@ llamafile_fallback:;
     if (batch_count == 1) {
       MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
         if (!llamafile_sgemm(N, M, K / src0_blck_size, src1.ptr<mllm_byte_t>(), ld_src1 / src1_blck_size,  // B matrix (weight)
-                             src0_.ptr<mllm_byte_t>(), ld_src0 / src0_blck_size,                           // A matrix (input)
+                             src0->ptr<mllm_byte_t>(), ld_src0 / src0_blck_size,                           // A matrix (input)
                              dst.ptr<mllm_byte_t>(), ld_dst, id, thread_count, src1_dtype, src0_dtype, dst_dtype, bias_ptr,
                              bias_type)) {
           MLLM_WARN("LlamaFile sgemm failed");
@@ -207,9 +207,9 @@ llamafile_fallback:;
       });
     } else {
       // Handle batched operation
-      auto src0_stride = src0_.stride();
-      auto src1_stride = src1.stride();
-      auto dst_stride = dst.stride();
+      const auto src0_stride = src0->stride();
+      const auto src1_stride = src1.stride();
+      const auto dst_stride = dst.stride();
 
       for (int b = 0; b < batch_count; ++b) {
         MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
@@ -221,7 +221,7 @@ llamafile_fallback:;
           if (!llamafile_sgemm(N, M, K / src0_blck_size,
                                src1.ptr<mllm_byte_t>() + src1_offset * src1_type_size / src1_blck_size,
                                ld_src1 / src1_blck_size,  // B matrix (weight)
-                               src0_.ptr<mllm_byte_t>() + src0_offset * src0_type_size / src0_blck_size,
+                               src0->ptr<mllm_byte_t>() + src0_offset * src0_type_size / src0_blck_size,
                                ld_src0 / src0_blck_size,  // A matrix (input)
                                dst.ptr<mllm_byte_t>() + dst_offset * bytesOfType(dst_dtype), ld_dst, id, thread_count,
                                src1_dtype, src0_dtype, dst_dtype, bias_ptr, bias_type)) {
@@ -230,6 +230,7 @@ llamafile_fallback:;
         });
       }
     }
+    return;  // sgemm done
   }
 #endif  // LLAMAFILE_SGEMM
 
@@ -289,7 +290,7 @@ llamafile_fallback:;
       });
     }
     return;
-  }
+  }  // end of gemv/gemm path
 
   // Fallback to vec_dot implementation
   const int64_t blck_0 = 16;

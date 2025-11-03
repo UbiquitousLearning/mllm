@@ -58,7 +58,7 @@ MLLM_MAIN({
     fmt::print("\n{:*^60}\n", " MiniCPM-o Interactive CLI ");
     fmt::print("Enter 'exit' or 'quit' to end the session\n");
 
-    std::string image_path = "path/to/your/image.jpg";
+    std::string image_path = "/Users/luis/Desktop/plane.png";
     std::string prompt_text = "描述图片中物体";
     mllm::models::minicpmo::MiniCPMOMessage message;
     message.prompt = prompt_text;
