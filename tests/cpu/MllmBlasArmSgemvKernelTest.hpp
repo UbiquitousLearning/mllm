@@ -19,10 +19,10 @@ class MllmBlasArmSgemvKernelTest : public KernelTest {
     int D = vars["D"];
     int S = vars["S"];
 
-    auto A = mllm::Tensor::random({1, D}, mllm::kFloat32, mllm::kCPU);
-    auto B = mllm::Tensor::random({S, D}, mllm::kFloat32, mllm::kCPU);
-    auto C = mllm::Tensor::random({1, D}, mllm::kFloat32, mllm::kCPU);
-    auto DST = mllm::Tensor::random({1, D}, mllm::kFloat32, mllm::kCPU);
+    auto A = mllm::Tensor::random({1, D}, -1, 1, mllm::kFloat32, mllm::kCPU);
+    auto B = mllm::Tensor::random({S, D}, -1, 1, mllm::kFloat32, mllm::kCPU);
+    auto C = mllm::Tensor::random({1, D}, -1, 1, mllm::kFloat32, mllm::kCPU);
+    auto DST = mllm::Tensor::random({1, S}, mllm::kFloat32, mllm::kCPU);
 
     auto a_ptr = A.ptr<float>();
     auto b_ptr = B.ptr<float>();
@@ -32,7 +32,7 @@ class MllmBlasArmSgemvKernelTest : public KernelTest {
     mllm::cpu::arm::__mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(1, D, S, dst_ptr, a_ptr, b_ptr, c_ptr, false,
                                                                                  true, 1);
 
-    auto DSTP = mllm::Tensor::random({1, D}, mllm::kFloat32, mllm::kCPU);
+    auto DSTP = mllm::Tensor::random({1, S}, mllm::kFloat32, mllm::kCPU);
     auto dstp_ptr = DSTP.ptr<float>();
     mllm::cpu::arm::__mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk(1, D, S, dstp_ptr, a_ptr, b_ptr, c_ptr, false, true, 1);
     auto result = mllm::test::allClose(DSTP, DST);
