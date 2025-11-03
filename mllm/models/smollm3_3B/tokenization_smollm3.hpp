@@ -26,13 +26,13 @@ struct SmolLM3Message {
   std::string prompt;
   bool enable_thinking = false;
 
-  static inline std::string no_think_template_str =
+  static inline const std::string no_think_template_str =
       "<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: "
       "{{date_in_number}} {{month}} {{year}}\nReasoning Mode: /no_think\n\n## Custom Instructions\n\nYou are a helpful AI "
       "assistant named SmolLM, trained by Hugging "
       "Face.\n\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n";
 
-  static inline std::string think_template_str =
+  static inline const std::string think_template_str =
       "<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: "
       "{{date_in_number}} {{month}} {{year}}\nReasoning Mode: /think\n\n## Custom Instructions\n\nYou are a helpful AI "
       "assistant named SmolLM, trained by Hugging Face. Your role as an assistant involves thoroughly exploring questions "

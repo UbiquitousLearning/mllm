@@ -67,7 +67,10 @@ void KaiLinear_fp32_fp32_fp32p_mxk_kxn::quant_pack_rhs_offline(uint8_t* __restri
   const size_t sr = ukernel_.get_sr();
   const size_t rhs_stride = N * sizeof(float);
   float* new_bias = nullptr;
-  if (bias == nullptr) { new_bias = new float[N]; }
+  if (bias == nullptr) {
+    new_bias = new float[N];
+    memset(new_bias, 0, N * sizeof(float));
+  }
   kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1, N, K, nr, kr, sr,     // Packing arguments
                                                    rhs_stride,              // RHS stride
                                                    rhs,                     // RHS

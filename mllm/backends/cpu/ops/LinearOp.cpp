@@ -77,10 +77,11 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
       ::mllm::cpu::arm::KaiLinear_fp32_fp32_fp32p_mxk_kxn kai_helper;
       weight_ = weight_.view({options_.out_channels, options_.in_channels});
       auto transposed_weight = weight_.transpose(0, 1);
-      int32_t packed_weight_size = kai_helper.quant_pack_rhs_size(weight_.size(0), weight_.size(1));
+      int32_t packed_weight_size = kai_helper.quant_pack_rhs_size(transposed_weight.size(0), transposed_weight.size(1));
       auto packed_weight = Tensor::empty({packed_weight_size}, kInt8, kCPU).alloc().setName(weight_.name()).setMemType(kGlobal);
       kai_helper.quant_pack_rhs_offline(packed_weight.ptr<mllm_byte_t>(), transposed_weight.ptr<mllm_fp32_t>(),
-                                        bias_ ? bias_.ptr<mllm_fp32_t>() : nullptr, weight_.size(0), weight_.size(1));
+                                        bias_ ? bias_.ptr<mllm_fp32_t>() : nullptr, transposed_weight.size(0),
+                                        transposed_weight.size(1));
       MLLM_INFO("Packing fp32 weight and bias to kai's fp32 format");
       weight_ = packed_weight;
       break;
