@@ -18,6 +18,8 @@ enum class LinearImplTypes {
   kGGUF,
 
   kMllmBlas,
+  kMllmBlas_KAI_SGEMM_NT_NT_NEON,
+  kMllmBlas_KAI_SGEMM_NT_T_SME,
 
   kKleidiai_Start,
   kKaiLinear_fp16_fp16_fp16p_mxk_kxn,

@@ -1,9 +1,14 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <limits>
+
 #include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"
-#include <limits>
+
+// for fp32
+#include "kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
+#include "kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
 // for pack_kxn_fp16_w_bias
 #include "kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h"
@@ -31,6 +36,80 @@
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::cpu::arm {
+
+kai_matmul_clamp_f32_f32_f32p_ukernel KaiLinear_fp32_fp32_fp32p_mxk_kxn::ukernel_ = {
+    .get_m_step = kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_n_step = kai_get_n_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_nr = kai_get_nr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_kr = kai_get_kr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_sr = kai_get_sr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_lhs_offset = kai_get_lhs_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_rhs_packed_offset = kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_dst_offset = kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .get_dst_size = kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
+    .run_matmul = kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
+
+size_t KaiLinear_fp32_fp32_fp32p_mxk_kxn::workspace_size(int M, int K) { return 0; }
+
+size_t KaiLinear_fp32_fp32_fp32p_mxk_kxn::quant_pack_rhs_size(int K, int N) {
+  const size_t nr = ukernel_.get_nr();
+  const size_t kr = ukernel_.get_kr();
+  const size_t sr = ukernel_.get_sr();
+  const size_t rhs_packed_size = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
+  return rhs_packed_size;
+}
+
+void KaiLinear_fp32_fp32_fp32p_mxk_kxn::quant_pack_rhs_offline(uint8_t* __restrict__ packed_weight,
+                                                               const float* __restrict__ rhs, const float* __restrict__ bias,
+                                                               int K, int N) {
+  const size_t nr = ukernel_.get_nr();
+  const size_t kr = ukernel_.get_kr();
+  const size_t sr = ukernel_.get_sr();
+  const size_t rhs_stride = N * sizeof(float);
+  float* new_bias = nullptr;
+  if (bias == nullptr) { new_bias = new float[N]; }
+  kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1, N, K, nr, kr, sr,     // Packing arguments
+                                                   rhs_stride,              // RHS stride
+                                                   rhs,                     // RHS
+                                                   bias ? bias : new_bias,  // Bias
+                                                   nullptr,                 // Scale
+                                                   packed_weight,           // RHS packed
+                                                   0, nullptr);
+  delete[] new_bias;
+}
+
+void KaiLinear_fp32_fp32_fp32p_mxk_kxn::matmul(float* __restrict__ dst, const float* __restrict__ lhs_fp32,
+                                               const uint8_t* packed_weight_bias, void* workspace, int M, int K, int N,
+                                               int thread_count) {
+  const size_t lhs_stride = K * sizeof(float);
+  const size_t rhs_stride = N * sizeof(float);
+  const size_t dst_stride_row = N * sizeof(float);
+  const size_t dst_stride_col = sizeof(float);
+
+  const size_t m_step = ukernel_.get_m_step();  // Scheduling along M
+  const size_t n_step = ukernel_.get_n_step();  // Scheduling along N
+
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i_m_step, 0, M, m_step, {
+    for (size_t i_n_step = 0; i_n_step < N; i_n_step += n_step) {
+      // Support functions return offset in bytes
+      const uint8_t* lhs_ptr = (const uint8_t*)lhs_fp32 + (ukernel_.get_lhs_offset(i_m_step, K * sizeof(float)));
+      const uint8_t* rhs_ptr = (const uint8_t*)packed_weight_bias + (ukernel_.get_rhs_packed_offset(i_n_step, K));
+      uint8_t* dst_ptr = (uint8_t*)dst + (ukernel_.get_dst_offset(i_m_step, i_n_step, N * sizeof(float)));
+      const size_t actual_m = std::min((size_t)(M - i_m_step), m_step);
+      const size_t actual_n = std::min((size_t)(N - i_n_step), n_step);
+      ukernel_.run_matmul(actual_m, actual_n, K,  // Dimensions
+                          lhs_ptr,                // LHS
+                          lhs_stride,             // LHS stride
+                          rhs_ptr,                // RHS packed
+                          dst_ptr,                // DST
+                          dst_stride_row,         // DST stride (row)
+                          dst_stride_col,         // DST stride (col)
+                          -std::numeric_limits<float>::max(),
+                          std::numeric_limits<float>::max()  // Min and max for the clamp operation
+      );
+    }
+  });
+}
 
 kai_matmul_clamp_f16_f16_f16p_ukernel KaiLinear_fp16_fp16_fp16p_mxk_kxn::ukernel_ = {
     .get_m_step = kai_get_m_step_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,

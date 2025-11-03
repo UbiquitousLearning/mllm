@@ -17,6 +17,8 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
         case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kGGUF:
         case aops::LinearImplTypes::kMllmBlas:
+        case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_NT_NEON:
+        case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_T_SME:
         case aops::LinearImplTypes::kDefault: {
           weight_ = weight_.view({options_.out_channels, options_.in_channels});
           if (options_.bias) {
@@ -40,6 +42,8 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
         case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kGGUF:
         case aops::LinearImplTypes::kMllmBlas:
+        case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_NT_NEON:
+        case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_T_SME:
         case aops::LinearImplTypes::kDefault: {
           if (options_.bias) {
             bias_ = ploader->pull(getName() + ".bias");
@@ -56,6 +60,36 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
       break;
     }
     default: NYI("Unsupported model file version")
+  }
+
+  // Prepare data:
+  auto impl_type = options_.impl_type;
+  if (impl_type == aops::LinearImplTypes::kDefault) {
+#if defined(MLLM_USE_BLAS)
+    impl_type = aops::LinearImplTypes::kBLAS;
+#else
+    // FIXME, When we need kMllmBlas_KAI_SGEMM_NT_NT_NEON. set it.
+#endif
+  }
+
+  switch (impl_type) {
+    case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_NT_NEON: {
+      ::mllm::cpu::arm::KaiLinear_fp32_fp32_fp32p_mxk_kxn kai_helper;
+      weight_ = weight_.view({options_.out_channels, options_.in_channels});
+      auto transposed_weight = weight_.transpose(0, 1);
+      int32_t packed_weight_size = kai_helper.quant_pack_rhs_size(weight_.size(0), weight_.size(1));
+      auto packed_weight = Tensor::empty({packed_weight_size}, kInt8, kCPU).alloc().setName(weight_.name()).setMemType(kGlobal);
+      kai_helper.quant_pack_rhs_offline(packed_weight.ptr<mllm_byte_t>(), transposed_weight.ptr<mllm_fp32_t>(),
+                                        bias_ ? bias_.ptr<mllm_fp32_t>() : nullptr, weight_.size(0), weight_.size(1));
+      MLLM_INFO("Packing fp32 weight and bias to kai's fp32 format");
+      weight_ = packed_weight;
+      break;
+    }
+    default: {
+      // No need to postprocess.
+      MLLM_EMPTY_SCOPE
+      break;
+    }
   }
 }
 
@@ -115,6 +149,17 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
 // The code below is for ARM64/ARM.
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+    case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_NT_NEON: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_fp32_fp32_fp32p_mxk_kxn kai_helper;
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), nullptr, M, K, N,
+                        options_.getThreads());
+
+      break;
+    }
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32: {
     __mllm_label_kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32:
       auto M = input.shape()[input.shape().size() - 2];

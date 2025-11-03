@@ -38,9 +38,12 @@ option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
-# Performance components
+# Performance profile components
 option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
 option(MLLM_TRACY_ENABLE "Enable Tracy. A more advanced profiler" OFF)
+
+# Platform Hints
+option(MLLM_ANDROID_BURST_PERFORMANCE_HINTS "If MLLM need use APerformanceHintManager to tell android we need best performance" OFF)
 
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
