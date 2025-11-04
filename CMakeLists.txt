@@ -19,7 +19,7 @@ option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
 option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
-option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
+option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" ON)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
 # Extension Enable
