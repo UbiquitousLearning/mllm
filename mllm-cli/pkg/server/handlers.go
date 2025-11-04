@@ -1,5 +1,3 @@
-// Copyright (c) MLLM Team.
-// Licensed under the MIT License.
 package server
 
 import (
@@ -7,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
-	"time"
 
-	"github.com/google/uuid" 
+	"github.com/google/uuid"
 )
 
 func (s *Server) chatCompletionsHandler() http.HandlerFunc {
@@ -33,7 +29,7 @@ func (s *Server) chatCompletionsHandler() http.HandlerFunc {
 			http.Error(w, fmt.Sprintf("Model '%s' is not available on this server.", modelName), http.StatusNotFound)
 			return
 		}
-		
+
 		requestPayload["model"] = session.SessionID()
 
 		requestID, ok := requestPayload["id"].(string)
@@ -41,9 +37,9 @@ func (s *Server) chatCompletionsHandler() http.HandlerFunc {
 			newID := uuid.New().String()
 			log.Printf("Client did not provide a request ID. Generated a new one: %s", newID)
 			requestID = newID
-			requestPayload["id"] = newID 
+			requestPayload["id"] = newID
 		}
-		
+
 		requestBytes, err := json.Marshal(requestPayload)
 		if err != nil {
 			http.Error(w, "Failed to re-marshal request payload", http.StatusInternalServerError)
@@ -60,30 +56,37 @@ func (s *Server) chatCompletionsHandler() http.HandlerFunc {
 		flusher, _ := w.(http.Flusher)
 
 		log.Printf("Streaming response for session %s (Request ID: %s)...", session.SessionID(), requestID)
+		
 		for {
 			if r.Context().Err() != nil {
 				log.Printf("Client disconnected. Stopping stream for %s.", session.SessionID())
 				break
 			}
+
 			
-			rawResponse := session.PollResponse(requestID) 
+			rawResponse := session.PollResponse(requestID)
+
+			if rawResponse == "" {
+				log.Println("Received empty response from poll, assuming stream has ended.")
+				break
+			}
 			
-			if rawResponse != "" {
-				if strings.Contains(rawResponse, "<|im_end|>") {
-					cleanedResponse := strings.Replace(rawResponse, "<|im_end|>", "", -1)
-					if cleanedResponse != "" && cleanedResponse != `{"choices":[{"delta":{}}]}` {
-						fmt.Fprintf(w, "data: %s\n\n", cleanedResponse)
-						flusher.Flush()
+			fmt.Fprintf(w, "data: %s\n\n", rawResponse)
+			flusher.Flush()
+
+			var responseChunk map[string]interface{}
+			if json.Unmarshal([]byte(rawResponse), &responseChunk) == nil {
+				if choices, ok := responseChunk["choices"].([]interface{}); ok && len(choices) > 0 {
+					if choice, ok := choices[0].(map[string]interface{}); ok {
+						if reason, ok := choice["finish_reason"].(string); ok && reason == "stop" {
+							log.Println("End of stream detected: finish_reason is 'stop'.")
+							break
+						}
 					}
-					log.Println("End of stream token detected. Finishing stream.")
-					break
 				}
-				fmt.Fprintf(w, "data: %s\n\n", rawResponse)
-				flusher.Flush()
-			} else {
-				time.Sleep(10 * time.Millisecond)
 			}
 		}
+
 		fmt.Fprintf(w, "data: [DONE]\n\n")
 		flusher.Flush()
 		log.Printf("Finished streaming for session %s (Request ID: %s).", session.SessionID(), requestID)

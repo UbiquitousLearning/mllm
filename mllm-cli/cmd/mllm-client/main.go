@@ -34,7 +34,7 @@ func main() {
 
 		history = append(history, api.RequestMessage{Role: "user", Content: cleanedInput})
 		apiRequest := api.OpenAIRequest{
-			Model:     "mllm-model",
+			Model:     "Qwen3-0.6B-w4a32kai",
 			Messages:  history,
 			Stream:    true,
 			SessionID: currentSessionID, 
