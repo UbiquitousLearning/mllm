@@ -153,13 +153,15 @@ struct MiniCPMOMessage {
   std::string prompt;
   std::string img_file_path;
   std::string audio_file_path;
-  std::string system_prompt = "You are Qwen, created by Alibaba Clound. You are a helpful assistant.";
+  // TODO: system prompt should be configurable according to different scenarios
+  std::string system_prompt =
+      "You are a helpful assistant. You can accept video, audio and text input and output voice and text.";
 
   [[nodiscard]] std::string buildChatMessage() const {
     // For now, one picture only
     std::string result = "";
     // System message
-    if (!system_prompt.empty()) { result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n"; }
+    if (!system_prompt.empty()) { result += "<|im_start|>user\n" + system_prompt + "<|im_end|>\n"; }
 
     result += "<|im_start|>user\n";
 
@@ -169,10 +171,13 @@ struct MiniCPMOMessage {
     // Audio placeholder
     if (!audio_file_path.empty()) { result += "(<audio>./</audio>)"; }
 
-    result += "\n" + prompt + "<|im_end|>\n";
+    if (!prompt.empty()) {
+      result += "\n" + prompt;
+      result += "<|im_end|>\n";
 
-    // Assistant prompt start
-    result += "<|im_start|>assistant\n";
+      // Assistant prompt start
+      result += "<|im_start|>assistant\n";
+    }
 
     return result;
   }
@@ -391,38 +396,41 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     // Convert img_tensors (std::vector<Tensor>) to single Tensor
     // **ADD PADDING HERE!**
     if (!img_tensors.empty()) {
-      if (img_tensors.size() == 1) {
-        result["pixel_values"] = img_tensors[0];
-      } else {
-        int channels = img_tensors[0].shape()[0];
-        int patch_size = img_tensors[0].shape()[1];
-        int HW_patch_size = img_tensors[0].shape()[2];
-        for (const auto& img_tensor : img_tensors) {
-          if (img_tensor.shape()[2] > HW_patch_size) { HW_patch_size = img_tensor.shape()[2]; }
-        }
-        Tensor pixel_values = Tensor::empty({(int)img_tensors.size(), channels, patch_size, HW_patch_size}, kFloat32, kCPU)
-                                  .setMemType(kExtraInput)
-                                  .setName("pixel_values")
-                                  .alloc();
-        auto pixel_values_ptr = pixel_values.ptr<float_t>();
-        for (int b = 0; b < (int)img_tensors.size(); b++) {
-          for (int c = 0; c < channels; c++) {
-            for (int p = 0; p < patch_size; p++) {
-              for (int hw = 0; hw < HW_patch_size; hw++) {
-                int dst_idx =
-                    b * channels * patch_size * HW_patch_size + c * patch_size * HW_patch_size + p * HW_patch_size + hw;
-                if (hw > img_tensors[b].shape()[2]) {
-                  pixel_values_ptr[dst_idx] = 0;
-                } else {
-                  pixel_values_ptr[dst_idx] = img_tensors[b].at<float>({c, p, hw});
-                }
-              }
-            }
+      int channels = img_tensors[0].shape()[0];
+      int patch_size = img_tensors[0].shape()[1];
+      int HW_patch_size = img_tensors[0].shape()[2];
+      for (const auto& img_tensor : img_tensors) {
+        if (img_tensor.shape()[2] > HW_patch_size) { HW_patch_size = img_tensor.shape()[2]; }
+      }
+      Tensor pixel_values = Tensor::empty({(int)img_tensors.size(), channels, patch_size, HW_patch_size}, kFloat32, kCPU)
+                                .setMemType(kExtraInput)
+                                .setName("pixel_values")
+                                .alloc();
+      auto pixel_values_ptr = pixel_values.ptr<float_t>();
+
+      // Zero-initialize the entire tensor first for padding
+      const size_t total_size = img_tensors.size() * channels * patch_size * HW_patch_size * sizeof(float_t);
+      std::memset(pixel_values_ptr, 0, total_size);
+
+      // Copy data using memcpy for better performance
+      for (int b = 0; b < (int)img_tensors.size(); b++) {
+        const int src_hw = img_tensors[b].shape()[2];
+        const auto src_ptr = img_tensors[b].ptr<float>();
+
+        for (int c = 0; c < channels; c++) {
+          for (int p = 0; p < patch_size; p++) {
+            // Calculate source and destination offsets
+            const int src_offset = c * patch_size * src_hw + p * src_hw;
+            const int dst_offset =
+                b * channels * patch_size * HW_patch_size + c * patch_size * HW_patch_size + p * HW_patch_size;
+
+            // Copy the entire row (valid data only, padding is already zeroed)
+            std::memcpy(pixel_values_ptr + dst_offset, src_ptr + src_offset, src_hw * sizeof(float_t));
           }
         }
-
-        result["pixel_values"] = pixel_values;
       }
+
+      result["pixel_values"] = pixel_values;
     }
 
     // Convert tgt_sizes (std::vector<std::pair<int, int>>) to Tensor
