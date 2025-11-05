@@ -13,3 +13,8 @@ CompileFlags:
     - -Xcompiler=-fPIC
     - --expt-relaxed-constexpr
     - -fconcepts-diagnostics-depth=10
+    - -Xaicore-start
+    - -Xaicore-end
+    - -Xhost-start
+    - -Xhost-end
+    - --npu-arch=dav-2201

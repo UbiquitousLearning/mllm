@@ -19,6 +19,7 @@ option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
 option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
+option(MLLM_BUILD_ASCEND_BACKEND "Enable MLLM Ascend backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" ON)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 
@@ -32,6 +33,9 @@ option(MLLM_USE_BLAS "Enable BLAS" OFF)
 option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
 option(MLLM_BLAS_VENDOR_MKL "Enable MKL BLAS on X86" OFF)
 option(MLLM_BLAS_VENDOR_BLIS "Enable BLIS BLAS for multi-platform" OFF)
+
+# Ascend Backend: Options
+option(MLLM_ASCEND_CPU_DEBUG_MODE "Enable CPU Debug mode in ascend" OFF)
 
 # Threads
 option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
@@ -71,7 +75,7 @@ if(NOT MLLM_GIT_COMMIT_HASH)
   set(MLLM_GIT_COMMIT_HASH "unknown")
 endif()
 message(STATUS "MLLM_GIT_COMMIT_HASH=${MLLM_GIT_COMMIT_HASH}")
-add_compile_definitions(MLLM_GIT_COMMIT_HASH="${MLLM_GIT_COMMIT_HASH}")
+add_compile_definitions(MLLM_GIT_COMMIT_HASH=${MLLM_GIT_COMMIT_HASH})
 
 if(MLLM_ENABLE_PY_MLLM)
   add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)

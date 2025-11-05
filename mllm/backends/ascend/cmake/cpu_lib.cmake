@@ -1,0 +1,10 @@
+if(NOT DEFINED ENV{CMAKE_PREFIX_PATH})
+  set(CMAKE_PREFIX_PATH ${ASCEND_CANN_PACKAGE_PATH}/tools/tikicpulib/lib/cmake)
+endif()
+find_package(tikicpulib REQUIRED)
+
+add_library(MllmAscendKernel SHARED ${MLLM_ASCEND_KERNEL_FILES})
+target_link_libraries(MllmAscendKernel PRIVATE tikicpulib::${SOC_VERSION})
+target_compile_options(MllmAscendKernel PRIVATE -g -O0)
+set_target_properties(MllmAscendKernel PROPERTIES CXX_STANDARD 20)
+install(TARGETS MllmAscendKernel DESTINATION ${CMAKE_INSTALL_LIBDIR})

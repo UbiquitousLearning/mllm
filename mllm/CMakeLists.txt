@@ -111,6 +111,22 @@ if(MLLM_BUILD_CUDA_BACKEND)
   )
 endif()
 
+if(MLLM_BUILD_ASCEND_BACKEND)
+  add_subdirectory(backends/ascend)
+  add_compile_definitions(
+    MLLM_ASCEND_BACKEND
+  )
+  set(MLLM_ASCEND_NPU_SOC "Ascend310P3" CACHE STRING "system on chip type")
+  if(MLLM_ASCEND_CPU_DEBUG_MODE)
+    add_compile_definitions(
+      MLLM_ASCEND_CPU_DEBUG_MODE=1
+    )
+    set(MLLM_ASCEND_NPU_RUN_MODE "cpu" CACHE STRING "cpu/npu")
+  else()
+    set(MLLM_ASCEND_NPU_RUN_MODE "npu" CACHE STRING "cpu/npu")
+  endif()
+endif()
+
 # Extension
 if(MLLM_EXT_ENABLE)
   add_subdirectory(ext)

@@ -183,6 +183,8 @@ bool isOpenCLAvailable();
 
 extern void initCudaBackend();
 
+extern void initAscendBackend();
+
 bool isQnnAvailable();
 
 extern void initQnnBackend();
