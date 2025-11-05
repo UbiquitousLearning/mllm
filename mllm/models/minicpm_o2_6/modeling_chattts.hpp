@@ -26,8 +26,8 @@
 
 namespace mllm::models::chattts {
 
-inline auto makeLLaMARotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
-                                        float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
+inline auto makeLLaMARotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
+    -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -124,6 +124,7 @@ class ConditionalChatTTS : public nn::Module {
   llama::LlamaText model_;
 
  public:
+  ConditionalChatTTS() = default;
   explicit ConditionalChatTTS(const std::string& name, const ChatTTSConfig& cfg) : cfg_(cfg), nn::Module(name) {
     MLLM_RT_ASSERT(cfg.use_mlp);  // in minicpm, MLP is always used
     projector_ = reg<MultiModalProjector>("projector", cfg.llm_dim, cfg.hidden_size);
