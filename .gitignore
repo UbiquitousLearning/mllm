@@ -21,7 +21,6 @@ __pycache__/
 _deps
 .uuid
 *.cmake
-Makefile
 *.model
 models/*
 /.devcontainer/
