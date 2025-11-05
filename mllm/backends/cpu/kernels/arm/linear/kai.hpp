@@ -33,8 +33,12 @@
 #include <cstdint>
 #include <unordered_map>
 
-// for pack_kxn_fp16_w_bias
+// For fp32
+#include "kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
+#include "kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
+// for pack_kxn_fp16_w_bias
 #include "kai_matmul_clamp_f16_f16_f16p_interface.h"
 
 // for f32_qai8dxp_qsi4c32
@@ -47,6 +51,26 @@
 #include "mllm/core/DataTypes.hpp"
 
 namespace mllm::cpu::arm {
+
+// This kernel is Arm Neon
+struct KaiLinear_fp32_fp32_fp32p_mxk_kxn {
+  inline bool need_pack_lhs() { return false; }
+
+  inline bool need_pack_rhs() { return true; }
+
+  size_t workspace_size(int M, int K);
+
+  size_t quant_pack_rhs_size(int K, int N);
+
+  void quant_pack_rhs_offline(uint8_t* __restrict__ packed_weight, const float* __restrict__ rhs,
+                              const float* __restrict__ bias, int K, int N);
+
+  void matmul(float* __restrict__ dst, const float* __restrict__ lhs_fp32, const uint8_t* packed_weight_bias, void* workspace,
+              int M, int K, int N, int thread_count);
+
+ private:
+  static kai_matmul_clamp_f32_f32_f32p_ukernel ukernel_;
+};
 
 /// WARN: Do not use This kai kernel has precision error
 struct KaiLinear_fp16_fp16_fp16p_mxk_kxn {

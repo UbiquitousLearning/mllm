@@ -7,6 +7,7 @@
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "schema/kai.hpp"
+#include "schema/gguf.hpp"
 #endif
 
 using mllm::Argparse;
@@ -81,6 +82,15 @@ int main(int argc, char** argv) {
   qd.registerQuantizeImpl(QuantizeImpl_KAI_f32_qai8dxp_qsi4c32p_mxk_kxn::create());
   qd.registerQuantizeImpl(QuantizeImpl_KAI_f16_qsi8d32p_qai4c32p_mxk_nxk::create());
 #endif
+
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q4_0::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q8_0::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q2_K::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q3_K::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q4_K::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q6_K::create());
+  qd.registerQuantizeImpl(QuantizeImpl_GGUF_Q8_K::create());
+
   qd();
 
   mllm::ModelFileVersion o_file_version = mllm::ModelFileVersion::kV1;

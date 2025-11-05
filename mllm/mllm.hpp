@@ -194,7 +194,7 @@ SessionTCB::ptr_t thisThread();
 void loadOpPackage(const std::string& path);
 
 ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion version = ModelFileVersion::kV1,
-                          DeviceTypes map_2_device = kCPU);
+                          DeviceTypes map_2_device = kCPU, bool mmap = true);
 
 void save(const std::string& file_name, const ParameterFile::ptr_t& parameter_file,
           ModelFileVersion version = ModelFileVersion::kV1, DeviceTypes map_2_device = kCPU);

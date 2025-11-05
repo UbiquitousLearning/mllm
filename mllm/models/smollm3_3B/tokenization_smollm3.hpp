@@ -2,184 +2,173 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <vector>
-#include <unordered_map>
+#include <string>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
-#include "mllm/preprocessor/tokenizers/BPE.hpp"
-#include "mllm/models/ARGeneration.hpp"
+#include "mllm/preprocessor/tokenizers/BPEUTF8.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
+#include "mllm/preprocessor/tokenizers/llama_cpp_unicode/unicode.h"
 
 namespace mllm::models::smollm3 {
 
+namespace details {
+
+// Standard GPT2 regex
+// https://github.com/openai/gpt-2/blob/master/src/encoder.py#L53
+constexpr char GPT2_EXPR[] = R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)";
+
+}  // namespace details
+
+>>>>>>> upstream/v2
 struct SmolLM3Message {
   std::string prompt;
   bool enable_thinking = false;
 
-  // 使用SmolLM3模板格式
-  static inline std::string thinking_template =
-      "<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n<think>\n";
-  static inline std::string direct_template =
-      "<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n";
+
+  static inline const std::string no_think_template_str =
+      "<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: "
+      "{{date_in_number}} {{month}} {{year}}\nReasoning Mode: /no_think\n\n## Custom Instructions\n\nYou are a helpful AI "
+      "assistant named SmolLM, trained by Hugging "
+      "Face.\n\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n";
+
+  static inline const std::string think_template_str =
+      "<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: "
+      "{{date_in_number}} {{month}} {{year}}\nReasoning Mode: /think\n\n## Custom Instructions\n\nYou are a helpful AI "
+      "assistant named SmolLM, trained by Hugging Face. Your role as an assistant involves thoroughly exploring questions "
+      "through a systematic thinking process before providing the final precise and accurate solutions. This requires engaging "
+      "in a comprehensive cycle of analysis, summarizing, exploration, reassessment, reflection, backtracking, and iteration "
+      "to develop well-considered thinking process. Please structure your response into two main sections: Thought and "
+      "Solution using the specified format: <think> Thought section </think> Solution section. In the Thought section, detail "
+      "your reasoning process in steps. Each step should include detailed considerations such as analysing questions, "
+      "summarizing relevant findings, brainstorming new ideas, verifying the accuracy of the current steps, refining any "
+      "errors, and revisiting previous steps. In the Solution section, based on various attempts, explorations, and "
+      "reflections from the Thought section, systematically present the final solution that you deem correct. The Solution "
+      "section should be logical, accurate, and concise and detail necessary steps needed to reach the "
+      "conclusion.\n\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n";
 };
 
-class SmolLM3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
+class SmolLM3Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
  public:
   explicit SmolLM3Tokenizer(const std::string& file_path) {
+    // Init
     preprocessor::initLocal();
-    
-    // 初始化字节到unicode映射
-    preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
-    for (auto& kv : bytes_2_unicode_dict_) {
-      bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first});
-    }
 
-    // 加载BPE tokenizer
+    // Load bpe files
     bpe_.initFromSentencePieceJson(file_path);
 
-    // 添加SmolLM3的特殊token
-    special_tokens_trie_.add(L"<|im_start|>");
-    special_tokens_trie_.add(L"<|im_end|>");
-    special_tokens_trie_.add(L"<think>");
-    special_tokens_trie_.add(L"</think>");
-    special_tokens_trie_.add(L"<|system|>");
-    special_tokens_trie_.add(L"<|user|>");
-    special_tokens_trie_.add(L"<|assistant|>");
-    special_tokens_trie_.add(L"<|endoftext|>");
+    // Add special tokens to trie
+    special_tokens_trie_.add("<|im_end|>");
+    special_tokens_trie_.add("<|begin_of_text|>");
+    special_tokens_trie_.add("<|end_of_text|>");
+    special_tokens_trie_.add("<think>");
+    special_tokens_trie_.add("</think>");
+    special_tokens_trie_.add("<|im_start|>");
   }
 
-  std::vector<std::wstring> _tokenize(const std::string& text) override {
-    if (text.empty()) {
-      return {};
+  void replaceAll(std::string& s, const std::string& from, const std::string& to) {
+    if (from.empty()) return;
+    size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+      s.replace(pos, from.size(), to);
+      pos += to.size();
     }
-    
-    // 将UTF-8文本转换为宽字符串
-    std::wstring w_text = preprocessor::utf8string2WideString(text);
-    
-    // 应用字节到unicode映射
-    std::wstring mapped_text;
-    for (wchar_t c : w_text) {
-      if (c <= 255) {
-        unsigned char uc = static_cast<unsigned char>(c);
-        if (bytes_2_unicode_dict_.count(uc)) {
-          mapped_text.push_back(bytes_2_unicode_dict_[uc]);
-        } else {
-          mapped_text.push_back(c);
-        }
-      } else {
-        mapped_text.push_back(c);
-      }
-    }
-    
-    // 使用BPE分词
-    auto bpe_tokens = bpe_._bpe(mapped_text);
-    return bpe_tokens;
   }
 
-  std::vector<std::wstring> tokenize(const std::string& text) override {
-    if (text.empty()) {
-      return {};
-    }
-    
-    // 使用特殊token分割文本
-    auto w_text = preprocessor::utf8string2WideString(text);
-    auto segments = special_tokens_trie_.split(w_text);
-    
-    std::vector<std::wstring> all_tokens;
-    for (const auto& segment : segments) {
-      if (special_tokens_trie_.isSpecialToken(segment)) {
-        all_tokens.push_back(segment);
-      } else {
-        auto segment_text = preprocessor::wideString2Utf8String(segment);
-        auto segment_tokens = _tokenize(segment_text);
-        all_tokens.insert(all_tokens.end(), segment_tokens.begin(), segment_tokens.end());
-      }
-    }
-    
-    return all_tokens;
+  std::string applyChatTemplate(const std::string& prompt, bool enable_thinking) {
+    std::time_t t = std::time(nullptr);
+    std::tm tm_ = *std::localtime(&t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm_, "%d");
+    std::string date_in_number = oss.str();
+
+    static const char* month_names[] = {"January", "February", "March",     "April",   "May",      "June",
+                                        "July",    "August",   "September", "October", "November", "December"};
+    std::string month = month_names[tm_.tm_mon];
+    std::string year = std::to_string(1900 + tm_.tm_year);
+
+    std::string tpl = enable_thinking ? SmolLM3Message::think_template_str : SmolLM3Message::no_think_template_str;
+
+    replaceAll(tpl, "{{date_in_number}}", date_in_number);
+    replaceAll(tpl, "{{month}}", month);
+    replaceAll(tpl, "{{year}}", year);
+    replaceAll(tpl, "{{prompt}}", prompt);
+
+    return tpl;
   }
 
-  std::wstring _detokenize(int64_t pos_idx) override {
-    return bpe_._lookup_inverse_vocab(pos_idx);
-  }
-
-  std::wstring detokenize(int64_t pos_idx) override {
-    auto token_str = _detokenize(pos_idx);
-    
-    // 将映射后的unicode字符转换回原始字节
-    std::string result_bytes;
-    for (wchar_t c : token_str) {
-      if (bytes_2_unicode_dict_inverse_.count(c)) {
-        result_bytes.push_back(static_cast<char>(bytes_2_unicode_dict_inverse_[c]));
-      } else {
-        auto utf8_str = preprocessor::wideString2Utf8String(std::wstring(1, c));
-        result_bytes += utf8_str;
-      }
-    }
-    
-    return preprocessor::utf8string2WideString(result_bytes);
-  }
-
-  Tensor convert2Ids(const std::vector<std::wstring>& tokens) override {
-    std::vector<int64_t> token_ids;
-    token_ids.reserve(tokens.size());
-    
-    for (const auto& token : tokens) {
-      int64_t token_id = bpe_._lookup_vocab(token);
-      token_ids.push_back(token_id);
-    }
-
-    Tensor ret = Tensor::empty({1, (int32_t)token_ids.size()}, kInt64, kCPU)
-                     .setMemType(kExtraInput)
-                     .setName("smollm3-tokenizer-i0")
-                     .alloc();
-
-    auto ptr = ret.ptr<int64_t>();
-    for (size_t i = 0; i < token_ids.size(); ++i) {
-      ptr[i] = token_ids[i];
-    }
-
+  std::vector<int64_t> encode(const std::string& str) override {
+    auto sub_tokens = tokenize(str);
+    auto ret = std::vector<int64_t>{};
+    for (auto& token : sub_tokens) { ret.emplace_back(bpe_._lookup_vocab(token)); }
     return ret;
   }
 
-  ARGenerationOutputPast convertMessage(const SmolLM3Message& message) {
-    // 选择模板
-    std::string template_str = message.enable_thinking 
-                               ? SmolLM3Message::thinking_template 
-                               : SmolLM3Message::direct_template;
-
-    // 替换prompt占位符
-    std::string applied_string = template_str;
-    size_t pos = applied_string.find("{prompt}");
-    if (pos != std::string::npos) {
-      applied_string.replace(pos, 8, message.prompt);
+  std::string decode(const std::vector<int64_t>& ids) override {
+    std::vector<std::string> after_bpe_check;
+    for (auto& each_id : ids) {
+      auto each_str = bpe_._lookup_inverse_vocab(each_id);
+      after_bpe_check.emplace_back(each_str);
     }
+    return detokenize(after_bpe_check);
+  }
 
-    // Tokenize并转换为IDs
-    auto tokens = tokenize(applied_string);
-    
-    std::vector<int64_t> token_ids;
-    for (const auto& token : tokens) {
-      token_ids.push_back(bpe_._lookup_vocab(token));
+  std::vector<std::string> tokenize(const std::string& str) override {
+    // Replace all blank token to underscore
+
+    std::vector<std::string> ret;
+    for (auto& each_str : special_tokens_trie_.split(str)) {
+      if (special_tokens_trie_.isSpecialToken(each_str)) {
+        ret.emplace_back(each_str);
+        continue;
+      }
+
+      // No need to Regex:
+      auto after_regex_process = {each_str};
+
+      for (auto& ss : after_regex_process) {
+        auto after_bytes_process = byteLevelPreTokenizer(ss);
+
+        // Perform BPE algorithm on each sub-token
+        for (auto& bbpe_str : after_bytes_process) {
+          auto bbpe_str_sub_tokens = bpe_._bpe(bbpe_str);
+          ret.insert(ret.end(), bbpe_str_sub_tokens.begin(), bbpe_str_sub_tokens.end());
+        }
+      }
     }
+    return ret;
+  }
 
-    Tensor sequence = Tensor::empty({1, (int32_t)token_ids.size()}, kInt64, kCPU)
-                          .setMemType(kNormal)
-                          .setName("smollm3-tokenizer-i0")
-                          .alloc();
-
-    auto ptr = sequence.ptr<int64_t>();
-    for (size_t i = 0; i < token_ids.size(); ++i) {
-      ptr[i] = token_ids[i];
+  std::string detokenize(const std::vector<std::string>& tokenized_str) override {
+    std::string ret;
+    for (auto& each_str : tokenized_str) {
+      if (special_tokens_trie_.isSpecialToken(each_str)) {
+        ret += each_str;
+        continue;
+      }
+      // Loop utf8 string
+      utf8::iterator it(each_str.begin(), each_str.begin(), each_str.end());
+      utf8::iterator end_it(each_str.end(), each_str.begin(), each_str.end());
+      for (; it != end_it; ++it) {
+        char32_t cp = *it;
+        auto b = unicode_utf8_to_byte(unicode_cpt_to_utf8(cp));
+        ret.push_back(b);
+      }
     }
-
-    return {{"sequence", sequence}};
+    return ret;
   }
 
  private:
-  preprocessor::BPE bpe_;
-  std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
-  std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
+  std::vector<std::string> byteLevelPreTokenizer(const std::string& str) {
+    return unicode_regex_split(str, {std::string{details::GPT2_EXPR}});
+  }
+
+  // For text
+  preprocessor::BPEUTF8 bpe_;
+>>>>>>> upstream/v2
 };
 
 }  // namespace mllm::models::smollm3

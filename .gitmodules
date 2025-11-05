@@ -29,3 +29,7 @@
 	path = mllm/ext/vendors/tokenizers
 	url = https://github.com/meta-pytorch/tokenizers.git
 	update = none
+[submodule "mllm-chat"]
+	path = mllm-chat
+	url = https://github.com/UbiquitousLearning/mllm-chat
+	update = none

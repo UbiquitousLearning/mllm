@@ -37,37 +37,41 @@ typedef enum {
   kBuiltinContainerList = 260,
   kBuiltinContainer_End = 512,
 
+  // Custom Object
+  kCustomObject = 513,
+
 #ifdef __cplusplus
 };
 #else
 } MllmCType;
 #endif
 
-typedef struct {           // NOLINT
+typedef struct {     // NOLINT
   uint32_t type_id;        // 4B
   int64_t strong_ref_ptr;  // 8B
   uint32_t weak_ref_ptr;   // 4B
 } MllmCObject;
 
-typedef struct {  // NOLINT
+typedef struct {   // NOLINT
   char* data;
   size_t size;
 } MllmCByteArrayObject;
 
-typedef struct {     // NOLINT
+typedef struct {   // NOLINT
   uint32_t type_id;  // 4B
-  union {            // 8B
+  union {          // 8B
     int64_t v_int64;
     double v_fp64;
     int32_t v_bool;
     int32_t v_return_code;
     MllmCObject* v_object;
     void* v_bare_ptr;
+    void* v_custom_ptr; 
   };
 } MllmCAny;
 
 #ifdef __cplusplus
 }
-#endif  //! __cplusplus
+#endif // !__cplusplus
 
-#endif  //! MLLM_C_API_OBJECT_H_
+#endif // ! MLLM_C_API_OBJECT_H_
