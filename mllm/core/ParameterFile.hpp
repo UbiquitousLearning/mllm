@@ -71,21 +71,21 @@ class ParameterFile {
 
 template<DeviceTypes __device_type, ModelFileVersion __model_file_version>
 struct ParameterFileIOImpl {
-  static ParameterFile::ptr_t read(const std::string& file_path);
+  static ParameterFile::ptr_t read(const std::string& file_path, bool mmap = true);
 
   static void write(const ParameterFile::ptr_t& parameter_file, const std::string& file_path);
 };
 
 template<>
 struct ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV1> {
-  static ParameterFile::ptr_t read(const std::string& file_path);
+  static ParameterFile::ptr_t read(const std::string& file_path, bool mmap = true);
 
   static void write(const ParameterFile::ptr_t& parameter_file, const std::string& file_path);
 };
 
 template<>
 struct ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV2> {
-  static ParameterFile::ptr_t read(const std::string& file_path);
+  static ParameterFile::ptr_t read(const std::string& file_path, bool mmap = true);
 
   static void write(const ParameterFile::ptr_t& parameter_file, const std::string& file_path);
 };

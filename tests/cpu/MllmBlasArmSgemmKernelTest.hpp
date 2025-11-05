@@ -23,8 +23,25 @@ class MllmBlasArmSgemmKernelTest : public KernelTest {
     auto A = mllm::Tensor::random({S_Q, S_KV}, mllm::kFloat32, mllm::kCPU);
     auto B = mllm::Tensor::random({S_KV, D}, mllm::kFloat32, mllm::kCPU);
 
-    auto DST = mllm::nn::functional::matmul(A, B, false, false, mllm::aops::MatMulOpType::kBLAS);
     auto RefDST = mllm::nn::functional::matmul(A, B, false, false, mllm::aops::MatMulOpType::kMllmBlas);
+    auto DST = mllm::Tensor::emptyLike(RefDST).alloc();
+
+    // Calculate DST.
+    {
+      auto dst_ptr = DST.ptr<float>();
+      auto a_ptr = A.ptr<float>();
+      auto b_ptr = B.ptr<float>();
+      const int M = S_Q;
+      const int K = S_KV;
+      const int N = D;
+      for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < N; ++j) {
+          float sum = 0.0f;
+          for (int k = 0; k < K; ++k) { sum += a_ptr[i * K + k] * b_ptr[k * N + j]; }
+          dst_ptr[i * N + j] = sum;
+        }
+      }
+    }
 
     auto result = mllm::test::allClose(DST, RefDST);
     if (!result.is_close) {
@@ -50,8 +67,25 @@ class MllmBlasArmSgemmKernelTest : public KernelTest {
     auto A = mllm::Tensor::random({batch, in_channels}, mllm::kFloat32, mllm::kCPU);
     auto B = mllm::Tensor::random({out_channels, in_channels}, mllm::kFloat32, mllm::kCPU);
 
-    auto DST = mllm::nn::functional::matmul(A, B, false, true, mllm::aops::MatMulOpType::kBLAS);
     auto RefDST = mllm::nn::functional::matmul(A, B, false, true, mllm::aops::MatMulOpType::kMllmBlas);
+    auto DST = mllm::Tensor::emptyLike(RefDST).alloc();
+
+    // Calculate DST.
+    {
+      auto dst_ptr = DST.ptr<float>();
+      auto a_ptr = A.ptr<float>();
+      auto b_ptr = B.ptr<float>();
+      const int M = batch;
+      const int K = in_channels;
+      const int N = out_channels;
+      for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < N; ++j) {
+          float sum = 0.0f;
+          for (int k = 0; k < K; ++k) { sum += a_ptr[i * K + k] * b_ptr[j * K + k]; }
+          dst_ptr[i * N + j] = sum;
+        }
+      }
+    }
 
     auto result = mllm::test::allClose(DST, RefDST);
     if (!result.is_close) {

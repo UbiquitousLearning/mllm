@@ -512,6 +512,18 @@ class MllmCliBuildTask(Task):
 
         logging.info("MLLM CLI Build Task Completed")
 
+class ShellCommandTask(Task):
+    def __init__(self, config):
+        super().__init__(config)
+
+    def run(self):
+        logging.info("Generic Shell Command Task Start (re-enabled)...")
+        command_str = self.config.get("command", "")
+        if not command_str:
+            logging.error("No command provided in ShellCommandTask.")
+            return
+
+        throw_error_if_failed(os.system(command_str))
 
 TASKS = {
     "CMakeConfigTask": CMakeConfigTask,
@@ -523,6 +535,7 @@ TASKS = {
     "BuildDocTask": BuildDocTask,
     "HexagonMakeTask": HexagonMakeTask,
     "MllmCliBuildTask": MllmCliBuildTask,
+    "ShellCommandTask": ShellCommandTask, 
 }
 
 
