@@ -22,11 +22,9 @@ constexpr char GPT2_EXPR[] = R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s
 
 }  // namespace details
 
->>>>>>> upstream/v2
 struct SmolLM3Message {
   std::string prompt;
   bool enable_thinking = false;
-
 
   static inline const std::string no_think_template_str =
       "<|im_start|>system\n## Metadata\n\nKnowledge Cutoff Date: June 2025\nToday Date: "
@@ -168,7 +166,6 @@ class SmolLM3Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
 
   // For text
   preprocessor::BPEUTF8 bpe_;
->>>>>>> upstream/v2
 };
 
 }  // namespace mllm::models::smollm3

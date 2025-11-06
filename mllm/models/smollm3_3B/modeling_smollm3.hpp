@@ -244,7 +244,7 @@ class Smollm3Text final : public nn::Module {
 class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
  public:
   explicit Smollm3ForCausalLM(const Smollm3Config& cfg) : cfg_(cfg) {
-    // 创建新的KV缓存
+    // Create new KV cache
     resetCache();
     
     eos_token_id_ = cfg.eos_token_id;
@@ -253,7 +253,7 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
     llm = reg<Smollm3Text>("model", cfg);
 
-    // (:使用正确的lm_head名称
+    // Use correct lm_head name
     if (cfg.tie_word_embeddings) {
       lm_head_ = reg<nn::Linear>("model.lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
@@ -262,7 +262,7 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
     registerBuffer("inv_freq", inv);
   }
 
-  // 重置KV缓存
+  // Reset KV cache
   void resetCache() {
     kv_cache_ = nn::StaticCache(cfg_.max_cache_length, cfg_.num_hidden_layers,
                                 cfg_.num_attention_heads,
@@ -301,7 +301,7 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
     sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
 
-    // 只取最后一个token的输出用于生成
+    // Only take the last token's output for generation
     auto S = sequence.shape()[1];
     sequence = sequence[{kAll, {S - 1}, kAll}];
 

@@ -5,10 +5,12 @@
 #include <mllm/models/smollm3_3B/modeling_smollm3.hpp>
 #include <mllm/models/smollm3_3B/tokenization_smollm3.hpp>
 #include <mllm/models/smollm3_3B/configuration_smollm3.hpp>
+#include <mllm/utils/AnyValue.hpp>
 
 using mllm::Argparse;
 
 MLLM_MAIN({
+  auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer directory");
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& think_mode = Argparse::add<bool>("--think").help("Enable thinking mode");
@@ -34,7 +36,16 @@ MLLM_MAIN({
     if (debug_mode.isSet()) {
       fmt::print("Loading tokenizer from: {}\n", actual_tokenizer_path);
     }
-    auto tokenizer = mllm::models::smollm3::SmolLM3Tokenizer(actual_tokenizer_path);
+    auto tokenizer = mllm::models::smollm3::SmolLM3Tokenizer(tokenizer_path.get());
+    
+    // Add tokenizer test code
+    {
+      fmt::print("\n=== Tokenizer Test ===\n");
+      auto ids = tokenizer.encode(tokenizer.applyChatTemplate("Bonjour 😈", false));
+      mllm::print(ids);
+      mllm::print(tokenizer.decode(ids));
+      fmt::print("=== Tokenizer Test Completed ===\n\n");
+    }
     
     if (debug_mode.isSet()) {
       fmt::print("Creating model...\n");
@@ -45,7 +56,7 @@ MLLM_MAIN({
       fmt::print("Loading model weights from: {}\n", actual_model_path);
     }
     
-    // 加载模型参数
+    // Load model parameters
     auto param = mllm::load(actual_model_path + "/model.mllm", mllm::ModelFileVersion::kV2);
     model.load(param);
 
@@ -85,33 +96,41 @@ MLLM_MAIN({
           fmt::print("🔄 Processing...\n");
         }
 
-        // 准备输入消息
+        // Prepare input message
         mllm::models::smollm3::SmolLM3Message message;
         message.prompt = prompt_text;
         message.enable_thinking = think_mode.isSet();
 
-        // 转换消息为模型输入
-        auto inputs = tokenizer.convertMessage(message);
+        // Use applyChatTemplate and encode to build input
+        std::string input_text = tokenizer.applyChatTemplate(message.prompt, message.enable_thinking);
+        auto input_ids = tokenizer.encode(input_text);
+        
+        // Create input tensor
+        auto sequence_tensor = mllm::Tensor::empty({1, static_cast<int>(input_ids.size())}, mllm::kInt64, mllm::kCPU).alloc();
+        auto seq_ptr = sequence_tensor.ptr<int64_t>();
+        for (size_t i = 0; i < input_ids.size(); ++i) {
+            seq_ptr[i] = input_ids[i];
+        }
+        
+        std::unordered_map<std::string, mllm::Tensor> inputs;
+        inputs["sequence"] = sequence_tensor;
 
-        // 调试输出token信息
+        // Debug output token information
         if (debug_mode.isSet()) {
-          auto sequence_tensor = inputs["sequence"];
-          auto seq_ptr = sequence_tensor.ptr<int64_t>();
-          
           fmt::print("=== DEBUG INFORMATION ===\n");
           fmt::print("Input Token IDs: ");
-          for (int i = 0; i < sequence_tensor.shape()[1]; ++i) {
-              fmt::print("{} ", seq_ptr[i]);
+          for (size_t i = 0; i < input_ids.size(); ++i) {
+              fmt::print("{} ", input_ids[i]);
           }
           fmt::print("\n");
-          fmt::print("Token count: {}\n", sequence_tensor.shape()[1]);
+          fmt::print("Token count: {}\n", input_ids.size());
           fmt::print("Think mode: {}\n", message.enable_thinking);
           fmt::print("=======================\n\n");
         }
 
         fmt::print("🤖 SmolLM3: ");
 
-        // 流式生成回复
+        // Stream generation response
         std::string full_response;
         int token_count = 0;
         bool in_thinking = think_mode.isSet();
@@ -119,12 +138,13 @@ MLLM_MAIN({
         bool response_started = false;
         
         for (auto& step : model.chat(inputs)) {
-          std::wstring wtoken = tokenizer.detokenize(step.cur_token_id);
-          std::string token_text(wtoken.begin(), wtoken.end());
+          // Convert single token id to vector, then decode
+          std::vector<int64_t> token_vec = {step.cur_token_id};
+          std::string token_text = tokenizer.decode(token_vec);
           
-          // Think模式处理 
+          // Think mode processing
           if (in_thinking && !thinking_completed) {
-            // 检查是否遇到think结束标记
+            // Check if think end marker is encountered
             if (token_text.find("</think>") != std::string::npos) {
               thinking_completed = true;
               in_thinking = false;
@@ -133,14 +153,14 @@ MLLM_MAIN({
               continue;
             }
             
-            // 在think模式下显示思考内容
+            // Display thinking content in think mode
             if (think_mode.isSet()) {
               std::cout << token_text << std::flush;
             }
             continue;
           }
           
-          // 正常输出回复
+          // Normal response output
           if (!response_started && !think_mode.isSet()) {
             response_started = true;
           }
@@ -149,12 +169,12 @@ MLLM_MAIN({
           full_response += token_text;
           token_count++;
           
-          // 调试输出
+          // Debug output
           if (debug_mode.isSet()) {
             fmt::print("[{}] ", step.cur_token_id);
           }
           
-          // 检查是否生成结束token
+          // Check if end token is generated
           if (step.cur_token_id == cfg.eos_token_id) {
             if (debug_mode.isSet()) {
               fmt::print("\n[EOS token detected]");
@@ -162,7 +182,7 @@ MLLM_MAIN({
             break;
           }
           
-          // 安全限制
+          // Safety limit
           if (token_count > 512) {
             if (debug_mode.isSet()) {
               fmt::print("\n[Token limit reached]");
@@ -177,7 +197,7 @@ MLLM_MAIN({
           fmt::print("Generated {} tokens\n", token_count);
         }
 
-        // 重置缓存
+        // Reset cache
         model.resetCache();
 
       } catch (const std::exception& e) {
