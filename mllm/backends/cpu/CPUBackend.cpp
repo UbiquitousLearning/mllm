@@ -8,6 +8,7 @@
 #include "mllm/backends/cpu/ops/ArgsortOp.hpp"
 #include "mllm/backends/cpu/ops/CastTypeOp.hpp"
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
+#include "mllm/backends/cpu/ops/CloneOp.hpp"
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
 #include "mllm/backends/cpu/ops/Conv1DOp.hpp"
@@ -69,7 +70,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory,
                CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
                CPUConv2DOpFactory, CPULayerNorm2DOpFactory, CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory,
-               CPUArgsortOpFactory>();
+               CPUArgsortOpFactory, CPUCloneOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }
