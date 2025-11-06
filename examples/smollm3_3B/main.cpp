@@ -5,16 +5,14 @@
 #include <mllm/models/smollm3_3B/modeling_smollm3.hpp>
 #include <mllm/models/smollm3_3B/tokenization_smollm3.hpp>
 #include <mllm/models/smollm3_3B/configuration_smollm3.hpp>
-#include <mllm/utils/AnyValue.hpp>
 
 using mllm::Argparse;
 
 MLLM_MAIN({
-  auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer directory");
+  auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer path");
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& think_mode = Argparse::add<bool>("--think").help("Enable thinking mode");
-  auto& debug_mode = Argparse::add<bool>("--debug").help("Enable debug output");
   
   Argparse::parse(argc, argv);
 
@@ -26,43 +24,18 @@ MLLM_MAIN({
   try {
     std::string actual_model_path = model_path.get();
     std::string actual_config_path = actual_model_path + "/config.json";
-    std::string actual_tokenizer_path = actual_model_path + "/tokenizer.json";
+    std::string actual_tokenizer_path = tokenizer_path.get(); 
 
-    if (debug_mode.isSet()) {
-      fmt::print("Loading config from: {}\n", actual_config_path);
-    }
     auto cfg = mllm::models::smollm3::Smollm3Config(actual_config_path);
-    
-    if (debug_mode.isSet()) {
-      fmt::print("Loading tokenizer from: {}\n", actual_tokenizer_path);
-    }
-    auto tokenizer = mllm::models::smollm3::SmolLM3Tokenizer(tokenizer_path.get());
-    
-    // Add tokenizer test code
-    {
-      fmt::print("\n=== Tokenizer Test ===\n");
-      auto ids = tokenizer.encode(tokenizer.applyChatTemplate("Bonjour 😈", false));
-      mllm::print(ids);
-      mllm::print(tokenizer.decode(ids));
-      fmt::print("=== Tokenizer Test Completed ===\n\n");
-    }
-    
-    if (debug_mode.isSet()) {
-      fmt::print("Creating model...\n");
-    }
+    auto tokenizer = mllm::models::smollm3::SmolLM3Tokenizer(actual_tokenizer_path);
     auto model = mllm::models::smollm3::Smollm3ForCausalLM(cfg);
 
-    if (debug_mode.isSet()) {
-      fmt::print("Loading model weights from: {}\n", actual_model_path);
-    }
-    
     // Load model parameters
     auto param = mllm::load(actual_model_path + "/model.mllm", mllm::ModelFileVersion::kV2);
     model.load(param);
 
     fmt::print("\n{:*^60}\n", " SmolLM3-3B Interactive CLI ");
     fmt::print("Think mode: {}\n", think_mode.isSet() ? "ENABLED" : "DISABLED");
-    fmt::print("Debug mode: {}\n", debug_mode.isSet() ? "ENABLED" : "DISABLED");
     fmt::print("Enter 'exit' or 'quit' to end the session\n");
     fmt::print("Enter 'clear' to clear conversation history\n");
     fmt::print("Enter 'reset' to reset model state\n\n");
@@ -92,10 +65,6 @@ MLLM_MAIN({
       }
 
       try {
-        if (debug_mode.isSet()) {
-          fmt::print("🔄 Processing...\n");
-        }
-
         // Prepare input message
         mllm::models::smollm3::SmolLM3Message message;
         message.prompt = prompt_text;
@@ -105,28 +74,11 @@ MLLM_MAIN({
         std::string input_text = tokenizer.applyChatTemplate(message.prompt, message.enable_thinking);
         auto input_ids = tokenizer.encode(input_text);
         
-        // Create input tensor
-        auto sequence_tensor = mllm::Tensor::empty({1, static_cast<int>(input_ids.size())}, mllm::kInt64, mllm::kCPU).alloc();
-        auto seq_ptr = sequence_tensor.ptr<int64_t>();
-        for (size_t i = 0; i < input_ids.size(); ++i) {
-            seq_ptr[i] = input_ids[i];
-        }
+        // Create input tensor using fromVector
+        auto sequence_tensor = mllm::Tensor::fromVector(input_ids, {1, static_cast<int>(input_ids.size())}, mllm::kInt64);
         
-        std::unordered_map<std::string, mllm::Tensor> inputs;
+        mllm::models::ARGenerationOutputPast inputs;
         inputs["sequence"] = sequence_tensor;
-
-        // Debug output token information
-        if (debug_mode.isSet()) {
-          fmt::print("=== DEBUG INFORMATION ===\n");
-          fmt::print("Input Token IDs: ");
-          for (size_t i = 0; i < input_ids.size(); ++i) {
-              fmt::print("{} ", input_ids[i]);
-          }
-          fmt::print("\n");
-          fmt::print("Token count: {}\n", input_ids.size());
-          fmt::print("Think mode: {}\n", message.enable_thinking);
-          fmt::print("=======================\n\n");
-        }
 
         fmt::print("🤖 SmolLM3: ");
 
@@ -169,33 +121,19 @@ MLLM_MAIN({
           full_response += token_text;
           token_count++;
           
-          // Debug output
-          if (debug_mode.isSet()) {
-            fmt::print("[{}] ", step.cur_token_id);
-          }
-          
           // Check if end token is generated
           if (step.cur_token_id == cfg.eos_token_id) {
-            if (debug_mode.isSet()) {
-              fmt::print("\n[EOS token detected]");
-            }
             break;
           }
           
           // Safety limit
           if (token_count > 512) {
-            if (debug_mode.isSet()) {
-              fmt::print("\n[Token limit reached]");
-            }
             fmt::print("\n[Output truncated]");
             break;
           }
         }
 
         fmt::print("\n{}\n", std::string(60, '-'));
-        if (debug_mode.isSet()) {
-          fmt::print("Generated {} tokens\n", token_count);
-        }
 
         // Reset cache
         model.resetCache();
