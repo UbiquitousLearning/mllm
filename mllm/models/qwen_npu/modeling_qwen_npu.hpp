@@ -11,6 +11,7 @@
 #include "mllm/nn/Functional.hpp"
 #include "mllm/nn/layers/Param.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/utils/Log.hpp"
 #include "mllm/models/ARGeneration.hpp"
 #include "configuration_qwen_npu.hpp"
 

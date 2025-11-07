@@ -8,6 +8,7 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
+#include "mllm/compile/ir/program/Op.hpp"
 #include "mllm/compile/ir/tensor/Op.hpp"
 
 namespace mllm::aops {
@@ -35,7 +36,24 @@ void EmbeddingOp::trace(void* trace_context, const std::vector<Tensor>& inputs, 
 
   // Register Params
   if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
-    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    auto init_node = ir_ctx->lookupSymbolTable("init");
+    if (!init_node) {
+      MLLM_ERROR("EmbeddingOp::trace: 'init' symbol not found in symbol table");
+      return;
+    }
+
+    // "init" can be either SubGraphOp (during trace) or FragmentOp (after Graph2Program pass)
+    std::shared_ptr<ir::Region> init_region = nullptr;
+    if (auto subgraph_op = std::dynamic_pointer_cast<ir::graph::SubGraphOp>(init_node)) {
+      init_region = subgraph_op->getTopRegion();
+    } else if (auto fragment_op = std::dynamic_pointer_cast<ir::program::FragmentOp>(init_node)) {
+      init_region = fragment_op->getTopRegion();
+    } else {
+      MLLM_ERROR("EmbeddingOp::trace: 'init' is neither SubGraphOp nor FragmentOp");
+      return;
+    }
+
+    ir::IRWriterGuard guard(ir_ctx, init_region);
     ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
   }
 
