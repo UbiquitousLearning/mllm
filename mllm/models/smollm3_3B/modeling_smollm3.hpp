@@ -264,14 +264,7 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
   // Reset KV cache
   void resetCache() {
-    kv_cache_ = nn::StaticCache(cfg_.max_cache_length, cfg_.num_hidden_layers,
-                                cfg_.num_attention_heads,
-                                cfg_.num_key_value_heads,
-                                cfg_.head_dim,
-                                kFloat32,
-                                kFloat32,
-                                kCPU,
-                                false);
+    kv_cache_.clearCache();
   }
 
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs&) override {
@@ -317,7 +310,14 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
  private:
   const Smollm3Config cfg_;
-  nn::StaticCache kv_cache_;
+  nn::StaticCache kv_cache_{cfg_.max_cache_length, cfg_.num_hidden_layers,
+                           cfg_.num_attention_heads,
+                           cfg_.num_key_value_heads,
+                           cfg_.head_dim,
+                           kFloat32,
+                           kFloat32,
+                           kCPU,
+                           false};
   Smollm3Text llm;
   nn::Linear lm_head_;
   int eos_token_id_;

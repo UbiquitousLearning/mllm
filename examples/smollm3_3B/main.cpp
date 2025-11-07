@@ -9,7 +9,6 @@
 using mllm::Argparse;
 
 MLLM_MAIN({
-  auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer path");
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& think_mode = Argparse::add<bool>("--think").help("Enable thinking mode");
@@ -24,7 +23,7 @@ MLLM_MAIN({
   try {
     std::string actual_model_path = model_path.get();
     std::string actual_config_path = actual_model_path + "/config.json";
-    std::string actual_tokenizer_path = tokenizer_path.get(); 
+    std::string actual_tokenizer_path = actual_model_path + "/tokenizer.json";  // 统一使用基于model_path的路径
 
     auto cfg = mllm::models::smollm3::Smollm3Config(actual_config_path);
     auto tokenizer = mllm::models::smollm3::SmolLM3Tokenizer(actual_tokenizer_path);
