@@ -242,10 +242,17 @@ class Smollm3Text final : public nn::Module {
 };
 
 class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
- public:
+  public:
   explicit Smollm3ForCausalLM(const Smollm3Config& cfg) : cfg_(cfg) {
-    // Create new KV cache
-    resetCache();
+    // Initialize kv_cache_ in the constructor
+    kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
+                                cfg.num_attention_heads,
+                                cfg.num_key_value_heads,
+                                cfg.head_dim,
+                                kFloat32,
+                                kFloat32,
+                                kCPU,
+                                false);
     
     eos_token_id_ = cfg.eos_token_id;
     max_length_ = cfg.max_cache_length;
@@ -253,7 +260,6 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
     llm = reg<Smollm3Text>("model", cfg);
 
-    // Use correct lm_head name
     if (cfg.tie_word_embeddings) {
       lm_head_ = reg<nn::Linear>("model.lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
@@ -310,14 +316,7 @@ class Smollm3ForCausalLM : public ARGeneration, public nn::Module {
 
  private:
   const Smollm3Config cfg_;
-  nn::StaticCache kv_cache_{cfg_.max_cache_length, cfg_.num_hidden_layers,
-                           cfg_.num_attention_heads,
-                           cfg_.num_key_value_heads,
-                           cfg_.head_dim,
-                           kFloat32,
-                           kFloat32,
-                           kCPU,
-                           false};
+  nn::StaticCache kv_cache_;
   Smollm3Text llm;
   nn::Linear lm_head_;
   int eos_token_id_;
