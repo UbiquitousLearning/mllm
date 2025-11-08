@@ -569,7 +569,10 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
 
   // Reorder outputs according to MLLM expected order
   const auto& expectedOrder = model->getExpectedOutputOrder();
-  if (!expectedOrder.empty() && expectedOrder.size() == outputs.size()) {
+
+  // Resize outputs to match QNN output count first
+  outputs.resize(qnn_output_tensors.size());  // Ensure outputs has enough space for all QNN outputs
+  if (!expectedOrder.empty() && expectedOrder.size() == qnn_output_tensors.size()) {
     // Debug: Log output order information
     // Uncomment below for debugging output order issues
     // MLLM_INFO("QNNBackend::graphExecute: Checking output order for graph '{}'", graphName);
@@ -584,18 +587,18 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     // }
 
     // Check if reordering is needed
-    bool needs_reordering = false;
-    std::vector<std::pair<size_t, int>> mismatches;
-    for (size_t i = 0; i < expectedOrder.size(); i++) {
-      const std::string& expected_name = expectedOrder[i];
-      int qnn_index = model->getQnnOutputIndex(expected_name);
-      if (qnn_index >= 0 && qnn_index < static_cast<int>(qnn_output_tensors.size())) {
-        if (static_cast<int>(i) != qnn_index) {
-          needs_reordering = true;
-          mismatches.emplace_back(i, qnn_index);
-        }
-      }
-    }
+    // bool needs_reordering = false;
+    // std::vector<std::pair<size_t, int>> mismatches;
+    // for (size_t i = 0; i < expectedOrder.size(); i++) {
+    //   const std::string& expected_name = expectedOrder[i];
+    //   int qnn_index = model->getQnnOutputIndex(expected_name);
+    //   if (qnn_index >= 0 && qnn_index < static_cast<int>(qnn_output_tensors.size())) {
+    //     if (static_cast<int>(i) != qnn_index) {
+    //       needs_reordering = true;
+    //       mismatches.emplace_back(i, qnn_index);
+    //     }
+    //   }
+    // }
 
     // Debug: Verification messages
     // Uncomment below for debugging output order issues
@@ -643,7 +646,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       MLLM_WARN("QNNBackend::graphExecute: Expected output order size ({}) != outputs size ({}) for graph '{}', using QNN order",
                 expectedOrder.size(), outputs.size(), graphName);
     }
-    for (size_t i = 0; i < qnn_output_tensors.size() && i < outputs.size(); i++) {
+    for (size_t i = 0; i < qnn_output_tensors.size(); i++) {
       outputs[i] = qnn_output_tensors[i];
     }
   }
