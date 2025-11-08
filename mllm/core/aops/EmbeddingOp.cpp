@@ -42,14 +42,12 @@ void EmbeddingOp::trace(void* trace_context, const std::vector<Tensor>& inputs, 
       return;
     }
 
-    // "init" can be either SubGraphOp (during trace) or FragmentOp (after Graph2Program pass)
     std::shared_ptr<ir::Region> init_region = nullptr;
-    if (auto subgraph_op = std::dynamic_pointer_cast<ir::graph::SubGraphOp>(init_node)) {
+    if (init_node->isa_<ir::graph::SubGraphOp>()) {
+      auto subgraph_op = init_node->cast_<ir::graph::SubGraphOp>();
       init_region = subgraph_op->getTopRegion();
-    } else if (auto fragment_op = std::dynamic_pointer_cast<ir::program::FragmentOp>(init_node)) {
-      init_region = fragment_op->getTopRegion();
     } else {
-      MLLM_ERROR("EmbeddingOp::trace: 'init' is neither SubGraphOp nor FragmentOp");
+      MLLM_ERROR("EmbeddingOp::trace: 'init' is not SubGraphOp");
       return;
     }
 
