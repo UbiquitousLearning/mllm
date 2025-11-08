@@ -202,6 +202,9 @@ class QNNTensorWrapper {
   Qnn_Tensor_t* getNativeTensor() { return &qnnTensor_; }
   [[nodiscard]] const Qnn_Tensor_t* getNativeTensor() const { return &qnnTensor_; }
 
+  // Get tensor name
+  const std::string& getName() const { return name_; }
+
   // alloc graph input/output tensor memory in QNN shared buffer
   void alloc();
   Tensor& getDataContainer() { return dataContainer_; }

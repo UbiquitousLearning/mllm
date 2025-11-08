@@ -19,7 +19,7 @@ add_library(
     ${MLLM_QNN_SRC}
 )
 
-include_directories(
+target_include_directories(MllmQNNBackend PUBLIC
     $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
     ${MLLM_INCLUDE_DIR}
 )
