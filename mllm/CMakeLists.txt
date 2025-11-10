@@ -30,12 +30,25 @@ add_library(
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash)
 
+# Compiler stack need mlir
+if(MLLM_ENABLE_MLLM_COMPILE_STACK)
+  set(MLIR_DIR ${MLLM_COMPILE_STACK_TOOL_PATH}/lib/cmake/mlir)
+  message(STATUS "Finding things at ${MLIR_DIR}")
+  find_package(MLIR REQUIRED CONFIG)
+  target_link_libraries(MllmRT PRIVATE
+    MLIRPass
+  )
+  target_include_directories(MllmRT PRIVATE
+    ${MLIR_INCLUDE_DIRS}
+  )
+endif()
+
 # stdexec will use Pack indexing feature. 
 #
 # Some compilers turn on pack indexing in pre-C++26 code. We want to use it if it is
 # available. Pack indexing is disabled for clang < 20 because of:
 # https://github.com/llvm/llvm-project/issues/116105
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleCl`ang")
   string(REGEX MATCH "^[0-9]+" COMPILER_VERSION_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
   if(COMPILER_VERSION_MAJOR LESS 20)
     target_compile_options(MllmRT PUBLIC -Wno-c++26-extensions)

@@ -1,0 +1,1 @@
+add_subdirectory(fa2_swa_sink)
