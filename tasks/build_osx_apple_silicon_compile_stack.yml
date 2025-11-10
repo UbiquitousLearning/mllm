@@ -12,7 +12,7 @@ Tasks:
         - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
         - "-DMLLM_TRACY_ENABLE=OFF"
         - "-DMLLM_ENABLE_MLLM_COMPILE_STACK=ON"
-        - "-DMLLM_COMPILE_STACK_TOOL_PATH=/Users/mi/Research/llvm-project/build"
+        - "-DMLLM_COMPILE_STACK_TOOL_PATH=llvm-project/build"
 
   - CMakeBuildTask:
       cmake_cfg_path: "build-osx-accelerate-mc"
