@@ -1,0 +1,3 @@
+add_library(MllmExtOpSet_FlashAttn2SwaSink SHARED FlashAttn2SwaSink.cpp)
+target_link_libraries(MllmExtOpSet_FlashAttn2SwaSink PRIVATE MllmRT MllmCPUBackend)
+target_include_directories(MllmExtOpSet_FlashAttn2SwaSink PRIVATE ${MLLM_INCLUDE_DIR})
