@@ -33,7 +33,7 @@ void fwd_bshd_swa_with_sink(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, i
 
   int32_t head_repeat_times = H_Q / H_KV;
 
-  __AccDType scale = scale = std::sqrt(1.0 / D_QK) * (__AccDType)std::numbers::log2e;
+  __AccDType scale = std::sqrt(1.0 / D_QK) * (__AccDType)std::numbers::log2e;
 
   // Get cur window size
   auto cur_window_size = std::min(left_sliding_window, S_KV);
@@ -63,10 +63,11 @@ void fwd_bshd_swa_with_sink(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, i
 
         // We then map full attention to local attention position;
         auto local_attention_start = 0;
-        auto local_attention_end =
-            full_attention_end - left_sliding_window <= 0 ? full_attention_end : full_attention_end - left_sliding_window;
 
-        for (int s_kv_idx = local_attention_start; s_kv_idx <= local_attention_end; ++s_kv_idx) {
+        auto local_attention_end = full_attention_end - full_attention_start;
+        if (local_attention_end < left_sliding_window) local_attention_end++;
+
+        for (int s_kv_idx = local_attention_start; s_kv_idx < local_attention_end; ++s_kv_idx) {
           // k_token and v_token shape is [B, 1, H, D]
           __KDType* k_token = __k + b_idx * S_KV * H_KV * D_QK + s_kv_idx * H_KV * D_QK;
           __VDType* v_token = __v + b_idx * S_KV * H_KV * D_V + s_kv_idx * H_KV * D_V;
@@ -111,6 +112,7 @@ void fwd_bshd_swa_with_sink(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, i
         sink_v = std::exp2(sink_v * scale - scores_max * scale);
         scores_sum = sink_v;
         logsum = logsum * scores_scale + scores_sum;
+        mllm::cpu::flash_attn2::details::MulFromConst<__ArchTag, __AccDType, __AccDType>::run(acc_o, scores_scale, D_V);
 
         // 5. Final Rescale.
         mllm::cpu::flash_attn2::details::MulFromConst<__ArchTag, __ODType, __AccDType>::run(acc_o, (1.f / logsum), D_V);

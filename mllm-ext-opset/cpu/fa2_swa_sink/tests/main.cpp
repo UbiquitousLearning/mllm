@@ -101,18 +101,23 @@ mllm::test::AllCloseResult testCase(int B, int S_Q, int S_KV, int H_Q, int H_KV,
   // // eager ref
   auto O_ref = eagerSWAwSink(Q, K, V, s_aux, causal_mask);
 
-  mllm::print(O_ref);
-
   // // eager
   auto O = flashAttnSWAwSink(Q, K, V, s_aux, left_sliding_window, cur_seq_len);
 
-  mllm::print(O);
+  auto ret = mllm::test::allClose(O, O_ref);
 
-  return mllm::test::allClose(O, O_ref);
+  if (!ret) {
+    mllm::print(ret);
+    mllm::print(O_ref);
+    mllm::print(O);
+  }
+
+  return ret;
 }
 
 MLLM_MAIN({
   mllm::loadExtensionOpset("MllmExtOpSet.CPU.FlashAttn2SwaSink");
+  mllm::setRandomSeed(42);
 
   // inputs is B, S_Q, S_KV, H_Q, H_KV, D_QK, D_V, left_sliding_window, cur_seq_len
 
@@ -121,6 +126,10 @@ MLLM_MAIN({
 
   // CASE: 2. For prefill S > left_sliding_window, kv cache is fixed to left_sliding_window rather then 256 due to sliding
   // window
+  //
+  // S_Q = 256
+  // S_KV = 128(clamp to 128, original is 256, but we have window-size 128)
+  // total-length = 256
   MLLM_RT_ASSERT(testCase(1, 256, std::min(128, 256), 32, 4, 192, 128, 128, 256));
 
   // CASE: 3. Decode, when cur_seq_len < left_sliding_window, which means S_KV == cur_seq_len
