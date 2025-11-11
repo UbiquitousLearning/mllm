@@ -23,6 +23,7 @@ option(MLLM_BUILD_ASCEND_BACKEND "Enable MLLM Ascend backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" ON)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 option(MLLM_BUILD_EXT_OP_SET "Enable building mllm extension op set." ON)
+option(MLLM_BUILD_EXT_OP_SET_TEST "Enable building mllm extension op set test." ON)
 
 # MLLM Compile Stack
 option(MLLM_ENABLE_MLLM_COMPILE_STACK "Enable compile stack of mllm. You need prebuilt mlir first." OFF)
