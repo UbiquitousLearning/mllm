@@ -1,1 +1,1 @@
-add_subdirectory(fa2_swa_sink)
+add_subdirectory(cpu/fa2_swa_sink)
