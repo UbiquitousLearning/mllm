@@ -8,6 +8,7 @@ add_subdirectory(qwen3)
 add_subdirectory(qwen3_service)
 add_subdirectory(deepseek_ocr)
 add_subdirectory(smollm3_3B) 
+add_subdirectory(internlm2_5)
 
 if(MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen_npu)
