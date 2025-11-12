@@ -30,7 +30,7 @@ namespace mllm::cpu::radix_attn {
 // H_KV should <= H_Q
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
          bool high_precession_exp = true>
-void fwd_bhsd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, int32_t D, const __QDType* __restrict__ __q,
+void fwd_bshd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, int32_t D, const __QDType* __restrict__ __q,
               __KDType** __k, __VDType** __v, __ODType* __restrict__ __out, int32_t thread_count) {
   int32_t head_repeat_times = H_Q / H_KV;
 

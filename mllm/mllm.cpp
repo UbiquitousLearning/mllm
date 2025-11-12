@@ -106,7 +106,7 @@ void loadExtensionOpset(const std::string& description_com_path, const std::stri
     cloned_description_com_path = "lib" + cloned_description_com_path + ".dylib";
   } else if (isWindows()) {
     cloned_description_com_path = "lib" + cloned_description_com_path + ".dll";
-  } else if (isAndroid() || isAndroid() || isUnknownPlatform()) {
+  } else if (isAndroid() || isLinux() || isUnknownPlatform()) {
     cloned_description_com_path = "lib" + cloned_description_com_path + ".so";
   }
 

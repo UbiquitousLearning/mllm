@@ -4,7 +4,9 @@
 #include "mllm/mllm.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
+#include "mllm/backends/cpu/kernels/common/radix_attn/arch.hpp"
 #include "mllm-ext-opset/cpu/radix_swa_sink/RadixAttnSwaSink.hpp"
+#include "mllm-ext-opset/cpu/radix_swa_sink/radix_swa_sink_fwd_bshd.hpp"
 
 namespace mllm::ext_opset::cpu {
 
@@ -46,9 +48,15 @@ void RadixAttnSwaSink::forward(const std::vector<mllm::Tensor>& inputs, std::vec
   switch (Q.dtype()) {
     case mllm::kFloat32: {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
-      // TODO
+      fwd_bshd<::mllm::cpu::radix_attn::details::__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t>(
+          B, options_.q_head, options_.kv_head, S_Q, S_KV, options_.D_QK, options_.D_V, options_.sliding_window,
+          options_.cur_seq_len, Q.ptr<mllm_fp32_t>(), K.ptr<mllm_fp32_t*>(), V.ptr<mllm_fp32_t*>(), S_AUX.ptr<mllm_fp32_t>(),
+          O.ptr<mllm_fp32_t>(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86) || defined(MLLM_HOST_ARCH_X86_64)
-      // TODO
+      fwd_bshd<::mllm::cpu::radix_attn::details::__X86ArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t>(
+          B, options_.q_head, options_.kv_head, S_Q, S_KV, options_.D_QK, options_.D_V, options_.sliding_window,
+          options_.cur_seq_len, Q.ptr<mllm_fp32_t>(), K.ptr<mllm_fp32_t*>(), V.ptr<mllm_fp32_t*>(), S_AUX.ptr<mllm_fp32_t>(),
+          O.ptr<mllm_fp32_t>(), options_.getThreads());
 #endif
       break;
     }
@@ -66,9 +74,7 @@ void RadixAttnSwaSink::reshape(const std::vector<mllm::Tensor>& inputs, std::vec
   auto& q = inputs[0];
   auto& k = inputs[1];
   auto& v = inputs[2];
-  MLLM_RT_ASSERT(q.rank() == 4 && k.rank() == 4 && v.rank() == 4);
-  MLLM_RT_ASSERT_EQ(k.size(2), v.size(2));
-  MLLM_RT_ASSERT_EQ(q.size(-1), k.size(-1));
+  MLLM_RT_ASSERT(q.rank() == 4 && k.rank() == 1 && v.rank() == 1);
   if (options_.s_aux_enable) {
     MLLM_RT_ASSERT_EQ(inputs.size(), 4);
     auto& s_aux = inputs[3];
@@ -76,7 +82,7 @@ void RadixAttnSwaSink::reshape(const std::vector<mllm::Tensor>& inputs, std::vec
     MLLM_RT_ASSERT_EQ(s_aux.size(0), q.size(2));
   }
 
-  outputs.emplace_back(mllm::Tensor::empty({v.size(0), q.size(1), q.size(2), v.size(3)}, v.dtype(), v.device()));
+  outputs.emplace_back(mllm::Tensor::empty({options_.B, q.size(1), options_.q_head, options_.D_V}, q.dtype(), q.device()));
 }
 
 void RadixAttnSwaSink::setup(const std::vector<mllm::Tensor>& inputs, std::vector<mllm::Tensor>& outputs) {
