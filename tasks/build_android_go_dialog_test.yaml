@@ -1,0 +1,21 @@
+Tasks:
+  - ShellCommandTask:
+      command: |
+        echo "===== STEP 2: Setting up Go cross-compilation environment... ====="
+        export GOPROXY=https://goproxy.cn,direct
+        export GOOS=android
+        export GOARCH=arm64
+        export CGO_ENABLED=1
+        export ANDROID_NDK_HOME=/opt/ndk/android-ndk-r28b
+        export CC=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang
+        export CXX=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++
+
+       
+        echo "===== STEP 3: Setting CGo linker and compiler flags... ====="
+        export CGO_LDFLAGS="-L/root/zty_workspace/mllm_zty/build-android-arm64-v8a/bin"
+        export CGO_CFLAGS="-I/root/zty_workspace/mllm_zty"
+        
+     
+        echo "===== STEP 4: Compiling Go test application... ====="
+        cd mllm-cli && \
+        go build -o ../build-android-arm64-v8a/bin/go_dialog_test_runner -tags=mobile ./main.go

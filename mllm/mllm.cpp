@@ -92,11 +92,11 @@ SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
 
 void loadOpPackage(const std::string& path) { Context::instance().loadOpPackage(path); }
 
-ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion v, DeviceTypes map_2_device) {
+ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion v, DeviceTypes map_2_device, bool mmap) {
   if (v == ModelFileVersion::kV1 && map_2_device == kCPU) {
-    return ParameterFileIOImpl<kCPU, ModelFileVersion::kV1>::read(file_name);
+    return ParameterFileIOImpl<kCPU, ModelFileVersion::kV1>::read(file_name, mmap);
   } else if (v == ModelFileVersion::kV2 && map_2_device == kCPU) {
-    return ParameterFileIOImpl<kCPU, ModelFileVersion::kV2>::read(file_name);
+    return ParameterFileIOImpl<kCPU, ModelFileVersion::kV2>::read(file_name, mmap);
   }
 
   // return empty if not match all.
