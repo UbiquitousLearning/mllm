@@ -31,6 +31,26 @@ MllmCAny convert2ByteArray(char* ptr, size_t size);
 MllmCAny convert2Int(int64_t v);
 
 MllmCAny convert2Float(double v);
+//===----------------------------------------------------------------------===//
+// Mllm service functions
+//===----------------------------------------------------------------------===//
+MllmCAny startService(size_t worker_threads);
+
+MllmCAny stopService();
+
+void setLogLevel(int level);
+
+MllmCAny createQwen3Session(const char* model_path);
+
+MllmCAny insertSession(const char* session_id, MllmCAny handle);
+
+MllmCAny freeSession(MllmCAny handle);
+
+MllmCAny sendRequest(const char* session_id, const char* json_request);
+
+const char* pollResponse(const char* session_id);
+
+void freeResponseString(const char* response_str);
 
 #ifdef __cplusplus
 }

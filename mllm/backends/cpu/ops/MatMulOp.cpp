@@ -50,6 +50,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mt = aops::MatMulOpType::kBLAS;
 #else
     if (!transpose_a && transpose_b && M >= 4) {
+      // TODO kGGUF still buggy !!!
       mt = aops::MatMulOpType::kGGUF;
     } else
     // All fallback to mllm blas

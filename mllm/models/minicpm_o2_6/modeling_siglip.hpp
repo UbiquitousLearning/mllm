@@ -44,10 +44,7 @@ class SiglipVisionEmbeddings final : public nn::Module {
 
     auto batch_size = pixel_values.shape()[0];
 
-    // Conv expects 4D input
-    pixel_values = pixel_values.view({1, pixel_values.shape()[0], pixel_values.shape()[1], pixel_values.shape()[2]});
     auto patch_embeds = patch_embedding_(pixel_values);  // Patch embedding: [B, C, H, W] -> [B, embed_dim, 1, H*W]
-    pixel_values = pixel_values.view({pixel_values.shape()[1], pixel_values.shape()[2], pixel_values.shape()[3]});
 
     auto embeddings = patch_embeds.squeeze(2).transpose(1, 2);  // [B, embed_dim, 1, H*W] -> [B, H*W, embed_dim]
 
