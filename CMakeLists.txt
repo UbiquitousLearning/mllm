@@ -334,6 +334,15 @@ install(
   PATTERN "*.inl"
   PATTERN "Vendors/*" EXCLUDE)
 
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm-ext-opset/
+  DESTINATION include/mllm-ext-opset
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp"
+  PATTERN "*.inl"
+  PATTERN "Vendors/*" EXCLUDE)
+
 # Embedding fmt lib into mllm packages to avoid fetching fmt.
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt
         DESTINATION packages)
