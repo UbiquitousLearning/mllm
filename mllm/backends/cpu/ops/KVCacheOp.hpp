@@ -19,6 +19,8 @@ class CPUKVCacheOp final : public aops::KVCacheOp {
 
   void clearCache() override;
 
+  void setCurrentSeqCnt(int32_t seq) override;
+
  private:
   nn::StaticCache cache_;
 };

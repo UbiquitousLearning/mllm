@@ -44,4 +44,6 @@ void CPUKVCacheOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
 
 void CPUKVCacheOp::clearCache() { cache_.clearCache(); }
 
+void CPUKVCacheOp::setCurrentSeqCnt(int32_t seq) { cache_.setCurrentSeqCnt(seq); }
+
 }  // namespace mllm::cpu

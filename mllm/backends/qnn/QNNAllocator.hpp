@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include <set>
 #include <map>
+#include <set>
+#include <vector>
 #include "QnnCommon.h"
 #include "QnnInterface.h"
 #include "mllm/backends/base/Allocator.hpp"
@@ -30,14 +31,7 @@ class QNNAllocator final : public Allocator {
   QNNAllocator();  // need to setQNNPointer afterward
   QNNAllocator(QNN_INTERFACE_VER_TYPE qnnInterface, void* context);
 
-  ~QNNAllocator() {
-    for (auto iter = ptrToFdAndMemHandleMap_.begin(); iter != ptrToFdAndMemHandleMap_.end();) {
-      Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&iter->second.second, 1);
-      if (QNN_SUCCESS != deregisterRet) { MLLM_ERROR("~QNNAllocator: qnnInterface_.memDeRegister failed"); }
-      rpcmem_free(iter->first);
-      iter = ptrToFdAndMemHandleMap_.erase(iter);
-    }
-  }
+  ~QNNAllocator();
 
   void setQNNPointer(QNN_INTERFACE_VER_TYPE qnnInterface, void* context) {
     this->qnnInterface_ = qnnInterface;
@@ -75,9 +69,19 @@ class QNNAllocator final : public Allocator {
 
   // Sharing access in between processing domains in QNN HTP backend. Using shared buffers can
   // eliminate data copy in between client code on the host CPU and HTP accelerator.
-  void registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_tensor);
+  bool registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_t& qnn_tensor);
 
   void deRegisterQnnTensorFromSharedBuffer(void* ptr);
+
+  // Debug: Get statistics about registered buffers
+  struct BufferStats {
+    size_t count;
+    size_t total_bytes;
+  };
+  [[nodiscard]] BufferStats getRegisteredBufferStats() const;
+  
+  // Debug: Check if a ptr is already registered
+  bool isRegistered(void* ptr) const;
 
  private:
   QNN_INTERFACE_VER_TYPE qnnInterface_;
@@ -90,6 +94,13 @@ class QNNAllocator final : public Allocator {
   // to check if the ptr is allocted by rpcmem_alloc
   std::set<void*> qnnMemPtrSet_;
   std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
+  // Track buffer sizes for statistics
+  std::map<void*, size_t> ptrToSizeMap_;
+  // Map tensor name to registered buffer ptr for reuse
+  std::map<std::string, void*> tensorNameToPtrMap_;
+  // Map tensor ID to registered buffer ptr for reuse (more reliable than name)
+  std::map<uint32_t, void*> tensorIdToPtrMap_;
+
 };
 
 std::shared_ptr<QNNAllocator> createQNNAllocator();

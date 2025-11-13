@@ -539,6 +539,8 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
     // alloc and register qnn tensor
     model->getGraphInputTensorWrappers()[i]->getDataContainer() = inputs[i];  // update data container
+    // Reset allocation flag when dataContainer is updated to ensure proper registration
+    model->getGraphInputTensorWrappers()[i]->resetAlloc();
     model->getGraphInputTensorWrappers()[i]->alloc();  // QNNAllocator will handle registered memory descriptor
     qnn_inputs.push_back(*(model->getGraphInputTensorWrappers()[i]->getNativeTensor()));
   }

@@ -440,6 +440,10 @@ class QwenText final : public nn::Module {
   void clearKVCache() {
     for (auto& block : decode_blocks_.list()) { block.getKVCache().clearCache(); }
   }
+
+  void setKVCacheSeqCnt(int32_t seq) {
+    for (auto& block : decode_blocks_.list()) { block.getKVCache().setCurrentSeqCnt(seq); }
+  }
 };
 
 class QwenForCausalLM : public nn::Module, public ARGeneration {
@@ -452,6 +456,9 @@ class QwenForCausalLM : public nn::Module, public ARGeneration {
     }
     tie_word_embeddings_ = cfg.tie_word_embeddings;
   }
+
+  // Set current valid sequence length for KV cache across all layers
+  void setKVCacheSeqCnt(int32_t seq) { model.setKVCacheSeqCnt(seq); }
 
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
     auto sequence = input.at("sequence");

@@ -34,6 +34,10 @@ class KVCacheOp : public BaseOp {
 
   virtual void clearCache();
 
+  // Set current valid sequence length for KV cache logic
+  // Default no-op; backends that maintain cache should override.
+  virtual void setCurrentSeqCnt(int32_t /*seq*/) {}
+
   inline const KVCacheOpOptions& options() const { return options_; }
 
  protected:
