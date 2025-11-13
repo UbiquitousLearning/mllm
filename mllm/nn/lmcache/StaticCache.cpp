@@ -24,48 +24,44 @@ StaticCache::StaticCache(int32_t max_cache_length, int32_t layer_nums, int32_t q
   // Inputs must be [B, S, H, D]
   if (use_fa2_) {
     for (int i = 0; i < layer_nums_; ++i) {
-      k_cache_.emplace_back(Tensor::empty(
-                                {
-                                    1,
-                                    max_cache_length_,
-                                    kv_heads_,
-                                    kv_dims_,
-                                },
-                                k_dtype_, device_type)
-                                .alloc());
-      v_cache_.emplace_back(Tensor::empty(
-                                {
-                                    1,
-                                    max_cache_length_,
-                                    kv_heads_,
-                                    kv_dims_,
-                                },
-                                v_dtype_, device_type)
-                                .alloc());
+      k_cache_.emplace_back(Tensor::zeros(
+          {
+              1,
+              max_cache_length_,
+              kv_heads_,
+              kv_dims_,
+          },
+          k_dtype_, device_type));
+      v_cache_.emplace_back(Tensor::zeros(
+          {
+              1,
+              max_cache_length_,
+              kv_heads_,
+              kv_dims_,
+          },
+          v_dtype_, device_type));
       current_seq_cnt_.push_back(0);
     }
   } else
   // Inputs must be [B, H, S, D]
   {
     for (int i = 0; i < layer_nums_; ++i) {
-      k_cache_.emplace_back(Tensor::empty(
-                                {
-                                    1,
-                                    q_heads_,
-                                    max_cache_length_,
-                                    kv_dims_,
-                                },
-                                k_dtype_, device_type)
-                                .alloc());
-      v_cache_.emplace_back(Tensor::empty(
-                                {
-                                    1,
-                                    q_heads_,
-                                    max_cache_length_,
-                                    kv_dims_,
-                                },
-                                v_dtype_, device_type)
-                                .alloc());
+      k_cache_.emplace_back(Tensor::zeros(
+          {
+              1,
+              q_heads_,
+              max_cache_length_,
+              kv_dims_,
+          },
+          k_dtype_, device_type));
+      v_cache_.emplace_back(Tensor::zeros(
+          {
+              1,
+              q_heads_,
+              max_cache_length_,
+              kv_dims_,
+          },
+          v_dtype_, device_type));
       current_seq_cnt_.push_back(0);
     }
   }
