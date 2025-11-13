@@ -6,6 +6,7 @@
 #include <fstream>
 #include "mllm/utils/Common.hpp"
 #include "mllm/nn/lmcache/PrefixCache.hpp"
+#include "mllm/engine/prefix_cache/TLB.hpp"
 #include "mllm/engine/prefix_cache/Allocator.hpp"
 
 namespace mllm::nn {
@@ -125,9 +126,15 @@ void CpuPrefixCache::evictSlidingWindowLayerOn(const std::vector<int64_t>& token
   }
 }
 
-void CpuPrefixCache::freeKey(int layer_idx, prefix_cache::vp_addr_t addr) { caches_[layer_idx].first->free(addr); }
+void CpuPrefixCache::freeKey(int layer_idx, prefix_cache::vp_addr_t addr) {
+  if (addr == INVALID_VP_ADDR) return;
+  caches_[layer_idx].first->free(addr);
+}
 
-void CpuPrefixCache::freeValue(int layer_idx, prefix_cache::vp_addr_t addr) { caches_[layer_idx].second->free(addr); }
+void CpuPrefixCache::freeValue(int layer_idx, prefix_cache::vp_addr_t addr) {
+  if (addr == INVALID_VP_ADDR) return;
+  caches_[layer_idx].second->free(addr);
+}
 
 char* CpuPrefixCache::physicalAddrKey(int layer_idx, prefix_cache::vp_addr_t addr) {
   return caches_[layer_idx].first->physicalAddr(addr);
