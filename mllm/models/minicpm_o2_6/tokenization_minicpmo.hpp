@@ -203,6 +203,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
 
     special_tokens_trie_.add(L"<|endoftext|>");
     special_tokens_trie_.add(L"<|im_start|>");
+    special_tokens_trie_.add(L"<|im_end|>");
     special_tokens_trie_.add(L"<|object_ref_start|>");
     special_tokens_trie_.add(L"<|object_ref_end|>");
     special_tokens_trie_.add(L"<|box_start|>");
@@ -229,18 +230,32 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"</box>");
     special_tokens_trie_.add(L"<quad>");
     special_tokens_trie_.add(L"</quad>");
+    special_tokens_trie_.add(L"<point>");
+    special_tokens_trie_.add(L"</point>");
     special_tokens_trie_.add(L"<slice>");
     special_tokens_trie_.add(L"</slice>");
     special_tokens_trie_.add(L"<image_id>");
     special_tokens_trie_.add(L"</image_id>");
+    special_tokens_trie_.add(L"<unit>");
+    special_tokens_trie_.add(L"</unit>");
 
     // Audio tokens
+    special_tokens_trie_.add(L"<asr>");
+    special_tokens_trie_.add(L"</asr>");
+    special_tokens_trie_.add(L"<query>");
+    special_tokens_trie_.add(L"</query>");
     special_tokens_trie_.add(L"<|audio_start|>");
     special_tokens_trie_.add(L"<|audio_end|>");
     special_tokens_trie_.add(L"<|spk_bos|>");
+    special_tokens_trie_.add(L"<|spk|>");
     special_tokens_trie_.add(L"<|spk_eos|>");
     special_tokens_trie_.add(L"<|tts_bos|>");
     special_tokens_trie_.add(L"<|tts_eos|>");
+    special_tokens_trie_.add(L"<|listen|>");
+    special_tokens_trie_.add(L"<|speak|>");
+    special_tokens_trie_.add(L"<|interrupt|>");
+    special_tokens_trie_.add(L"<|vad_start|>");
+    special_tokens_trie_.add(L"<|vad_end|>");
   }
 
   std::vector<std::wstring> _tokenize(const std::string& str) override {

@@ -263,6 +263,91 @@ void transpose_last_dims_fp16(const mllm_fp16_t* __restrict input, mllm_fp16_t* 
   }
 }
 
+void transpose_hw_wh_int64(const mllm_int64_t* __restrict__ X, mllm_int64_t* __restrict__ Y, size_t H, size_t W) {
+  for (size_t i = 0; i + 2 <= H; i += 2) {
+    for (size_t j = 0; j + 2 <= W; j += 2) {
+      int64x2_t r0 = vld1q_s64(X + i * W + j);
+      int64x2_t r1 = vld1q_s64(X + (i + 1) * W + j);
+
+      int64x2_t col0 = vcombine_s64(vget_low_s64(r0), vget_low_s64(r1));
+      int64x2_t col1 = vcombine_s64(vget_high_s64(r0), vget_high_s64(r1));
+
+      vst1q_s64(Y + j * H + i, col0);
+      vst1q_s64(Y + (j + 1) * H + i, col1);
+    }
+
+    size_t j_remain = W - (W % 2);
+    for (size_t j = j_remain; j < W; ++j) {
+      int64x2_t col = {X[i * W + j], X[(i + 1) * W + j]};
+      vst1q_s64(Y + j * H + i, col);
+    }
+  }
+
+  size_t i_remain = H - (H % 2);
+  for (size_t j = 0; j < W; ++j) {
+    for (size_t i = i_remain; i < H; ++i) { Y[j * H + i] = X[i * W + j]; }
+  }
+}
+
+void transpose_bshd_bhsd_int64(const mllm_int64_t* __restrict__ X, mllm_int64_t* __restrict__ Y, size_t B, size_t S, size_t H,
+                               size_t D) {
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H; ++h) {
+      for (int s = 0; s < S; ++s) {
+        int d;
+        for (d = 0; d <= D - 2; d += 2) {
+          // B, S, H, D
+          const mllm_int64_t* src_ptr = X + b * S * H * D + s * H * D + h * D + d;
+
+          // B, H, S, D
+          mllm_int64_t* dst_ptr = Y + b * H * S * D + h * S * D + s * D + d;
+
+          int64x2_t data;
+          data = vld1q_s64(src_ptr);
+          vst1q_s64(dst_ptr, data);
+        }
+        for (; d < D; ++d) {
+          const mllm_int64_t* src_ptr = X + b * S * H * D + s * H * D + h * D + d;
+          mllm_int64_t* dst_ptr = Y + b * H * S * D + h * S * D + s * D + d;
+          *dst_ptr = *src_ptr;
+        }
+      }
+    }
+  }
+}
+
+void transpose_last_dims_int64(const mllm_int64_t* __restrict__ input, mllm_int64_t* __restrict__ output, size_t batch,
+                               size_t dim0, size_t dim1) {
+  for (size_t b = 0; b < batch; b++) {
+    const mllm_int64_t* input_batch = input + b * dim0 * dim1;
+    mllm_int64_t* output_batch = output + b * dim0 * dim1;
+
+    for (size_t i = 0; i + 2 <= dim0; i += 2) {
+      for (size_t j = 0; j + 2 <= dim1; j += 2) {
+        int64x2_t r0 = vld1q_s64(input_batch + i * dim1 + j);
+        int64x2_t r1 = vld1q_s64(input_batch + (i + 1) * dim1 + j);
+
+        int64x2_t col0 = vcombine_s64(vget_low_s64(r0), vget_low_s64(r1));
+        int64x2_t col1 = vcombine_s64(vget_high_s64(r0), vget_high_s64(r1));
+
+        vst1q_s64(output_batch + j * dim0 + i, col0);
+        vst1q_s64(output_batch + (j + 1) * dim0 + i, col1);
+      }
+
+      size_t j_remain = dim1 - (dim1 % 2);
+      for (size_t j = j_remain; j < dim1; ++j) {
+        int64x2_t col = {input_batch[i * dim1 + j], input_batch[(i + 1) * dim1 + j]};
+        vst1q_s64(output_batch + j * dim0 + i, col);
+      }
+    }
+
+    size_t i_remain = dim0 - (dim0 % 2);
+    for (size_t j = 0; j < dim1; ++j) {
+      for (size_t i = i_remain; i < dim0; ++i) { output_batch[j * dim0 + i] = input_batch[i * dim1 + j]; }
+    }
+  }
+}
+
 }  // namespace mllm::cpu::arm
 
 #endif

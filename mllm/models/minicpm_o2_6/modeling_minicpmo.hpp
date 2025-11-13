@@ -3,6 +3,8 @@
 #pragma once
 
 #include "mllm/mllm.hpp"
+#include "mllm/models/minicpm_o2_6/modeling_chattts.hpp"
+#include "mllm/models/vocos/modeling_vocos.hpp"
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/lmcache/StaticCache.hpp"
@@ -96,6 +98,10 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
   // AudioProjectionLayer audio_projection_layer_;
   // TTSProjector tts_projector_;
 
+  // TTS components (optional, loaded separately)
+  chattts::ConditionalChatTTS tts_model_;
+  vocos::Vocos* vocos_model_ = nullptr;
+
  private:
   nn::StaticCache kv_cache_;
 
@@ -117,6 +123,10 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
   }
 
  public:
+  void init_tts_module(models::chattts::ChatTTSConfig& chattts_config) {
+    tts_model_ = models::chattts::ConditionalChatTTS("tts", chattts_config);
+  }
+
   ARGenerationOutputPast forward(const ARGenerationOutputPast& inputs, const ARGenerationArgs& args) override {
     // In prefill stage, get "input_ids", in decode stage we get "sequence"
     Tensor input_ids;
@@ -135,12 +145,11 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
     Tensor audio_features = inputs.count("audio_features") ? inputs.at("audio_features") : Tensor::nil();
 
     Tensor prev_position_ids = inputs.count("position_ids") ? inputs.at("position_ids") : Tensor::nil();
-    bool is_decode_stage = !prev_position_ids.isNil();
 
     auto input_embeddings = llm_.llm.embedding_(input_ids);
 
     // Process vision inputs if provided - ONLY in prefill stage
-    if (!pixel_values.isNil() && !tgt_sizes.isNil() && !is_decode_stage) {
+    if (!pixel_values.isNil() && !tgt_sizes.isNil() && prev_position_ids.isNil()) {
       auto vision_outputs = vpm_(pixel_values, tgt_sizes)[0];
       auto vision_embeddings = resampler_(vision_outputs, tgt_sizes)[0];
       if (!image_bounds.isNil()) {
@@ -159,19 +168,21 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
     Tensor position_ids;
     auto seq_len = input_embeddings.shape()[1];
 
-    if (is_decode_stage) {
+    if (!prev_position_ids.isNil()) {
       // Decode stage: create [3, 1, 1] position_ids for next token
       auto last_pos = *prev_position_ids.offsettedPtr<int64_t>({0, 0, prev_position_ids.shape()[2] - 1});
-      position_ids = Tensor::empty({3, 1, 1}, kInt64).alloc();
-      position_ids.at<int64_t>({0, 0, 0}) = last_pos + 1;
-      position_ids.at<int64_t>({1, 0, 0}) = last_pos + 1;
-      position_ids.at<int64_t>({2, 0, 0}) = last_pos + 1;
+      // in case chunk prefilling with multiple tokens
+      position_ids = Tensor::empty({3, 1, seq_len}, kInt64).alloc();
+      for (int d = 0; d < 3; d++) {
+        for (int s = 0; s < seq_len; s++) { position_ids.at<int64_t>({d, 0, s}) = last_pos + s + 1; }
+      }
     } else {
+      auto last_seen_tokens = kv_cache_.getCurrentSeqCnt(0);
       // Prefill stage: create [3, 1, seq_len] position_ids for full sequence
       position_ids = Tensor::empty({3, 1, seq_len}, kInt64).alloc();
       // Simple sequential position IDs for all dimensions
       for (int d = 0; d < 3; d++) {
-        for (int s = 0; s < seq_len; s++) { position_ids.at<int64_t>({d, 0, s}) = s; }
+        for (int s = 0; s < seq_len; s++) { position_ids.at<int64_t>({d, 0, s}) = last_seen_tokens + s; }
       }
     }
 
@@ -238,19 +249,6 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
   Tensor merge_audio_text_embeddings(const Tensor& text_embeddings, const Tensor& audio_embeddings, const Tensor& sequence) {
     // TODO: Similar to vision embedding fusion
     return text_embeddings;
-  }
-
-  Tensor generate_position_ids(const Tensor& embeddings) {
-    // Generate simple sequential position IDs
-    auto batch_size = embeddings.shape()[0];
-    auto seq_len = embeddings.shape()[1];
-    auto position_ids = Tensor::empty({batch_size, seq_len}, kInt64, kCPU).alloc();
-
-    auto pos_ptr = position_ids.ptr<int64_t>();
-    for (int b = 0; b < batch_size; ++b) {
-      for (int i = 0; i < seq_len; ++i) { pos_ptr[b * seq_len + i] = i; }
-    }
-    return position_ids;
   }
 };
 
