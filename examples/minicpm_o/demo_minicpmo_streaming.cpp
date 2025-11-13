@@ -134,7 +134,7 @@ MLLM_MAIN({
   Tensor audio_output = nn::functional::concat(audio_chunks, -1);
 
   print("Final audio shape:", audio_output.shape(), audio_output);
-  audio_output = audio_output * 16383;  // FIXME: scale back to int16
+  audio_output = audio_output * 32767;  // FIXME: scale back to int16
 
   wenet::WavWriter wav_writer2(audio_output.ptr<float>(), audio_output.shape().back(), 1, 24000, 16);
   wav_writer2.Write("/Users/luis/Downloads/omni.wav");

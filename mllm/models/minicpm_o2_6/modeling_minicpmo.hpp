@@ -186,8 +186,6 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
       }
     }
 
-    print("position ids", position_ids);
-
     auto head_dim = config_.hidden_size / config_.num_attention_heads;
 
     auto inv_freq = llm_.llm.getBuffer("inv_freq");
