@@ -31,7 +31,7 @@ void StreamingGenerator::generate_next(OmniOutput& output) {
   if (spk_embeds_.isNil()) {
     streamer_ = ++streamer_;
 
-    spk_embeds_ = streamer_.getLastHiddenStates();
+    spk_embeds_ = streamer_.getLastHiddenStates()[make_slice(0), spk_start_idx_ + 1, kAll];
 
     std::string tts_eos_token = preprocessor::wideString2Utf8String(L"<|tts_eos|>");
     std::string tts_text = streamer_->text;
@@ -123,15 +123,13 @@ void StreamingGenerator::generate_next(OmniOutput& output) {
     audio_input_ids_ = outputs.audio_input_ids;
 
     // Prepare new ids slice for decoding
-    auto start_idx = std::max(new_ids_len_ - 4, 0);
-    auto end_idx = outputs.new_ids.shape()[1];  // total generated length (previous + new)
-    auto new_ids_slice = outputs.new_ids[{kAll, {start_idx, end_idx}, kAll}].contiguous().squeeze();
-    // (condition_length + new_tokens)
-    new_ids_len_ = outputs.new_ids.shape()[1];
+    auto new_ids_slice = outputs.new_ids[{kAll, {std::max(new_ids_len_ - 4, 0), kAll}, kAll}].contiguous().squeeze().clone();
 
     // Decode to mel spectrogram
     std::vector<Tensor> batch_results{new_ids_slice};
-    auto mel_spec = tts_model_->decodeToMelSpecs(batch_results);
+    auto mel_spec = tts_model_->decodeToMelSpecs(batch_results).contiguous();
+
+    new_ids_len_ = outputs.new_ids.shape()[1];
 
     auto wav_np = decode_mel_to_audio(mel_spec);
 
