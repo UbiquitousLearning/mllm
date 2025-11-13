@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include <cmath>
+#include <ranges>
 #include <fstream>
 #include "mllm/utils/Common.hpp"
 #include "mllm/nn/lmcache/PrefixCache.hpp"
@@ -73,7 +74,55 @@ void CpuPrefixCache::promote(const std::vector<int64_t>& token_ids,
                              const std::vector<std::vector<prefix_cache::vp_addr_t>>& key_cache_addresses,
                              const std::vector<std::vector<prefix_cache::vp_addr_t>>& value_cache_addresses,
                              int64_t extra_key) {
-  // TODO Some special logic here.
+  prefix_cache::RadixTreeNodeValue value;
+  for (int i = 0; i < options_.total_layers; ++i) {
+    value.k_cache_addresses.emplace_back(key_cache_addresses[i]);
+    value.v_cache_addresses.emplace_back(value_cache_addresses[i]);
+  }
+  tree_->insert(prefix_cache::RadixTreeNodeKey(prefix_cache::VectorView<int64_t>(token_ids), extra_key), value);
+}
+
+void CpuPrefixCache::evictSlidingWindowLayerOn(const std::vector<int64_t>& token_ids) {
+  // Check the sliding window layers if they need to be evicted
+  // Remember that the token_ids is full and not partial
+  if (!options_.hybrid_sliding_window_cache.value_or(false)) { return; }
+  if (token_ids.size() <= options_.sliding_window_size.value()) { return; }
+
+  // We evict the tokens outof sliding window.
+  // 1. find token_ids path
+  auto result = find(token_ids);
+
+  for (int layer_idx = 0; layer_idx < options_.total_layers; ++layer_idx) {
+    // Only perform on sliding window
+    if (options_.sliding_window_layers.value()[layer_idx]) {
+      // loop on path to delete tokens
+      if (result.success && result.matched_length > options_.sliding_window_size.value()) {
+        // We need to evict
+        int length_cnt = 0;
+
+        // Loop from back and matching
+        for (auto& it : std::ranges::reverse_view(result.path)) {
+          auto& radix_tree_node = it.first->value;
+          auto this_node_matched_length = it.second;
+
+          // We need to cut down those tokens outof sliding window
+          if (length_cnt + this_node_matched_length > options_.sliding_window_size.value()) {
+            int tokens_to_evict = std::min(this_node_matched_length,
+                                           length_cnt + this_node_matched_length - options_.sliding_window_size.value());
+            for (int idx = 0; idx < tokens_to_evict; ++idx) {
+              freeKey(layer_idx, radix_tree_node.k_cache_addresses[layer_idx][idx]);
+              freeValue(layer_idx, radix_tree_node.v_cache_addresses[layer_idx][idx]);
+              radix_tree_node.k_cache_addresses[layer_idx][idx] = INVALID_VP_ADDR;
+              radix_tree_node.v_cache_addresses[layer_idx][idx] = INVALID_VP_ADDR;
+            }
+          }
+
+          // Update length_cnt
+          length_cnt += this_node_matched_length;
+        }
+      }
+    }
+  }
 }
 
 void CpuPrefixCache::freeKey(int layer_idx, prefix_cache::vp_addr_t addr) { caches_[layer_idx].first->free(addr); }
