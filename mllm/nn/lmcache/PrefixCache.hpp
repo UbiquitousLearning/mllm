@@ -103,13 +103,20 @@ class PrefixCache {
   std::shared_ptr<prefix_cache::RadixTree> tree_ = nullptr;
 };
 
-class CpuPrefixCache final : protected PrefixCache {
+class CpuPrefixCache final : public PrefixCache {
  public:
   explicit CpuPrefixCache(const PrefixCacheOptions& options);
 
   void promote(const std::vector<int64_t>& token_ids,
                const std::vector<std::vector<prefix_cache::vp_addr_t>>& key_cache_addresses,
                const std::vector<std::vector<prefix_cache::vp_addr_t>>& value_cache_addresses, int64_t extra_key) override;
+
+  /**
+   * @brief This function will evict kv cache outside of sliding window layers
+   *
+   * @param token_ids
+   */
+  void evictSlidingWindowLayerOn(const std::vector<int64_t>& token_ids);
 
   prefix_cache::vp_addr_t allocKey(int layer_idx) override;
 
