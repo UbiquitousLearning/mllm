@@ -17,6 +17,7 @@ struct RoPEOpOptions : public BaseOpOptions<RoPEOpOptions> {
   float rope_theta = 10000.0F;
   int32_t max_position_embeddings = 16384;
   RoPEOpOptionsInputType input_type = RoPEOpOptionsInputType::kBHSD;
+  int32_t partial_dim = -1;
 };
 
 class RoPEOp : public BaseOp {

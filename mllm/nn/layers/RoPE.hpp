@@ -15,6 +15,9 @@ class RoPE : public Layer {
   RoPE(float theta, int32_t max_position_embeddings,
        aops::RoPEOpOptionsInputType input_type = aops::RoPEOpOptionsInputType::kBHSD);
 
+  RoPE(float theta, int32_t max_position_embeddings, int32_t partial_dim,
+       aops::RoPEOpOptionsInputType input_type = aops::RoPEOpOptionsInputType::kBHSD);
+
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
   MLLM_LAYER_ENABLE_INPLACE_ATTRIBUTE(RoPE)
 
