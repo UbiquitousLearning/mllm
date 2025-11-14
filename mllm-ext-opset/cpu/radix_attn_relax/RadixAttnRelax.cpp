@@ -39,11 +39,9 @@ void RadixAttnRelax::forward(const std::vector<mllm::Tensor>& inputs, std::vecto
   auto B = Q.shape()[0];
   auto S_Q = Q.shape()[1];
   auto H_Q = Q.shape()[2];
-  auto D_QK = Q.shape()[3];
-  auto D_V = V.shape()[3];
   MLLM_RT_ASSERT_EQ(H_Q, options_.q_head);
-  auto S_KV = K.shape()[1];
-  MLLM_RT_ASSERT_EQ(S_KV, V.shape()[1]);
+  auto S_KV = K.shape()[0];
+  MLLM_RT_ASSERT_EQ(S_KV, V.shape()[0]);
 
   switch (Q.dtype()) {
     case mllm::kFloat32: {
