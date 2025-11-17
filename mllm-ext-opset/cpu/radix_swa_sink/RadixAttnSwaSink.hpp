@@ -5,6 +5,12 @@
 
 namespace mllm::ext_opset::cpu {
 
+enum class RadixAttnSwaSinkPattern : uint8_t {
+  kPrefill = 0,
+  kDecode = 1,
+  kAppend = 2,
+};
+
 struct RadixAttnSwaSinkOptions : public mllm::BaseOpOptions<RadixAttnSwaSinkOptions> {
   int32_t B;
   int32_t q_head;
@@ -14,6 +20,7 @@ struct RadixAttnSwaSinkOptions : public mllm::BaseOpOptions<RadixAttnSwaSinkOpti
   int32_t cur_seq_len;
   int sliding_window = -1;
   bool s_aux_enable = false;
+  RadixAttnSwaSinkPattern pattern = RadixAttnSwaSinkPattern::kDecode;
 };
 
 class RadixAttnSwaSink final : public mllm::plugin::interface::CustomizedOp {
