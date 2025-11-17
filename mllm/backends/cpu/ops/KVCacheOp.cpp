@@ -46,4 +46,6 @@ void CPUKVCacheOp::clearCache() { cache_.clearCache(); }
 
 void CPUKVCacheOp::setCurrentSeqCnt(int32_t seq) { cache_.setCurrentSeqCnt(seq); }
 
+int32_t CPUKVCacheOp::getCurrentSeqCnt() const { return cache_.getCurrentSeqCnt(options_.layer_idx); }
+
 }  // namespace mllm::cpu

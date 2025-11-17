@@ -1,4 +1,5 @@
 #include "QNNBackend.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -537,12 +538,62 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   std::vector<Qnn_Tensor_t> qnn_inputs;
   std::vector<Qnn_Tensor_t> qnn_outputs;
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
-    // alloc and register qnn tensor
-    model->getGraphInputTensorWrappers()[i]->getDataContainer() = inputs[i];  // update data container
-    // Reset allocation flag when dataContainer is updated to ensure proper registration
-    model->getGraphInputTensorWrappers()[i]->resetAlloc();
-    model->getGraphInputTensorWrappers()[i]->alloc();  // QNNAllocator will handle registered memory descriptor
-    qnn_inputs.push_back(*(model->getGraphInputTensorWrappers()[i]->getNativeTensor()));
+    auto wrapper = model->getGraphInputTensorWrappers()[i];
+    auto& wrapper_tensor = wrapper->getDataContainer();
+    const auto& runtime_input = inputs[i];
+
+    if (runtime_input.isNil()) {
+      MLLM_ERROR("Input tensor {} is nil for graph '{}'", i, graphName);
+      return;
+    }
+
+    if (wrapper_tensor.isNil()) {
+      MLLM_ERROR("Graph input wrapper {} for graph '{}' has no backing tensor", i, graphName);
+      return;
+    }
+
+    size_t dst_bytes = wrapper_tensor.bytes();
+    size_t src_bytes = runtime_input.bytes();
+    if (dst_bytes != src_bytes) {
+      MLLM_WARN("Graph '{}' input tensor {} byte-size mismatch: wrapper={} bytes, runtime input={} bytes. Copying "
+                "min(dst, src), but this may truncate data.",
+                graphName, i, dst_bytes, src_bytes);
+    }
+
+    if (dst_bytes > 0) {
+      void* dst_ptr = wrapper_tensor.ptr<void>();
+      if (!dst_ptr) {
+        wrapper_tensor.alloc();
+        dst_ptr = wrapper_tensor.ptr<void>();
+      }
+
+      const void* src_ptr = runtime_input.ptr<void>();
+      size_t bytes_to_copy = std::min(dst_bytes, src_bytes);
+      if (!src_ptr) {
+        MLLM_ERROR("Runtime input tensor {} for graph '{}' has null data pointer", i, graphName);
+        return;
+      }
+      if (dst_ptr && src_ptr && dst_ptr != src_ptr) {
+        // Copy source data
+        if (bytes_to_copy > 0) {
+          std::memcpy(dst_ptr, src_ptr, bytes_to_copy);
+        }
+        
+        // If source is smaller than destination, zero out the remaining bytes
+        // This is important for decode phase where input tensors may be smaller than prefill
+        // Note: In current implementation with full [1, 128] tensor, this should not trigger
+        if (src_bytes < dst_bytes) {
+          size_t remaining_bytes = dst_bytes - src_bytes;
+          std::memset(static_cast<char*>(dst_ptr) + bytes_to_copy, 0, remaining_bytes);
+          // Only log if zero-padding actually occurs (unexpected case)
+          MLLM_WARN("[QNN graphExecute] Graph '{}' input tensor {}: zero-padded {} bytes (src={} bytes, dst={} bytes)", 
+                    graphName, i, remaining_bytes, src_bytes, dst_bytes);
+        }
+      }
+    }
+
+    wrapper->alloc();  // QNNAllocator will handle registered memory descriptor when needed
+    qnn_inputs.push_back(*(wrapper->getNativeTensor()));
   }
   
   // Prepare QNN outputs in QNN order

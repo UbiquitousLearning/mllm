@@ -384,6 +384,22 @@ void QNNTensorWrapper::alloc() {
   auto storage = dataContainer_.impl()->storage();
   MLLM_RT_ASSERT(storage != nullptr);
 
+  size_t requiredBytes = dataContainer_.bytes();
+
+  if (registeredPtr_) {
+    if (!allocator->isRegistered(registeredPtr_)) {
+      registeredPtr_ = nullptr;
+      isAlloc_ = false;
+    } else {
+      size_t registeredBytes = allocator->getRegisteredBufferSize(registeredPtr_);
+      if (registeredBytes > 0 && registeredBytes < requiredBytes) {
+        allocator->deRegisterQnnTensorFromSharedBuffer(registeredPtr_);
+        registeredPtr_ = nullptr;
+        isAlloc_ = false;
+      }
+    }
+  }
+
   if (registeredPtr_ && registeredPtr_ != storage->ptr_) {
     if (!allocator->isRegistered(registeredPtr_)) {
       registeredPtr_ = nullptr;

@@ -23,6 +23,9 @@ class KVCache : public Layer {
   // Update current valid sequence length in underlying KV cache op
   void setCurrentSeqCnt(int32_t seq);
 
+  // Get current valid sequence length from underlying KV cache op
+  int32_t getCurrentSeqCnt() const;
+
   MLLM_LAYER_ANY_INPUTS_2_OUTPUTS_FORWARD
 };
 

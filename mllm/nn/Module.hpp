@@ -204,6 +204,7 @@ class ModuleList final : public Module {
   }
 
   std::vector<T>& list() { return layers_; }
+  const std::vector<T>& list() const { return layers_; }
 };
 
 template<typename T>

@@ -5,6 +5,7 @@
 
 #include <map>
 #include <set>
+#include <string_view>
 #include <vector>
 #include "QnnCommon.h"
 #include "QnnInterface.h"
@@ -82,6 +83,7 @@ class QNNAllocator final : public Allocator {
   
   // Debug: Check if a ptr is already registered
   bool isRegistered(void* ptr) const;
+  [[nodiscard]] size_t getRegisteredBufferSize(void* ptr) const;
 
  private:
   QNN_INTERFACE_VER_TYPE qnnInterface_;
@@ -100,6 +102,22 @@ class QNNAllocator final : public Allocator {
   std::map<std::string, void*> tensorNameToPtrMap_;
   // Map tensor ID to registered buffer ptr for reuse (more reliable than name)
   std::map<uint32_t, void*> tensorIdToPtrMap_;
+
+  struct LastRegistrationInfo {
+    uint32_t tensor_id = 0;
+    std::string tensor_name;
+    void* ptr = nullptr;
+    Qnn_MemHandle_t mem_handle = nullptr;
+    size_t bytes = 0;
+  };
+
+  LastRegistrationInfo lastRegistrationInfo_{};
+  bool hasLastRegistrationInfo_ = false;
+
+  void eraseTensorMappingsForPtr(void* ptr, std::string_view reason);
+  void rememberLastRegistration(uint32_t tensor_id, const std::string& tensor_name, void* ptr,
+                                Qnn_MemHandle_t mem_handle, size_t total_bytes);
+  void clearLastRegistrationIfMatches(void* ptr, std::string_view reason);
 
 };
 

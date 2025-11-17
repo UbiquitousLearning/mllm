@@ -125,22 +125,8 @@ void QNNAllocator::free(Storage* storage) {
     QNN_ALLOCATOR_VERBOSE("QNNAllocator::free freeing unregistered buffer ptr={}", ptr);
     qnnMemPtrSet_.erase(ptr);
     rpcmem_free(ptr);
-    
-    // Clear mappings that point to this ptr
-    for (auto it = tensorIdToPtrMap_.begin(); it != tensorIdToPtrMap_.end();) {
-      if (it->second == ptr) {
-        it = tensorIdToPtrMap_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-    for (auto it = tensorNameToPtrMap_.begin(); it != tensorNameToPtrMap_.end();) {
-      if (it->second == ptr) {
-        it = tensorNameToPtrMap_.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    eraseTensorMappingsForPtr(ptr, "free(unregistered buffer)");
+    clearLastRegistrationIfMatches(ptr, "free(unregistered buffer)");
     return;
   }
   
@@ -157,28 +143,15 @@ void QNNAllocator::free(Storage* storage) {
     }
     // Don't free the buffer here since alternative_ptr is still using it
     qnnMemPtrSet_.erase(ptr);
+    clearLastRegistrationIfMatches(ptr, "free(ptr) -> redirected to alias");
   } else {
     // Since QNN doesn't support re-registering a deRegistered buffer (fd may be invalidated),
     // we should free the buffer immediately even if there are mappings.
     // The decode phase will allocate a new buffer when needed.
     qnnMemPtrSet_.erase(ptr);
     rpcmem_free(ptr);
-    
-    // Clear mappings that point to this ptr
-    for (auto it = tensorIdToPtrMap_.begin(); it != tensorIdToPtrMap_.end();) {
-      if (it->second == ptr) {
-        it = tensorIdToPtrMap_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-    for (auto it = tensorNameToPtrMap_.begin(); it != tensorNameToPtrMap_.end();) {
-      if (it->second == ptr) {
-        it = tensorNameToPtrMap_.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    eraseTensorMappingsForPtr(ptr, "free(ptr) -> mem_handle released");
+    clearLastRegistrationIfMatches(ptr, "free(ptr) -> mem_handle released");
   }
   storage->ptr_ = nullptr;
 }
@@ -257,6 +230,7 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     QNN_TENSOR_SET_MEM_TYPE(qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
     QNN_TENSOR_SET_MEM_HANDLE(qnn_tensor, existing_mem_handle);
     updateMappings(existing_ptr);
+    rememberLastRegistration(tensor_id, tensor_name, existing_ptr, existing_mem_handle, total_bytes);
     return true;
   };
 
@@ -266,6 +240,7 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     QNN_TENSOR_SET_MEM_TYPE(qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
     QNN_TENSOR_SET_MEM_HANDLE(qnn_tensor, mem_handle);
     updateMappings(ptr);
+    rememberLastRegistration(tensor_id, tensor_name, ptr, mem_handle, total_bytes);
     return true;
   }
 
@@ -352,6 +327,23 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
       }
     }
 
+    if (!fallback_success && hasLastRegistrationInfo_) {
+      bool same_tensor_id = tensor_id != 0 && tensor_id == lastRegistrationInfo_.tensor_id;
+      bool same_tensor_name = tensor_name != "unknown" && !tensor_name.empty()
+                              && tensor_name == lastRegistrationInfo_.tensor_name;
+      bool ptr_still_registered = lastRegistrationInfo_.ptr != nullptr
+                                  && ptrToFdAndMemHandleMap_.count(lastRegistrationInfo_.ptr) > 0;
+      if ((same_tensor_id || same_tensor_name) && ptr_still_registered) {
+        MLLM_WARN("Fallback: Reusing last successful buffer for tensor_id={}, tensor_name={}, old_ptr={}, new_ptr={}",
+                  tensor_id, tensor_name, lastRegistrationInfo_.ptr, ptr);
+        fallback_success = reuseExistingBuffer(lastRegistrationInfo_.ptr);
+      } else {
+        MLLM_WARN("Fallback: Last registration info unusable for tensor_id={}, tensor_name={}, "
+                  "same_tensor_id={}, same_tensor_name={}, ptr_registered={}",
+                  tensor_id, tensor_name, same_tensor_id, same_tensor_name, ptr_still_registered);
+      }
+    }
+
     if (!fallback_success) {
       MLLM_ERROR("QNNAllocator::registerQnnTensorToSharedBuffer: memRegister failed and fallback also failed. "
                  "Buffer ptr={} will be freed, tensor registration cannot proceed.", ptr);
@@ -360,6 +352,8 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
         qnnMemPtrSet_.erase(ptr);
         rpcmem_free(ptr);
         storage->ptr_ = nullptr;
+        eraseTensorMappingsForPtr(ptr, "register failure -> freed ptr");
+        clearLastRegistrationIfMatches(ptr, "register failure -> freed ptr");
         QNN_ALLOCATOR_VERBOSE("QNNAllocator::registerQnnTensorToSharedBuffer: Freed ptr={} ({} bytes) after failure", ptr,
                               total_bytes);
       }
@@ -379,6 +373,7 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
 
   ptrToFdAndMemHandleMap_.insert({ptr, {mem_fd, mem_handle}});
   updateMappings(ptr);
+  rememberLastRegistration(tensor_id, tensor_name, ptr, mem_handle, total_bytes);
   return true;
 }
 
@@ -394,22 +389,8 @@ void QNNAllocator::deRegisterQnnTensorFromSharedBuffer(void* ptr) {
 
   ptrToFdAndMemHandleMap_.erase(iter);
   ptrToSizeMap_.erase(ptr);
-  
-  // Remove from tensor ID and name mappings if they exist
-  for (auto it = tensorIdToPtrMap_.begin(); it != tensorIdToPtrMap_.end();) {
-    if (it->second == ptr) {
-      it = tensorIdToPtrMap_.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  for (auto it = tensorNameToPtrMap_.begin(); it != tensorNameToPtrMap_.end();) {
-    if (it->second == ptr) {
-      it = tensorNameToPtrMap_.erase(it);
-    } else {
-      ++it;
-    }
-  }
+  eraseTensorMappingsForPtr(ptr, "explicit deRegister");
+  clearLastRegistrationIfMatches(ptr, "explicit deRegister");
 }
 
 QNNAllocator::BufferStats QNNAllocator::getRegisteredBufferStats() const {
@@ -426,6 +407,52 @@ QNNAllocator::BufferStats QNNAllocator::getRegisteredBufferStats() const {
 
 bool QNNAllocator::isRegistered(void* ptr) const {
   return ptrToFdAndMemHandleMap_.count(ptr) > 0;
+}
+
+size_t QNNAllocator::getRegisteredBufferSize(void* ptr) const {
+  auto it = ptrToSizeMap_.find(ptr);
+  if (it == ptrToSizeMap_.end()) { return 0; }
+  return it->second;
+}
+
+void QNNAllocator::eraseTensorMappingsForPtr(void* ptr, std::string_view reason) {
+  if (ptr == nullptr) { return; }
+
+  for (auto it = tensorIdToPtrMap_.begin(); it != tensorIdToPtrMap_.end();) {
+    if (it->second == ptr) {
+      it = tensorIdToPtrMap_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  for (auto it = tensorNameToPtrMap_.begin(); it != tensorNameToPtrMap_.end();) {
+    if (it->second == ptr) {
+      it = tensorNameToPtrMap_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
+void QNNAllocator::rememberLastRegistration(uint32_t tensor_id, const std::string& tensor_name, void* ptr,
+                                            Qnn_MemHandle_t mem_handle, size_t total_bytes) {
+  if (ptr == nullptr || mem_handle == nullptr) { return; }
+  lastRegistrationInfo_.tensor_id = tensor_id;
+  lastRegistrationInfo_.tensor_name = tensor_name;
+  lastRegistrationInfo_.ptr = ptr;
+  lastRegistrationInfo_.mem_handle = mem_handle;
+  lastRegistrationInfo_.bytes = total_bytes;
+  hasLastRegistrationInfo_ = true;
+  // Note: Remembered registration info is used as fallback mechanism, logging removed for performance
+}
+
+void QNNAllocator::clearLastRegistrationIfMatches(void* ptr, std::string_view reason) {
+  if (!hasLastRegistrationInfo_ || ptr == nullptr) { return; }
+  if (lastRegistrationInfo_.ptr == ptr) {
+    lastRegistrationInfo_ = {};
+    hasLastRegistrationInfo_ = false;
+  }
 }
 
 #undef QNN_ALLOCATOR_VERBOSE
