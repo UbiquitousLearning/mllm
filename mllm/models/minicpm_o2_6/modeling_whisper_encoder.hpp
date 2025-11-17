@@ -30,7 +30,7 @@ class WhisperEncoderAttention : public nn::Module {
       : nn::Module(name), embed_dim_(embed_dim), num_heads_(num_heads), dropout_(dropout) {
     head_dim_ = embed_dim_ / num_heads_;
 
-    k_proj_ = reg<nn::Linear>("k_proj", embed_dim_, embed_dim_, true);
+    k_proj_ = reg<nn::Linear>("k_proj", embed_dim_, embed_dim_, false);
     v_proj_ = reg<nn::Linear>("v_proj", embed_dim_, embed_dim_, true);
     q_proj_ = reg<nn::Linear>("q_proj", embed_dim_, embed_dim_, true);
     out_proj_ = reg<nn::Linear>("out_proj", embed_dim_, embed_dim_, true);
@@ -58,19 +58,15 @@ class WhisperEncoderAttention : public nn::Module {
     float scale = 1.0f / std::sqrt(static_cast<float>(head_dim_));
     auto attn_weights = nn::functional::matmul(query_states, key_states.transpose(-2, -1)) * scale;
 
-    // Apply attention mask if provided
     if (!attention_mask.isNil()) { attn_weights = attn_weights + attention_mask; }
 
-    // Apply softmax
     attn_weights = nn::functional::softmax(attn_weights, -1);
 
-    // Apply attention to values
     auto attn_output = nn::functional::matmul(attn_weights, value_states);
 
     // Reshape back: [B, num_heads, seq_len, head_dim] -> [B, seq_len, num_heads, head_dim] -> [B, seq_len, embed_dim]
     attn_output = attn_output.transpose(1, 2).contiguous().view({batch_size, seq_len, embed_dim_});
 
-    // Apply output projection
     auto output = out_proj_(attn_output);
 
     return {output};
@@ -197,7 +193,7 @@ class WhisperEncoder : public nn::Module {
     auto seq_len = hidden_states.shape()[1];
 
     // Add positional embeddings
-    auto position_ids = Tensor::arange(0, seq_len, kInt64).view({1, seq_len});
+    auto position_ids = Tensor::arange(0, seq_len, 1, kInt64).view({1, seq_len});
     auto position_embeddings = embed_positions_(position_ids);
     hidden_states = hidden_states + position_embeddings;
 
