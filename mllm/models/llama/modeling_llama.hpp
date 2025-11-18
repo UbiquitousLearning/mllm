@@ -341,7 +341,7 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
       auto h_len = sequence.shape()[1];
       causal_mask = Tensor::zeros({1, 1, h_len, h_len}, kFloat32, kCPU);
       auto mask_data = causal_mask.ptr<mllm_fp32_t>();
-      float min_value = -1e12;
+      float min_value = -std::numeric_limits<float>::infinity();
       auto indices =
           std::views::iota(0, h_len) | std::views::transform([h_len](int64_t i) {
             return std::views::iota(i + 1, h_len) | std::views::transform([i, h_len](int64_t j) { return i * h_len + j; });

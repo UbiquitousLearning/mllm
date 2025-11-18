@@ -23,6 +23,7 @@ option(MLLM_BUILD_ASCEND_BACKEND "Enable MLLM Ascend backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" ON)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
 option(MLLM_BUILD_EXT_OP_SET "Enable building mllm extension op set." ON)
+option(MLLM_BUILD_EXT_OP_SET_TEST "Enable building mllm extension op set test." ON)
 
 # MLLM Compile Stack
 option(MLLM_ENABLE_MLLM_COMPILE_STACK "Enable compile stack of mllm. You need prebuilt mlir first." OFF)
@@ -290,6 +291,15 @@ if(MLLM_PERFETTO_ENABLE)
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin)
+
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/perfetto/sdk/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp"
+    PATTERN "*.inl"
+    PATTERN "Vendors/*" EXCLUDE)
 endif()
 
 install(
@@ -327,6 +337,15 @@ endif()
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm/
   DESTINATION include/mllm
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp"
+  PATTERN "*.inl"
+  PATTERN "Vendors/*" EXCLUDE)
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm-ext-opset/
+  DESTINATION include/mllm-ext-opset
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp"

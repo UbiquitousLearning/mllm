@@ -154,7 +154,9 @@ class Smollm3Attention final : public nn::Module {
     query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
-    std::tie(key_states, value_states) = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
+    auto [key_states_result, value_states_result] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
+    key_states = std::move(key_states_result);
+    value_states = std::move(value_states_result);
 
     Tensor attn;
     if (key_states.dtype() == kFloat32) {

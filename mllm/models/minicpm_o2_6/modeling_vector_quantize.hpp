@@ -557,6 +557,7 @@ class ResidualFSQ final : public nn::Module {
    * @return Tensor of shape [Q, B, N, D] containing codes for each quantizer
    */
   [[nodiscard]] Tensor getCodesFromIndices(Tensor& indices) {
+    MLLM_RT_ASSERT(indices.dtype() == kInt64);
     auto batch = indices.shape()[0];
     auto quantize_dim = indices.shape()[indices.shape().size() - 1];
 
@@ -576,11 +577,11 @@ class ResidualFSQ final : public nn::Module {
       // Pad indices with -1 values
       std::vector<int> padded_shape = {batch, indices_reshaped.shape()[1], num_quantizers_};
       Tensor padded_indices = Tensor::ones(padded_shape, indices.dtype(), indices.device());
-      padded_indices = padded_indices * (-1.0f);  // Fill with -1
+      padded_indices = padded_indices * -1;  // Fill with -1
 
       // Copy original indices to padded tensor
-      auto padded_ptr = padded_indices.ptr<float>();
-      auto indices_ptr = indices_reshaped.ptr<float>();
+      auto padded_ptr = padded_indices.ptr<int64_t>();
+      auto indices_ptr = indices_reshaped.ptr<int64_t>();
       size_t copy_elements = batch * indices_reshaped.shape()[1] * quantize_dim;
 
       for (size_t i = 0; i < copy_elements; ++i) { padded_ptr[i] = indices_ptr[i]; }
@@ -590,10 +591,10 @@ class ResidualFSQ final : public nn::Module {
 
     // Handle dropout masking
     // Replace -1 indices with 0 (to fetch dummy code that will be masked out)
-    auto indices_ptr = indices_reshaped.ptr<float>();
+    auto indices_ptr = indices_reshaped.ptr<int64_t>();
     size_t numel = indices_reshaped.numel();
     for (size_t i = 0; i < numel; ++i) {
-      if (indices_ptr[i] == -1.0f) { indices_ptr[i] = 0; }
+      if (indices_ptr[i] == -1) { indices_ptr[i] = 0; }
     }
 
     // Gather codes from codebooks based on indices
@@ -603,7 +604,7 @@ class ResidualFSQ final : public nn::Module {
                                      codebooks.dtype(), codebooks.device());
 
     auto codebooks_ptr = codebooks.ptr<float>();
-    auto indices_ptr_gather = indices_reshaped.ptr<float>();
+    auto indices_ptr_gather = indices_reshaped.ptr<int64_t>();
     auto codes_ptr = all_codes.ptr<float>();
 
     const int codebook_size = codebooks.shape()[1];
@@ -654,6 +655,7 @@ class ResidualFSQ final : public nn::Module {
    * @return Reconstructed output tensor
    */
   [[nodiscard]] Tensor getOutputFromIndices(Tensor& indices) {
+    indices = indices.contiguous();             // may from splited tensor
     auto codes = getCodesFromIndices(indices);  // [Q, B, N, D]
 
     // Sum across quantizers: reduce(codes, 'q ... -> ...', 'sum')
