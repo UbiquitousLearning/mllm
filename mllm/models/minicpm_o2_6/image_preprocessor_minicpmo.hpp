@@ -270,7 +270,7 @@ class MiniCPMOImageProcessor {
       auto tensor = slice_img.tensor();    // [H, W, C]
       tensor = tensor.permute({2, 0, 1});  // [C, H, W]
       tensor = tensor * (1.f / 255.f);
-      normalize_tensor(tensor);
+      normalize_tensor(tensor);  // TODO: use mllm ops
       auto reshaped_tensor = reshape_by_patch(tensor);
       processed_tensors.push_back(reshaped_tensor);
 
@@ -314,21 +314,31 @@ class MiniCPMOImageProcessor {
 
     auto output = Tensor::empty({channels, patch_size_, total_patches * patch_size_}, kFloat32).alloc();
 
+    // Get direct pointers for faster access
+    const float* input_ptr = input_tensor.ptr<float>();
+    float* output_ptr = output.ptr<float>();
+
+    const int input_hw = height * width;
+    const int output_hw = patch_size_ * total_patches * patch_size_;
+
     for (int c = 0; c < channels; ++c) {
+      const int c_input_offset = c * input_hw;
+      const int c_output_offset = c * output_hw;
+
       for (int ph = 0; ph < num_patches_h; ++ph) {
         for (int pw = 0; pw < num_patches_w; ++pw) {
-          int patch_idx = ph * num_patches_w + pw;
-          int start_h = ph * patch_size_;
-          int start_w = pw * patch_size_;
+          const int patch_idx = ph * num_patches_w + pw;
+          const int start_h = ph * patch_size_;
+          const int start_w = pw * patch_size_;
 
+          // Copy each row of the patch using memcpy
           for (int kh = 0; kh < patch_size_; ++kh) {
-            for (int kw = 0; kw < patch_size_; ++kw) {
-              int img_h = start_h + kh;
-              int img_w = start_w + kw;
-              int output_col = patch_idx * patch_size_ + kw;
+            const int img_h = start_h + kh;
+            const int input_row_offset = c_input_offset + img_h * width + start_w;
+            const int output_row_offset = c_output_offset + kh * (total_patches * patch_size_) + patch_idx * patch_size_;
 
-              *output.offsettedPtr<float>({c, kh, output_col}) = input_tensor.at<float>({c, img_h, img_w});
-            }
+            // Copy entire row (patch_size elements) at once
+            std::memcpy(output_ptr + output_row_offset, input_ptr + input_row_offset, patch_size_ * sizeof(float));
           }
         }
       }

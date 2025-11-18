@@ -10,10 +10,7 @@
 #include "mllm/models/minicpm_o2_6/configuration_chattts.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_dvae.hpp"
 #include "mllm/nn/Functional.hpp"
-#include "mllm/nn/layers/Embedding.hpp"
-#include "mllm/nn/layers/ReLU.hpp"
 #include "mllm/utils/Common.hpp"
-#include "mllm/utils/Enumerate.hpp"
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
 #include <cstdint>
@@ -21,13 +18,11 @@
 #include <algorithm>
 #include <numeric>
 #include <limits>
-#include <cstdlib>
-#include <ctime>
 
 namespace mllm::models::chattts {
 
-inline auto makeLLaMARotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
-                                        float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
+inline auto makeLLaMARotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
+    -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -124,6 +119,7 @@ class ConditionalChatTTS : public nn::Module {
   llama::LlamaText model_;
 
  public:
+  ConditionalChatTTS() = default;
   explicit ConditionalChatTTS(const std::string& name, const ChatTTSConfig& cfg) : cfg_(cfg), nn::Module(name) {
     MLLM_RT_ASSERT(cfg.use_mlp);  // in minicpm, MLP is always used
     projector_ = reg<MultiModalProjector>("projector", cfg.llm_dim, cfg.hidden_size);
@@ -162,25 +158,42 @@ class ConditionalChatTTS : public nn::Module {
 
     // Project spk emb to tts hidden size first, [batch_size, num_spk_emb, llm_dim]->[batch_size, num_spk_emb,
     // self.hidden_size]
-    auto projected_spk_emb = projector_(lm_spk_emb_last_hidden_states)[0];
+    Tensor projected_spk_emb = Tensor::nil();
+    if (!lm_spk_emb_last_hidden_states.isNil()) {
+      projected_spk_emb = projector_(lm_spk_emb_last_hidden_states)[0];
 
-    // normalize:  F.normalize(projected_spk_emb, p=2, dim=-1)
-    {
-      auto ptr = projected_spk_emb.ptr<float>();
-      auto S = projected_spk_emb.shape()[0];
-      auto D = projected_spk_emb.shape()[1];
-      for (int s = 0; s < S; ++s) {
-        float norm = 0.0f;
-        for (int d = 0; d < D; ++d) {
-          auto val = ptr[s * D + d];
-          norm += val * val;
+      // normalize:  F.normalize(projected_spk_emb, p=2, dim=-1)
+      {
+        auto ptr = projected_spk_emb.ptr<float>();
+        auto B = projected_spk_emb.shape()[0];
+        auto S = projected_spk_emb.shape()[1];
+        auto D = projected_spk_emb.shape()[2];
+        const float epsilon = 1e-12f;
+
+        for (int b = 0; b < B; ++b) {
+          for (int s = 0; s < S; ++s) {
+            float norm = 0.0f;
+            int base_index = b * S * D + s * D;
+
+            // compute squared L2 norm
+            for (int d = 0; d < D; ++d) {
+              float val = ptr[base_index + d];
+              norm += val * val;
+            }
+
+            norm = std::sqrt(norm);
+
+            // PyTorch: norm = max(norm, epsilon)
+            if (norm < epsilon) { norm = epsilon; }
+
+            // x = x / norm
+            for (int d = 0; d < D; ++d) { ptr[base_index + d] /= norm; }
+          }
         }
-        norm = std::sqrt(norm) + 1e-12f;
-        for (int d = 0; d < D; ++d) { ptr[s * D + d] /= norm; }
       }
-    }
 
-    applySpeakerEmbedding(input_ids, projected_spk_emb, inputs_embeds, cfg_.spk_emb_token_id, cfg_.num_spk_embs);
+      applySpeakerEmbedding(input_ids, projected_spk_emb, inputs_embeds, cfg_.spk_emb_token_id, cfg_.num_spk_embs);
+    }
 
     return inputs_embeds;
   }
@@ -262,20 +275,18 @@ class ConditionalChatTTS : public nn::Module {
    * Generation output structure
    */
   struct GenerationOutput {
-    Tensor new_ids;                           // Generated audio codes
-    Tensor audio_input_ids;                   // Full audio sequence for update
-    nn::AbstractStaticCache past_key_values;  // Updated KV cache
-    bool finished;                            // Whether generation is complete
+    Tensor new_ids;          // Generated audio codes
+    Tensor audio_input_ids;  // Full audio sequence for update
+    bool finished;           // Whether generation is complete
   };
 
   /**
    * Generate audio codes in streaming or non-streaming setting
    */
-  GenerationOutput generate(Tensor& input_ids, nn::AbstractStaticCache& past_key_values, const Tensor& temperature,
-                            int32_t eos_token, const Tensor& streaming_tts_text_mask, bool force_no_stop = false,
-                            int32_t min_new_token = 10, int32_t max_new_token = 50, float top_p = 0.7f, int top_k = 20,
-                            bool do_sample = true) {
-    // 仅支持 batch_size == 1
+  GenerationOutput generate(Tensor& input_ids, nn::AbstractStaticCache& past_key_values, Tensor& temperature, int32_t eos_token,
+                            const Tensor& streaming_tts_text_mask, bool force_no_stop = false, int32_t min_new_token = 10,
+                            int32_t max_new_token = 50, float top_p = 0.7f, int top_k = 20) {
+    // only support batch_size == 1
     MLLM_RT_ASSERT(input_ids.shape()[0] == 1);
 
     // Pre-allocate output buffer
@@ -288,14 +299,14 @@ class ConditionalChatTTS : public nn::Module {
     auto input_ids_buf = Tensor::zeros({batch_size, seq_len + max_new_token, num_vq}, input_ids.dtype(), input_ids.device());
 
     bool finished = false;
-    int progress = input_ids.shape()[1];
+    int progress = input_ids.shape()[1];  // input is sliced from total length of condition_length
+    // the condition length is same with start_idx (issue in the original implementation)
     int condition_length = 1 + (cfg_.use_speaker_embedding ? cfg_.num_spk_embs : 0) + cfg_.streaming_text_reserved_len + 1;
     int start_idx = 1 + (cfg_.use_speaker_embedding ? cfg_.num_spk_embs : 0) + cfg_.streaming_text_reserved_len + 1;
 
     // Copy existing input_ids to buffer using slice and copy2
     // Equivalent to PyTorch: input_ids_buf.narrow(1, 0, seq_len).copy_(input_ids)
-    input_ids_buf[{kAll, {0, progress}, kAll}].copy2(input_ids);
-    input_ids.delete_();
+    input_ids.copy2(input_ids_buf[{kAll, {0, progress}, kAll}]);
     input_ids = input_ids_buf[{kAll, {0, progress}, kAll}];
 
     for (int i = 0; i < max_new_token && !finished; ++i) {
@@ -317,7 +328,6 @@ class ConditionalChatTTS : public nn::Module {
         std::vector<Tensor> code_embs;
         for (int vq_i = 0; vq_i < cfg_.num_vq; ++vq_i) {
           // get the last token for each vq codebook
-          // TODO: maybe it can be not contiguous
           auto last_vq_codes = input_ids_buf[{kAll, {progress - 1, progress}, {vq_i, vq_i + 1}}].contiguous();
           last_vq_codes = last_vq_codes.view({1, 1});  // reshape to [1, 1]
           code_embs.push_back(emb_code_[vq_i](last_vq_codes));
@@ -339,6 +349,7 @@ class ConditionalChatTTS : public nn::Module {
       Tensor causal_mask = Tensor::nil();
       causal_mask = makeStreamingChunkMask(inputs_embeds, past_key_values.getCurrentSeqCnt(0), streaming_tts_text_mask,
                                            cfg_.streaming_text_reserved_len, cfg_.streaming_text_chunk_size);
+      causal_mask = causal_mask.squeeze();  // squeeze to [seq] to avoid possible elewise issues
 
       auto outputs = model_(inputs_embeds, llm_embedding_sin, llm_embedding_cos, causal_mask, AnyValue(&past_key_values));
       auto hidden_states = outputs[0];
@@ -351,22 +362,26 @@ class ConditionalChatTTS : public nn::Module {
       auto logits = nn::functional::concat(vq_logits, 1);  // [1, num_vq, codebook_size]
       logits = logits.view({-1, logits.shape()[2]});       // [num_vq, codebook_size]
 
-      logits = logits / temperature;
+      temperature = temperature.view({-1, 1});
+      logits = logits / temperature;  // apply temperature scaling
 
-      auto input_ids_sliced = input_ids[{kAll, {start_idx, kAll}, kAll}].permute({0, 2, 1}).contiguous();
+      // Apply logits processors and warpers (skipped for audio_bos)
+      // In PyTorch implementation: repetition_penalty defaults to 1.0, so logits_processors is empty
+      // logits_warpers contains TopPLogitsWarper and TopKLogitsWarper
+      if (!audio_bos) {
+        // Apply logits_processors (empty when repetition_penalty == 1.0)
+        // logits = applyRepetitionPenalty(logits, ...);
 
-      auto logits_token = input_ids_sliced.view({
-          input_ids_sliced.shape()[0] * input_ids_sliced.shape()[1],
-          -1,
-      });
+        if (top_k > 0) { logits = applyTopKWarper(logits, top_k, 3); }
+        if (top_p > 0.0f && top_p < 1.0f) { logits = applyTopPWarper(logits, top_p, 3); }
+      }
 
-      // Use the parameters passed to the function
       // Apply min_new_token constraint - mask EOS token if we haven't generated enough tokens
-      if ((progress - condition_length) < min_new_token) {
+      if (i < min_new_token) {
         // Mask EOS token by setting its logits to -inf
         auto logits_ptr = logits.ptr<float>();
-        auto vocab_size = logits.shape()[1];
         auto num_vq = logits.shape()[0];
+        auto vocab_size = logits.shape()[1];
 
         for (int vq_i = 0; vq_i < num_vq; ++vq_i) {
           logits_ptr[vq_i * vocab_size + eos_token] = -std::numeric_limits<float>::infinity();
@@ -376,8 +391,8 @@ class ConditionalChatTTS : public nn::Module {
       // Apply force_no_stop constraint
       if (force_no_stop) {
         auto logits_ptr = logits.ptr<float>();
-        auto vocab_size = logits.shape()[1];
         auto num_vq = logits.shape()[0];
+        auto vocab_size = logits.shape()[1];
 
         for (int vq_i = 0; vq_i < num_vq; ++vq_i) {
           logits_ptr[vq_i * vocab_size + eos_token] = -std::numeric_limits<float>::infinity();
@@ -388,29 +403,16 @@ class ConditionalChatTTS : public nn::Module {
       auto scores = nn::functional::softmax(logits.view({1, 1, logits.shape()[0], logits.shape()[1]}), -1).squeeze();
       logits.delete_();  // Free memory
 
-      // Sample from each VQ codebook inependently
-      // TODO: here may not consistent with pytorch, need to check correctness in the future
+      // Sample from each VQ codebook independently using multinomial sampling
+      // This matches PyTorch's torch.multinomial(scores, num_samples=1) behavior
       auto next_tokens = input_ids_buf[{kAll, {progress, progress + 1}, kAll}];
       for (int vq_i = 0; vq_i < cfg_.num_vq; ++vq_i) {
-        // Extract logits for current VQ codebook: [codebook_size]
+        // Extract scores for current VQ codebook: [codebook_size]
         auto vq_scores = scores[{vq_i, kAll}].contiguous().squeeze();
 
-        int64_t sampled_token;
-        if (do_sample) {
-          if (top_k > 0) {
-            // Use top-k sampling
-            sampled_token = sampleTopKSingle(vq_scores, top_k);
-          } else if (top_p > 0.0f) {
-            // Use top-p sampling
-            sampled_token = sampleTopPSingle(vq_scores, top_p);
-          } else {
-            // Use multinomial sampling
-            sampled_token = multinomialSample(vq_scores);
-          }
-        } else {
-          // Greedy sampling
-          sampled_token = greedySample(vq_scores);
-        }
+        // Always use multinomial sampling to match PyTorch implementation
+        // top_k and top_p should be applied via logits_warpers before softmax
+        int64_t sampled_token = multinomialSample(vq_scores);
 
         next_tokens.at<int64_t>({0, 0, vq_i}) = sampled_token;
         if (sampled_token == eos_token) { finished = true; }
@@ -419,6 +421,7 @@ class ConditionalChatTTS : public nn::Module {
       scores.delete_();  // Free memory
 
       progress++;
+      audio_bos = false;
       input_ids = input_ids_buf[{kAll, {0, progress}, kAll}];
     }
 
@@ -432,10 +435,7 @@ class ConditionalChatTTS : public nn::Module {
       generated_input_ids = input_ids_buf[{kAll, {condition_length, progress}, kAll}];
     }
 
-    return GenerationOutput{.new_ids = generated_input_ids,
-                            .audio_input_ids = input_ids_buf[{kAll, {0, progress}, kAll}],
-                            .past_key_values = past_key_values,
-                            .finished = finished};
+    return GenerationOutput{.new_ids = generated_input_ids, .audio_input_ids = input_ids, .finished = finished};
   }
 
   /**
@@ -447,8 +447,8 @@ class ConditionalChatTTS : public nn::Module {
    * @param result_list List of audio code tensors from generate(), each with shape [seq_len, num_vq]
    * @return Mel spectrograms tensor
    */
-  Tensor decodeToMelSpecs(const std::vector<Tensor>& result_list) {
-    if (result_list.empty()) { return Tensor::empty({0}, kFloat32); }
+  Tensor decodeToMelSpecs(std::vector<Tensor>& result_list) {
+    if (result_list.empty()) { return Tensor::empty({0}, kInt64); }
 
     // Find maximum sequence length across all results
     int max_len = 0;
@@ -462,29 +462,10 @@ class ConditionalChatTTS : public nn::Module {
     auto batch_result = Tensor::zeros({batch_size, num_vq, max_len}, result_list[0].dtype(), result_list[0].device());
 
     // Copy and transpose each result into the batch tensor
-    for (const auto& [i, src] : enumerate(result_list)) {
-      auto src_len = static_cast<int>(src.shape()[0]);
-      auto src_num_vq = static_cast<int>(src.shape()[1]);
-
-      MLLM_RT_ASSERT(src_num_vq == num_vq);  // Ensure consistent num_vq across all results
-
-      // PyTorch: batch_result[i].narrow(1, 0, src_len).copy_(src.permute(1, 0))
-      // This means: transpose src from [seq_len, num_vq] to [num_vq, seq_len]
-      // and copy to batch_result[i][:, :src_len]
-
-      // Manually transpose and copy: src[s, v] -> batch_result[i, v, s]
-      auto src_ptr = src.ptr<int32_t>();  // Assuming int32 for audio codes
-      auto batch_ptr = batch_result.ptr<int32_t>();
-
-      for (int v = 0; v < num_vq; ++v) {
-        for (int s = 0; s < src_len; ++s) {
-          // src: [seq_len, num_vq] -> src[s * num_vq + v]
-          // batch_result: [batch_size, num_vq, max_len] -> batch_result[i * num_vq * max_len + v * max_len + s]
-          auto src_idx = s * num_vq + v;
-          auto batch_idx = i * num_vq * max_len + v * max_len + s;
-          batch_ptr[batch_idx] = src_ptr[src_idx];
-        }
-      }
+    for (int i = 0; i < batch_size; i++) {
+      auto& src = result_list[i];
+      // Transpose src from [seq_len, num_vq] to [num_vq, seq_len] and copy to batch_result
+      src.transpose(1, 0).copy2(batch_result[{i, kAll, {0, src.shape()[0]}}]);
     }
 
     // Decode through DVAE
@@ -524,11 +505,10 @@ class ConditionalChatTTS : public nn::Module {
       // Replace the embeddings in input_embeds at positions [spk_emb_token_start : spk_emb_token_start + num_spk_embs]
       // with the speaker embeddings from spk_emb_
       // spk_emb_ has shape [num_spk_emb, hidden_dim]
-      auto spk_emb_ = spk_emb[{idx, kAll}];
-      auto hidden_dim = spk_emb_.shape()[1];
+      auto spk_emb_ = spk_emb[{idx, kAll, kAll}];
 
       // Copy speaker embeddings to input embeddings
-      spk_emb_.copy2(input_embeds[{idx, {spk_emb_token_start, spk_emb_token_start + num_spk_embs, 1}, kAll}]);
+      spk_emb_.copy2(input_embeds[{idx, {spk_emb_token_start, spk_emb_token_start + num_spk_embs}, kAll}]);
     }
   }
 
@@ -595,7 +575,7 @@ class ConditionalChatTTS : public nn::Module {
     auto mask_with_head = causal_mask.unsqueeze(1);
 
     // Then unsqueeze to add seq dimension and repeat for seq_len: [1, 1, seq_len, past_seen_tokens + seq_len]
-    auto final_mask = Tensor::zeros({1, 1, seq_len, mask_len}, dtype, device);
+    auto final_mask = Tensor::zeros({seq_len, mask_len}, dtype, device);
     auto final_mask_ptr = final_mask.ptr<float>();
     auto mask_with_head_ptr = mask_with_head.ptr<float>();
 
@@ -608,18 +588,121 @@ class ConditionalChatTTS : public nn::Module {
   }
 
   /**
-   * Greedy sampling: select token with highest probability
+   * Apply Top-K logits warper
+   *
+   * Filters logits to keep only top-k highest probability tokens.
+   * Sets all other logits to -inf. Ensures at least min_tokens_to_keep tokens remain.
+   *
+   * @param logits Input logits tensor [num_vq, vocab_size]
+   * @param top_k Number of top tokens to keep
+   * @param min_tokens_to_keep Minimum number of tokens to keep (default: 3)
+   * @return Filtered logits tensor
    */
-  int64_t greedySample(const Tensor& scores) {
-    // scores should be 1D tensor [vocab_size]
-    MLLM_RT_ASSERT(scores.shape().size() == 1);
-    MLLM_RT_ASSERT_EQ(scores.dtype(), kFloat32);
+  Tensor applyTopKWarper(Tensor& logits, int top_k, int min_tokens_to_keep = 3) {
+    auto num_vq = logits.shape()[0];
+    auto vocab_size = logits.shape()[1];
 
-    auto scores_data = scores.ptr<float>();
-    int vocab_size = scores.shape()[0];
+    // Ensure we keep at least min_tokens_to_keep
+    int k = std::max(top_k, min_tokens_to_keep);
+    k = std::min(k, static_cast<int>(vocab_size));
 
-    auto max_it = std::max_element(scores_data, scores_data + vocab_size);
-    return std::distance(scores_data, max_it);
+    // Create a copy to modify
+    auto filtered_logits = Tensor::empty(logits.shape(), logits.dtype(), logits.device()).alloc();
+    auto src_ptr = logits.ptr<float>();
+    auto dst_ptr = filtered_logits.ptr<float>();
+    std::memcpy(dst_ptr, src_ptr, logits.numel() * sizeof(float));
+
+    // Process each VQ codebook independently
+    for (int vq_i = 0; vq_i < num_vq; ++vq_i) {
+      auto row_offset = vq_i * vocab_size;
+
+      // Create indices and partial sort to find top-k
+      std::vector<std::pair<float, int>> values_indices;
+      values_indices.reserve(vocab_size);
+      for (int i = 0; i < vocab_size; ++i) { values_indices.emplace_back(dst_ptr[row_offset + i], i); }
+
+      // Partial sort to get top-k elements
+      std::partial_sort(values_indices.begin(), values_indices.begin() + k, values_indices.end(),
+                        [](const auto& a, const auto& b) { return a.first > b.first; });
+
+      // Get the k-th largest value (threshold)
+      float threshold = values_indices[k - 1].first;
+
+      // Set logits below threshold to -inf
+      for (int i = 0; i < vocab_size; ++i) {
+        if (dst_ptr[row_offset + i] < threshold) { dst_ptr[row_offset + i] = -std::numeric_limits<float>::infinity(); }
+      }
+    }
+
+    return filtered_logits;
+  }
+
+  /**
+   * Apply Top-P (nucleus) logits warper
+   *
+   * Filters logits to keep only tokens whose cumulative probability exceeds top_p.
+   * Sets all other logits to -inf. Ensures at least min_tokens_to_keep tokens remain.
+   *
+   * @param logits Input logits tensor [num_vq, vocab_size]
+   * @param top_p Cumulative probability threshold (0.0 to 1.0)
+   * @param min_tokens_to_keep Minimum number of tokens to keep (default: 3)
+   * @return Filtered logits tensor
+   */
+  Tensor applyTopPWarper(Tensor& logits, float top_p, int min_tokens_to_keep = 3) {
+    auto num_vq = logits.shape()[0];
+    auto vocab_size = logits.shape()[1];
+
+    // Create a copy to modify
+    auto filtered_logits = Tensor::empty(logits.shape(), logits.dtype(), logits.device()).alloc();
+    auto src_ptr = logits.ptr<float>();
+    auto dst_ptr = filtered_logits.ptr<float>();
+    std::memcpy(dst_ptr, src_ptr, logits.numel() * sizeof(float));
+
+    // Process each VQ codebook independently
+    for (int vq_i = 0; vq_i < num_vq; ++vq_i) {
+      auto row_offset = vq_i * vocab_size;
+
+      // Create indices and sort by logits (descending)
+      std::vector<std::pair<float, int>> values_indices;
+      values_indices.reserve(vocab_size);
+      for (int i = 0; i < vocab_size; ++i) { values_indices.emplace_back(dst_ptr[row_offset + i], i); }
+
+      std::sort(values_indices.begin(), values_indices.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+
+      // Convert logits to probabilities using softmax
+      std::vector<float> probs(vocab_size);
+      float max_logit = values_indices[0].first;
+      float sum_exp = 0.0f;
+
+      for (int i = 0; i < vocab_size; ++i) {
+        float exp_val = std::exp(values_indices[i].first - max_logit);
+        probs[i] = exp_val;
+        sum_exp += exp_val;
+      }
+
+      // Normalize to get probabilities
+      for (int i = 0; i < vocab_size; ++i) { probs[i] /= sum_exp; }
+
+      // Find tokens in top-p nucleus
+      float cumulative_prob = 0.0f;
+      int num_tokens_to_keep = 0;
+      for (int i = 0; i < vocab_size; ++i) {
+        cumulative_prob += probs[i];
+        num_tokens_to_keep++;
+        if (cumulative_prob > top_p) { break; }
+      }
+
+      // Ensure at least min_tokens_to_keep
+      num_tokens_to_keep = std::max(num_tokens_to_keep, min_tokens_to_keep);
+
+      // Set logits outside nucleus to -inf
+      for (int i = num_tokens_to_keep; i < vocab_size; ++i) {
+        int idx = values_indices[i].second;
+        dst_ptr[row_offset + idx] = -std::numeric_limits<float>::infinity();
+      }
+    }
+
+    return filtered_logits;
   }
 
   /**
@@ -638,87 +721,13 @@ class ConditionalChatTTS : public nn::Module {
     std::partial_sum(scores_data, scores_data + vocab_size, cumulative_probs.begin());
 
     // Generate random number
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937 gen(mllm::Context::instance().getRandomSeed());
     std::uniform_real_distribution<> dis(0.0, 1.0);
     float r = dis(gen);
 
     // Find the token
     auto it = std::lower_bound(cumulative_probs.begin(), cumulative_probs.end(), r);
     return std::distance(cumulative_probs.begin(), it);
-  }
-
-  /**
-   * Top-K sampling for single token
-   */
-  int64_t sampleTopKSingle(const Tensor& scores, int k) {
-    // scores should be 1D tensor [vocab_size]
-    MLLM_RT_ASSERT(scores.shape().size() == 1);
-    MLLM_RT_ASSERT_EQ(scores.dtype(), kFloat32);
-
-    auto scores_data = scores.ptr<float>();
-    int vocab_size = scores.shape()[0];
-
-    // Create indices and partial sort
-    std::vector<int> indices(vocab_size);
-    std::iota(indices.begin(), indices.end(), 0);
-    std::partial_sort(indices.begin(), indices.begin() + k, indices.end(),
-                      [&scores_data](int i1, int i2) { return scores_data[i1] > scores_data[i2]; });
-
-    // Extract top-k probabilities
-    std::vector<float> top_k_probs(k);
-    float sum = 0.0f;
-    for (int i = 0; i < k; ++i) {
-      top_k_probs[i] = scores_data[indices[i]];
-      sum += top_k_probs[i];
-    }
-
-    // Normalize
-    for (int i = 0; i < k; ++i) { top_k_probs[i] *= (1.0f / sum); }
-
-    // Sample from top-k distribution
-    std::mt19937 gen(Context::instance().getRandomSeed());
-    std::discrete_distribution<> dist(top_k_probs.begin(), top_k_probs.end());
-    int selected_idx = dist(gen);
-
-    return indices[selected_idx];
-  }
-
-  /**
-   * Top-P sampling for single token
-   */
-  int64_t sampleTopPSingle(const Tensor& scores, float p) {
-    // scores should be 1D tensor [vocab_size]
-    MLLM_RT_ASSERT(scores.shape().size() == 1);
-    MLLM_RT_ASSERT_EQ(scores.dtype(), kFloat32);
-
-    auto scores_data = scores.ptr<float>();
-    int vocab_size = scores.shape()[0];
-
-    // Create indices and sort by probability
-    std::vector<int> indices(vocab_size);
-    std::iota(indices.begin(), indices.end(), 0);
-    std::sort(indices.begin(), indices.end(), [&scores_data](int i1, int i2) { return scores_data[i1] > scores_data[i2]; });
-
-    // Find tokens in top-p nucleus
-    std::vector<float> top_probs;
-    float cumulative_prob = 0.0f;
-    int i = 0;
-    for (; i < vocab_size && cumulative_prob < p; ++i) {
-      top_probs.push_back(scores_data[indices[i]]);
-      cumulative_prob += scores_data[indices[i]];
-    }
-
-    // Normalize probabilities
-    float sum = std::accumulate(top_probs.begin(), top_probs.end(), 0.0f);
-    for (float& prob : top_probs) { prob *= (1.0f / sum); }
-
-    // Sample from top-p distribution
-    std::mt19937 gen(Context::instance().getRandomSeed());
-    std::discrete_distribution<> dist(top_probs.begin(), top_probs.end());
-    int selected_idx = dist(gen);
-
-    return indices[selected_idx];
   }
 };
 }  // namespace mllm::models::chattts

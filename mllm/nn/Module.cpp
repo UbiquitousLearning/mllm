@@ -73,6 +73,8 @@ void ModuleImpl::registerBuffer(const std::string& name, const Tensor& tensor) {
 
 Tensor ModuleImpl::getBuffer(const std::string& name) { return buffer_[name]; }
 
+void ModuleImpl::updateBuffer(const std::string& name, const Tensor& tensor) { buffer_[name] = tensor; }
+
 Module::Module() {
   impl_ = std::make_shared<ModuleImpl>();
   impl()->setName("");
@@ -197,5 +199,7 @@ ParameterFile::ptr_t Module::params(ModelFileVersion v) { return impl_->params(v
 void Module::registerBuffer(const std::string& name, const Tensor& tensor) { impl_->registerBuffer(name, tensor); }
 
 Tensor Module::getBuffer(const std::string& name) { return impl_->getBuffer(name); }
+
+void Module::updateBuffer(const std::string& name, const Tensor& tensor) { impl_->updateBuffer(name, tensor); }
 
 }  // namespace mllm::nn
