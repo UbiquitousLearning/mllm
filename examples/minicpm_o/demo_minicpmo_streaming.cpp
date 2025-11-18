@@ -21,7 +21,6 @@
 #include "mllm/models/minicpm_o2_6/configuration_minicpmo.hpp"
 #include "mllm/models/minicpm_o2_6/tokenization_minicpmo.hpp"
 #include "mllm/models/minicpm_o2_6/streaming_generation.hpp"
-#include "mllm/nn/Functional.hpp"
 #include "wenet_audio/wav.h"
 
 using namespace mllm;  // NOLINT
@@ -31,17 +30,17 @@ MLLM_MAIN({
   // ============================================================================
   // Configuration
   // ============================================================================
-  std::string model_path = "/Users/luis/Downloads/minicpm-o2_6-q40.mllm";
-  std::string tokenizer_path = "/Users/luis/Downloads/cpmo-tokenizer.json";
-  std::string chattts_tokenizer_path = "/Users/luis/Downloads/tokenizer.json";
-  std::string vocos_model_path = "/Users/luis/Downloads/vocos.mllm";
+  std::string model_path = "<path-to-model>/minicpm-o2_6-q40.mllm";
+  std::string tokenizer_path = "<path-to-model>/cpmo-tokenizer.json";
+  std::string chattts_tokenizer_path = "<path-to-model>/tokenizer.json";
+  std::string vocos_model_path = "<path-to-model>/vocos.mllm";
 
   // ============================================================================
   // Load Models
   // ============================================================================
   print("Loading MiniCPM-o model...");
 
-  auto config = models::minicpmo::MiniCPMOConfig("/Users/luis/workspace/mllm-v2/examples/minicpm_o/config_minicpm_o.json");
+  auto config = models::minicpmo::MiniCPMOConfig("<path-to-model>/config_minicpm_o.json");
   auto model = models::minicpmo::MiniCPMOForCausalLM(config);
 
   auto param = load(model_path, ModelFileVersion::kV1);
@@ -52,7 +51,7 @@ MLLM_MAIN({
   print("Loading TTS components...");
 
   // Load ChatTTS
-  auto chattts_config = models::chattts::ChatTTSConfig("/Users/luis/workspace/mllm-v2/examples/minicpm_o/config_chattts.json");
+  auto chattts_config = models::chattts::ChatTTSConfig("<path-to-config>/minicpm_o/config_chattts.json");
   model.init_tts_module(chattts_config);
   model.tts_model_.load(param);
 
@@ -68,7 +67,7 @@ MLLM_MAIN({
   // ============================================================================
   auto minicpmo_tokenizer = models::minicpmo::MiniCPMOTokenizer(tokenizer_path);
 
-  std::string image_path = "/Users/luis/Desktop/mini.png";
+  std::string image_path = "<path-to-image>";
   mllm::models::minicpmo::MiniCPMOMessage message;
   message.prompt = "What is this";  // FIXME: when prompt is empty, the output is wired (accuracy related)
   message.img_file_path = image_path;
@@ -121,7 +120,6 @@ MLLM_MAIN({
     if (output.audio_wav && !output.audio_wav.value().isNil()) {
       auto& audio = output.audio_wav.value();
       fmt::print("Audio: [{} samples @ {}Hz]\n", audio.shape()[1], output.sampling_rate);
-
       audio_chunks.emplace_back(audio);
     }
 
@@ -134,8 +132,8 @@ MLLM_MAIN({
   Tensor audio_output = nn::functional::concat(audio_chunks, -1);
 
   print("Final audio shape:", audio_output.shape(), audio_output);
-  audio_output = audio_output * 32767;  // FIXME: scale back to int16
+  audio_output = audio_output * 32767;
 
   wenet::WavWriter wav_writer2(audio_output.ptr<float>(), audio_output.shape().back(), 1, 24000, 16);
-  wav_writer2.Write("/Users/luis/Downloads/omni.wav");
+  wav_writer2.Write("./omni.wav");
 });
