@@ -1,12 +1,17 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <string>
+#include <algorithm>
+#include <filesystem>
+
 #include "mllm/mllm.hpp"
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/engine/io/CpuMemoryDiskDispatcher.hpp"
 #include "mllm/utils/Argparse.hpp"
+#include "mllm/utils/PlatformRTHelper.hpp"
 
 namespace mllm {
 
@@ -91,6 +96,25 @@ void cleanThisThread() {
 SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
 
 void loadOpPackage(const std::string& path) { Context::instance().loadOpPackage(path); }
+
+void loadExtensionOpset(const std::string& description_com_path, const std::string& where_to_find_me) {
+  auto cloned_description_com_path = description_com_path;
+  // 1. Reformat description_com_path to lib path in diff platforms.
+  std::replace(cloned_description_com_path.begin(), cloned_description_com_path.end(), '.', '_');
+
+  if (isMacOS() || isIOS()) {
+    cloned_description_com_path = "lib" + cloned_description_com_path + ".dylib";
+  } else if (isWindows()) {
+    cloned_description_com_path = "lib" + cloned_description_com_path + ".dll";
+  } else if (isAndroid() || isLinux() || isUnknownPlatform()) {
+    cloned_description_com_path = "lib" + cloned_description_com_path + ".so";
+  }
+
+  // 2. Call loadOpPackage to load all things.
+  auto where_path = std::filesystem::path{where_to_find_me};
+  auto final_file_path = where_path / cloned_description_com_path;
+  loadOpPackage(final_file_path);
+}
 
 ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion v, DeviceTypes map_2_device, bool mmap) {
   if (v == ModelFileVersion::kV1 && map_2_device == kCPU) {

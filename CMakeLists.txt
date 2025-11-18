@@ -19,8 +19,14 @@ option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
 option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
+option(MLLM_BUILD_ASCEND_BACKEND "Enable MLLM Ascend backend" OFF)
 option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" ON)
 option(MLLM_BUILD_EXPERIMENTS "Enable MLLM experiments" OFF)
+option(MLLM_BUILD_EXT_OP_SET "Enable building mllm extension op set." ON)
+option(MLLM_BUILD_EXT_OP_SET_TEST "Enable building mllm extension op set test." ON)
+
+# MLLM Compile Stack
+option(MLLM_ENABLE_MLLM_COMPILE_STACK "Enable compile stack of mllm. You need prebuilt mlir first." OFF)
 
 # Extension Enable
 option(MLLM_EXT_ENABLE OFF)
@@ -32,6 +38,9 @@ option(MLLM_USE_BLAS "Enable BLAS" OFF)
 option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
 option(MLLM_BLAS_VENDOR_MKL "Enable MKL BLAS on X86" OFF)
 option(MLLM_BLAS_VENDOR_BLIS "Enable BLIS BLAS for multi-platform" OFF)
+
+# Ascend Backend: Options
+option(MLLM_ASCEND_CPU_DEBUG_MODE "Enable CPU Debug mode in ascend" OFF)
 
 # Threads
 option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
@@ -71,7 +80,7 @@ if(NOT MLLM_GIT_COMMIT_HASH)
   set(MLLM_GIT_COMMIT_HASH "unknown")
 endif()
 message(STATUS "MLLM_GIT_COMMIT_HASH=${MLLM_GIT_COMMIT_HASH}")
-add_compile_definitions(MLLM_GIT_COMMIT_HASH="${MLLM_GIT_COMMIT_HASH}")
+add_compile_definitions(MLLM_GIT_COMMIT_HASH=${MLLM_GIT_COMMIT_HASH})
 
 if(MLLM_ENABLE_PY_MLLM)
   add_compile_definitions(MLLM_ENABLE_PY_MLLM=1)
@@ -258,6 +267,10 @@ if(MLLM_ENABLE_TOOLS)
   add_subdirectory(tools)
 endif()
 
+if(MLLM_BUILD_EXT_OP_SET)
+  add_subdirectory(mllm-ext-opset)
+endif()
+
 # Handle SDK C Bindings
 if (MLLM_BUILD_SDK_C_BINDING)
   file(GLOB_RECURSE MLLM_C_API_SRC ${CMAKE_CURRENT_LIST_DIR}/mllm/c_api/*.cpp)
@@ -278,6 +291,15 @@ if(MLLM_PERFETTO_ENABLE)
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin)
+
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/perfetto/sdk/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp"
+    PATTERN "*.inl"
+    PATTERN "Vendors/*" EXCLUDE)
 endif()
 
 install(
@@ -315,6 +337,15 @@ endif()
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm/
   DESTINATION include/mllm
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp"
+  PATTERN "*.inl"
+  PATTERN "Vendors/*" EXCLUDE)
+
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm-ext-opset/
+  DESTINATION include/mllm-ext-opset
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp"

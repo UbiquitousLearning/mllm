@@ -74,6 +74,7 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
 
   switch (impl_type) {
     case aops::LinearImplTypes::kMllmBlas_KAI_SGEMM_NT_NT_NEON: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       ::mllm::cpu::arm::KaiLinear_fp32_fp32_fp32p_mxk_kxn kai_helper;
       weight_ = weight_.view({options_.out_channels, options_.in_channels});
       auto transposed_weight = weight_.transpose(0, 1);
@@ -84,6 +85,7 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
                                         transposed_weight.size(1));
       MLLM_INFO("Packing fp32 weight and bias to kai's fp32 format");
       weight_ = packed_weight;
+#endif
       break;
     }
     default: {

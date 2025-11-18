@@ -1,0 +1,19 @@
+Tasks:
+  - CMakeConfigTask:
+      cmake_cfg_path: "build-x86-ascend-dbg"
+      cmake_build_type: "Debug"
+      cmake_extra_args:
+        # Optional, If use Highway
+        - "-DHWY_ENABLE_TESTS=OFF"
+        - "-DHWY_ENABLE_EXAMPLES=OFF"
+        - "-DHWY_ENABLE_CONTRIB=OFF"
+        # Optional
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"'
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DMLLM_BUILD_ASCEND_BACKEND=ON"
+        - "-DMLLM_ASCEND_CPU_DEBUG_MODE=ON"
+        - "-DMLLM_ASCEND_CANN_PACKAGE_PATH=/usr/local/Ascend/ascend-toolkit/latest/"
+
+  - CMakeBuildTask:
+      cmake_cfg_path: "build-x86-ascend-dbg"

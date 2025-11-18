@@ -29,12 +29,12 @@ void CPURadixAttnOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   switch (Q.dtype()) {
     case kFloat32: {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
-      cpu::radix_attn::fwd_bhsd<cpu::radix_attn::details::__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t,
+      cpu::radix_attn::fwd_bshd<cpu::radix_attn::details::__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t,
                                 mllm_fp32_t>(B, options_.H_Q, options_.H_KV, S_Q, S_KV, D, Q.ptr<mllm_fp32_t>(),
                                              K_PTR.ptr<mllm_fp32_t*>(), V_PTR.ptr<mllm_fp32_t*>(), OUT.ptr<mllm_fp32_t>(),
                                              options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86) || defined(MLLM_HOST_ARCH_X86_64)
-      cpu::radix_attn::fwd_bhsd<cpu::radix_attn::details::__X86ArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t,
+      cpu::radix_attn::fwd_bshd<cpu::radix_attn::details::__X86ArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t,
                                 mllm_fp32_t>(B, options_.H_Q, options_.H_KV, S_Q, S_KV, D, Q.ptr<mllm_fp32_t>(),
                                              K_PTR.ptr<mllm_fp32_t*>(), V_PTR.ptr<mllm_fp32_t*>(), OUT.ptr<mllm_fp32_t>(),
                                              options_.getThreads());
