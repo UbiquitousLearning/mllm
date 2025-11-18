@@ -7,8 +7,8 @@
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "schema/kai.hpp"
-#include "schema/gguf.hpp"
 #endif
+#include "schema/gguf.hpp"
 
 using mllm::Argparse;
 

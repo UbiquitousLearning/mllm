@@ -183,6 +183,8 @@ bool isOpenCLAvailable();
 
 extern void initCudaBackend();
 
+extern void initAscendBackend();
+
 bool isQnnAvailable();
 
 extern void initQnnBackend();
@@ -192,6 +194,8 @@ void cleanThisThread();
 SessionTCB::ptr_t thisThread();
 
 void loadOpPackage(const std::string& path);
+
+void loadExtensionOpset(const std::string& description_com_path, const std::string& where_to_find_me = ".");
 
 ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion version = ModelFileVersion::kV1,
                           DeviceTypes map_2_device = kCPU, bool mmap = true);

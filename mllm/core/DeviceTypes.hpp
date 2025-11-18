@@ -18,6 +18,9 @@ enum DeviceTypes : int32_t {
   // TODO This device type for pinned memory.
   kCUDAHost = 5,
 
+  kAscend = 6,
+  kAscendHost = 7,
+
   kDynamicDeviceType_Start = 4096,
 
   kDeviceTypes_End,

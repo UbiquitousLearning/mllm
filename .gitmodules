@@ -33,3 +33,7 @@
 	path = mllm-chat
 	url = https://github.com/UbiquitousLearning/mllm-chat
 	update = none
+[submodule "mllm/backends/ascend/vendors/catlass"]
+	path = mllm/backends/ascend/vendors/catlass
+	url = https://gitcode.com/cann/catlass.git
+	update = none

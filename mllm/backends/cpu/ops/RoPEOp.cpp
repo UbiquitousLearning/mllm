@@ -15,7 +15,7 @@
 namespace mllm::cpu {
 
 void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos,
-                         aops::RoPEOpOptionsInputType input_layout_type) {
+                         int32_t partial_dim, aops::RoPEOpOptionsInputType input_layout_type) {
   auto activation = inputs[0];
   auto out = outputs[0];
 
@@ -45,6 +45,9 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
   }
 
   int32_t half = D / 2;
+  if (partial_dim != -1) { half = partial_dim / 2; }
+  int32_t tail_D_start = half * 2;
+  int32_t tail_D_end = D;
 
   switch (activation.dtype()) {
     case kFloat32: {
@@ -71,6 +74,20 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // Concat
+          for (int n = 0; n < B; ++n) {
+            for (int h = 0; h < H; ++h) {
+              for (int s = 0; s < S; ++s) {
+                mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+                mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+                for (int d = tail_D_start; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = act_ptr[d];
+                  out_ptr[d] = in_val;
+                }
+              }
+            }
+          }
           break;
         }
         case aops::RoPEOpOptionsInputType::kBSHD: {
@@ -88,6 +105,20 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
                   mllm_fp32_t cos_val = cos_ptr[d];
                   out_ptr[d] = in_val * cos_val - in_val2 * sin_val;
                   out_ptr[d + half] = in_val * sin_val + in_val2 * cos_val;
+                }
+              }
+            }
+          }
+
+          // concat
+          for (int n = 0; n < B; ++n) {
+            for (int s = 0; s < S; ++s) {
+              for (int h = 0; h < H; ++h) {
+                mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({n, s, h, 0});
+                mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({n, s, h, 0});
+                for (int d = tail_D_start; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = act_ptr[d];
+                  out_ptr[d] = in_val;
                 }
               }
             }
@@ -140,12 +171,35 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // may need concat
+          for (int n = 0; n < B; ++n) {
+            for (int h = 0; h < H; ++h) {
+              for (int s = 0; s < S; ++s) {
+                mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+                mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({n, h, s, 0});
+
+                // Vectorized processing (4 elements per iteration)
+                int d = tail_D_start;
+                constexpr int step = 4;
+                for (; d <= tail_D_end - step; d += step) {
+                  // Load activation blocks
+                  float32x4_t act_front = vld1q_f32(act_ptr + d);
+                  vst1q_f32(out_ptr + d, act_front);
+                }
+
+                // Process remaining elements
+                for (; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = act_ptr[d];
+                  out_ptr[d] = in_val;
+                }
+              }
+            }
+          }
           break;
         }
         case aops::RoPEOpOptionsInputType::kBSHD: {
-          const int half = D / 2;
           constexpr int step = 4;
-
           for (int b = 0; b < B; ++b) {
             for (int s = 0; s < S; ++s) {
               const mllm_fp32_t* sin_ptr = sin.offsettedPtr<mllm_fp32_t>({b, s, 0});
@@ -180,6 +234,26 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // concat
+          for (int b = 0; b < B; ++b) {
+            for (int s = 0; s < S; ++s) {
+              for (int h = 0; h < H; ++h) {
+                mllm_fp32_t* act_ptr = activation.offsettedPtr<mllm_fp32_t>({b, s, h, 0});
+                mllm_fp32_t* out_ptr = out.offsettedPtr<mllm_fp32_t>({b, s, h, 0});
+
+                int d = tail_D_start;
+                for (; d <= tail_D_end - step; d += step) {
+                  float32x4_t act_front = vld1q_f32(act_ptr + d);  // [d, d+1, d+2, d+3]
+                  vst1q_f32(out_ptr + d, act_front);
+                }
+                for (; d < tail_D_end; ++d) {
+                  mllm_fp32_t in0 = act_ptr[d];
+                  out_ptr[d] = in0;
+                }
+              }
+            }
+          }
           break;
         }
       }
@@ -210,6 +284,20 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // concat
+          for (int n = 0; n < B; ++n) {
+            for (int h = 0; h < H; ++h) {
+              for (int s = 0; s < S; ++s) {
+                mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+                mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+                for (int d = tail_D_start; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+                  out_ptr[d] = static_cast<mllm_fp16_t>(in_val);
+                }
+              }
+            }
+          }
           break;
         }
         case aops::RoPEOpOptionsInputType::kBSHD: {
@@ -228,6 +316,20 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
 
                   out_ptr[d] = static_cast<mllm_fp16_t>(in_val * cos_val - in_val2 * sin_val);
                   out_ptr[d + half] = static_cast<mllm_fp16_t>(in_val * sin_val + in_val2 * cos_val);
+                }
+              }
+            }
+          }
+
+          // concat
+          for (int n = 0; n < B; ++n) {
+            for (int s = 0; s < S; ++s) {
+              for (int h = 0; h < H; ++h) {
+                mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, s, h, 0});
+                mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, s, h, 0});
+                for (int d = tail_D_start; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+                  out_ptr[d] = static_cast<mllm_fp16_t>(in_val);
                 }
               }
             }
@@ -280,6 +382,32 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // concat
+          for (int n = 0; n < B; ++n) {
+            for (int h = 0; h < H; ++h) {
+              for (int s = 0; s < S; ++s) {
+                mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+                mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, h, s, 0});
+
+                // Vectorized processing (8 elements per iteration)
+                int d = tail_D_start;
+                constexpr int step = 8;
+                for (; d <= tail_D_end - step; d += step) {
+                  // Load activation blocks
+                  float16x8_t act_front = vld1q_f16(act_ptr + d);
+                  // Store results
+                  vst1q_f16(out_ptr + d, act_front);
+                }
+
+                // Process remaining elements
+                for (; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+                  out_ptr[d] = static_cast<mllm_fp16_t>(in_val);
+                }
+              }
+            }
+          }
           break;
         }
         case aops::RoPEOpOptionsInputType::kBSHD: {
@@ -325,6 +453,31 @@ void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>&
               }
             }
           }
+
+          // concat
+          for (int n = 0; n < B; ++n) {
+            for (int s = 0; s < S; ++s) {
+              for (int h = 0; h < H; ++h) {
+                mllm_fp16_t* act_ptr = activation.offsettedPtr<mllm_fp16_t>({n, s, h, 0});
+                mllm_fp16_t* out_ptr = out.offsettedPtr<mllm_fp16_t>({n, s, h, 0});
+                // Vectorized processing (8 elements per iteration)
+                int d = tail_D_start;
+                constexpr int step = 8;
+                for (; d <= tail_D_end - step; d += step) {
+                  // Load activation blocks
+                  float16x8_t act_front = vld1q_f16(act_ptr + d);
+                  // Store results
+                  vst1q_f16(out_ptr + d, act_front);
+                }
+
+                // Process remaining elements
+                for (; d < tail_D_end; ++d) {
+                  mllm_fp32_t in_val = static_cast<mllm_fp32_t>(act_ptr[d]);
+                  out_ptr[d] = static_cast<mllm_fp16_t>(in_val);
+                }
+              }
+            }
+          }
           break;
         }
       }
@@ -356,7 +509,7 @@ void CPURoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   auto out = outputs[0];
 
   auto impl = RoPEOpImpl();
-  impl.forward(inputs, outputs, sin, cos, options_.input_type);
+  impl.forward(inputs, outputs, sin, cos, options_.partial_dim, options_.input_type);
 }
 
 }  // namespace mllm::cpu

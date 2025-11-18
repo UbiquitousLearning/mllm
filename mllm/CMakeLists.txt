@@ -30,6 +30,19 @@ add_library(
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash)
 
+# Compiler stack need mlir
+if(MLLM_ENABLE_MLLM_COMPILE_STACK)
+  set(MLIR_DIR ${MLLM_COMPILE_STACK_TOOL_PATH}/lib/cmake/mlir)
+  message(STATUS "Finding things at ${MLIR_DIR}")
+  find_package(MLIR REQUIRED CONFIG)
+  target_link_libraries(MllmRT PRIVATE
+    MLIRPass
+  )
+  target_include_directories(MllmRT PRIVATE
+    ${MLIR_INCLUDE_DIRS}
+  )
+endif()
+
 # stdexec will use Pack indexing feature. 
 #
 # Some compilers turn on pack indexing in pre-C++26 code. We want to use it if it is
@@ -109,6 +122,22 @@ if(MLLM_BUILD_CUDA_BACKEND)
   add_compile_definitions(
     MLLM_CUDA_BACKEND
   )
+endif()
+
+if(MLLM_BUILD_ASCEND_BACKEND)
+  add_subdirectory(backends/ascend)
+  add_compile_definitions(
+    MLLM_ASCEND_BACKEND
+  )
+  set(MLLM_ASCEND_NPU_SOC "Ascend310P3" CACHE STRING "system on chip type")
+  if(MLLM_ASCEND_CPU_DEBUG_MODE)
+    add_compile_definitions(
+      MLLM_ASCEND_CPU_DEBUG_MODE=1
+    )
+    set(MLLM_ASCEND_NPU_RUN_MODE "cpu" CACHE STRING "cpu/npu")
+  else()
+    set(MLLM_ASCEND_NPU_RUN_MODE "npu" CACHE STRING "cpu/npu")
+  endif()
 endif()
 
 # Extension

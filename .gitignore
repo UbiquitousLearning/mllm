@@ -13,6 +13,7 @@ tasks/mllmteam*
 # Building files and binary
 build*/
 install*/
+mllm-sdk-*/
 
 # Pymllm related
 stubs/
