@@ -3,7 +3,7 @@
 #include "mllm/engine/HpcThreadPool.hpp"
 #include "mllm/utils/Common.hpp"
 
-#if defined(__gnu__linux__)
+#if defined(__gnu__linux__) || defined(__linux__)
 #include <pthread.h>
 #include <sched.h>
 #endif
@@ -12,7 +12,7 @@
 
 namespace mllm {
 
-#if defined(__gnu_linux__)
+#if defined(__gnu_linux__) || defined(__linux__)
 static cpu_set_t getNumaAffinity(void) {
   cpu_set_t cpuset;
   pthread_t thread;
@@ -142,7 +142,7 @@ void HpcThreadPool::splitTask(HpcThreadPoolTask&& task, int task_slot_idx) {
   // Explain why we start a 0 idx function.
   //
   // FIXME: The main thread is also used for compute or NOT ?
-  tasks_[task_slot_idx].first.func(true_idx[0]);
+  tasks_[task_slot_idx].first.func(0);
 
   // Wait for all threads to complete
   bool complete = true;

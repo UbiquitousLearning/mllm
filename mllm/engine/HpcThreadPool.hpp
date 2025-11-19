@@ -19,8 +19,8 @@ namespace mllm {
 
 struct HpcThreadPoolTask {
   std::function<void(int)> func;
-  int start;
-  int end;
+  int start = 0;
+  int end = 0;
   int step = 1;
 
   // Things that will be modified by the thread pool
