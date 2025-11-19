@@ -7,7 +7,7 @@ Tasks:
         - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"'
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
-        - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=ON"
 
   - CMakeBuildTask:
       cmake_cfg_path: "build-osx"
