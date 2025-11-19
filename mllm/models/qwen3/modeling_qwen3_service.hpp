@@ -31,8 +31,8 @@ inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
-                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
+inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
+    -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -394,6 +394,9 @@ class Qwen3Session final : public ::mllm::service::Session {
 
   void streamGenerate(const nlohmann::json& request,
                       const std::function<void(const nlohmann::json&, bool)>& callback) override {
+    // The cpu thread pool should start to work
+    mllm::cpu::wakeupHpcThreadPool();
+
     const auto& messages = request["messages"];
     auto inputs = applyChatTemplate(messages, {}, true, request.value("enable_thinking", false));
 
@@ -430,15 +433,16 @@ class Qwen3Session final : public ::mllm::service::Session {
     args["temperature"] = request.value("temperature", 1.0f);
     args["top_k"] = request.value("top_k", 0);
     args["top_p"] = request.value("top_p", 0.0f);
-    args["max_length"] = request.value("max_length", 1024);
+    auto max_length = request.value("max_length", 1024);
+    args["max_length"] = max_length;
     args["do_sample"] = request.value("do_sample", false);
 
     // Iteration start
     int64_t package_cnt = 0;
-    model_->streamGenerate(input, args, [this, &request, &full_seq_idx, &package_cnt, &callback](int64_t idx) {
+    model_->streamGenerate(input, args, [this, &max_length, &request, &full_seq_idx, &package_cnt, &callback](int64_t idx) {
       bool finished = false;
       std::string ret_token;
-      if (idx == model_->cfg.eos_token_id) {
+      if (idx == model_->cfg.eos_token_id || package_cnt + 1 >= max_length) {
         finished = true;
         ret_token = "";
       } else {
@@ -488,6 +492,9 @@ class Qwen3Session final : public ::mllm::service::Session {
     // Cleanup session Context
     k_cache_addrs_ = {};
     v_cache_addrs_ = {};
+
+    // The cpu thread pool should idle to freeze cpu resource
+    mllm::cpu::idleHpcThreadPool();
   }
 
   void fromPreTrain(const std::string& model_path) override {

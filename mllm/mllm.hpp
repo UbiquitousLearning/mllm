@@ -147,6 +147,12 @@ inline void initializeContext() {
 
   // 1. Register host backend
   auto host_backend = cpu::createCPUBackend();
+
+  // (Optional) If using mllm threads pool, we need to init it
+#ifdef MLLM_KERNEL_USE_THREADS_VENDOR_MLLM
+  host_backend->initThreadPool(ctx.getCpuOpThreads());
+#endif
+
   ctx.registerBackend(host_backend);
 
   // 2. Initialize memory manager
