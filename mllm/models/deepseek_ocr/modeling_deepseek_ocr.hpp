@@ -655,6 +655,9 @@ class DeepseekOCRForCausalLM final : public nn::Module, public ARGeneration {
     eos_token_id_ = config.eos_token_id;
   }
 
+  inline nn::StaticCache& kvCache() { return kv_cache_; }
+  inline int64_t eosTokenId() { return eos_token_id_; }
+
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
     auto patches = input.count("patches") ? input.at("patches") : Tensor::nil();
     auto image_ori = input.count("image_ori") ? input.at("image_ori") : Tensor::nil();
