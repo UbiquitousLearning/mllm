@@ -35,6 +35,8 @@ class ModuleImpl : public AbstractNnNode {
 
   Tensor getBuffer(const std::string& name);
 
+  void updateBuffer(const std::string& name, const Tensor& tensor);
+
  private:
   /// Buffer is tensors that will not shown in params. And will not be saved.
   SymbolTable<std::string, Tensor> buffer_;
@@ -176,6 +178,8 @@ class Module {
   void registerBuffer(const std::string& name, const Tensor& tensor);
 
   Tensor getBuffer(const std::string& name);
+
+  void updateBuffer(const std::string& name, const Tensor& tensor);
 
   [[nodiscard]] inline std::string getModuleName() const { return impl_->getAbsoluteName(); }
 

@@ -683,6 +683,7 @@ class Qwen2VLText final : public nn::Module {
     // Init inv freq
     auto inv = makeMultimodalRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
     registerBuffer("inv_freq", inv);
+    registerBuffer("last_hidden_states", Tensor::nil());
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -695,6 +696,8 @@ class Qwen2VLText final : public nn::Module {
     auto& kv_cache = args[0];
 
     for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+
+    updateBuffer("last_hidden_states", x);
     x = norm_(x);
 
     // clip x to one seq length

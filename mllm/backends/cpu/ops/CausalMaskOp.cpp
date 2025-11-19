@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cstddef>
 #include <cstring>
 
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
@@ -51,12 +52,11 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
             // Standard causal mask
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__)
             const __m256 mask_val = _mm256_set1_ps(-1e10f);
-            for (size_t s = 0; s < S; ++s) {
-              const size_t row_offset = s * S;
-              const size_t copy_count = s + 1;
-              const size_t fill_count = S - copy_count;
+            for (size_t r = 0; r < S; ++r) {
+              const size_t copy_count = std::min(r + 1, (size_t)D);
+              const size_t fill_count = D > copy_count ? (D - copy_count) : 0;
 
-              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float)); }
+              memcpy(o_ptr + r * D, i_ptr + r * D, copy_count * sizeof(float));
 
               float* fill_start = o_ptr + row_offset + copy_count;
               size_t avx_iters = fill_count / 8;
@@ -67,14 +67,14 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
             }
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
             const float32x4_t mask_val = vdupq_n_f32(-1e10f);
-            for (size_t s = 0; s < S; ++s) {
-              const size_t row_offset = s * S;
-              const size_t copy_count = s + 1;
-              const size_t fill_count = S - copy_count;
+            for (size_t r = 0; r < S; ++r) {
+              const size_t copy_count = std::min(r + 1, (size_t)D);
+              const size_t fill_count = D > copy_count ? (D - copy_count) : 0;
 
-              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float)); }
+              memcpy(o_ptr + r * D, i_ptr + r * D, copy_count * sizeof(float));
 
-              float* fill_start = o_ptr + row_offset + copy_count;
+              float* fill_start = o_ptr + r * D + copy_count;
+
               size_t neon_iters = fill_count / 4;
               size_t remainder = fill_count % 4;
 
