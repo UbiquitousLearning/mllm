@@ -44,7 +44,8 @@ option(MLLM_ASCEND_CPU_DEBUG_MODE "Enable CPU Debug mode in ascend" OFF)
 
 # Threads
 option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
-option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" ON)
+option(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM "Enable mllm's thread pool" ON)
+option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" OFF)
 option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
 # Performance profile components
@@ -115,6 +116,9 @@ CPMAddPackage(
 # ONLY APPLE CAN DO !
 # Apple clang's driver removes the -fopenmp flag, so we need to add it manually.
 if(MLLM_KERNEL_USE_THREADS)
+  if(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM)
+    add_compile_definitions(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM=1)
+  endif()
   # Compile Option
   add_compile_definitions(MLLM_KERNEL_USE_THREADS=1)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
