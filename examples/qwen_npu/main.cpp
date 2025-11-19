@@ -67,6 +67,7 @@ MLLM_MAIN({
   model.model.clearKVCache();
 
   auto raw_input_tokens = qwen_tokenizer.convertMessage({.prompt = "提示:海洋世界里，鲸鱼是地球上体型最为庞大的哺乳动物，它们拥有流线型的身躯，主要通过头顶的喷水孔进行呼吸。与终生生活在水下并利用鱼鳃从水中提取溶解氧的鱼类有着本质区别。鲸鱼无法在水下直接呼吸氧气，因此它们需要耗费大量的体力，定时浮出水面完成一次快速而彻底的换气过程。令人惊奇的是，当它们处于睡眠状态时，为了确保不会因为忘记呼吸而发生危险，它们只会关闭大脑的一半来进行休息，另一半大脑则始终保持清醒和警觉，以便及时引导身体浮上水面。这种独特的生存机制是它们在深海中延续生命的关键。问题：鲸鱼与鱼类在呼吸方式上的根本区别是什么？它们在睡觉时会采取什么特殊的措施来保证安全和生存？"})["sequence"];
+  // auto raw_input_tokens = qwen_tokenizer.convertMessage({.prompt = "提示:海洋世界里，鲸鱼是体型庞大的哺乳动物，它们通过喷水孔呼吸。与鱼类不同，鲸鱼无法在水下直接呼吸氧气。它们会定时浮出水面进行换气，每次换气需要消耗大量的体力。当它们睡觉时，只会关闭大脑的一半，另一半则保持清醒，以确保不忘记浮出水面呼吸。问题：鲸鱼与鱼类在呼吸方式上的根本区别是什么？它们在睡觉时会采取什么特殊的措施来保证安全？"})["sequence"];
   print(raw_input_tokens);
   MLLM_INFO("raw_input_tokens shape: {} {}", raw_input_tokens.shape()[0], raw_input_tokens.shape()[1]);
 
@@ -126,6 +127,11 @@ MLLM_MAIN({
         model.forward(prefill_inputs, {{"seq_len", mllm::AnyValue(mllm::any_copy_tag, chunk_prompt_len)}});
     auto& chunk_logits = chunk_output["sequence"];
 
+    // auto tmp_next_token = model.sampleGreedy(chunk_logits);
+    // std::wcout << qwen_tokenizer.detokenize(tmp_next_token) << "\n";
+    // 打印原字符串当前位置的detokenize结果
+    // std::wcout << qwen_tokenizer.detokenize(sequence_ptr[chunk_start + chunk_prompt_len]) << "\n";
+
     if (!is_last_prompt_chunk) {
       MLLM_INFO("Chunk {} processed as prompt only, moving to next chunk", chunk_index);
       chunk_logits.delete_();
@@ -153,10 +159,10 @@ MLLM_MAIN({
 
     auto emit_token = [&](int64_t token_id) {
       std::wcout << qwen_tokenizer.detokenize(token_id);
-      // if (token_id == eos_token_id) {
-      //   MLLM_INFO("EOS token detected, stopping decode");
-      //   reached_eos = true;
-      // }
+      if (token_id == eos_token_id) {
+        MLLM_INFO("EOS token detected, stopping decode");
+        reached_eos = true;
+      }
     };
 
     int current_chunk_len = chunk_prompt_len;
