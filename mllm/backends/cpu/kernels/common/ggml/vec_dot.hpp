@@ -24,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#pragma once
 
 #ifndef MLLM_VECDOT_HPP
 #define MLLM_VECDOT_HPP
@@ -340,7 +341,6 @@ static inline int mllm_cpu_get_sve_cnt() {
 #elif defined(__linux__) && defined(__ARM_FEATURE_SVE)
   return PR_SVE_VL_LEN_MASK & prctl(PR_SVE_GET_VL);
 #else
-#error "This platform is not supported SVE"
   return 0;
 #endif
 }
