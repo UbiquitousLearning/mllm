@@ -3,29 +3,7 @@
 #include "mllm/engine/HpcThreadPool.hpp"
 #include "mllm/utils/Common.hpp"
 
-#if defined(__gnu__linux__) || defined(__linux__)
-#include <pthread.h>
-#include <sched.h>
-#endif
-
-#include <cstdint>
-
 namespace mllm {
-
-#if defined(__gnu_linux__) || defined(__linux__)
-static cpu_set_t getNumaAffinity(void) {
-  cpu_set_t cpuset;
-  pthread_t thread;
-  thread = pthread_self();
-  CPU_ZERO(&cpuset);
-  pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-  return cpuset;
-}
-#else
-static uint32_t getNumaAffinity() {
-  return 0;  // no NUMA support
-}
-#endif
 
 void HpcThreadPool::push(HpcThreadPoolTask&& task, int task_slot_idx) {
   int tiles_num = (task.end - task.start) / task.step;
