@@ -51,18 +51,6 @@ MLLM_MAIN({
   graphBuildPM.reg(mllm::qnn::createQNNGraphBuildPass());
   graphBuildPM.run();
 
-  // Debug: Check registered buffer count after graph build
-  {
-    auto qnn_backend = mllm::Context::instance().getBackend(mllm::kQNN);
-    if (qnn_backend) {
-      auto allocator = std::static_pointer_cast<mllm::qnn::QNNAllocator>(qnn_backend->allocator());
-      if (allocator) {
-        auto stats = allocator->getRegisteredBufferStats();
-        MLLM_INFO("After graph build: {} buffers registered, {} MB", stats.count, stats.total_bytes / (1024 * 1024));
-      }
-    }
-  }
-
   // cache has been updated due to trace, clear cache
   model.model.clearKVCache();
 
@@ -98,16 +86,16 @@ MLLM_MAIN({
     for (int i = 0; i < chunk_prompt_len; ++i) { sequence_ptr[i] = input_data[chunk_start + i]; }
     for (int i = chunk_prompt_len; i < chunk_size; ++i) { sequence_ptr[i] = -1; }
 
-    MLLM_INFO("=== Prefill Chunk {} ===", chunk_index);
-    MLLM_INFO("Chunk start: {}, Chunk prompt length: {}", chunk_start, chunk_prompt_len);
+    // MLLM_INFO("=== Prefill Chunk {} ===", chunk_index);
+    // MLLM_INFO("Chunk start: {}, Chunk prompt length: {}", chunk_start, chunk_prompt_len);
     
     // Calculate absolute sequence length from the start of the entire sequence
     const int absolute_seq_len = chunk_start + chunk_prompt_len;
-    MLLM_INFO("Absolute sequence length: {}", absolute_seq_len);
+    // MLLM_INFO("Absolute sequence length: {}", absolute_seq_len);
 
     // Align KV cache so StaticCache writes start at the chunk's absolute offset
     model.setKVCacheSeqCnt(chunk_start);
-    MLLM_INFO("KV cache seq_cnt set to: {}", chunk_start);
+    // MLLM_INFO("KV cache seq_cnt set to: {}", chunk_start);
 
     // Generate position_ids starting from chunk_start for multi-chunk scenarios
     auto position_ids_tensor = mllm::Tensor::empty({1, chunk_size}, mllm::kInt64, mllm::kCPU).alloc();
@@ -129,11 +117,10 @@ MLLM_MAIN({
 
     // auto tmp_next_token = model.sampleGreedy(chunk_logits);
     // std::wcout << qwen_tokenizer.detokenize(tmp_next_token) << "\n";
-    // 打印原字符串当前位置的detokenize结果
     // std::wcout << qwen_tokenizer.detokenize(sequence_ptr[chunk_start + chunk_prompt_len]) << "\n";
 
     if (!is_last_prompt_chunk) {
-      MLLM_INFO("Chunk {} processed as prompt only, moving to next chunk", chunk_index);
+      // MLLM_INFO("Chunk {} processed as prompt only, moving to next chunk", chunk_index);
       chunk_logits.delete_();
       chunk_output.clear();
       continue;
@@ -146,7 +133,7 @@ MLLM_MAIN({
       break;
     }
 
-    MLLM_INFO("=== Decode Phase (Chunk {}) ===", chunk_index);
+    // MLLM_INFO("=== Decode Phase (Chunk {}) ===", chunk_index);
 
     // Use the prefill logits as the first decode step
     auto next_token = model.sampleGreedy(chunk_logits);
@@ -158,7 +145,7 @@ MLLM_MAIN({
     chunk_output.clear();
 
     auto emit_token = [&](int64_t token_id) {
-      std::wcout << qwen_tokenizer.detokenize(token_id);
+      std::wcout << qwen_tokenizer.detokenize(token_id) << std::flush;
       if (token_id == eos_token_id) {
         MLLM_INFO("EOS token detected, stopping decode");
         reached_eos = true;
@@ -178,8 +165,8 @@ MLLM_MAIN({
       // Calculate absolute sequence length from the start of the entire sequence
       const int absolute_seq_len = chunk_start + current_chunk_len;
       
-      MLLM_INFO("--- Chunk {} Decode Step {} ---", chunk_index, total_decode_steps);
-      MLLM_INFO("Current chunk length: {} (relative), Absolute sequence length: {} (absolute)", current_chunk_len, absolute_seq_len);
+      // MLLM_INFO("--- Chunk {} Decode Step {} ---", chunk_index, total_decode_steps);
+      // MLLM_INFO("Current chunk length: {} (relative), Absolute sequence length: {} (absolute)", current_chunk_len, absolute_seq_len);
 
       // Keep padding clean for the remaining area
       for (int i = current_chunk_len; i < chunk_size; ++i) { sequence_ptr[i] = -1; }
@@ -187,7 +174,7 @@ MLLM_MAIN({
       // Set KV cache to absolute sequence length (where the next token will be written)
       // [Maybe Wrong]
       model.setKVCacheSeqCnt(chunk_start);
-      MLLM_INFO("KV cache seq_cnt set to: {} (relative position)", chunk_start);
+      // MLLM_INFO("KV cache seq_cnt set to: {} (relative position)", chunk_start);
       
       // Prepare decode input with position_ids from previous step
       mllm::models::ARGenerationOutputPast decode_inputs{
@@ -212,9 +199,9 @@ MLLM_MAIN({
       current_chunk_len++;
     }
 
-    MLLM_INFO("=== Chunk {} Decode Complete ===", chunk_index);
-    MLLM_INFO("Chunk final length: {}", current_chunk_len);
-    MLLM_INFO("Remaining capacity: {}", chunk_size - current_chunk_len);
+    // MLLM_INFO("=== Chunk {} Decode Complete ===", chunk_index);
+    // MLLM_INFO("Chunk final length: {}", current_chunk_len);
+    // MLLM_INFO("Remaining capacity: {}", chunk_size - current_chunk_len);
   }
 
   std::wcout << L"\n";
