@@ -95,10 +95,8 @@ inline std::vector<Tensor> chunk(int32_t num, const Tensor& x, int32_t dim) {
   auto outputs = Context::instance().buildOpAndSubmitTask(
       OpTypes::kSplit, aops::SplitOpOptions{.dim = dim, .split_size_or_sections = {x.shape()[dim] / num}}, {x});
   std::vector<Tensor> ret;
-
-#pragma unroll
+  ret.reserve(num);
   for (int i = 0; i < num; ++i) { ret.push_back(outputs[i].contiguous()); }
-
   return ret;
 }
 

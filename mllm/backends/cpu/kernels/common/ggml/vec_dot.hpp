@@ -29,7 +29,7 @@
 #define MLLM_VECDOT_HPP
 #include "mllm/core/DataTypes.hpp"
 
-#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE) && defined(__linux__)
 #include <sys/prctl.h>
 #endif
 
@@ -37,6 +37,11 @@ namespace mllm::cpu::ggml {
 #ifdef __ARM_NEON
 #include <arm_neon.h>
 #endif
+
+#ifdef __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif
+
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
 
 // F32 NEON
@@ -326,10 +331,16 @@ inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) 
 
 #endif
 
-inline int mllm_cpu_get_sve_cnt() {
-#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
+static inline int mllm_cpu_get_sve_cnt() {
+  // macOS Apple Silicon SVE is 128.
+#if defined(__APPLE__) && defined(__ARM_FEATURE_SVE)
+  return 128;
+
+  // Linux ARM64
+#elif defined(__linux__) && defined(__ARM_FEATURE_SVE)
   return PR_SVE_VL_LEN_MASK & prctl(PR_SVE_GET_VL);
 #else
+#error "This platform is not supported SVE"
   return 0;
 #endif
 }
