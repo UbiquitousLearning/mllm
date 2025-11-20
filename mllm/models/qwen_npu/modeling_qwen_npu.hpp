@@ -268,6 +268,7 @@ class QwenAttentionMatmul final : public nn::Module {
   }
 
   nn::KVCache& getKVCache() { return kv_cache_; }
+  [[nodiscard]] const nn::KVCache& getKVCache() const { return kv_cache_; }
 };
 
 class QwenOutProjAndMLP final : public nn::Module {
@@ -398,6 +399,7 @@ class QwenDecoder final : public nn::Module {
   }
 
   nn::KVCache& getKVCache() { return self_attn_matmul_.getKVCache(); }
+  [[nodiscard]] const nn::KVCache& getKVCache() const { return self_attn_matmul_.getKVCache(); }
 };
 
 class QwenText final : public nn::Module {
@@ -440,6 +442,17 @@ class QwenText final : public nn::Module {
   void clearKVCache() {
     for (auto& block : decode_blocks_.list()) { block.getKVCache().clearCache(); }
   }
+
+  void setKVCacheSeqCnt(int32_t seq) {
+    for (auto& block : decode_blocks_.list()) { block.getKVCache().setCurrentSeqCnt(seq); }
+  }
+
+  [[nodiscard]] int32_t getKVCacheSeqCnt(int32_t layer_idx = 0) const {
+    if (layer_idx < 0 || layer_idx >= static_cast<int32_t>(decode_blocks_.list().size())) {
+      return -1;
+    }
+    return decode_blocks_.list()[layer_idx].getKVCache().getCurrentSeqCnt();
+  }
 };
 
 class QwenForCausalLM : public nn::Module, public ARGeneration {
@@ -452,6 +465,12 @@ class QwenForCausalLM : public nn::Module, public ARGeneration {
     }
     tie_word_embeddings_ = cfg.tie_word_embeddings;
   }
+
+  // Set current valid sequence length for KV cache across all layers
+  void setKVCacheSeqCnt(int32_t seq) { model.setKVCacheSeqCnt(seq); }
+
+  // Get current valid sequence length for KV cache from specified layer
+  [[nodiscard]] int32_t getKVCacheSeqCnt(int32_t layer_idx = 0) const { return model.getKVCacheSeqCnt(layer_idx); }
 
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
     auto sequence = input.at("sequence");
