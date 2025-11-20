@@ -32,6 +32,13 @@ enum class LinearImplTypes {
   KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4,
   KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4,
   KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm,
+  // f32_qsi8d32p_qai4c32p mxk @ nxk
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa,
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot,
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod,
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod,
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod,
+  kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm,
   kKleidiai_End,
 
   kGGUF_Start,
@@ -73,6 +80,21 @@ inline LinearImplTypes str2LinearImplTypes(const std::string& str) {
        LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4},
       {"KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm",
        LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm},
+
+      // f32_qsi8d32p_qai4c32p mxk @ nxk
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa},
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot},
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod},
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod},
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod},
+      {"KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm",
+       LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm},
+
       {"QNN Linear per-tensor symmectrical W8A16", LinearImplTypes::kQNN_tensor_symm_w8a16},
       {"QNN Linear per-tensor symmectrical W8A8", LinearImplTypes::kQNN_tensor_symm_w8a8}};
 
@@ -110,6 +132,21 @@ inline std::string LinearImplTypes2Str(LinearImplTypes type) {
        "KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4"},
       {LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm,
        "KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm"},
+
+      // f32_qsi8d32p_qai4c32p mxk @ nxk
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa"},
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot"},
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod"},
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod"},
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod"},
+      {LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm,
+       "KaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm"},
+
       {LinearImplTypes::kQNN_tensor_symm_w8a16, "QNN Linear per-tensor symmectrical W8A16"},
       {LinearImplTypes::kQNN_tensor_symm_w8a8, "QNN Linear per-tensor symmectrical W8A8"}};
 

@@ -13,6 +13,7 @@ Tasks:
         - "-DCMAKE_INSTALL_PREFIX=/root/mllm-install-android-arm64-v8a"
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
 
   - CMakeBuildTask:
       cmake_cfg_path: "build-android-arm64-v8a"

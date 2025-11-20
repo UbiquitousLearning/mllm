@@ -14,6 +14,10 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Common.hpp"
 
+#ifdef __ARM_FEATURE_SVE
+#include <arm_sve.h>
+#endif
+
 namespace mllm::cpu::arm {
 
 namespace MLLM_ANONYMOUS_NAMESPACE {

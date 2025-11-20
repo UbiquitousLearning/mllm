@@ -7,7 +7,8 @@ Tasks:
       cmake_build_type: "Release"
       cmake_extra_args:
         - "-DMLLM_BUILD_ARM_BACKEND=ON"
-        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"'
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme2+sve2"'
+        - "-DMLLM_CPU_BACKEND_USE_SME2=ON"
         - "-DMLLM_USE_BLAS=ON"
         - "-DMLLM_BLAS_VENDOR_ACCELERATE=ON"
         - "-DMLLM_KERNEL_USE_THREADS=ON"
