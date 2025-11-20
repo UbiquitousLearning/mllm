@@ -45,6 +45,9 @@ To install the Hexagon SDK, follow these steps:
 1. Download the Hexagon SDK using `QPM <https://qpm.qualcomm.com/>`_ (Qualcomm Package Manager)
 2. Install the SDK following the QPM instructions
 
+.. note::
+   If you encounter 'Login Failed' when using qpm-cli, check Qualcomm's agreements at <https://www.qualcomm.com/agreements>_ and update your account agreements.
+
 Environment Setup
 -----------------
 
