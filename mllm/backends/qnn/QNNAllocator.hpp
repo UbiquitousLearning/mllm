@@ -6,7 +6,6 @@
 #include <map>
 #include <set>
 #include <string_view>
-#include <vector>
 #include "QnnCommon.h"
 #include "QnnInterface.h"
 #include "mllm/backends/base/Allocator.hpp"
@@ -98,25 +97,60 @@ class QNNAllocator final : public Allocator {
   std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
   // Track buffer sizes for statistics
   std::map<void*, size_t> ptrToSizeMap_;
-  // Map tensor name to registered buffer ptr for reuse
+  // Map tensor name to registered buffer ptr for reuse (fallback identifier)
+  // Used when tensor ID is 0 or unavailable
   std::map<std::string, void*> tensorNameToPtrMap_;
-  // Map tensor ID to registered buffer ptr for reuse (more reliable than name)
+  
+  // Map tensor ID to registered buffer ptr for reuse (primary identifier)
+  // Tensor ID is more reliable than name and is used as the primary lookup key
+  // This enables buffer reuse across prefill and decode phases
   std::map<uint32_t, void*> tensorIdToPtrMap_;
 
+  /**
+   * @brief Information about the last successful buffer registration
+   * 
+   * This structure stores metadata about the most recent successful registration,
+   * which is used as a last-resort fallback when:
+   * - New registration fails (e.g., memory exhausted)
+   * - Exact tensor ID/name matches are not found
+   * - The last registered buffer is still valid and matches the tensor
+   * 
+   * This is particularly useful in decode phase where memory pressure is high.
+   */
   struct LastRegistrationInfo {
-    uint32_t tensor_id = 0;
-    std::string tensor_name;
-    void* ptr = nullptr;
-    Qnn_MemHandle_t mem_handle = nullptr;
-    size_t bytes = 0;
+    uint32_t tensor_id = 0;           // Tensor ID of the registered tensor
+    std::string tensor_name;          // Tensor name of the registered tensor
+    void* ptr = nullptr;              // Buffer pointer that was successfully registered
+    Qnn_MemHandle_t mem_handle = nullptr;  // QNN memory handle from successful registration
+    size_t bytes = 0;                 // Size of the registered buffer in bytes
   };
 
-  LastRegistrationInfo lastRegistrationInfo_{};
-  bool hasLastRegistrationInfo_ = false;
+  LastRegistrationInfo lastRegistrationInfo_{};  // Last successful registration info
+  bool hasLastRegistrationInfo_ = false;         // Whether last registration info is valid
 
+  /**
+   * @brief Erase all tensor ID and name mappings that point to a specific buffer pointer
+   * @param ptr The buffer pointer to remove from mappings
+   * @param reason Reason for erasure (for debugging/logging purposes)
+   */
   void eraseTensorMappingsForPtr(void* ptr, std::string_view reason);
+  
+  /**
+   * @brief Remember the last successful buffer registration for fallback purposes
+   * @param tensor_id Tensor ID of the registered tensor
+   * @param tensor_name Tensor name of the registered tensor
+   * @param ptr Buffer pointer that was successfully registered
+   * @param mem_handle QNN memory handle from successful registration
+   * @param total_bytes Size of the registered buffer in bytes
+   */
   void rememberLastRegistration(uint32_t tensor_id, const std::string& tensor_name, void* ptr,
                                 Qnn_MemHandle_t mem_handle, size_t total_bytes);
+  
+  /**
+   * @brief Clear the last registration info if it matches the given pointer
+   * @param ptr The buffer pointer to check against
+   * @param reason Reason for clearing (for debugging/logging purposes)
+   */
   void clearLastRegistrationIfMatches(void* ptr, std::string_view reason);
 
 };

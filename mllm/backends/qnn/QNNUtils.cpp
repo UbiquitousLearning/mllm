@@ -386,13 +386,22 @@ void QNNTensorWrapper::alloc() {
 
   size_t requiredBytes = dataContainer_.bytes();
 
+  // Check if we have a previously registered buffer pointer
+  // This handles the case where tensor dimensions change (e.g., in decode phase)
+  // and the existing registered buffer is too small
   if (registeredPtr_) {
+    // Verify that the registered buffer is still valid
     if (!allocator->isRegistered(registeredPtr_)) {
+      // Buffer was de-registered, clear the reference
       registeredPtr_ = nullptr;
       isAlloc_ = false;
     } else {
+      // Check if the registered buffer is large enough for current requirements
+      // If not, we need to de-register it and allocate a new one
       size_t registeredBytes = allocator->getRegisteredBufferSize(registeredPtr_);
       if (registeredBytes > 0 && registeredBytes < requiredBytes) {
+        // Registered buffer is too small, de-register it
+        // A new buffer will be allocated and registered below
         allocator->deRegisterQnnTensorFromSharedBuffer(registeredPtr_);
         registeredPtr_ = nullptr;
         isAlloc_ = false;

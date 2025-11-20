@@ -535,6 +535,8 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     return;
   }
 
+  // Prepare QNN input tensors by copying data from runtime inputs to graph input wrappers
+  // This handles the case where input tensor sizes may differ between prefill and decode phases
   std::vector<Qnn_Tensor_t> qnn_inputs;
   std::vector<Qnn_Tensor_t> qnn_outputs;
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
@@ -542,6 +544,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     auto& wrapper_tensor = wrapper->getDataContainer();
     const auto& runtime_input = inputs[i];
 
+    // Validate input tensors
     if (runtime_input.isNil()) {
       MLLM_ERROR("Input tensor {} is nil for graph '{}'", i, graphName);
       return;
@@ -552,6 +555,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
+    // Check for size mismatches (can occur in decode phase where inputs may be smaller)
     size_t dst_bytes = wrapper_tensor.bytes();
     size_t src_bytes = runtime_input.bytes();
     if (dst_bytes != src_bytes) {
@@ -574,14 +578,17 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
         return;
       }
       if (dst_ptr && src_ptr && dst_ptr != src_ptr) {
-        // Copy source data
+        // Copy source data to destination buffer
+        // This ensures that the graph input wrapper has the correct data for execution
         if (bytes_to_copy > 0) {
           std::memcpy(dst_ptr, src_ptr, bytes_to_copy);
         }
         
         // If source is smaller than destination, zero out the remaining bytes
         // This is important for decode phase where input tensors may be smaller than prefill
+        // For example, decode phase may use [1, 1] input while wrapper expects [1, 128]
         // Note: In current implementation with full [1, 128] tensor, this should not trigger
+        // but it's kept as a safety measure for future optimizations
         if (src_bytes < dst_bytes) {
           size_t remaining_bytes = dst_bytes - src_bytes;
           std::memset(static_cast<char*>(dst_ptr) + bytes_to_copy, 0, remaining_bytes);
@@ -592,7 +599,9 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       }
     }
 
-    wrapper->alloc();  // QNNAllocator will handle registered memory descriptor when needed
+    // Allocate and register the wrapper tensor with QNN allocator
+    // QNNAllocator will handle registered memory descriptor when needed
+    wrapper->alloc();
     qnn_inputs.push_back(*(wrapper->getNativeTensor()));
   }
   
