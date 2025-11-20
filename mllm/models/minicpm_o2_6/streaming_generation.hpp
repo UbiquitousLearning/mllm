@@ -96,7 +96,7 @@ class StreamingGenerator {
         config_(config) {
     // Configure chunk generation
     models::ChunkGenerationConfig chunk_config{
-        .chunk_size = 5, .max_new_tokens = 10, .do_sample = false, .save_first_chunk_hidden_states = true};
+        .max_new_tokens = 10, .chunk_size = 5, .do_sample = false, .save_first_chunk_hidden_states = true};
 
     // Add EOS tokens for MiniCPMO
     auto eos_ids = tokenizer_.convert2Ids({L"<|im_end|>"});
