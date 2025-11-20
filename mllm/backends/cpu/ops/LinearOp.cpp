@@ -341,7 +341,13 @@ void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_8x4x32:
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_16x4x32:
     case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p8x8_4x8x32:
-    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x4_qsi4c32p4x4_1x4: {
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x4_qsi4c32p4x4_1x4:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod:
+    case aops::LinearImplTypes::kKaiLinear_f32_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm: {
       o_dtype = kFloat32;
       break;
     }

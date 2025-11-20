@@ -1,8 +1,13 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#include "mllm/engine/Context.hpp"
+#include "mllm/backends/cpu/CPUBackend.hpp"
+
 #pragma once
 
-#ifdef MLLM_KERNEL_USE_THREADS
+#if defined(MLLM_KERNEL_USE_THREADS)                                                                \
+    && (defined(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD) || defined(MLLM_KERNEL_THREADS_VENDOR_OPENMP) \
+        || defined(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM))
 //===----------------------------------------------------------------------===//
 // APPLE! ONLY Apple can do! Do not use openmp on iOS/OSX.
 //===----------------------------------------------------------------------===//
@@ -73,7 +78,59 @@ dispatch_apply(__num__, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 
   do { (void)(num_threads); } while (0)
 
 #endif  // defined(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
-#else   // MLLM_KERNEL_USE_THREADS
+
+#ifdef MLLM_KERNEL_USE_THREADS_VENDOR_MLLM
+#include "mllm/engine/HpcThreadPool.hpp"
+
+#define MLLM_AUTO_PARALLEL_BEGIN(__iter__, __num__)                                                                           \
+  {                                                                                                                           \
+    auto host_bk =                                                                                                            \
+        std::static_pointer_cast<::mllm::cpu::CPUBackend>(::mllm::Context::instance().getBackend(::mllm::DeviceTypes::kCPU)); \
+    ::mllm::HpcThreadPoolTask task;                                                                                           \
+    task.start = 0;                                                                                                           \
+    task.end = __num__;                                                                                                       \
+    task.step = 1;                                                                                                            \
+    task.func = [&](int __iter__) {
+#define MLLM_AUTO_PARALLEL_END()                                         \
+  }                                                                      \
+  ;                                                                      \
+  host_bk->getThreadPool()->push(std::move(task), host_bk->taskIndex()); \
+  }
+
+#define MLLM_AUTO_PARALLEL_FOR_BEGIN(__iter__, __start__, __end__, __step__)                                                  \
+  {                                                                                                                           \
+    auto host_bk =                                                                                                            \
+        std::static_pointer_cast<::mllm::cpu::CPUBackend>(::mllm::Context::instance().getBackend(::mllm::DeviceTypes::kCPU)); \
+    ::mllm::HpcThreadPoolTask task;                                                                                           \
+    task.start = __start__;                                                                                                   \
+    task.end = __end__;                                                                                                       \
+    task.step = __step__;                                                                                                     \
+    task.func = [&](int __iter__) {
+#define MLLM_AUTO_PARALLEL_FOR_END()                                     \
+  }                                                                      \
+  ;                                                                      \
+  host_bk->getThreadPool()->push(std::move(task), host_bk->taskIndex()); \
+  }
+
+#define MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(__iter__, __start__, __end__, __step__, __num_threads__)                              \
+  {                                                                                                                           \
+    auto host_bk =                                                                                                            \
+        std::static_pointer_cast<::mllm::cpu::CPUBackend>(::mllm::Context::instance().getBackend(::mllm::DeviceTypes::kCPU)); \
+    ::mllm::HpcThreadPoolTask task;                                                                                           \
+    task.start = __start__;                                                                                                   \
+    task.end = __end__;                                                                                                       \
+    task.step = __step__;                                                                                                     \
+    task.func = [&](int __iter__) {
+#define MLLM_AUTO_PARALLEL_FOR_END_NT()                                  \
+  }                                                                      \
+  ;                                                                      \
+  host_bk->getThreadPool()->push(std::move(task), host_bk->taskIndex()); \
+  }
+
+#define MLLM_SET_NUM_THREADS(num_threads) \
+  do { (void)(num_threads); } while (0)
+#endif
+#else  // MLLM_KERNEL_USE_THREADS
 
 #define MLLM_AUTO_PARALLEL_BEGIN(__iter__, __num__) for (int __iter__ = 0; __iter__ < __num__; ++__iter__) {
 #define MLLM_AUTO_PARALLEL_END() }

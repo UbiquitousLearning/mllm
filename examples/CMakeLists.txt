@@ -4,6 +4,7 @@
 #add_subdirectory(qwen2_5vl_tracer)
 #add_subdirectory(llama)
 add_subdirectory(minicpm_o)
+add_subdirectory(minicpm4)
 #add_subdirectory(qwen3)
 #add_subdirectory(qwen3_service)
 #add_subdirectory(deepseek_ocr)
