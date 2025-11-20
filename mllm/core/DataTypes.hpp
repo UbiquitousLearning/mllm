@@ -6,7 +6,8 @@
 #include <complex>
 #include <half/half.hpp>
 
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) \
+    || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 // Arm Device Has float16 native support
 #include <arm_neon.h>
 #endif
@@ -18,7 +19,8 @@ namespace mllm {
 //===----------------------------------------------------------------------===//
 using mllm_fp64_t = double;
 using mllm_fp32_t = float;
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) \
+    || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 using mllm_fp16_t = float16_t;
 #else
 using mllm_fp16_t = half_float::half;
