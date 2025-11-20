@@ -16,17 +16,27 @@ import (
 )
 
 func decodeBase64Image(uri string) ([]byte, string, error) {
+	if !strings.HasPrefix(uri, "data:image/") {
+		return nil, "", fmt.Errorf("invalid data URI: must start with 'data:image/'")
+	}
+
 	parts := strings.SplitN(uri, ",", 2)
 	if len(parts) != 2 {
 		return nil, "", fmt.Errorf("invalid base64 image data")
 	}
+	
 	meta := parts[0]
-	ext := ".png"
+	ext := "" 
 	if strings.Contains(meta, "image/jpeg") {
 		ext = ".jpg"
 	} else if strings.Contains(meta, "image/webp") {
 		ext = ".webp"
+	} else if strings.Contains(meta, "image/png") {
+		ext = ".png"
+	} else {
+		return nil, "", fmt.Errorf("unsupported image format in data URI")
 	}
+
 	data, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to decode base64: %v", err)
@@ -63,8 +73,11 @@ func (s *Server) preprocessRequestForOCR(payload map[string]interface{}) (bool, 
 				if !ok || !strings.HasPrefix(base64URI, "data:image") {
 					return false, func() {}, fmt.Errorf("image data in 'images' field is not a valid base64 URI")
 				}
+
+				textContent, _ := msg["content"].(string)
+
 				contentArray = []interface{}{
-					map[string]interface{}{"type": "text", "text": msg["content"].(string)},
+					map[string]interface{}{"type": "text", "text": textContent},
 					map[string]interface{}{"type": "image_url", "image_url": map[string]interface{}{"url": base64URI}},
 				}
 				userMessage = msg
@@ -105,6 +118,10 @@ func (s *Server) preprocessRequestForOCR(payload map[string]interface{}) (bool, 
 		textContent, _ = userMessage["content"].(string)
 	}
 
+    if strings.TrimSpace(textContent) == "" {
+        log.Println("[Handler] User content is empty, auto-filling default prompt.")
+        textContent = "Convert the document to markdown."
+    }
 
 	if !imageFoundInPayload {
 		log.Println("[Handler] No new image found in payload for OCR request.")
@@ -161,7 +178,7 @@ func (s *Server) chatCompletionsHandler() http.HandlerFunc {
 
 		modelName, _ := requestPayload["model"].(string)
 
-		if strings.Contains(strings.ToUpper(modelName), "OCR") {
+		if strings.Contains(strings.ToLower(modelName), "ocr") || strings.HasSuffix(strings.ToLower(modelName), "-ocr") {
 			log.Printf("[Handler] OCR model detected ('%s'). Checking for image data...", modelName)
 			
 			imageFound, cleanupFunc, err := s.preprocessRequestForOCR(requestPayload)

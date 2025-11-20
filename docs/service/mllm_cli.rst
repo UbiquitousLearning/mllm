@@ -201,7 +201,7 @@ First, we compile the MLLM C++ core, which produces the essential shared librari
 2.  **Run the Build Task**:
     On the build server, execute the build task. This task uses `tasks/build_android.yaml` to configure and run CMake.
 
-    Before executing this step, you also need to ensure that the hardcoded directories in build_android_debug.yaml have been modified to match your requirements. The modification method is the same as for the Go compilation file mentioned earlier.
+    Before executing this step, you also need to ensure that the hardcoded directories in build_android.yaml have been modified to match your requirements. The modification method is the same as for the Go compilation file mentioned earlier.
     
     .. code-block:: bash
 

@@ -21,7 +21,7 @@ func main() {
 	ocrModelPath := flag.String("ocr-model-path", "", "Path to the DeepSeek-OCR model directory.")
 	flag.Parse()
 
-	if *modelPath == "" {
+	if *modelPath == "" && *ocrModelPath == "" {
 		log.Fatal("FATAL: --model-path argument is required.")
 	}
 
