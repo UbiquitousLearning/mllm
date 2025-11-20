@@ -27,7 +27,6 @@ void mllm_add_fp32(float* a, float* b, float* c, int n) {
     _mm256_storeu_ps(&c[i], vec_c);
   }
 #endif
-  // 处理剩余元素
   for (; i < n; i++) { c[i] = a[i] + b[i]; }
 }
 

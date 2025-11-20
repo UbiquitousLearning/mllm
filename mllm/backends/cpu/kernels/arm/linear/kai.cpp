@@ -411,27 +411,55 @@ void KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::matmul(float* __restrict__ dst, con
     const int m_step = ukernels_[tile_cfg].get_m_step();  // Scheduling along M
     const int n_step = ukernels_[tile_cfg].get_n_step();  // Scheduling along N
 
-    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i_m_step, 0, M, m_step, {
-      for (int i_n_step = 0; i_n_step < N; i_n_step += n_step) {
-        // Support functions return offset in bytes
-        const void* lhs_ptr = (const void*)((const char*)workspace + (ukernels_[tile_cfg].get_lhs_packed_offset(i_m_step, K)));
-        const void* rhs_ptr =
-            (const void*)((const char*)packed_weight_bias + (ukernels_[tile_cfg].get_rhs_packed_offset(i_n_step, K, 32)));
-        float* dst_ptr = (float*)((uint8_t*)dst + (ukernels_[tile_cfg].get_dst_offset(i_m_step, i_n_step, dst_stride)));
+    std::vector<std::pair<int, int>> tile_splits;
+    for (int i_m_step = 0; i_m_step < M; i_m_step += m_step) {
+      for (int i_n_step = 0; i_n_step < N; i_n_step += n_step) { tile_splits.emplace_back(i_m_step, i_n_step); }
+    }
+    auto tile_sizes = tile_splits.size();
 
-        const int actual_m = std::min(M - (int)i_m_step, m_step);
-        const int actual_n = std::min(N - i_n_step, n_step);
+    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, tile_idx, 0, tile_sizes, 1, {
+      auto [i_m_step, i_n_step] = tile_splits[tile_idx];
 
-        ukernels_[tile_cfg].run_matmul(actual_m, actual_n, K,  // Dimensions
-                                       32,                     // Block length
-                                       lhs_ptr,                // LHS packed
-                                       rhs_ptr,                // RHS packed
-                                       dst_ptr,                // DST
-                                       dst_stride,             // DST stride (row)
-                                       sizeof(float),          // DST stride (col)
-                                       -std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-      }
+      // Support functions return offset in bytes
+      const void* lhs_ptr = (const void*)((const char*)workspace + (ukernels_[tile_cfg].get_lhs_packed_offset(i_m_step, K)));
+      const void* rhs_ptr =
+          (const void*)((const char*)packed_weight_bias + (ukernels_[tile_cfg].get_rhs_packed_offset(i_n_step, K, 32)));
+      float* dst_ptr = (float*)((uint8_t*)dst + (ukernels_[tile_cfg].get_dst_offset(i_m_step, i_n_step, dst_stride)));
+
+      const int actual_m = std::min(M - i_m_step, m_step);
+      const int actual_n = std::min(N - i_n_step, n_step);
+
+      ukernels_[tile_cfg].run_matmul(actual_m, actual_n, K,  // Dimensions
+                                     32,                     // Block length
+                                     lhs_ptr,                // LHS packed
+                                     rhs_ptr,                // RHS packed
+                                     dst_ptr,                // DST
+                                     dst_stride,             // DST stride (row)
+                                     sizeof(float),          // DST stride (col)
+                                     -std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
     });
+
+    // MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i_m_step, 0, M, m_step, {
+    //   for (int i_n_step = 0; i_n_step < N; i_n_step += n_step) {
+    //     // Support functions return offset in bytes
+    //     const void* lhs_ptr = (const void*)((const char*)workspace + (ukernels_[tile_cfg].get_lhs_packed_offset(i_m_step,
+    //     K))); const void* rhs_ptr =
+    //         (const void*)((const char*)packed_weight_bias + (ukernels_[tile_cfg].get_rhs_packed_offset(i_n_step, K, 32)));
+    //     float* dst_ptr = (float*)((uint8_t*)dst + (ukernels_[tile_cfg].get_dst_offset(i_m_step, i_n_step, dst_stride)));
+
+    //     const int actual_m = std::min(M - (int)i_m_step, m_step);
+    //     const int actual_n = std::min(N - i_n_step, n_step);
+
+    //     ukernels_[tile_cfg].run_matmul(actual_m, actual_n, K,  // Dimensions
+    //                                    32,                     // Block length
+    //                                    lhs_ptr,                // LHS packed
+    //                                    rhs_ptr,                // RHS packed
+    //                                    dst_ptr,                // DST
+    //                                    dst_stride,             // DST stride (row)
+    //                                    sizeof(float),          // DST stride (col)
+    //                                    -std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    //   }
+    // });
   }
 }
 
