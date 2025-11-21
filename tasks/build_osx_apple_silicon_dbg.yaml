@@ -11,6 +11,5 @@ Tasks:
                           - "-DMLLM_KERNEL_USE_THREADS=ON"
                           - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
                           - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=ON"
-
         - CMakeBuildTask:
                   cmake_cfg_path: "build-osx-dbg"
