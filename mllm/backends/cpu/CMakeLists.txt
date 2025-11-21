@@ -22,6 +22,9 @@ if(MLLM_BUILD_ARM_BACKEND)
     $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p>
     $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f16_qsi8d32p_qai4c32p>
     $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/pack>
+    # f32_qsi8d32p_qai4c32p
+    $<BUILD_INTERFACE:${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p>
   )
 
   set(MLLM_KAI_SOURCES
@@ -64,7 +67,29 @@ if(MLLM_BUILD_ARM_BACKEND)
     ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qsi8d32pscalef32_f16_neon.c
     ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qsi8d32pscalef32_f32_neon.c
     ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon.c
+    # SME Related
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod_asm.S
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x4_qai4c32p4x4_1x4_neon_dotprod.c
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod_asm.S
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x8_qai4c32p4x8_1x4_neon_dotprod.c
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod_asm.S
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod.c
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm_asm.S
+    ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm.c
   )
+
+  if(MLLM_CPU_BACKEND_USE_SME2)
+    set(MLLM_KAI_SOURCES_SME2
+      # f32_qsi8d32p_qai4c32p
+      ${kleidiai_SOURCE_DIR}/kai/kai_common_sme_asm.S
+      ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa_asm.S
+      ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1vlx4_qai4c32p4vlx4_1vlx4vl_sme2_mopa.c
+      ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot_asm.S
+      ${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p1x4_qai4c32p4vlx4_1x4vl_sme2_dot.c
+    )
+  else()
+    set(MLLM_KAI_SOURCES_SME2 "")
+  endif()
 
   add_library(
     MllmCPUBackend SHARED
@@ -72,6 +97,7 @@ if(MLLM_BUILD_ARM_BACKEND)
     ${MLLM_CPU_BACKEND_KERNELS_SRC}
     ${MLLM_CPU_BACKEND_KERNELS_COMMON_SRC}
     ${MLLM_KAI_SOURCES}
+    ${MLLM_KAI_SOURCES_SME2}
     CPUAllocator.cpp
     CPUBackend.cpp
     CPUDispatcher.cpp)

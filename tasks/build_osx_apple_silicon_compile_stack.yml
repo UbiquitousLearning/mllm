@@ -4,12 +4,13 @@ Tasks:
       cmake_build_type: "Release"
       cmake_extra_args:
         - "-DMLLM_BUILD_ARM_BACKEND=ON"
-        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"'
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm"'
+        - "-DMLLM_CPU_BACKEND_USE_SME2=OFF"
         - "-DMLLM_USE_BLAS=ON"
         - "-DMLLM_BLAS_VENDOR_ACCELERATE=ON"
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
-        - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=ON"
         - "-DMLLM_TRACY_ENABLE=OFF"
         - "-DMLLM_ENABLE_MLLM_COMPILE_STACK=ON"
         - "-DMLLM_COMPILE_STACK_TOOL_PATH=llvm-project/build"

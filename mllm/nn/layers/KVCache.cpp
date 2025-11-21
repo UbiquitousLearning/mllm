@@ -23,4 +23,12 @@ void KVCache::setLayerIndex(int32_t layer_idx) {
 
 void KVCache::clearCache() { std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->clearCache(); }
 
+void KVCache::setCurrentSeqCnt(int32_t seq) {
+  std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->setCurrentSeqCnt(seq);
+}
+
+int32_t KVCache::getCurrentSeqCnt() const {
+  return std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->getCurrentSeqCnt();
+}
+
 }  // namespace mllm::nn

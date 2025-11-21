@@ -203,10 +203,12 @@ class QNNTensorWrapper {
   [[nodiscard]] const Qnn_Tensor_t* getNativeTensor() const { return &qnnTensor_; }
 
   // Get tensor name
-  const std::string& getName() const { return name_; }
+  [[nodiscard]] const std::string& getName() const { return name_; }
 
   // alloc graph input/output tensor memory in QNN shared buffer
   void alloc();
+  // reset allocation flag when dataContainer is updated
+  void resetAlloc();
   Tensor& getDataContainer() { return dataContainer_; }
   const std::vector<uint32_t>* getDimension() { return &dimensions_; }
 
@@ -216,6 +218,7 @@ class QNNTensorWrapper {
   Tensor dataContainer_;
   Qnn_Tensor_t qnnTensor_;
   bool isAlloc_ = false;
+  void* registeredPtr_ = nullptr;
 };
 
 class QNNParamTensorWrapper {

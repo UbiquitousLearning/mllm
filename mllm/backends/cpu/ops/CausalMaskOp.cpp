@@ -53,8 +53,8 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__)
             const __m256 mask_val = _mm256_set1_ps(-1e10f);
             for (size_t r = 0; r < S; ++r) {
-              const size_t copy_count = std::min(r + 1, (size_t)D);
-              const size_t fill_count = D > copy_count ? (D - copy_count) : 0;
+              const size_t copy_count = D - S + r + 1;
+              const size_t fill_count = std::max(D - copy_count, (size_t)0);
 
               memcpy(o_ptr + r * D, i_ptr + r * D, copy_count * sizeof(float));
 
@@ -68,8 +68,8 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
             const float32x4_t mask_val = vdupq_n_f32(-1e10f);
             for (size_t r = 0; r < S; ++r) {
-              const size_t copy_count = std::min(r + 1, (size_t)D);
-              const size_t fill_count = D > copy_count ? (D - copy_count) : 0;
+              const size_t copy_count = D - S + r + 1;
+              const size_t fill_count = std::max(D - copy_count, (size_t)0);
 
               memcpy(o_ptr + r * D, i_ptr + r * D, copy_count * sizeof(float));
 
