@@ -18,7 +18,7 @@ Version Requirements
 ~~~~~~~~~~~~~~~~~~~~
 
 - **QNN**: Linux v2.34+
-- **Hexagon SDK**: Linux 5.x
+- **Hexagon SDK**: Linux 6.x (For Hexagon SDK 5.x, refer to v1 branch for correct makefile Hexagon SDK Tool version)
 
 .. warning::
    Some accounts may not have permission to access the Hexagon SDK and may need to contact Qualcomm for support.

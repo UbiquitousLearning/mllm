@@ -1,6 +1,6 @@
 Tasks:
   - HexagonMakeTask:
-      mllm_qnn_package_place: "/root/mllm/mllm/Backends/QNN/Kernels/MllmPackage"
+      mllm_qnn_package_place: "mllm/backends/qnn/custom-op-package/LLaMAPackage"
       targets:
         - "htp_aarch64"
         - "htp_v75"
