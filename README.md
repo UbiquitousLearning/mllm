@@ -18,12 +18,12 @@ mllm
 ## Latest News
 
 - [2025 Nov 23] 🔥🔥🔥 MLLM v2 released!
-- [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS and NPU QWEN2-VL. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
+- [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
   - A more Pythonic model authoring approach with eager execution
   - Compilation support for easier NPU integration
   - Support for parallel execution of multiple models
   - A more refined engineering implementation
-- [2025 Jul 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B
+- [2025 Jul 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B（ViT profiling will integrate in v2）
 
 ## Key Features
 
