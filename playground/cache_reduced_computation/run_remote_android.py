@@ -33,5 +33,5 @@ if __name__ == "__main__":
     print(adb.get_devices())
     adb.push_file(
         "./build-android/cache_reduced_computation",
-        "/data/local/tmp/mllm-v2/bin/playground/",
+        "/data/local/tmp/mllm/bin/playground/",
     )

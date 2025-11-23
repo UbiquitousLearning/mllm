@@ -3,7 +3,7 @@ name: Test macOS Apple Silicon Compilation
 on:
   push:
     branches:
-      - v2
+      - main
     paths:
       - "requirements.txt"
       - "task.py"
@@ -12,7 +12,7 @@ on:
       - "mllm/**"
   pull_request:
     branches:
-      - v2
+      - main
     paths:
       - "requirements.txt"
       - "task.py"
@@ -24,7 +24,7 @@ jobs:
   build-macos:
     if: github.repository == 'UbiquitousLearning/mllm'
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

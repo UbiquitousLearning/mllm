@@ -3,13 +3,13 @@ name: pymllm macOS Nightly
 on:
   pull_request:
     branches:
-      - v2
+      - main
     paths:
       - "pymllm/nightly.ini"
       - ".github/workflows/pymllm-macos-nightly.yml"
   push:
     branches:
-      - v2
+      - main
     paths:
       - "pymllm/nightly.ini"
       - ".github/workflows/pymllm-macos-nightly.yml"
