@@ -30,6 +30,10 @@ You can download Qwen3-0.6B from ModelScope with the following command:
 
    git clone https://www.modelscope.cn/Qwen/Qwen3-0.6B.git
 
+.. note::
+   **About Model Version:** 
+   Most mllm models on Hugging-Face are in v1 version file format, which has no tensor shape and supports less data types. When loading a model, you can specify the model version. We maintain the compatibility of both v1 and v2 formats in mllm. It is recommended to use v2 format for new models whenever possible.
+
 
 *********************************************
 Step 2: Convert to mllm Format
