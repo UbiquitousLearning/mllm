@@ -9,7 +9,8 @@ Tasks:
         - "-DMLLM_BLAS_VENDOR_ACCELERATE=ON"
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
-        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
         - "-DCMAKE_INSTALL_PREFIX=./mllm-sdk-osx"
   - CMakeBuildTask:
       cmake_cfg_path: "build-sdk-osx"
