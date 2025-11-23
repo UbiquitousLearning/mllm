@@ -287,6 +287,38 @@ For more usage instructions, please refer to `mllm-convertor --help`.
 
 ## Tools
 
+### mllm-params-inspector
+
+Parameter inspection tool for viewing model file parameters.
+
+Usage:
+
+```bash
+./mllm-params-inspector -i /path/to/model.mllm [-iv v1|v2] [-n param_name]
+```
+
+Parameters:
+
+```text
+-i, --input: Model file path
+-iv, --input_version: Model file version (v1 or v2), default is v1
+-n, --name: Specific parameter name, only display information for that parameter
+-h, --help: Show help information
+```
+
+Examples:
+
+```bash
+# View all parameter information in the model file
+./mllm-params-inspector -i /path/to/model.mllm
+
+# View specific parameter information
+./mllm-params-inspector -i /path/to/model.mllm -n transformer.h.0.attn.c_attn.weight
+
+# View v2 version model file
+./mllm-params-inspector -i /path/to/model.mllm -iv v2
+```
+
 ## Join us & Contribute
 
 The mllm community continues to grow, with developers already contributing PRs. We extend our sincere gratitude to every follower and contributor. We've pinned our roadmap in the [Issues section](https://github.com/UbiquitousLearning/mllm/issues), where you can find features you'd like to contribute to and notify the mllm community by submitting issues.
