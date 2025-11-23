@@ -4,6 +4,7 @@
 #include "mllm/c_api/Runtime.h"
 #include "mllm/engine/service/Service.hpp"
 #include "mllm/models/qwen3/modeling_qwen3_service.hpp"
+#include "mllm/models/deepseek_ocr/modeling_deepseek_ocr_service.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -91,6 +92,25 @@ MllmCAny createQwen3Session(const char* model_path) {
         return MllmCAny{.type_id = kCustomObject, .v_custom_ptr = handle};
     } catch (const std::exception& e) {
         printf("[C++ Service] createQwen3Session exception: %s\n", e.what());
+        return MllmCAny{.type_id = kRetCode, .v_return_code = -1};
+    }
+}
+
+MllmCAny createDeepseekOCRSession(const char* model_path) {
+    if (model_path == nullptr) {
+        printf("[C++ Service] createDeepseekOCRSession error: invalid arguments.\n");
+        return MllmCAny{.type_id = kRetCode, .v_return_code = -1};
+    }
+    try {
+        auto dpsk_session = std::make_shared<mllm::models::deepseek_ocr::DeepseekOCRSession>();
+        dpsk_session->fromPreTrain(model_path);
+
+        auto* handle = new MllmSessionWrapper();
+        handle->session_ptr = dpsk_session;
+
+        return MllmCAny{.type_id = kCustomObject, .v_custom_ptr = handle};
+    } catch (const std::exception& e) {
+        printf("[C++ Service] createDeepseekOCRSession exception: %s\n", e.what());
         return MllmCAny{.type_id = kRetCode, .v_return_code = -1};
     }
 }

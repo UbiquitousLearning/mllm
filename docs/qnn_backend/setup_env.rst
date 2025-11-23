@@ -18,7 +18,7 @@ Version Requirements
 ~~~~~~~~~~~~~~~~~~~~
 
 - **QNN**: Linux v2.34+
-- **Hexagon SDK**: Linux 5.x
+- **Hexagon SDK**: Linux 6.x (For Hexagon SDK 5.x, refer to v1 branch for correct makefile Hexagon SDK Tool version)
 
 .. warning::
    Some accounts may not have permission to access the Hexagon SDK and may need to contact Qualcomm for support.
@@ -44,6 +44,9 @@ To install the Hexagon SDK, follow these steps:
 
 1. Download the Hexagon SDK using `QPM <https://qpm.qualcomm.com/>`_ (Qualcomm Package Manager)
 2. Install the SDK following the QPM instructions
+
+.. note::
+   If you encounter 'Login Failed' when using qpm-cli, check Qualcomm's agreements at <https://www.qualcomm.com/agreements>_ and update your account agreements.
 
 Environment Setup
 -----------------
