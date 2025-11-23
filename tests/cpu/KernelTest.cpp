@@ -534,6 +534,25 @@ TEST_F(ElementwiseKernelTest, DivScalarInt32) {
 }
 
 //===----------------------------------------------------------------------===//
+// CausalMaskOp
+//===----------------------------------------------------------------------===//
+#include "CausalMaskOpTest.hpp"
+TEST_F(CausalMaskOpTest, PrefillScenario) {
+  auto result = runScenario(1, 1, 4, 4);
+  EXPECT_TRUE(result.is_close);
+}
+
+TEST_F(CausalMaskOpTest, DecodeScenario) {
+  auto result = runScenario(1, 1, 1, 6);
+  EXPECT_TRUE(result.is_close);
+}
+
+TEST_F(CausalMaskOpTest, AppendScenario) {
+  auto result = runScenario(2, 3, 3, 7);
+  EXPECT_TRUE(result.is_close);
+}
+
+//===----------------------------------------------------------------------===//
 // GELU
 //===----------------------------------------------------------------------===//
 #include "tests/cpu/GELUKernelTest.hpp"
