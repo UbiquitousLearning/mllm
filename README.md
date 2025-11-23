@@ -33,6 +33,20 @@ mllm
 4. **NPU-ready IR** – Seamless integration with NPU frameworks  
 5. **Deployment toolkit** – SDK + CLI inference tool
 
+## The Role of MLLM
+
+MLLM is the central hub of the AI inference stack. It connects optimization algorithms like Speculative Decoding, Pruning, and Quantization above with AI Compiler/Runtime layers (CANN, CUDA, MLIR) below for hardware execution. Highlighted in red, MLLM uniquely bridges algorithm innovation and hardware optimization, making it the indispensable node linking software ecosystem and hardware acceleration.
+
+<div align="center">
+  <img src="./assets/mllm_role.png" width="80%">
+</div>
+
+The mllm framework integrates seamlessly with popular community frameworks' checkpoints. Through mllm-convertor, it directly ingests PyTorch and SafeTensors models, quantizes and converts them into mllm format, which are then loaded and executed by mllm Runtime.
+
+<div align="center">
+  <img src="./assets/mllm_workflow.png" width="80%">
+</div>
+
 ## Supported Models
 
 ### mllm v2
