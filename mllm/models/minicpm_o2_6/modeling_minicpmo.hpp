@@ -12,6 +12,8 @@
 #include "mllm/models/minicpm_o2_6/modeling_siglip.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_resampler.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_qwen2vl_for_minicpmo.hpp"
+#include "mllm/models/minicpm_o2_6/modeling_whisper_encoder.hpp"
+#include "mllm/models/minicpm_o2_6/audio_preprocessor_minicpmo.hpp"
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/utils/Log.hpp"
 
@@ -40,6 +42,23 @@ class AudioProjectionLayer : public nn::Module {
   nn::Linear linear1_;
   nn::ReLU relu_;
   nn::Linear linear2_;
+};
+
+// Audio pooling wrapper module
+class AudioAvgPooler : public nn::Module {
+ public:
+  AudioAvgPooler() = default;
+
+  AudioAvgPooler(const std::string& name, int32_t kernel_size, int32_t stride) : Module(name) {
+    avg_pool_ = reg<nn::AvgPool1d>("pool", kernel_size, stride);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    return {avg_pool_(inputs[0])};
+  }
+
+ private:
+  nn::AvgPool1d avg_pool_;
 };
 
 // TTS Feature Projector
@@ -74,7 +93,8 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
       : config_(config),
         llm_(createLLMConfig(config)),
         vpm_("vpm", config),
-        resampler_("resampler", config.query_num, config.hidden_size, config.num_attention_heads, config.vision_hidden_size) {
+        resampler_("resampler", config.query_num, config.hidden_size, config.num_attention_heads, config.vision_hidden_size),
+        apm_("apm", config) {
     // Initialize KV cache like Qwen2VL
     kv_cache_ = nn::StaticCache(config.max_cache_length, config.num_hidden_layers,
                                 config.num_attention_heads,                       // q_heads
@@ -86,6 +106,14 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
                                 false                                             // use_fa2
     );
 
+    audio_avg_pooler_ = AudioAvgPooler("audio_avg_pooler", config.audio_pool_step, config.audio_pool_step);
+
+    // audio_output_dim = encoder_ffn_dim // 4
+    // encoder_ffn_dim = audio_hidden_size * 4 (standard for Whisper)
+    int32_t audio_output_dim = config.audio_hidden_size * 4 / 4;  // = audio_hidden_size
+    audio_projection_layer_ =
+        AudioProjectionLayer("audio_projection_layer", audio_output_dim, config.hidden_size, config.hidden_size);
+
     // Set ARGeneration parameters
     eos_token_id_ = config.eos_token_id;
     max_length_ = config.max_cache_length;
@@ -95,8 +123,11 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
   qwen2vl::Qwen2VLForCausalLM llm_;
   SiglipVisionModel vpm_;
   Resampler resampler_;
-  // AudioProjectionLayer audio_projection_layer_;
-  // TTSProjector tts_projector_;
+
+  // Audio encoder components
+  WhisperEncoder apm_;
+  AudioProjectionLayer audio_projection_layer_;
+  AudioAvgPooler audio_avg_pooler_;
 
   // TTS components (optional, loaded separately)
   chattts::ConditionalChatTTS tts_model_;
@@ -157,12 +188,12 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
       }
     }
 
-    // Process audio inputs if provided
-    // if (!audio_features.isNil()) {
-    //     auto audio_embeddings = encode_audio(audio_features);
-    //     // TODO: Similarly handle audio embedding insertion
-    //     input_embeddings = merge_audio_text_embeddings(input_embeddings, audio_embeddings, sequence);
-    // }
+    // Process audio inputs if provided - ONLY in prefill stage
+    Tensor audio_bounds = inputs.count("audio_bounds") ? inputs.at("audio_bounds") : Tensor::nil();
+    if (!audio_features.isNil() && !audio_bounds.isNil() && prev_position_ids.isNil()) {
+      auto audio_embeddings = encode_audio(audio_features);
+      input_embeddings = merge_audio_text_embeddings(input_embeddings, audio_embeddings, audio_bounds);
+    }
 
     // Create position IDs based on stage
     Tensor position_ids;
@@ -202,16 +233,37 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
     if (!pixel_values.isNil()) { result["pixel_values"] = pixel_values; }
     if (!tgt_sizes.isNil()) { result["tgt_sizes"] = tgt_sizes; }
     if (!image_bounds.isNil()) { result["image_bounds"] = image_bounds; }
+    if (!audio_features.isNil()) { result["audio_features"] = audio_features; }
+    if (!audio_bounds.isNil()) { result["audio_bounds"] = audio_bounds; }
 
     return result;
   }
 
-  // Audio encoding: audio_features -> projection -> text embedding space
-  // Tensor encode_audio(const Tensor& audio_features) {
-  //     // Project audio features to text embedding space
-  //     auto projected_audio = audio_projection_layer_(audio_features)[0];
-  //     return projected_audio;
-  // }
+  Tensor encode_audio(const Tensor& audio_features) {
+    // 1. Encode mel-spectrogram using Whisper encoder
+    // Input: [batch_size, num_mel_bins=80, mel_frames]
+    // Output: [batch_size, seq_len, audio_hidden_size]
+    auto audio_states = apm_(audio_features)[0];
+    mllm::print("finish apm!, tensor shape:", audio_states.shape());
+
+    // 2. Project to text embedding space
+    // Input: [batch_size, seq_len, audio_hidden_size]
+    // Output: [batch_size, seq_len, hidden_size]
+    auto audio_embeds = audio_projection_layer_(audio_states)[0];
+    mllm::print("finish audio projection!, tensor shape:", audio_embeds.shape());
+
+    // 3. Apply average pooling
+    // Transpose to [batch_size, hidden_size, seq_len] for pooling
+    audio_embeds = audio_embeds.transpose(1, 2);
+    mllm::print("before audio avg pooler!, tensor shape:", audio_embeds.shape());
+    // Apply average pooling with stride=audio_pool_step (default 2)
+    audio_embeds = audio_avg_pooler_(audio_embeds)[0];
+    mllm::print("after audio avg pooler!, tensor shape:", audio_embeds.shape());
+    // Transpose back to [batch_size, seq_len, hidden_size]
+    audio_embeds = audio_embeds.transpose(1, 2);
+    mllm::print("final audio embeds!, tensor shape:", audio_embeds.shape());
+    return audio_embeds;
+  }
 
   // TTS feature generation for audio output
   // Tensor generate_tts_features(const Tensor& text_hidden_states) {
@@ -246,8 +298,30 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
     return text_embeddings;
   }
 
-  Tensor merge_audio_text_embeddings(const Tensor& text_embeddings, const Tensor& audio_embeddings, const Tensor& sequence) {
-    // TODO: Similar to vision embedding fusion
+  Tensor merge_audio_text_embeddings(Tensor& text_embeddings, Tensor& audio_embeddings, Tensor& audio_bounds) {
+    auto batch_size = text_embeddings.shape()[0];  // text_embeddings: [1, seq_len, embed_dim]
+    auto seq_len = text_embeddings.shape()[1];
+    auto embed_dim = text_embeddings.shape()[2];
+    auto audio_seq_len = audio_embeddings.shape()[1];  // audio_embeddings: [num_audio_segments, audio_seq_len, embed_dim]
+
+    if (!audio_bounds.isNil() && audio_bounds.shape().size() >= 2) {
+      auto num_bounds = audio_embeddings.shape()[0];
+
+      for (int b = 0; b < batch_size; ++b) {
+        for (int bound_idx = 0; bound_idx < num_bounds; ++bound_idx) {
+          int audio_idx = 0;
+          auto start_pos = audio_bounds.at<int32_t>({bound_idx, 0}) + 1;  // Skip <|audio_start|>
+          auto end_pos = audio_bounds.at<int32_t>({bound_idx, 1}) - 1;    // Skip <|audio_end|>
+
+          // Replace <unk> tokens between audio markers with audio embeddings
+          for (int pos = start_pos; pos <= end_pos && audio_idx < audio_seq_len; ++pos, ++audio_idx) {
+            float* dst_ptr = text_embeddings.offsettedPtr<float>({b, pos, 0});
+            const float* src_ptr = audio_embeddings.offsettedPtr<float>({bound_idx, audio_idx, 0});
+            std::memcpy(dst_ptr, src_ptr, embed_dim * sizeof(float));
+          }
+        }
+      }
+    }
     return text_embeddings;
   }
 };

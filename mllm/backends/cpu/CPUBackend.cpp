@@ -6,6 +6,7 @@
 
 // Ops
 #include "mllm/backends/cpu/ops/ArgsortOp.hpp"
+#include "mllm/backends/cpu/ops/AvgPool1dOp.hpp"
 #include "mllm/backends/cpu/ops/CastTypeOp.hpp"
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
 #include "mllm/backends/cpu/ops/CloneOp.hpp"
@@ -73,7 +74,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory,
                CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
                CPUConv2DOpFactory, CPULayerNorm2DOpFactory, CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory,
-               CPUArgsortOpFactory, CPUCloneOpFactory>();
+               CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {
