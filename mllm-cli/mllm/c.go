@@ -73,6 +73,23 @@ func NewSession(modelPath string) (*Session, error) {
     return s, nil
 }
 
+func NewDeepseekOCRSession(modelPath string) (*Session, error) {
+    cModelPath := C.CString(modelPath)
+    defer C.free(unsafe.Pointer(cModelPath))
+
+    handle := C.createDeepseekOCRSession(cModelPath) 
+    if !isOk(handle) { 
+        return nil, fmt.Errorf("底层C API createDeepseekOCRSession 失败")
+    }
+    s := &Session{cHandle: handle} 
+    runtime.SetFinalizer(s, func(s *Session) {
+        fmt.Println("[Go Finalizer] Mllm OCR Session automatically released.")
+        C.freeSession(s.cHandle)
+    })
+
+    return s, nil
+}
+
 func (s *Session) Close() {
     if C.MllmCAny_get_v_custom_ptr(s.cHandle) != nil {
         fmt.Println("[Go Close] Mllm Session manually closed.") 

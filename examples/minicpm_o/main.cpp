@@ -1,92 +1,130 @@
-#include <iostream>
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include <fmt/core.h>
-#include "mllm/mllm.hpp"
-#include "mllm/models/minicpm_o2_6/configuration_minicpmo.hpp"
+#include <mllm/mllm.hpp>
+#include <vector>
+#include "fmt/base.h"
+#include "mllm/core/Tensor.hpp"
+#include "mllm/models/minicpm_o2_6/configuration_chattts.hpp"
 #include "mllm/models/minicpm_o2_6/modeling_minicpmo.hpp"
-#include "mllm/models/minicpm_o2_6/modeling_resampler.hpp"
-#include "mllm/models/minicpm_o2_6/modeling_siglip.hpp"
+#include "mllm/models/minicpm_o2_6/configuration_minicpmo.hpp"
 #include "mllm/models/minicpm_o2_6/tokenization_minicpmo.hpp"
-using mllm::Argparse;
+#include "mllm/models/minicpm_o2_6/streaming_generation.hpp"
+#include "wenet_audio/wav.h"
+
+using namespace mllm;  // NOLINT
 
 MLLM_MAIN({
   mllm::Logger::level() = mllm::LogLevel::kError;
-  // mllm::setPrintMaxElementsPerDim(1000); // For debugging large tensors
 
-  auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
-  auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
-  auto& model_version = Argparse::add<std::string>("-mv|--model_version").help("Model version").required(true);
-  auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer directory").required(true);
-  auto& config_path = Argparse::add<std::string>("-c|--config_path").help("Config path").required(true);
-  /*
-    FOR RUN(MacOS Apple Silicon):
-      python task.py tasks/build_osx_apple_silicon.yaml
-      cd build-osx/bin
-      ./main_minicpm_o -m ../../models/minicpm-o-2_6.mllm -mv v1 -t ../../tokenizer/MiniCPM-o-2_6/tokenizer.json -c
-    ../../examples/minicpm_o/config_minicpm_o.json (need to get model.mllm and tokenizer.json first)
-  */
+  std::string model_path = "path/to/your/minicpm-o-2_6.mllm";
+  std::string tokenizer_path = "path/to/your//tokenizer.json";
+  std::string config_path = "../../examples/minicpm_o/config_minicpm_o.json";
+  std::string chattts_config_path = "../../examples/minicpm_o/config_chattts.json";
+  std::string chattts_tokenizer_path = "path/to/your//tokenizer.json";
+  std::string vocos_model_path = "path/to/your/vocos.mllm";
+  std::string model_version = "v1";
 
-  Argparse::parse(argc, argv);
+  auto config = models::minicpmo::MiniCPMOConfig(config_path);
+  auto model = models::minicpmo::MiniCPMOForCausalLM(config);
+  auto minicpmo_tokenizer = models::minicpmo::MiniCPMOTokenizer(tokenizer_path);
+  models::chattts::ChatTTSTokenizer chattts_tokenizer(chattts_tokenizer_path);
 
-#ifdef MLLM_PERFETTO_ENABLE
-  mllm::perf::start();
-#endif
+  auto param = load(model_path, ModelFileVersion::kV1);
+  model.llm_.llm.load(param);
+  model.vpm_.load(param);
+  model.resampler_.load(param);
+  model.apm_.load(param);
+  model.audio_projection_layer_.load(param);
 
-  mllm::ModelFileVersion file_version = mllm::ModelFileVersion::kV1;
-  if (model_version.get() == "v1") {
-    file_version = mllm::ModelFileVersion::kV1;
-  } else if (model_version.get() == "v2") {
-    file_version = mllm::ModelFileVersion::kV2;
-  }
+  auto chattts_config = models::chattts::ChatTTSConfig(chattts_config_path);
+  model.init_tts_module(chattts_config);
+  model.tts_model_.load(param);
 
-  if (help.isSet()) {
-    Argparse::printHelp();
-    mllm::shutdownContext();
-    return 0;
-  }
-  {
-    auto minicpmo_cfg = mllm::models::minicpmo::MiniCPMOConfig(config_path.get());
-    auto minicpmo_tokenizer = mllm::models::minicpmo::MiniCPMOTokenizer(tokenizer_path.get());
-    auto minicpmo = mllm::models::minicpmo::MiniCPMOForCausalLM(minicpmo_cfg);
+  auto vocos_model = models::vocos::Vocos("", 512, 1536, 8, 1024, 256, 100, "center");
+  vocos_model.from_pretrained(vocos_model_path);
+  model.vocos_model_ = &vocos_model;
 
-    auto param = mllm::load(model_path.get(), file_version);
-    minicpmo.llm_.llm.load(param);
-    minicpmo.vpm_.load(param);
-    minicpmo.resampler_.load(param);
-    // minicpmo.audio_proj_.load(param);
-    // minicpmo.tts_proj_.load(param);
+  // Change Your Inputs Here
+  std::string image_path = "path/to/your/pics.jpg";
+  std::string audio_path = "path/to/your/describe.wav";
+  std::string prompt_text = "根据我的图片和语音，完成任务";
 
-    fmt::print("\n{:*^60}\n", " MiniCPM-o Interactive CLI ");
-    fmt::print("Enter 'exit' or 'quit' to end the session\n");
+  mllm::models::minicpmo::MiniCPMOMessage message;
+  message.prompt = prompt_text;
+  message.img_file_path = image_path;
+  message.audio_file_path = audio_path;
 
-    std::string image_path = "/Users/luis/Desktop/plane.png";
-    std::string prompt_text = "描述图片中物体";
-    mllm::models::minicpmo::MiniCPMOMessage message;
-    message.prompt = prompt_text;
-    message.img_file_path = image_path;
+  auto inputs = minicpmo_tokenizer.convertMessage(message);
 
-    fmt::print("Processing...\n");
-    auto inputs = minicpmo_tokenizer.convertMessage(message);
+  print("Models loaded successfully!");
 
-    fmt::print("\nResponse: ");
+  auto prefill_out = model.forward(inputs, {});
 
-    int token_count = 0;
-    for (auto& step : minicpmo.chat(inputs)) {
-      auto token_str = minicpmo_tokenizer.detokenize(step.cur_token_id);
-      std::wcout << token_str << std::flush;
+  auto sample = model.sampleGreedy(prefill_out["sequence"]);
+  auto token_str = minicpmo_tokenizer.detokenize(sample);
+  std::wcout << token_str << std::flush;
 
-      token_count++;
-      if (token_count >= 50) break;  // Limit output for debugging
+  std::string generate_prompt = "<|im_end|>\n<|im_start|>assistant\n<|spk_bos|><|spk|><|spk_eos|><|tts_bos|>";
+  auto gen_ids = minicpmo_tokenizer.convert2Ids(minicpmo_tokenizer.tokenize(generate_prompt));
+
+  models::minicpmo::StreamingGenerationConfig stream_config;
+  stream_config.generate_audio = true;
+  stream_config.output_chunk_size = 25;
+  stream_config.max_new_tokens = 100;
+  stream_config.force_no_stop = false;
+  stream_config.top_p = 0.7f;
+  stream_config.top_k = 20;
+  stream_config.sampling = false;
+  stream_config.tts_temperature = {0.1f, 0.3f, 0.1f, 0.3f};
+
+  auto streaming_gen = models::minicpmo::StreamingGenerator(gen_ids, Tensor::nil(), model, minicpmo_tokenizer,
+                                                            &chattts_tokenizer, stream_config, chattts_config);
+  int chunk_count = 0;
+  std::vector<Tensor> audio_chunks;
+  for (auto& output : streaming_gen) {
+    fmt::print("\n--- Chunk {} ---\n", chunk_count);
+    ++chunk_count;
+    fmt::print("Text: {}\n", output.text);
+
+    if (output.audio_wav && !output.audio_wav.value().isNil()) {
+      auto& audio = output.audio_wav.value();
+      fmt::print("Audio: [{} samples @ {}Hz]\n", audio.shape()[1], output.sampling_rate);
+      audio_chunks.emplace_back(audio);
     }
 
-    fmt::print("\n{}\n", std::string(60, '-'));
+    if (output.finished) {
+      fmt::print("\n=== Generation Finished ===\n");
+      break;
+    }
+  }
+
+  Tensor audio_output = nn::functional::concat(audio_chunks, -1);
+
+  print("Final audio shape:", audio_output.shape(), audio_output);
+  audio_output = audio_output * 32767;
+
+  wenet::WavWriter wav_writer2(audio_output.ptr<float>(), audio_output.shape().back(), 1, 24000, 16);
+  wav_writer2.Write("./omni.wav");
+
+  // int token_count = 0;
+
+  // for (auto& step : model.chat(inputs)) {
+  //   auto token_str = minicpmo_tokenizer.detokenize(step.cur_token_id);
+  //   std::wcout << token_str << std::flush;
+
+  //   token_count++;
+  //   if (token_count >= 200) break;
+  // }
+
+  print("\n");
 
 #ifdef MLLM_PERFETTO_ENABLE
-    mllm::perf::stop();
-    mllm::perf::saveReport("minicpmo.perf");
+  mllm::perf::stop();
+  mllm::perf::saveReport("minicpm4.perf");
 #endif
 
-    mllm::memoryReport();
-    mllm::shutdownContext();
-    return 0;
-  }
+  mllm::print("\n");
+  mllm::memoryReport();
 })

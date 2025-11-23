@@ -13,4 +13,4 @@ Tasks:
         - "build-android-arm64-v8a/bin/Mllm-Test-CPUKernel"
         - "build-android-arm64-v8a/bin/Mllm-Benchmark-EXT-STL-IntrusivePtr"
 
-      to_path: "/data/local/tmp/mllm-v2/bin/"
+      to_path: "/data/local/tmp/mllm/bin/"

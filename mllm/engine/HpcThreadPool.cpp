@@ -96,21 +96,21 @@ void HpcThreadPool::splitTask(HpcThreadPoolTask&& task, int task_slot_idx) {
   //  0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3
   if (tiles_num > thread_cnt_) {
     tasks_[task_slot_idx].first = {
-        .start = 0,
-        .end = thread_cnt_,
-        .step = 1,
         .func =
             [tiles_num, &task, &true_idx, this](int thread_idx) {
               for (int v = thread_idx; v < tiles_num; v += thread_cnt_) { task.func(true_idx[v]); }
             },
+        .start = 0,
+        .end = thread_cnt_,
+        .step = 1,
     };
     tiles_num = thread_cnt_;
   } else {
     tasks_[task_slot_idx].first = {
+        .func = [tiles_num, &task, &true_idx, this](int thread_idx) { task.func(true_idx[thread_idx]); },
         .start = 0,
         .end = tiles_num,
         .step = 1,
-        .func = [tiles_num, &task, &true_idx, this](int thread_idx) { task.func(true_idx[thread_idx]); },
     };
   }
   {

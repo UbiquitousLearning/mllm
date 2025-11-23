@@ -412,42 +412,39 @@ class HexagonMakeTask(Task):
         # Get current working directory
         current_dir = os.getcwd()
 
-        # TODO: Hexagon SDK integration for v2, 【419-456】
-        # Temporarily disabled - will be implemented in future version
-        # For v2, only QNN SDK is required, Hexagon SDK support is pending
+        # Change to the mllm_qnn_package_place directory
+        os.chdir(self.mllm_qnn_package_place)
+        for target in self.targets:
+            command = f"make {target}"
+            logging.info(f"Running command: {command}")
+            throw_error_if_failed(os.system(command))
 
-        # # Change to the mllm_qnn_package_place directory
-        # os.chdir(self.mllm_qnn_package_place)
-        # for target in self.targets:
-        #     command = f"make {target}"
-        #     logging.info(f"Running command: {command}")
-        #     throw_error_if_failed(os.system(command))
+        # Check if has htp_aarch64 in targets
+        if "htp_aarch64" in self.targets:
+            htp_aarch64_path = os.path.join(
+                os.getcwd(), "build", "aarch64-android"
+            )
+            lib_obj = os.path.join(htp_aarch64_path, "libQnnLLaMAPackage.so")
+            # Copy to libQnnLLaMAPackage_CPU.so
+            if os.path.exists(lib_obj):
+                print("found ", lib_obj)
+                new_lib_obj = os.path.join(os.getcwd(), "build", "libQnnLLaMAPackage_CPU.so")
+                logging.info(f"Copying {lib_obj} to {new_lib_obj}")
+                shutil.copy(lib_obj, new_lib_obj)
 
-        # # Check if has htp_aarch64 in targets
-        # if "htp_aarch64" in self.targets:
-        #     htp_aarch64_path = os.path.join(
-        #         self.mllm_qnn_package_place, "build", "aarch64-android"
-        #     )
-        #     lib_obj = os.path.join(htp_aarch64_path, "libQnnMllmPackage.so")
-        #     # Copy to libQnnMllmPackageCPU.so
-        #     if os.path.exists(lib_obj):
-        #         new_lib_obj = os.path.join(htp_aarch64_path, "libQnnMllmPackageCPU.so")
-        #         logging.info(f"Copying {lib_obj} to {new_lib_obj}")
-        #         shutil.copy(lib_obj, new_lib_obj)
-
-        # # Check if has htp_v75, htp_v68, htp_v69, htp_v73, htp_v79, htp_v81 in targets, and rename
-        # hexagon_versions = ["v75", "v68", "v69", "v73", "v79", "v81"]
-        # for version in hexagon_versions:
-        #     if f"htp_{version}" in self.targets:
-        #         htp_path = os.path.join(
-        #             self.mllm_qnn_package_place, "build", f"hexagon-{version}"
-        #         )
-        #         lib_obj = os.path.join(htp_path, "libQnnMllmPackage.so")
-        #         # Copy to libQnnMllmPackageHTP.so
-        #         if os.path.exists(lib_obj):
-        #             new_lib_obj = os.path.join(htp_path, "libQnnMllmPackageHTP.so")
-        #             logging.info(f"Copying {lib_obj} to {new_lib_obj}")
-        #             shutil.copy(lib_obj, new_lib_obj)
+        # Check if has htp_v75, htp_v68, htp_v69, htp_v73, htp_v79, htp_v81 in targets, and rename
+        hexagon_versions = ["v75", "v68", "v69", "v73", "v79", "v81"]
+        for version in hexagon_versions:
+            if f"htp_{version}" in self.targets:
+                htp_path = os.path.join(
+                    os.getcwd(), "build", f"hexagon-{version}"
+                )
+                lib_obj = os.path.join(htp_path, "libQnnLLaMAPackage.so")
+                # Copy to libQnnLLaMAPackage_HTP.so
+                if os.path.exists(lib_obj):
+                    new_lib_obj = os.path.join(os.getcwd(), "build", "libQnnLLaMAPackage_HTP.so")
+                    logging.info(f"Copying {lib_obj} to {new_lib_obj}")
+                    shutil.copy(lib_obj, new_lib_obj)
 
         # Change back to the original directory
         os.chdir(current_dir)

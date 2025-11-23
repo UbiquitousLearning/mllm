@@ -1,0 +1,1517 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2020 Qualcomm Technologies, Inc.
+All Rights Reserved.
+Confidential and Proprietary - Qualcomm Technologies, Inc.
+-->
+<OpDefCollection
+        PackageName="LLaMAPackage"
+        Domain="LLaMA"
+        Version="1.0"
+>
+    <OpDefList>
+        <!--Example Op Package which shows how a package can be defined using supplemental info-->
+        <OpDef>
+            <Name>LLaMASuperSiLU</Name>
+            <Description>
+                <Content>
+                    fused SiLU function
+                </Content>
+            </Description>
+
+            <Reference Source="Torch"
+                       Url="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html"/>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>a_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>b_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>o_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>SiLU</Name>
+            <Description>
+                <Content>
+                    Applies the Sigmoid Linear Unit (SiLU) function, element-wise. The SiLU function is also known as the swish function.
+                </Content>
+            </Description>
+
+            <Reference Source="Torch"
+                       Url="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html"/>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMAReLU</Name>
+            <Description>
+                <Content>
+                    LLaMA ReLU
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMALinear</Name>
+            <Description>
+                <Content>
+                    LLaMA Linear
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[2]</Name>
+                <Description>
+                    <Content>bias</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>in_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>weight_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>bias_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>output_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>QLayerNorm</Name>
+            <Description>
+                <Content>
+                    LayerNorm QFP version
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>weights</Name>
+                <Description>
+                    <Content>LayerNorm weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[ EMB]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>bias</Name>
+                <Description>
+                    <Content>LayerNorm weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[ EMB]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>RMSNorm</Name>
+            <Description>
+                <Content>
+                    LLaMA RMSNorm
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>weights</Name>
+                <Description>
+                    <Content>RMSNorm weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[ EMB]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>RoPE</Name>
+            <Description>
+                <Content>
+                    LLaMA RoPE
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>sin</Name>
+                <Description>
+                    <Content>RoPE sin weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>cos</Name>
+                <Description>
+                    <Content>RoPE cos weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state  ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>h_cnt</Name>
+                <Description>
+                    <Content>h_cnt</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Input>
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>pose_type</Name>
+                <Mandatory>false</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>IRoPE</Name>
+            <Description>
+                <Content>
+                    LLaMA IRoPE
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>sin</Name>
+                <Description>
+                    <Content>RoPE sin weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>cos</Name>
+                <Description>
+                    <Content>RoPE cos weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state  ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>h_cnt</Name>
+                <Description>
+                    <Content>h_cnt</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Input>
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>pose_type</Name>
+                <Mandatory>false</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>RoPESimple</Name>
+            <Description>
+                <Content>
+                    LLaMA RoPE Simple
+                    Only calculate:
+                    value1 = in_value * cos_value - in_value_2 * sin_value and 
+                    value2 = in_value * sin_value + in_value_2 * cos_value.
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>RoPE sin weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ seq, hidden state ]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[2]</Name>
+                <Description>
+                    <Content>RoPE cos weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ seq, hidden state  ]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMADequantize</Name>
+            <Description>
+                <Content>
+                    LLaMA Dequantize
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+
+        <OpDef>
+            <Name>LLaMADequantizeAdd</Name>
+            <Description>
+                <Content>
+                    LLaMA Dequantize and Add
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>input bias</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMAQuantize</Name>
+            <Description>
+                <Content>
+                    LLaMA Quantize
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>CausalMask</Name>
+            <Description>
+                <Content>
+                    LLaMA CausalMask
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMAMul</Name>
+            <Description>
+                <Content>
+                    LLaMA element-wise mul
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>X </Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>Y</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>LLaMAAdd</Name>
+            <Description>
+                <Content>
+                    LLaMA element-wise add
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>X </Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>Y</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>KVCache</Name>
+            <Description>
+                <Content>
+                    Decoder KVCache
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content> new KV activation output </Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>seq_pos</Name>
+                <Description>
+                    <Content>current output sequence position</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[1]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>New KVCache </Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>hidden_dim</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+            </Parameter>
+
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
+            <Name>WNop</Name>
+            <Description>
+                <Content>
+                    CPU NPU Sync waiting op
+                </Content>
+            </Description>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>sync input</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[1]</Text>
+                </Shape>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>sync input var</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>sync output</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Output>
+                <Name>sync_var</Name>
+                <Description>
+                    <Content>sync singnal variable</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
+                    <Text>[1]</Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>sync_type</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+            </Parameter>
+
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+    </OpDefList>
+
+    <SupplementalOpDefList Backend="HTP">
+        <SupportedOps>
+            <OpName>LLaMASuperSiLU</OpName>
+            <OpName>SiLU</OpName>
+            <OpName>RMSNorm</OpName>
+            <OpName>RoPE</OpName>
+            <OpName>IRoPE</OpName>
+            <OpName>LLaMAQuantize</OpName>
+            <OpName>LLaMAMul</OpName>
+            <OpName>LLaMAAdd</OpName>
+            <OpName>LLaMAReLU</OpName>
+            <OpName>CausalMask</OpName>
+        </SupportedOps>
+
+        <!--SiLU-->
+        <SupplementalOpDef>
+            <Name>SiLU</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--SiLU-->
+        <SupplementalOpDef>
+            <Name>LLaMASuperSiLU</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--LLaMAReLU-->
+        <SupplementalOpDef>
+            <Name>LLaMAReLU</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+            </Input>
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--LLaMALinear-->
+        <SupplementalOpDef>
+            <Name>LLaMALinear</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[2]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Output>
+
+        </SupplementalOpDef>
+
+        <!--Attention-->
+        <SupplementalOpDef>
+            <Name>Attention</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[2]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[3]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[4]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+
+        <!--QLayerNorm-->
+        <SupplementalOpDef>
+            <Name>QLayerNorm</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>weights</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>bias</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+
+        <!--RMSNorm-->
+        <SupplementalOpDef>
+            <Name>RMSNorm</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>weights</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--RoPE-->
+        <SupplementalOpDef>
+            <Name>RoPE</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>sin</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Input>
+                <Name>cos</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+             <Input>
+                <Name>h_cnt</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+         <!--IRoPE-->
+        <SupplementalOpDef>
+            <Name>IRoPE</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>sin</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+
+            <Input>
+                <Name>cos</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+
+             <Input>
+                <Name>h_cnt</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+         <!--LLaMAQuantize-->
+        <SupplementalOpDef>
+            <Name>LLaMAQuantize</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--LLaMADequantize-->
+        <SupplementalOpDef>
+            <Name>LLaMADequantize</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
+            </Input>
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--LLaMADequantize-->
+        <SupplementalOpDef>
+            <Name>LLaMADequantizeAdd</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--CausalMask-->
+        <SupplementalOpDef>
+            <Name>CausalMask</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--LLaMAMul-->
+        <SupplementalOpDef>
+            <Name>LLaMAMul</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+
+        <!--LLaMAAdd-->
+        <SupplementalOpDef>
+            <Name>LLaMAAdd</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--KVCache-->
+        <SupplementalOpDef>
+            <Name>KVCache</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+
+            <Input>
+                <Name>seq_pos</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--WNop-->
+        <SupplementalOpDef>
+            <Name>WNop</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+
+            <Output>
+                <Name>sync_var</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+            </Output>
+
+        </SupplementalOpDef>
+
+
+    </SupplementalOpDefList>
+
+</OpDefCollection>

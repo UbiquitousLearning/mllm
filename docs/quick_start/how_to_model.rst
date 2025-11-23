@@ -30,6 +30,10 @@ You can download Qwen3-0.6B from ModelScope with the following command:
 
    git clone https://www.modelscope.cn/Qwen/Qwen3-0.6B.git
 
+.. note::
+   **About Model Version:** 
+   Most mllm models on Hugging-Face are in v1 version file format, which has no tensor shape and supports less data types. When loading a model, you can specify the model version. We maintain the compatibility of both v1 and v2 formats in mllm. It is recommended to use v2 format for new models whenever possible.
+
 
 *********************************************
 Step 2: Convert to mllm Format
@@ -75,12 +79,22 @@ Example snippet:
 .. code-block:: json
 
    {
+     // KAI Config
      "^model\\.layers\\.\\d+\\.self_attn\\.q_proj.(bias|weight)": {
        "hints": {
          "quant_method": "kai",
          "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
          "kai_matmul_layout": "mxk_nxk",
          "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+         "shape": [2048, 1024],
+         "replace": true
+       }
+     }
+     // GGUF Config
+     "^model\\.layers\\.\\d+\\.self_attn\\.q_proj.(bias|weight)": {
+       "hints": {
+         "quant_method": "gguf",
+         "gguf_type": "Q4_0",
          "shape": [2048, 1024],
          "replace": true
        }
@@ -112,6 +126,28 @@ Step 3: (Optional) On-Device Quantization with mllm-quantizer
 
 .. note::
    Basically, if you have no ARM DEVICE(Mac with apple silicon or Arm PC) to quantize your model through pymllm in kai settings. You should use mllm-quantizer to quantize your model on your arm devices (maybe android phone).
+
+Supported Quantization Types in mllm-quantizer
+==============================================
+
+The `mllm-quantizer` tool supports several quantization types, allowing you to optimize model size and inference speed for different hardware targets. Below is a summary of the main quantization types available:
+
+**GGUF Quantization Types (CPU, cross-platform):**
+
+- `Q4_0`, `Q8_0`, `Q2_K`, `Q3_K`, `Q4_K`, `Q6_K`, `Q8_K`: GGUF per-group quantization.
+
+**KAI Quantization Types (ARM, Apple Silicon):**
+
+- `KAI_fp16_fp16_fp16p_mxk_kxn`: FP16 result, FP16 activation, FP16 weight, packed in kai format.
+- `KAI_f32_qai8dxp_qsi4c32p_mxk_nxk`: FP16 result, Int8 activation(asymmetric, per-token), Int4 weight(symmetric, per-group, 32 pack, transposed layout).
+- `KAI_f16_qsi8d32p_qai4c32p_mxk_nxk`: FP16 result, Int8 activation(symmetric, per-group, 32 pack), Int4 weight(asymmetric, per-group, 32 pack, transposed layout).
+
+**How to Select Quantization Type:**
+- For general CPU deployment, use GGUF types (`Q4_0`, `Q8_0`, etc.).
+- For ARM devices (Android, Apple Silicon), use KAI types for best performance and compatibility.
+- Specify the quantization type in your config or pipeline when running `mllm-quantizer`.
+
+For more details on each quantization type and their configuration, refer to the quantization implementation in the source code or the `kleidiai documentation <https://github.com/ARM-software/kleidiai/blob/main/kai/ukernels/matmul/README.md>`_.
 
 *********************************************
 Step 4: Implement Core C++ Files

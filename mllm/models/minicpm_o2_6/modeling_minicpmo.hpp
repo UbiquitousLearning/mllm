@@ -310,8 +310,8 @@ class MiniCPMOForCausalLM : public models::ARGeneration {
       for (int b = 0; b < batch_size; ++b) {
         for (int bound_idx = 0; bound_idx < num_bounds; ++bound_idx) {
           int audio_idx = 0;
-          auto start_pos = audio_bounds.at<int32_t>({bound_idx, 0}) + 1;  // Skip <|audio_start|>
-          auto end_pos = audio_bounds.at<int32_t>({bound_idx, 1}) - 1;    // Skip <|audio_end|>
+          auto start_pos = audio_bounds.at<int32_t>({bound_idx, 0});
+          auto end_pos = audio_bounds.at<int32_t>({bound_idx, 1}) - 1;
 
           // Replace <unk> tokens between audio markers with audio embeddings
           for (int pos = start_pos; pos <= end_pos && audio_idx < audio_seq_len; ++pos, ++audio_idx) {

@@ -6,6 +6,11 @@ Overview
 
 This document describes the MLLM command-line interface (CLI) tool, which operates within a client-server architecture. The system is designed to provide network access to MLLM's core inference capabilities. The backend service is written in Go and interacts with the core C++ MLLM library through a C API. The frontend can be a Go-based command-line client or a standard GUI client like Chatbox that communicates with the service via an OpenAI-compatible API.
 
+**Currently, the system officially supports the following models:**
+
+* **LLM**: ``mllmTeam/Qwen3-0.6B-w4a32kai``
+* **OCR**: ``mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai``
+
 This guide covers three main areas:
 
 1.  **System Architecture and API**: An explanation of the components and the C API bridge.
@@ -36,6 +41,7 @@ The C API uses shared data structures to pass information between Go and C++.
 These C functions wrap the C++ service logic, making them callable from Go via `cgo`.
 
 * `createQwen3Session(const char* model_path)`: Loads a model from the specified path and creates a session handle.
+* `createDeepseekOCRSession(const char* model_path)`: Loads a DeepSeek-OCR model from the specified path and creates a session handle. This session is specifically designed to handle visual inputs and OCR tasks.
 * `insertSession(const char* session_id, MllmCAny handle)`: Registers the created session with a unique ID in the service.
 * `sendRequest(const char* session_id, const char* json_request)`: Sends a user's request (in JSON format) to the specified session for processing.
 * `pollResponse(const char* session_id)`: Polls for a response from the model. This is used for streaming results back to the client.
@@ -46,9 +52,21 @@ These C functions wrap the C++ service logic, making them callable from Go via `
 
 The `mllm-server` is an HTTP server written in Go. It acts as a bridge between network clients and the MLLM C++ core.
 
-* **Initialization**: On startup, it initializes the MLLM context, starts the backend service, and loads the specified model into a session.
-* **API Endpoint**: It exposes an OpenAI-compatible endpoint at `/v1/chat/completions`.
-* **Request Handling**: When it receives a request, it retrieves the appropriate model session, forwards the request JSON to the C++ core using `sendRequest`, and then continuously polls for results using `pollResponse`.
+* **Initialization (Dual Model Support)**: On startup, the server checks for two command-line arguments:
+    
+    * ``--model-path``: Path to the Qwen3 LLM model.
+    * ``--ocr-model-path``: Path to the DeepSeek-OCR model.
+    
+    If provided, the server initializes the respective sessions (`createQwen3Session` and/or `createDeepseekOCRSession`) and registers them with their directory names as Session IDs.
+
+* **API Endpoint**: It exposes an OpenAI-compatible endpoint at ``/v1/chat/completions``.
+
+* **Request Handling & OCR Preprocessing**: 
+    When a request arrives, the server inspects the ``model`` parameter.
+    
+    * **Text Requests**: Routed directly to the Qwen3 session.
+    * **OCR Requests**: If the model name contains "OCR", the server triggers a preprocessing step (`preprocessRequestForOCR`). It detects Base64 encoded images in the payload, decodes them, saves them to temporary files on the device, and modifies the request to point the C++ backend to these file paths.
+
 * **Streaming Response**: Results are streamed back to the client over HTTP using Server-Sent Events (SSE).
 
 **Key Service Layer Files**
@@ -64,6 +82,7 @@ The `mllm-server` functionality is implemented across several key Go files:
         3. Forwarding the request to the C++ core (`session.SendRequest`).
         4. Continuously polling (`session.PollResponse`) for responses from the C++ layer.
         5. Streaming the responses back to the client in the standard Server-Sent Events (SSE) format.
+        6. For OCR models, it identifies Base64 encoded images in the request, decodes them into temporary files on the Android device, and updates the request payload with the local file paths.
 * ``pkg/mllm/service.go``
     * **Purpose**: Acts as the Go-level **session manager** (`Service`). It holds a map that links model IDs (e.g., "Qwen3-0.6B-w4a32kai") to their active MLLM sessions (`*mllm.Session`). `handlers.go` uses this to find the correct session instance.
 * ``pkg/api/types.go``
@@ -77,6 +96,9 @@ The `mllm-client` is an interactive command-line tool that allows users to chat 
 * **User Interaction**: It reads user input from the console.
 * **API Communication**: It formats the user input into an OpenAI-compatible JSON request and sends it to the `mllm-server`.
 * **Response Handling**: It receives the SSE stream from the server, decodes the JSON chunks, and prints the assistant's response to the console in real-time.
+
+.. note::
+    **Current Limitation**: The ``mllm-client`` is currently hardcoded to use the **Qwen3** model only. It does not support switching to the DeepSeek-OCR model or uploading images. For OCR tasks, please use a GUI client like Chatbox.
 
 Alternative Client: Chatbox
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,6 +121,15 @@ After running this command, configure Chatbox with the following settings:
 * **API Key**: (Can be left blank or any value; the server does not currently check it)
 * **API Host**: ``http://localhost:8081``
 * **API Path**: ``/v1/chat/completions``
+* **Model**: **[Important]** You must manually add the model name by clicking **+ New**.
+
+The name **MUST match the folder name** of the model directory on the Android device.
+  
+  * For the LLM, enter: ``Qwen3-0.6B-w4a32kai`` (or your specific LLM folder name).
+  * For OCR, enter: ``DeepSeek-OCR-w4a8-i8mm-kai`` (or your specific OCR folder name).
+
+.. note::
+    The server uses the directory name (e.g., ``filepath.Base``) as the session ID. If you enter a different name in Chatbox, the server will return a "Model not found" error.
 
 Once configured, you can click the **Check** button to ensure the connection is successful. Please note that this step must be performed while the server is running.
 
@@ -168,15 +199,15 @@ First, we compile the MLLM C++ core, which produces the essential shared librari
        rsync -avz --checksum -e 'ssh -p <port>' --exclude 'build' --exclude '.git' ./ <user>@<build-server-ip>:/your_workspace/your_programname/
 
 2.  **Run the Build Task**:
-    On the build server, execute the build task. This task uses `tasks/build_android_debug.yaml` to configure and run CMake.
+    On the build server, execute the build task. This task uses `tasks/build_android.yaml` to configure and run CMake.
 
-    Before executing this step, you also need to ensure that the hardcoded directories in build_android_debug.yaml have been modified to match your requirements. The modification method is the same as for the Go compilation file mentioned earlier.
+    Before executing this step, you also need to ensure that the hardcoded directories in build_android.yaml have been modified to match your requirements. The modification method is the same as for the Go compilation file mentioned earlier.
     
     .. code-block:: bash
 
        # These commands are run on your build server.
        cd /your_workspace/your_programname/
-       python task.py tasks/build_android_debug.yaml
+       python task.py tasks/build_android.yaml
 
 3.  **Retrieve Compiled Libraries**:
     After the build succeeds, copy the compiled shared libraries from the build server back to your local machine. These libraries are the C++ backend that the Go application will call.
@@ -285,7 +316,14 @@ This covers testing with both the Go CLI client and Chatbox.
        chmod +x mllm_web_server
        export LD_LIBRARY_PATH=.
        # Ensure you provide the correct path to your model
-       ./mllm_web_server --model-path /path/to/your/model_directory/model_name
+       # Option A: Run with Qwen3 LLM only
+       ./mllm_web_server --model-path /path/to/your/qwen3_model_dir
+
+       # Option B: Run with both Qwen3 LLM and DeepSeek-OCR
+       # Use this if you plan to switch between text chat and OCR tasks
+       ./mllm_web_server \
+           --model-path /path/to/your/qwen3_model_dir \
+           --ocr-model-path /path/to/your/deepseek_ocr_model_dir
 
     .. warning::
        The `export LD_LIBRARY_PATH=.` command is crucial. It tells the Android dynamic linker to look for the `.so` files in the current directory. Without it, the server will fail to start.
@@ -302,7 +340,7 @@ You should now be able to interact with the model from the client terminal. Type
 **B. Testing with Chatbox (Host Machine)**
 
 1.  **Terminal 1: Start the Server**:
-    Follow the same instructions as in **Step 5.A.1** to start the server on the Android device.
+    Follow the same instructions as in **Step 5.A.1** to start the server on the Android device.If you intend to test the OCR functionality, please ensure that you used Option B (which specifies the --ocr-model-path).
 
 2.  **Terminal 2: Set up Port Forwarding**:
     On your host machine (not in the adb shell), run the following command. This maps your local host port (e.g., 8081) to the device's port (e.g., 8080).

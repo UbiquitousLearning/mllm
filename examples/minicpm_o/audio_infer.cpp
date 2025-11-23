@@ -28,7 +28,7 @@ MLLM_MAIN({
     FOR RUN (MacOS Apple Silicon):
       python task.py tasks/build_osx_apple_silicon.yaml
       cd build-osx/bin
-      ./main_audio_test -m ../../models/minicpm-o-2_6.mllm -mv v1 \
+      ./main_audio -m ../../models/minicpm-o-2_6.mllm -mv v1 \
         -t ../../tokenizer/MiniCPM-o-2_6/tokenizer.json \
         -c ../../examples/minicpm_o/config_minicpm_o.json \
         -a ../../models/recognize.wav \
@@ -72,21 +72,6 @@ MLLM_MAIN({
   message.audio_file_path = audio_path.get();
 
   auto inputs = minicpmo_tokenizer.convertMessage(message);
-
-  if (inputs.count("audio_features") && !inputs["audio_features"].isNil()) {
-    auto& audio_features = inputs["audio_features"];
-  } else {
-    MLLM_ERROR("Audio features not found in inputs!");
-  }
-
-  if (inputs.count("audio_bounds") && !inputs["audio_bounds"].isNil()) {
-    auto& audio_bounds = inputs["audio_bounds"];
-
-    auto bounds_ptr = audio_bounds.ptr<int32_t>();
-    for (int i = 0; i < audio_bounds.shape()[0]; ++i) {
-      fmt::print("  Segment {}: tokens [{}, {})\n", i, bounds_ptr[i * 2], bounds_ptr[i * 2 + 1]);
-    }
-  }
 
   fmt::print("\n{:*^80}\n", " Generating Response ");
   fmt::print("Response: ");
