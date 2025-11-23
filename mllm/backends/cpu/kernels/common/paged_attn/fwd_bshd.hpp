@@ -8,12 +8,6 @@
 #include "mllm/backends/cpu/kernels/common/paged_attn/arch.hpp"
 #include "mllm/utils/UnsafeMacros.hpp"
 
-#if defined(__x86_64__) || defined(__SSE__) || defined(__AVX__)
-#include <immintrin.h>
-#elif defined(__ARM_NEON) || defined(__aarch64__)
-#include <arm_neon.h>
-#endif
-
 namespace mllm::cpu::paged_attn {
 
 // BSHD
