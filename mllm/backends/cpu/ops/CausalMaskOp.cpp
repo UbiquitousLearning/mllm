@@ -50,13 +50,14 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 
           if (!options_.sliding_window) {
             // Standard causal mask
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__)
+#if (defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)) && defined(__AVX2__)
             const __m256 mask_val = _mm256_set1_ps(-1e10f);
             for (size_t r = 0; r < S; ++r) {
+              const size_t row_offset = r * D;
               const size_t copy_count = D - S + r + 1;
               const size_t fill_count = std::max(D - copy_count, (size_t)0);
 
-              memcpy(o_ptr + r * D, i_ptr + r * D, copy_count * sizeof(float));
+              memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float));
 
               float* fill_start = o_ptr + row_offset + copy_count;
               size_t avx_iters = fill_count / 8;
@@ -81,6 +82,17 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               for (size_t i = 0; i < neon_iters; ++i) { vst1q_f32(fill_start + i * 4, mask_val); }
               for (size_t i = 0; i < remainder; ++i) { fill_start[neon_iters * 4 + i] = -1e10f; }
             }
+#else
+            for (size_t r = 0; r < S; ++r) {
+              const size_t row_offset = r * D;
+              const size_t copy_count = D - S + r + 1;
+              const size_t fill_count = std::max(D - copy_count, (size_t)0);
+
+              memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float));
+
+              float* fill_start = o_ptr + row_offset + copy_count;
+              for (size_t i = 0; i < fill_count; ++i) { fill_start[i] = -1e10f; }
+            }
 #endif
           } else {
             // Sliding window causal mask
@@ -98,7 +110,7 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const size_t suffix_fill_start_idx = s + 1;
               const size_t suffix_fill_count = S - suffix_fill_start_idx;
 
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__)
+#if (defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)) && defined(__AVX2__)
               const __m256 mask_val = _mm256_set1_ps(-1e10f);
               // Fill prefix
               float* prefix_fill_start = o_ptr + row_offset;
@@ -118,6 +130,11 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               float* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
               for (size_t i = 0; i < suffix_fill_count / 4; ++i) vst1q_f32(suffix_fill_start + i * 4, mask_val);
               for (size_t i = (suffix_fill_count / 4) * 4; i < suffix_fill_count; ++i) suffix_fill_start[i] = -1e10f;
+#else
+              float* prefix_fill_start = o_ptr + row_offset;
+              for (size_t i = 0; i < prefix_fill_count; ++i) { prefix_fill_start[i] = -1e10f; }
+              float* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
+              for (size_t i = 0; i < suffix_fill_count; ++i) { suffix_fill_start[i] = -1e10f; }
 #endif
             }
           }
@@ -143,7 +160,7 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 
           if (!options_.sliding_window) {
             // Standard causal mask
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__) && defined(__F16C__)
+#if (defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)) && defined(__AVX2__) && defined(__F16C__)
             const __m256 mask_ps = _mm256_set1_ps(-65500.f);
             const __m128i mask_val = _mm256_cvtps_ph(mask_ps, _MM_FROUND_TO_NEAREST_INT);
             for (size_t s = 0; s < S; ++s) {
@@ -178,6 +195,17 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               for (size_t i = 0; i < neon_iters; ++i) { vst1q_f16(fill_start + i * 8, mask_val); }
               for (size_t i = 0; i < remainder; ++i) { fill_start[neon_iters * 8 + i] = -65500.f; }
             }
+#else
+            for (size_t s = 0; s < S; ++s) {
+              const size_t row_offset = s * S;
+              const size_t copy_count = s + 1;
+              const size_t fill_count = S - copy_count;
+
+              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(mllm_fp16_t)); }
+
+              mllm_fp16_t* fill_start = o_ptr + row_offset + copy_count;
+              for (size_t i = 0; i < fill_count; ++i) { fill_start[i] = -65500.f; }
+            }
 #endif
           } else {
             // Sliding window causal mask
@@ -196,7 +224,7 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const size_t suffix_fill_start_idx = s + 1;
               const size_t suffix_fill_count = S - suffix_fill_start_idx;
 
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86) && defined(__AVX2__) && defined(__F16C__)
+#if (defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)) && defined(__AVX2__) && defined(__F16C__)
               const __m256 mask_ps = _mm256_set1_ps(-65500.f);
               const __m128i mask_val = _mm256_cvtps_ph(mask_ps, _MM_FROUND_TO_NEAREST_INT);
 
@@ -222,6 +250,11 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               mllm_fp16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
               for (size_t i = 0; i < suffix_fill_count / 8; ++i) vst1q_f16(suffix_fill_start + i * 8, mask_val);
               for (size_t i = (suffix_fill_count / 8) * 8; i < suffix_fill_count; ++i) suffix_fill_start[i] = -65500.f;
+#else
+              mllm_fp16_t* prefix_fill_start = o_ptr + row_offset;
+              for (size_t i = 0; i < prefix_fill_count; ++i) { prefix_fill_start[i] = -65500.f; }
+              mllm_fp16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
+              for (size_t i = 0; i < suffix_fill_count; ++i) { suffix_fill_start[i] = -65500.f; }
 #endif
             }
           }
