@@ -93,6 +93,8 @@ mllm
 | Xiaomi14-8Elite   | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 | OnePlus13-8Elite  | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 | MacMini-M4        | MacOS 15.5    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |
+| OrangePi AI Pro(310B)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
+| OrangePi AI Studio(310P)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 
 ## Quick Starts
 
