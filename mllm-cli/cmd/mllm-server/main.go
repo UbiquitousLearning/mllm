@@ -18,9 +18,10 @@ import (
 
 func main() {
 	modelPath := flag.String("model-path", "", "Path to the MLLM model directory.")
+	ocrModelPath := flag.String("ocr-model-path", "", "Path to the DeepSeek-OCR model directory.")
 	flag.Parse()
 
-	if *modelPath == "" {
+	if *modelPath == "" && *ocrModelPath == "" {
 		log.Fatal("FATAL: --model-path argument is required.")
 	}
 
@@ -36,19 +37,37 @@ func main() {
 
 	mllmService := pkgmllm.NewService()
 
-	log.Printf("Loading model and creating session from: %s", *modelPath)
-	session, err := mllm.NewSession(*modelPath)
-	if err != nil {
-		log.Fatalf("FATAL: Failed to create session: %v", err)
+	if *modelPath != "" {
+		log.Printf("Loading Qwen3 model and creating session from: %s", *modelPath)
+		session, err := mllm.NewSession(*modelPath)
+		if err != nil {
+			log.Fatalf("FATAL: Failed to create Qwen3 session: %v", err)
+		}
+
+		sessionID := filepath.Base(*modelPath)
+		if !session.Insert(sessionID) {
+			session.Close()
+			log.Fatalf("FATAL: Failed to insert Qwen3 session with ID '%s'", sessionID)
+		}
+		mllmService.RegisterSession(sessionID, session)
+		log.Printf("Qwen3 Session created and registered successfully with ID: %s", sessionID)
 	}
 
-	sessionID := filepath.Base(*modelPath)
-	if !session.Insert(sessionID) {
-		session.Close()
-		log.Fatalf("FATAL: Failed to insert session with ID '%s'", sessionID)
+	if *ocrModelPath != "" {
+		log.Printf("Loading DeepSeek-OCR model and creating session from: %s", *ocrModelPath)
+		session, err := mllm.NewDeepseekOCRSession(*ocrModelPath)
+		if err != nil {
+			log.Fatalf("FATAL: Failed to create DeepSeek-OCR session: %v", err)
+		}
+
+		sessionID := filepath.Base(*ocrModelPath)
+		if !session.Insert(sessionID) {
+			session.Close()
+			log.Fatalf("FATAL: Failed to insert DeepSeek-OCR session with ID '%s'", sessionID)
+		}
+		mllmService.RegisterSession(sessionID, session)
+		log.Printf("DeepSeek-OCR Session created and registered successfully with ID: %s", sessionID)
 	}
-	mllmService.RegisterSession(sessionID, session)
-	log.Printf("Session created and registered successfully with ID: %s", sessionID)
 
 	httpServer := server.NewServer(":8080", mllmService)
 
