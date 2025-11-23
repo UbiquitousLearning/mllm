@@ -10,8 +10,8 @@ Tasks:
         - "-DANDROID_ABI=arm64-v8a"
         - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=armv8.2-a+fp16+fp16fml+dotprod+i8mm;-ffast-math;-Wno-nan-infinity-disabled"'
         - "-DMLLM_KERNEL_USE_THREADS=ON"
-        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
-        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
         - "-DCMAKE_INSTALL_PREFIX=./mllm-sdk-android"
   - CMakeBuildTask:
       cmake_cfg_path: "build-sdk-android"
