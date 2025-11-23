@@ -17,13 +17,72 @@ mllm
 
 ## Latest News
 
+- [2025 Nov 23] 🔥🔥🔥 MLLM v2 released!
+- [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS and NPU QWEN2-VL. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
+  - A more Pythonic model authoring approach with eager execution
+  - Compilation support for easier NPU integration
+  - Support for parallel execution of multiple models
+  - A more refined engineering implementation
+- [2025 Jul 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B
+
 ## Key Features
 
 1. **Pythonic eager execution** – Rapid model development  
 2. **Unified hardware support** – Arm CPU, OpenCL GPU, QNN NPU  
 3. **Advanced optimizations** – Quantization, pruning, speculative execution  
 4. **NPU-ready IR** – Seamless integration with NPU frameworks  
-5. **Deployment toolkit** – SDK + CLI inference tool  
+5. **Deployment toolkit** – SDK + CLI inference tool
+
+## Supported Models
+
+### mllm v2
+
+| Model(v1)                                                                   | CPU  | Hexagon NPU <br> INT8 |
+|-----------------------------------------------------------------------------|------|-----------------------|
+| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
+| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  |  |
+| [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
+| [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
+| [Qwen2-VL-2B-Instruct]|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||
+| [Qwen2-VL-7B-Instruct]|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-7B-Instruct-w4a32kai)||
+| [Qwen2.5-VL-3B-Instruct]|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-3B-Instruct-w4a32kai)||
+| [Qwen2.5-VL-7B-Instruct]|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-7B-Instruct-w4a32kai)||
+
+### mllm v1
+
+| Model(v1)                                                                       | CPU <br> FP32 | CPU <br> INT4  | Hexagon NPU <br> INT8 |
+|-----------------------------------------------------------------------------|------|-----|----------------------------|
+| [LLaMA 2 7B](https://github.com/facebookresearch/llama)                   | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)   |  |
+| [LLaMA 3 1B](https://github.com/meta-llama/llama3)                   | [✔️](https://huggingface.co/mllmTeam/llama-3.2-1b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-3.2-1b-mllm/tree/main)   |  |
+| [LLaMA 3 3B](https://github.com/meta-llama/llama3)                   | [✔️](https://huggingface.co/mllmTeam/llama-3.2-3b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-3.2-3b-mllm/tree/main)   |  |
+| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)   |  |
+| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)   |  |
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                            | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |  |
+| [Gemma 2B](https://github.com/google/gemma_pytorch)                         | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)   |  |
+| [Gemma 2 2B](https://github.com/google/gemma_pytorch)                         | [✔️](https://huggingface.co/mllmTeam/gemma-2-2b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/gemma-2-2b-mllm/tree/main)   |  |
+| [Qwen 1.5 0.5B](https://github.com/QwenLM/Qwen)                                 | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)   | ✔️ |
+| [Qwen 1.5 1.8B](https://github.com/QwenLM/Qwen)                            | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)   | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm) |
+| [Qwen 2.5 1.5B](https://github.com/QwenLM/Qwen2.5) | [✔️](https://huggingface.co/mllmTeam/qwen-2.5-1.5b-mllm/tree/main) | [✔️](https://huggingface.co/mllmTeam/qwen-2.5-1.5b-mllm/tree/main) | ✔️ |
+| [Qwen 3 0.6B](https://github.com/QwenLM/Qwen3) | [✔️](https://huggingface.co/mllmTeam/qwen-3-0.6b-mllm/tree/main) | [✔️](https://huggingface.co/mllmTeam/qwen-3-0.6b-mllm/tree/main) | |
+| [Mistral 7B](https://github.com/mistralai/mistral-src)                      | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)   |  |
+| [Yi 6B](https://huggingface.co/01-ai/Yi-1.5-6B)                             | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)   |  |
+| [StableLM 2 1.6B](https://github.com/Stability-AI/StableLM)                     | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)   |  |
+| [OPT 1.3B](https://github.com/facebookresearch/metaseq/tree/main/projects/OPT)                     | [✔️](https://huggingface.co/mllmTeam/opt-1.3b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/opt-1.3b-mllm/tree/main)   |  |
+| [Phi 3 mini 3.8B](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)                     |  [✔️](https://huggingface.co/mllmTeam/phi-3-mini-instruct-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/phi-3-mini-instruct-mllm/tree/main)   |  |
+| [MiniCPM 2B](https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp32)                     |  [✔️](https://huggingface.co/mllmTeam/minicpm-2b-dpo-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/minicpm-2b-dpo-mllm/tree/main)   |  |
+| [MiniCPM 3 4B](https://huggingface.co/openbmb/MiniCPM3-4B)                     |  [✔️](https://huggingface.co/mllmTeam/minicpm3-4b-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/minicpm3-4b-mllm/tree/main)   |  |
+| [MiniCPM MoE 8x2B](https://huggingface.co/openbmb/MiniCPM-MoE-8x2B)                     |  [✔️](https://huggingface.co/mllmTeam/minicpm-moe-8x2b-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/minicpm-moe-8x2b-mllm/tree/main)   |  |
+| [SmolLM 1.7B](https://huggingface.co/HuggingFaceTB/SmolLM-1.7B-Instruct)                     |  [✔️](https://huggingface.co/mllmTeam/smollm-1.7b-instruct-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/smollm-1.7b-instruct-mllm/tree/main)   |  |
+| [DCLM 1B](https://huggingface.co/TRI-ML/DCLM-1B) | [✔️](https://huggingface.co/mllmTeam/dclm-1b-mllm/tree/main)| [✔️](https://huggingface.co/mllmTeam/dclm-1b-mllm/tree/main)| |
+| [OpenELM 1.1B](https://github.com/apple/corenet/tree/main/projects/openelm) | [✔️](https://huggingface.co/mllmTeam/openelm-1.1b-mllm/tree/main)| [✔️](https://huggingface.co/mllmTeam/openelm-1.1b-mllm/tree/main)| |
+[PhoneLM 1.5B](https://github.com/UbiquitousLearning/PhoneLM) | [✔️](https://huggingface.co/mllmTeam/phonelm-1.5b-mllm/tree/main)| [✔️](https://huggingface.co/mllmTeam/phonelm-1.5b-mllm/tree/main)| [✔️](https://huggingface.co/mllmTeam/phonelm-1.5b-mllm/tree/main)|
+| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)   |  
+| [Vision Transformer](https://github.com/google-research/vision_transformer) | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)   | 
+| [CLIP](https://github.com/openai/CLIP)                                      | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)   |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)   | 
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                            | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |
+| [Phi-3-Vision](https://huggingface.co/microsoft/Phi-3-vision-128k-instruct)                            | [✔️](https://huggingface.co/mllmTeam/phi-3-vision-instruct-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/phi-3-vision-instruct-mllm/tree/main)   |
+| [Qwen2-VL 2B](https://github.com/QwenLM/Qwen2-VL)                            | [✔️](https://huggingface.co/mllmTeam/qwen-2-vl-2b-instruct--mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-2-vl-2b-instruct--mllm/tree/main)   | ✔️ |
 
 ## Tested Devices
 
@@ -138,13 +197,6 @@ python task.py tasks/build_x86.yaml
 
 ```shell
 pip install -r requirements-mini.txt
-python task.py tasks/build_osx_apple_silicon.yaml
-```
-
-if you want to use apple's accelerate library, you can use the following command.
-
-```shell
-pip install -r requirements-mini.txt
 python task.py tasks/build_osx_apple_silicon_accelerate.yaml
 ```
 
@@ -236,6 +288,13 @@ For more usage instructions, please refer to `mllm-convertor --help`.
 ## Tools
 
 ## Join us & Contribute
+
+The mllm community continues to grow, with developers already contributing PRs. We extend our sincere gratitude to every follower and contributor. We've pinned our roadmap in the [Issues section](https://github.com/UbiquitousLearning/mllm/issues), where you can find features you'd like to contribute to and notify the mllm community by submitting issues.
+
+mllm was born from the fertile soil of academic exploration, dedicated to the pure pursuit of multimodal large models. However, a gap always exists between academic "innovation" and industrial "stability." We candidly acknowledge our current shortcomings and firmly believe in the power of community collaboration. Whether you are a researcher, engineer, or tech enthusiast, every Issue, every PR, and every suggestion or word of encouragement helps build a more solid foundation for mllm. Let us join hands to transform this project, born in academia, into a true bridge connecting academia and industry.
+Whether you specialize in hardware adaptation, model optimization, tool development, or documentation and ecosystem promotion, you will find opportunities to contribute here. We especially look forward to working with you to enhance X86 CPU and Ascend NPU support, explore cutting-edge quantization and pruning algorithms, refine a more user-friendly toolchain, and enrich our out-of-the-box model library. Through community collaboration, you can not only work closely with the core team and directly influence the project's evolution, but also leave your innovative mark on the frontier of on-device AI, enabling mllm to run on an ever-growing number of devices.
+
+mllm exists because of the community and grows stronger through you. We look forward to walking alongside you to create a new era of on-device AI.
 
 ## Acknowledgements
 
