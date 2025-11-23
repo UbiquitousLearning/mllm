@@ -19,10 +19,10 @@ MLLM_MAIN({
   mllm::Logger::level() = mllm::LogLevel::kError;
 
   std::string model_path = "path/to/your/minicpm-o-2_6.mllm";
-  std::string tokenizer_path = "path/to/your//tokenizer.json";
+  std::string tokenizer_path = "path/to/your/tokenizer.json";
   std::string config_path = "../../examples/minicpm_o/config_minicpm_o.json";
   std::string chattts_config_path = "../../examples/minicpm_o/config_chattts.json";
-  std::string chattts_tokenizer_path = "path/to/your//tokenizer.json";
+  std::string chattts_tokenizer_path = "path/to/your/tokenizer.json";
   std::string vocos_model_path = "path/to/your/vocos.mllm";
   std::string model_version = "v1";
 
@@ -47,9 +47,16 @@ MLLM_MAIN({
   model.vocos_model_ = &vocos_model;
 
   // Change Your Inputs Here
-  std::string image_path = "path/to/your/pics.jpg";
-  std::string audio_path = "path/to/your/describe.wav";
+  std::string image_path = "../../rsc/pics.jpg";
+  std::string audio_path = "../../rsc/describe.wav";
   std::string prompt_text = "根据我的图片和语音，完成任务";
+  /*
+  For RUN:(Apple Silicon)
+    1. Change Your Inputs Above (model, tokenizer, image_path, audio_path, prompt_text...)
+    2. python task.py tasks/build_osx_apple_silicon.yaml
+    3. cd build-osx/bin
+    4. ./main_minicpmo
+  */
 
   mllm::models::minicpmo::MiniCPMOMessage message;
   message.prompt = prompt_text;
