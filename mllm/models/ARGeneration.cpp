@@ -90,6 +90,7 @@ void ARGenerationChatIterator::step() {
   }
 
   Tensor logits = output["sequence"];
+  auto device = logits.device();
   int64_t next_token_id;
   if (use_sampling) {
     if (top_k_ > 0) {
@@ -115,7 +116,7 @@ void ARGenerationChatIterator::step() {
   // [B, S]
   current_input_ = std::move(output);
 
-  current_input_["sequence"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
+  current_input_["sequence"] = Tensor::empty({1, 1}, kInt64, device).alloc();
   current_input_["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
 
   step_count_++;
