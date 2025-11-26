@@ -33,7 +33,7 @@ void fwd_bshd_decode(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t 
                      __VDType** __v, __AccDType* __s_aux, __ODType* __restrict__ __out, int32_t thread_count) {
   int32_t head_repeat_times = H_Q / H_KV;
 
-  __AccDType scale = scale = std::sqrt(1.0 / D_QK) * (__AccDType)std::numbers::log2e;
+  __AccDType scale = std::sqrt(1.0 / D_QK) * (__AccDType)std::numbers::log2e;
 
   // Loop on batch size.
   for (int b_idx = 0; b_idx < B; ++b_idx) {
