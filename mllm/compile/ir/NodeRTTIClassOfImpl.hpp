@@ -1,5 +1,4 @@
-// Auto generated: 2025-10-27 11:05:42
-
+// Auto generated: 2025-11-26 11:54:51
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -184,7 +183,6 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_PAGEDATTNOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_PagedAttnOp && (v)->getKind() <= RK_Op_LinalgIROp_PagedAttnOp
 
-
 #define RTTI_RK_OP_LINALGIROP_LAYERNORM2DOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_LayerNorm2DOp && (v)->getKind() <= RK_Op_LinalgIROp_LayerNorm2DOp
 
@@ -211,6 +209,16 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_ARGSORTOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_ArgsortOp && (v)->getKind() <= RK_Op_LinalgIROp_ArgsortOp
+
+#define RTTI_RK_OP_LINALGIROP_FLASHATTENTION2SWASINKOP_IMPL(v)       \
+  return (v)->getKind() >= RK_Op_LinalgIROp_FlashAttention2SwaSinkOp \
+         && (v)->getKind() <= RK_Op_LinalgIROp_FlashAttention2SwaSinkOp
+
+#define RTTI_RK_OP_LINALGIROP_RADIXATTNRELAXOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_RadixAttnRelaxOp && (v)->getKind() <= RK_Op_LinalgIROp_RadixAttnRelaxOp
+
+#define RTTI_RK_OP_LINALGIROP_RADIXATTNSWASINKOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_RadixAttnSwaSinkOp && (v)->getKind() <= RK_Op_LinalgIROp_RadixAttnSwaSinkOp
 
 #define RTTI_RK_OP_LINALGIROP_CUSTOMIZEDOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_CustomizedOp && (v)->getKind() <= RK_Op_LinalgIROp_CustomizedOp

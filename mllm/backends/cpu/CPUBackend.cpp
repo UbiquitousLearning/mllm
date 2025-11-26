@@ -20,12 +20,15 @@
 #include "mllm/backends/cpu/ops/EmbeddingOp.hpp"
 #include "mllm/backends/cpu/ops/FillOp.hpp"
 #include "mllm/backends/cpu/ops/FlashAttention2Op.hpp"
+#include "mllm/backends/cpu/ops/FlashAttn2WithSinkAndSwaOp.hpp"
 #include "mllm/backends/cpu/ops/GELUOp.hpp"
 #include "mllm/backends/cpu/ops/InterpolateOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNorm2DOp.hpp"
 #include "mllm/backends/cpu/ops/MaskedScatterOp.hpp"
 #include "mllm/backends/cpu/ops/PadOp.hpp"
+#include "mllm/backends/cpu/ops/RadixAttnDiffDimOp.hpp"
 #include "mllm/backends/cpu/ops/RadixAttnOp.hpp"
+#include "mllm/backends/cpu/ops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/backends/cpu/ops/ReLUOp.hpp"
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
 #include "mllm/backends/cpu/ops/ISTFTOp.hpp"
@@ -74,7 +77,8 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory,
                CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
                CPUConv2DOpFactory, CPULayerNorm2DOpFactory, CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory,
-               CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory>();
+               CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
+               CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {

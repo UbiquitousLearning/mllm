@@ -74,6 +74,9 @@ class ScatterOp;
 class GatherOp;
 class ArgsortOp;
 class CustomizedOp;
+class FlashAttention2SwaSinkOp;
+class RadixAttnRelaxOp;
+class RadixAttnSwaSinkOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -233,6 +236,11 @@ LINALG_AOPS_DEFINE(MaskedScatterOp, MASKEDSCATTEROP);
 LINALG_AOPS_DEFINE(ScatterOp, SCATTEROP);
 LINALG_AOPS_DEFINE(GatherOp, GATHEROP);
 LINALG_AOPS_DEFINE(ArgsortOp, ARGSORTOP);
+
+// Customized Ops
+LINALG_AOPS_DEFINE(FlashAttention2SwaSinkOp, FLASHATTENTION2SWASINKOP);
+LINALG_AOPS_DEFINE(RadixAttnRelaxOp, RADIXATTNRELAXOP);
+LINALG_AOPS_DEFINE(RadixAttnSwaSinkOp, RADIXATTNSWASINKOP);
 
 /**
  * @brief CustomizedOp: A generic operation type for implementing backend-specific operations
