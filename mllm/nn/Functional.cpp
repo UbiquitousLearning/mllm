@@ -18,6 +18,8 @@
 #include "mllm/core/aops/MaskedScatterOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/core/aops/StackOp.hpp"
+#include "mllm/core/aops/RadixAttnDiffDimOp.hpp"
+#include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -162,6 +164,39 @@ Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_facto
 
 void maskedScatter(const Tensor& dst, const Tensor& mask, const Tensor& src) {
   Context::instance().buildOpAndSubmitTask(OpTypes::kMaskedScatter, aops::MaskedScatterOpOptions{}, {dst, mask, src});
+}
+
+Tensor radixAttnSWAwSink(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const mllm::Tensor& V_idx, const mllm::Tensor& s_aux,
+                         int batch, int q_head, int kv_head, int d_qk, int d_v, int left_sliding_window, int seq_len,
+                         aops::RadixAttnSwaSinkPattern pattern) {
+  auto& ctx = mllm::Context::instance();
+  return ctx.buildOpAndSubmitTask(OpTypes::kRadixAttnWithSinkAndSwaDiffDim,
+                                  aops::RadixAttnSwaSinkOptions{
+                                      .B = batch,
+                                      .q_head = q_head,
+                                      .kv_head = kv_head,
+                                      .D_QK = d_qk,
+                                      .D_V = d_v,
+                                      .cur_seq_len = seq_len,
+                                      .sliding_window = left_sliding_window,
+                                      .s_aux_enable = true,
+                                      .pattern = pattern,
+                                  },
+                                  {Q, K_idx, V_idx, s_aux})[0];
+}
+
+mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const mllm::Tensor& V_idx, int batch, int q_head,
+                            int kv_head, int d_qk, int d_v) {
+  auto& ctx = mllm::Context::instance();
+  return ctx.buildOpAndSubmitTask(OpTypes::kRadixAttnRelax,
+                                  aops::RadixAttnRelaxOpOptions{
+                                      .B = batch,
+                                      .q_head = q_head,
+                                      .kv_head = kv_head,
+                                      .D_QK = d_qk,
+                                      .D_V = d_v,
+                                  },
+                                  {Q, K_idx, V_idx})[0];
 }
 
 }  // namespace mllm::nn::functional
