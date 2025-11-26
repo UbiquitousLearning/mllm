@@ -113,7 +113,7 @@ void StreamingGenerator::generate_next(OmniOutput& output) {
     auto outputs = tts_model_->generate(audio_input_ids_, tts_past_key_values_, temperature,
                                         625,  // eos_token
                                         streaming_tts_text_mask, config_.force_no_stop,
-                                        10,  // min_new_token
+                                        0,   // min_new_token
                                         25,  // max_new_token
                                         config_.top_p, config_.top_k);
 
@@ -204,12 +204,17 @@ std::pair<std::string, int32_t> StreamingGenerator::prepare_tts_text(const std::
 }
 
 Tensor StreamingGenerator::build_streaming_mask(int32_t tts_token_lens) {
-  // streaming_text_reserved_len = 300
-  auto mask = Tensor::zeros({1, streaming_text_reserved_len_}, kFloat32, kCPU);
+  int32_t num_spk_embs = 1;
+  int32_t full_length = 1 + num_spk_embs + streaming_text_reserved_len_ + 1;  // = 303
 
-  // Fill mask: 1 for available tokens, 0 for unavailable
+  auto mask = Tensor::zeros({full_length}, kFloat32, kCPU);
   auto mask_ptr = mask.ptr<float>();
-  for (int32_t i = 0; i < std::min(tts_token_lens, streaming_text_reserved_len_); ++i) { mask_ptr[i] = 1.0f; }
+
+  int32_t valid_end = 1 + num_spk_embs + tts_token_lens + 1;
+  valid_end = std::min(valid_end, full_length);
+  for (int32_t i = 0; i < valid_end; ++i) { mask_ptr[i] = 1.0f; }
+
+  mask_ptr[full_length - 1] = 1.0f;
 
   return mask;
 }

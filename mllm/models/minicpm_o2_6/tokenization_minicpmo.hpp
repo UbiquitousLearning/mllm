@@ -6,11 +6,14 @@
 #include <unordered_map>
 #include <regex>
 
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
+#include "mllm/preprocessor/audio/Audio.hpp"
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/models/minicpm_o2_6/image_preprocessor_minicpmo.hpp"
+#include "mllm/models/minicpm_o2_6/audio_preprocessor_minicpmo.hpp"
 
 namespace mllm::models::minicpmo {
 
@@ -157,8 +160,7 @@ struct MiniCPMOMessage {
   std::string system_prompt =
       "You are a helpful assistant. You can accept video, audio and text input and output voice and text.";
 
-  [[nodiscard]] std::string buildChatMessage() const {
-    // For now, one picture only
+  [[nodiscard]] std::string buildChatMessage(bool has_img = false, bool has_audio = false, bool gen_audio = true) const {
     std::string result = "";
     // System message
     if (!system_prompt.empty()) { result += "<|im_start|>user\n" + system_prompt + "<|im_end|>\n"; }
@@ -174,10 +176,11 @@ struct MiniCPMOMessage {
     if (!prompt.empty()) {
       result += "\n" + prompt;
       result += "<|im_end|>\n";
-
-      // Assistant prompt start
-      result += "<|im_start|>assistant\n";
     }
+
+    // Assistant prompt start
+    result += "<|im_start|>assistant\n";
+    if (gen_audio) { result += "<|spk_bos|><|spk|><|spk_eos|><|tts_bos|>"; }
 
     return result;
   }
@@ -194,8 +197,7 @@ struct MiniCPMOInput {
 class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   explicit MiniCPMOTokenizer(const std::string& file_path, int32_t patch_size = 14)
-  //: image_preprocessor_(patch_size)
-  {
+      : image_preprocessor_(patch_size), audio_preprocessor_(16000, 80, 160) {  // Whisper standard: 16kHz, 80 mel bins, 160 hop
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
@@ -314,16 +316,46 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
   }
 
   ARGenerationOutputPast convertMessage(const MiniCPMOMessage& message) {
-    // 构建完整的聊天消息
-    auto applied_string = message.buildChatMessage();
-    // Process Image
-    if (!message.img_file_path.empty()) {
-      auto [img_tensors, original_size, tgt_sizes, grid] = image_preprocessor_.process(message.img_file_path);
-      // Checked with Python, all correct
+    bool has_image = !message.img_file_path.empty();
+    bool has_audio = !message.audio_file_path.empty();
 
-      std::regex pattern(R"(\(<image>\./</image>\))");
+    auto applied_string = message.buildChatMessage(has_image, has_audio);
+
+    // ========== Phase 1: Process and collect all modality data ==========
+
+    // Image processing results
+    std::vector<Tensor> img_tensors;
+    std::vector<std::pair<int, int>> original_sizes;
+    std::vector<std::pair<int, int>> tgt_sizes;
+    std::vector<int> grid;
+
+    // Audio processing results
+    Tensor audio_features = Tensor::nil();
+    int audio_length = 0;
+
+    // Process image if present
+    if (has_image) {
+      auto [tensors, orig_size, target_sizes, img_grid] = image_preprocessor_.process(message.img_file_path);
+      img_tensors = std::move(tensors);
+      original_sizes = std::move(orig_size);
+      tgt_sizes = std::move(target_sizes);
+      grid = std::move(img_grid);
+    }
+
+    // Process audio if present
+    if (has_audio) {
+      auto audio_data = mllm::audio::readWAV(message.audio_file_path, 16000);
+      audio_length = static_cast<int>(audio_data.size());
+      audio_features = audio_preprocessor_.processAudioData(audio_data.data(), audio_length);
+    }
+
+    // ========== Phase 2: Replace placeholders in text ==========
+
+    // Replace image placeholder with actual image tokens
+    if (has_image) {
+      std::regex img_pattern(R"(\(<image>\./</image>\))");
       std::vector<std::string> image_tags;
-      std::sregex_iterator iter(applied_string.begin(), applied_string.end(), pattern);
+      std::sregex_iterator iter(applied_string.begin(), applied_string.end(), img_pattern);
       std::sregex_iterator end;
 
       for (; iter != end; ++iter) { image_tags.push_back(iter->str()); }
@@ -338,68 +370,62 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
         }
       }
       text_chunks.push_back(applied_string.substr(pos));
+
       std::string final_text = "";
       for (size_t i = 0; i < image_tags.size(); ++i) {
         final_text += text_chunks[i];
-        final_text += image_preprocessor_.get_slice_image_placeholder(original_size[i], grid, i);
+        final_text += image_preprocessor_.get_slice_image_placeholder(original_sizes[i], grid, i);
       }
       final_text += "\n";
       final_text += text_chunks.back();
-      auto input_ids = tokenize(final_text);
-      std::vector<int64_t> input_ids_vec;
-      input_ids_vec.reserve(input_ids.size());
-      for (const auto& id_str : input_ids) { input_ids_vec.emplace_back(bpe_._lookup_vocab(id_str)); }
-
-      auto [input_ids_new, image_bounds] = image_preprocessor_.calc_bounds(input_ids_vec, bpe_);
-      auto result = Convert2Tensors(input_ids_new, img_tensors, tgt_sizes, image_bounds);
-      return result;
-    } else {
-      // 处理纯文本消息（无图像输入）
-      // // 处理音频占位符
-      // if (!message.audio_file_path.empty()) {
-      //   size_t audio_placeholder_pos = applied_string.find("(<audio>./</audio>)");
-      //   if (audio_placeholder_pos != std::string::npos) {
-      //     // TODO: 实现音频placeholder生成
-      //     std::string audio_placeholder = "<|audio_start|><unk><|audio_end|>"; // 简化版本
-      //     applied_string.replace(audio_placeholder_pos, 17, audio_placeholder);
-      //   }
-      //   }
-
-      // 对最终字符串进行tokenization
-      auto sequence_str = tokenize(applied_string);
-      std::vector<int64_t> ids;
-      ids.reserve(sequence_str.size());
-      for (const auto& str : sequence_str) { ids.emplace_back(bpe_._lookup_vocab(str)); }
-
-      // Get sequence Tensor
-      Tensor sequence = Tensor::empty({/*batch*/ 1, /*seq*/ (int32_t)ids.size()}, kInt64, kCPU)
-                            .setMemType(kNormal)
-                            .setName("minicpmo-tokenizer-i0")
-                            .alloc();
-
-      auto ptr = sequence.ptr<int64_t>();
-      for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
-
-      ARGenerationOutputPast result = {
-          {"input_ids", sequence},
-      };
-
-      // if (!message.img_file_path.empty() && img.isNotEmpty()) {
-      //   result["img"] = img;
-      //   result["grid_thw"] = grid_thw;
-      // }
-
-      return result;
+      applied_string = final_text;
     }
+
+    // Replace audio placeholder with actual audio tokens
+    if (has_audio) {
+      std::string audio_placeholder = audio_preprocessor_.getAudioPlaceholder(audio_length, false);
+      size_t audio_placeholder_pos = applied_string.find("(<audio>./</audio>)");
+      if (audio_placeholder_pos != std::string::npos) { applied_string.replace(audio_placeholder_pos, 19, audio_placeholder); }
+    }
+
+    // ========== Phase 3: Tokenize the final text ==========
+
+    auto sequence_str = tokenize(applied_string);
+    std::vector<int64_t> input_ids_vec;
+    input_ids_vec.reserve(sequence_str.size());
+    for (const auto& str : sequence_str) { input_ids_vec.emplace_back(bpe_._lookup_vocab(str)); }
+
+    // ========== Phase 4: Calculate bounds for all modalities ==========
+
+    std::vector<std::pair<int, int>> image_bounds;
+    std::vector<std::pair<int, int>> audio_bounds;
+
+    // Calculate image bounds if image is present
+    if (has_image) {
+      auto [_, bounds] = image_preprocessor_.calc_bounds(input_ids_vec, bpe_);
+      image_bounds = std::move(bounds);
+    }
+
+    // Calculate audio bounds if audio is present
+    if (has_audio) {
+      int64_t audio_start_id = bpe_._lookup_vocab(L"<|audio_start|>");
+      int64_t audio_end_id = bpe_._lookup_vocab(L"<|audio_end|>");
+      audio_bounds = audio_preprocessor_.calcAudioBounds(input_ids_vec, audio_start_id, audio_end_id);
+    }
+
+    // ========== Phase 5: Convert everything to tensors ==========
+
+    return convertToTensors(input_ids_vec, img_tensors, tgt_sizes, image_bounds, audio_features, audio_bounds);
   }
 
  private:
-  ARGenerationOutputPast Convert2Tensors(std::vector<int64_t>& input_ids_vec, std::vector<Tensor>& img_tensors,
-                                         std::vector<std::pair<int, int>>& tgt_sizes,
-                                         std::vector<std::pair<int, int>>& image_bounds) {
+  ARGenerationOutputPast convertToTensors(std::vector<int64_t>& input_ids_vec, std::vector<Tensor>& img_tensors,
+                                          std::vector<std::pair<int, int>>& tgt_sizes,
+                                          std::vector<std::pair<int, int>>& image_bounds, Tensor& audio_features,
+                                          std::vector<std::pair<int, int>>& audio_bounds) {
     ARGenerationOutputPast result;
 
-    // Convert input_ids_new (std::vector<std::wstring>) to Tensor
+    // Convert input_ids to Tensor
     if (!input_ids_vec.empty()) {
       Tensor input_ids_tensor =
           Tensor::empty({1, (int32_t)input_ids_vec.size()}, kInt64, kCPU).setMemType(kExtraInput).setName("input_ids").alloc();
@@ -408,8 +434,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
       result["input_ids"] = input_ids_tensor;
     }
 
-    // Convert img_tensors (std::vector<Tensor>) to single Tensor
-    // **ADD PADDING HERE!**
+    // Convert img_tensors to single Tensor with padding
     if (!img_tensors.empty()) {
       int channels = img_tensors[0].shape()[0];
       int patch_size = img_tensors[0].shape()[1];
@@ -417,6 +442,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
       for (const auto& img_tensor : img_tensors) {
         if (img_tensor.shape()[2] > HW_patch_size) { HW_patch_size = img_tensor.shape()[2]; }
       }
+
       Tensor pixel_values = Tensor::empty({(int)img_tensors.size(), channels, patch_size, HW_patch_size}, kFloat32, kCPU)
                                 .setMemType(kExtraInput)
                                 .setName("pixel_values")
@@ -434,12 +460,9 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
 
         for (int c = 0; c < channels; c++) {
           for (int p = 0; p < patch_size; p++) {
-            // Calculate source and destination offsets
             const int src_offset = c * patch_size * src_hw + p * src_hw;
             const int dst_offset =
                 b * channels * patch_size * HW_patch_size + c * patch_size * HW_patch_size + p * HW_patch_size;
-
-            // Copy the entire row (valid data only, padding is already zeroed)
             std::memcpy(pixel_values_ptr + dst_offset, src_ptr + src_offset, src_hw * sizeof(float_t));
           }
         }
@@ -448,7 +471,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
       result["pixel_values"] = pixel_values;
     }
 
-    // Convert tgt_sizes (std::vector<std::pair<int, int>>) to Tensor
+    // Convert tgt_sizes to Tensor
     if (!tgt_sizes.empty()) {
       Tensor tgt_sizes_tensor =
           Tensor::empty({(int32_t)tgt_sizes.size(), 2}, kInt32, kCPU).setMemType(kExtraInput).setName("tgt_sizes").alloc();
@@ -460,7 +483,7 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
       result["tgt_sizes"] = tgt_sizes_tensor;
     }
 
-    // Convert image_bounds (std::vector<std::pair<int,int>>) to Tensor
+    // Convert image_bounds to Tensor
     if (!image_bounds.empty()) {
       Tensor image_bounds_tensor = Tensor::empty({(int32_t)image_bounds.size(), 2}, kInt32, kCPU)
                                        .setMemType(kExtraInput)
@@ -474,12 +497,32 @@ class MiniCPMOTokenizer final : public mllm::preprocessor::AutoTokenizer {
       result["image_bounds"] = image_bounds_tensor;
     }
 
+    // Add audio features if present
+    if (!audio_features.isNil()) { result["audio_features"] = audio_features; }
+
+    // Convert audio_bounds to Tensor
+    if (!audio_bounds.empty()) {
+      Tensor audio_bounds_tensor = Tensor::empty({(int32_t)audio_bounds.size(), 2}, kInt32, kCPU)
+                                       .setMemType(kExtraInput)
+                                       .setName("audio_bounds")
+                                       .alloc();
+      auto audio_bounds_ptr = audio_bounds_tensor.ptr<int32_t>();
+      for (size_t i = 0; i < audio_bounds.size(); ++i) {
+        audio_bounds_ptr[i * 2] = audio_bounds[i].first;
+        audio_bounds_ptr[i * 2 + 1] = audio_bounds[i].second;
+      }
+      result["audio_bounds"] = audio_bounds_tensor;
+    }
+
     return result;
   }
 
  private:
   // For image only.
   MiniCPMOImageProcessor image_preprocessor_;
+
+  // For audio only.
+  MiniCPMOAudioProcessor audio_preprocessor_;
 
   // For text
   preprocessor::BPE bpe_;
