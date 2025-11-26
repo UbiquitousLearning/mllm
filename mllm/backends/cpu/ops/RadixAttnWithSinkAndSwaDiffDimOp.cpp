@@ -37,7 +37,7 @@ void CPURadixAttnSwaSinkOp::forward(const std::vector<Tensor>& inputs, std::vect
 
   switch (Q.dtype()) {
     case mllm::kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       switch (options_.pattern) {
         case aops::RadixAttnSwaSinkPattern::kDecode: {
           fwd_bshd_decode<::mllm::cpu::radix_attn::details::__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t,

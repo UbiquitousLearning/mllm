@@ -47,7 +47,7 @@ void FlashAttention2SwaSink::forward(const std::vector<mllm::Tensor>& inputs, st
 
   switch (Q.dtype()) {
     case mllm::kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       fwd_bshd_swa_with_sink<mllm::cpu::flash_attn2::details::__ArmArchTag, mllm::mllm_fp32_t, mllm::mllm_fp32_t,
                              mllm::mllm_fp32_t, mllm::mllm_fp32_t, mllm::mllm_fp32_t>(
           B, options_.q_head, options_.kv_head, S_Q, S_KV, D_QK, D_V, options_.sliding_window, options_.cur_seq_len,

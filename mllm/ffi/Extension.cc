@@ -341,7 +341,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 //===----------------------------------------------------------------------===//
 // REGISTER: Quantize && Packing Functions.
 //===----------------------------------------------------------------------===//
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"
 TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;

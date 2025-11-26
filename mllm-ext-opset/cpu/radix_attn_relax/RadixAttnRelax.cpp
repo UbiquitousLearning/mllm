@@ -45,7 +45,7 @@ void RadixAttnRelax::forward(const std::vector<mllm::Tensor>& inputs, std::vecto
 
   switch (Q.dtype()) {
     case mllm::kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH)
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       fwd_bshd<::mllm::cpu::radix_attn::details::__ArmArchTag, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t, mllm_fp32_t>(
           B, options_.q_head, options_.kv_head, S_Q, S_KV, options_.D_QK, options_.D_V, Q.ptr<mllm_fp32_t>(),
           K.ptr<mllm_fp32_t*>(), V.ptr<mllm_fp32_t*>(), O.ptr<mllm_fp32_t>(), options_.getThreads());
