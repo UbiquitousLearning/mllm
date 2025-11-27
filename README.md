@@ -17,6 +17,7 @@ mllm
 
 ## Latest News
 
+- [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
 - [2025 Nov 23] 🔥🔥🔥 MLLM v2 released!
 - [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
   - A more Pythonic model authoring approach with eager execution
@@ -25,6 +26,25 @@ mllm
   - A more refined engineering implementation
 - [2025 Jul 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B（ViT profiling will integrate in v2）
 
+## Android Demo & Architecture
+
+We have refactored the Android implementation to use a robust **Client-Server** architecture entirely on-device.
+
+<table width="100%">
+  <tr>
+    <td width="50%">
+      <video src="https://github.com/user-attachments/assets/33581025-3368-4b38-98e8-6a2628b32408" controls="controls" style="max-width: 100%;"></video>
+    </td>
+    <td width="50%">
+      <video src="https://github.com/user-attachments/assets/edcfb568-4415-41fc-91b0-136a4b9a20e2" controls="controls" style="max-width: 100%;"></video>
+    </td>
+  </tr>
+</table>
+
+Unlike traditional JNI integration, we introduce an **In-App Server** layer built with Golang (`mllm_server.aar`). This design decouples the UI from the heavy inference computation:
+
+<img width="543" height="95" alt="image" src="https://github.com/user-attachments/assets/b25f0e0a-db39-4d08-afb7-f17019bc136c" />
+    
 ## Key Features
 
 1. **Pythonic eager execution** – Rapid model development  
