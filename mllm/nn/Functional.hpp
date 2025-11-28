@@ -6,11 +6,13 @@
 #include <vector>
 #include <cstdint>
 
+#include "mllm/core/OpTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/core/aops/PadOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
+#include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -148,5 +150,12 @@ Tensor interpolateByScale(const Tensor& x, const std::vector<float>& scale_facto
                           bool antialias = false);
 
 void maskedScatter(const Tensor& dst, const Tensor& mask, const Tensor& src);
+
+Tensor radixAttnSWAwSink(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const mllm::Tensor& V_idx, const mllm::Tensor& s_aux,
+                         int batch, int q_head, int kv_head, int d_qk, int d_v, int left_sliding_window, int seq_len,
+                         aops::RadixAttnSwaSinkPattern pattern = aops::RadixAttnSwaSinkPattern::kDecode);
+
+mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const mllm::Tensor& V_idx, int batch, int q_head,
+                            int kv_head, int d_qk, int d_v);
 
 }  // namespace mllm::nn::functional

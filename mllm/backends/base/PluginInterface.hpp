@@ -39,6 +39,7 @@ extern "C" {
 typedef void* (*OpFactoryCreateFunc)();    // NOLINT
 typedef void (*OpFactoryFreeFunc)(void*);  // NOLINT
 
+#pragma pack(push, 4)
 struct PluginOpPackageDescriptor {
   int32_t version = MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_VERSION;
   char name[MLLM_PLUGIN_OP_PACKAGE_NAME_LEN];
@@ -49,4 +50,5 @@ struct PluginOpPackageDescriptor {
   OpFactoryCreateFunc op_factory_create_funcs[MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN];
   OpFactoryFreeFunc op_factory_free_funcs[MLLM_PLUGIN_OP_PACKAGE_DESCRIPTOR_LEN];
 };
+#pragma pack(pop)
 }

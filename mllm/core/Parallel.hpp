@@ -63,12 +63,12 @@ dispatch_apply(__num__, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 
 #define MLLM_AUTO_PARALLEL_END() }
 
 #define MLLM_AUTO_PARALLEL_FOR_BEGIN(__iter__, __start__, __end__, __step__) \
-  OMP_PRAGMA(omp parallel for)                                               \
+  OMP_PRAGMA(omp parallel for schedule(auto))                                \
   for (long long __iter__ = (__start__); __iter__ < (__end__); __iter__ += (__step__)) {
 #define MLLM_AUTO_PARALLEL_FOR_END() }
 
 #define MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(__iter__, __start__, __end__, __step__, __num_threads__) \
-  OMP_PRAGMA(omp parallel for num_threads(__num_threads__))                                      \
+  OMP_PRAGMA(omp parallel for num_threads(__num_threads__) schedule(auto))                       \
   for (long long __iter__ = (__start__); __iter__ < (__end__); __iter__ += (__step__)) {
 #define MLLM_AUTO_PARALLEL_FOR_END_NT() }
 
