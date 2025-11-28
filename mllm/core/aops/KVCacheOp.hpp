@@ -6,6 +6,11 @@
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/ParameterFile.hpp"
 
+// Forward declaration
+namespace mllm::nn {
+class StaticCache;
+}
+
 namespace mllm::aops {
 
 struct KVCacheOpOptions : public BaseOpOptions<KVCacheOpOptions> {
@@ -41,6 +46,10 @@ class KVCacheOp : public BaseOp {
   // Get current valid sequence length for KV cache logic
   // Default returns -1; backends that maintain cache should override.
   virtual int32_t getCurrentSeqCnt() const { return -1; }
+
+  // Hack
+  virtual void setStaticCache(const mllm::nn::StaticCache* cache) {}
+  virtual const mllm::nn::StaticCache* getStaticCache() const { return nullptr; }
 
   inline const KVCacheOpOptions& options() const { return options_; }
 

@@ -59,7 +59,7 @@ void QNNDispatcher::process(const Task::ptr_t& task) {
     case TaskTypes::kExecuteModule: {
       auto moduleName = static_cast<nn::Module*>(task->custom_context_ptr)->getModuleName();
 #ifdef MLLM_PERFETTO_ENABLE
-      MLLM_PERF_TRACE_EVENT("mllm.qnn.execute.", perfetto::DynamicString{moduleName}, [&](perfetto::EventContext ctx) {
+      MLLM_PERF_TRACE_EVENT("mllm.qnn.execute", perfetto::DynamicString{moduleName}, [&](perfetto::EventContext ctx) {
         int cnt = 0;
         for (auto& i : task->inputs) {
           ctx.AddDebugAnnotation(perfetto::DynamicString{"inputs-" + std::to_string(cnt++)}, i.shape());

@@ -207,7 +207,7 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
     bool foundValidInterface = false;
     for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
       if (QNN_API_VERSION_MAJOR == interfaceProviders[pIdx]->apiVersion.coreApiVersion.major
-          && QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor) {
+          /*&& QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor*/) {
         foundValidInterface = true;
         qnnInterface = interfaceProviders[pIdx]->QNN_INTERFACE_VER_NAME;
         break;
@@ -530,8 +530,8 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
 
   // Validate input size matches expected input count
   if (inputs.size() != model->getGraphInputTensorWrappers().size()) {
-    MLLM_ERROR("Input size mismatch: expected {}, got {} for graph '{}'", 
-               model->getGraphInputTensorWrappers().size(), inputs.size(), graphName);
+    MLLM_ERROR("Input size mismatch: expected {}, got {} for graph '{}'", model->getGraphInputTensorWrappers().size(),
+               inputs.size(), graphName);
     return;
   }
 
@@ -580,10 +580,8 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       if (dst_ptr && src_ptr && dst_ptr != src_ptr) {
         // Copy source data to destination buffer
         // This ensures that the graph input wrapper has the correct data for execution
-        if (bytes_to_copy > 0) {
-          std::memcpy(dst_ptr, src_ptr, bytes_to_copy);
-        }
-        
+        if (bytes_to_copy > 0) { std::memcpy(dst_ptr, src_ptr, bytes_to_copy); }
+
         // If source is smaller than destination, zero out the remaining bytes
         // This is important for decode phase where input tensors may be smaller than prefill
         // For example, decode phase may use [1, 1] input while wrapper expects [1, 128]
@@ -593,7 +591,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
           size_t remaining_bytes = dst_bytes - src_bytes;
           std::memset(static_cast<char*>(dst_ptr) + bytes_to_copy, 0, remaining_bytes);
           // Only log if zero-padding actually occurs (unexpected case)
-          MLLM_WARN("[QNN graphExecute] Graph '{}' input tensor {}: zero-padded {} bytes (src={} bytes, dst={} bytes)", 
+          MLLM_WARN("[QNN graphExecute] Graph '{}' input tensor {}: zero-padded {} bytes (src={} bytes, dst={} bytes)",
                     graphName, i, remaining_bytes, src_bytes, dst_bytes);
         }
       }
@@ -604,7 +602,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     wrapper->alloc();
     qnn_inputs.push_back(*(wrapper->getNativeTensor()));
   }
-  
+
   // Prepare QNN outputs in QNN order
   std::vector<Tensor> qnn_output_tensors;  // Temporary storage for QNN outputs
   for (int j = 0; j < model->getGraphOutputTensorWrappers().size(); j++) {
@@ -625,7 +623,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   //   const auto& last_output = qnn_output_tensors.back();
   //   const auto& output_wrappers = model->getGraphOutputTensorWrappers();
   //   const auto& last_wrapper = output_wrappers.back();
-  //   MLLM_INFO("[QNN Actual Return Order] Last output tensor '{}' shape: {}", 
+  //   MLLM_INFO("[QNN Actual Return Order] Last output tensor '{}' shape: {}",
   //             last_wrapper->getName(), last_output.shape());
   // }
 
@@ -667,7 +665,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     // if (needs_reordering) {
     //   MLLM_INFO("  [VERIFICATION] QNN output order DIFFERS from MLLM expected order - REORDERING REQUIRED");
     //   for (const auto& [mllm_idx, qnn_idx] : mismatches) {
-    //     MLLM_INFO("    Mismatch: MLLM[{}] expects '{}' but it's at QNN[{}]", 
+    //     MLLM_INFO("    Mismatch: MLLM[{}] expects '{}' but it's at QNN[{}]",
     //               mllm_idx, expectedOrder[mllm_idx], qnn_idx);
     //   }
     // } else {
@@ -688,10 +686,12 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
         //   MLLM_INFO("  Mapping: MLLM[{}] = QNN[{}] (tensor: {}) [SAME]", i, qnn_index, expected_name);
         // }
       } else {
-        MLLM_ERROR("QNNBackend::graphExecute: Failed to find QNN output index for tensor '{}' in graph '{}'", expected_name, graphName);
+        MLLM_ERROR("QNNBackend::graphExecute: Failed to find QNN output index for tensor '{}' in graph '{}'", expected_name,
+                   graphName);
         // If mapping fails, we cannot safely reorder outputs
         // This is a critical error as we cannot determine the correct output order
-        MLLM_ERROR("Cannot reorder outputs: missing QNN output index for tensor '{}'. Output order may be incorrect.", expected_name);
+        MLLM_ERROR("Cannot reorder outputs: missing QNN output index for tensor '{}'. Output order may be incorrect.",
+                   expected_name);
         // Note: We still try to copy what we can, but the order may be wrong
         if (i < qnn_output_tensors.size()) {
           outputs[i] = qnn_output_tensors[i];
@@ -705,12 +705,11 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     if (expectedOrder.empty()) {
       MLLM_WARN("QNNBackend::graphExecute: No expected output order set for graph '{}', using QNN order", graphName);
     } else {
-      MLLM_WARN("QNNBackend::graphExecute: Expected output order size ({}) != outputs size ({}) for graph '{}', using QNN order",
-                expectedOrder.size(), outputs.size(), graphName);
+      MLLM_WARN(
+          "QNNBackend::graphExecute: Expected output order size ({}) != outputs size ({}) for graph '{}', using QNN order",
+          expectedOrder.size(), outputs.size(), graphName);
     }
-    for (size_t i = 0; i < qnn_output_tensors.size(); i++) {
-      outputs[i] = qnn_output_tensors[i];
-    }
+    for (size_t i = 0; i < qnn_output_tensors.size(); i++) { outputs[i] = qnn_output_tensors[i]; }
   }
 }
 
