@@ -23,8 +23,12 @@ class CPUKVCacheOp final : public aops::KVCacheOp {
 
   int32_t getCurrentSeqCnt() const override;
 
+  void setStaticCache(const nn::StaticCache* cache) override { shared_cache_ = const_cast<nn::StaticCache*>(cache); }
+  const nn::StaticCache* getStaticCache() const override { return shared_cache_ ? shared_cache_ : &cache_; }
+
  private:
   nn::StaticCache cache_;
+  nn::StaticCache* shared_cache_ = nullptr;
 };
 
 class CPUKVCacheOpFactory : public TypedOpFactory<OpTypes::kKVCache, aops::KVCacheOpOptions> {

@@ -31,4 +31,15 @@ int32_t KVCache::getCurrentSeqCnt() const {
   return std::static_pointer_cast<aops::KVCacheOp>(impl()->getInstancedOp())->getCurrentSeqCnt();
 }
 
+void KVCache::setStaticCache(const nn::StaticCache* cache) {
+  auto* kv_op = dynamic_cast<aops::KVCacheOp*>(impl()->getInstancedOp().get());
+  if (kv_op != nullptr) { kv_op->setStaticCache(cache); }
+}
+
+const nn::StaticCache* KVCache::getStaticCache() const {
+  const auto* kv_op = dynamic_cast<const aops::KVCacheOp*>(impl()->getInstancedOp().get());
+  if (kv_op != nullptr) { return kv_op->getStaticCache(); }
+  return nullptr;
+}
+
 }  // namespace mllm::nn

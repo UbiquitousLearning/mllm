@@ -434,9 +434,7 @@ void QNNTensorWrapper::alloc() {
   isAlloc_ = true;
 }
 
-void QNNTensorWrapper::resetAlloc() {
-  isAlloc_ = false;
-}
+void QNNTensorWrapper::resetAlloc() { isAlloc_ = false; }
 
 void QNNTensorWrapper::initFromQnnTensor(Qnn_Tensor_t* qnnTensor) {
   if (qnnTensor == nullptr) {

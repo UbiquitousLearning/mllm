@@ -16,8 +16,8 @@ namespace {
 constexpr bool kVerboseQnnAllocatorLogs = false;
 }  // namespace
 
-#define QNN_ALLOCATOR_VERBOSE(...)                                     \
-  do {                                                                 \
+#define QNN_ALLOCATOR_VERBOSE(...)                                      \
+  do {                                                                  \
     if constexpr (kVerboseQnnAllocatorLogs) { MLLM_INFO(__VA_ARGS__); } \
   } while (0)
 
@@ -57,9 +57,7 @@ QNNAllocator::~QNNAllocator() {
     iter = ptrToFdAndMemHandleMap_.erase(iter);
   }
 
-  for (void* ptr : qnnMemPtrSet_) {
-    rpcmem_free(ptr);
-  }
+  for (void* ptr : qnnMemPtrSet_) { rpcmem_free(ptr); }
   qnnMemPtrSet_.clear();
 }
 
@@ -77,30 +75,30 @@ bool QNNAllocator::alloc(Storage* storage) {
 
 /**
  * @brief Free a storage buffer and manage QNN memory handle lifecycle
- * 
+ *
  * This function handles the complex lifecycle of QNN shared buffers:
  * 1. Checks if the buffer is already freed or never allocated
  * 2. Detects if multiple pointers share the same mem_handle (aliases)
  * 3. Only de-registers mem_handle when it's the last reference
  * 4. Updates tensor ID/name mappings to point to alternative pointers if needed
- * 
+ *
  * Key design considerations:
  * - QNN doesn't support re-registering a de-registered buffer (fd may be invalidated)
  * - Multiple buffer pointers can share the same mem_handle (common in decode phase)
  * - Tensor mappings must be updated when pointers are redirected to aliases
- * 
+ *
  * @param storage Pointer to the storage object containing the buffer to free
  */
 void QNNAllocator::free(Storage* storage) {
   auto ptr = storage->ptr_;
-  
+
   // Early return if ptr is nullptr or not in qnnMemPtrSet_ (already freed or never allocated)
   // This is common during decode phase when buffers are reused, so we silently ignore
   if (ptr == nullptr) {
     // too noisy during decode; silently ignore nullptr frees
     return;
   }
-  
+
   if (qnnMemPtrSet_.count(ptr) == 0) {
     QNN_ALLOCATOR_VERBOSE("QNNAllocator::free called for ptr={} that is not in qnnMemPtrSet_, ignoring", ptr);
     return;
@@ -110,11 +108,11 @@ void QNNAllocator::free(Storage* storage) {
   // This is important because in decode phase, multiple tensor wrappers may reference
   // the same underlying buffer through different pointers
   void* alternative_ptr = nullptr;  // Another ptr using the same mem_handle, if any
-  
+
   if (ptrToFdAndMemHandleMap_.count(ptr)) {
     auto iter = ptrToFdAndMemHandleMap_.find(ptr);
     auto mem_handle = iter->second.second;
-    
+
     // Check if any other ptr is using the same mem_handle
     // This handles the case where buffer reuse creates multiple pointers to the same mem_handle
     for (const auto& [other_ptr, fd_and_handle] : ptrToFdAndMemHandleMap_) {
@@ -123,7 +121,7 @@ void QNNAllocator::free(Storage* storage) {
         break;
       }
     }
-    
+
     // Only deRegister if this is the last ptr using this mem_handle
     // If there are aliases, we must keep the mem_handle registered
     if (alternative_ptr == nullptr) {
@@ -153,7 +151,7 @@ void QNNAllocator::free(Storage* storage) {
     clearLastRegistrationIfMatches(ptr, "free(unregistered buffer)");
     return;
   }
-  
+
   // Update or keep tensor ID and name mappings
   // If mem_handle is still in use (alternative_ptr exists), update mappings to point to alternative_ptr
   // Otherwise, free the buffer and clear mappings
@@ -177,25 +175,25 @@ void QNNAllocator::free(Storage* storage) {
     rpcmem_free(ptr);
     eraseTensorMappingsForPtr(ptr, "free(ptr) -> mem_handle released");
     clearLastRegistrationIfMatches(ptr, "free(ptr) -> mem_handle released");
-}
+  }
   storage->ptr_ = nullptr;
 }
 
 /**
  * @brief Register a tensor's buffer to QNN shared memory
- * 
+ *
  * This function implements a sophisticated buffer reuse mechanism to avoid duplicate registrations
  * of the same tensor across prefill and decode phases. It uses a multi-level fallback strategy:
- * 
+ *
  * 1. Check if the buffer is already registered (by ptr)
  * 2. Check if a buffer exists for the same tensor ID (primary lookup)
  * 3. Check if a buffer exists for the same tensor name (fallback lookup)
  * 4. Check if we can reuse the last successfully registered buffer (last resort)
  * 5. If all fallbacks fail, attempt new registration
- * 
+ *
  * This is critical for decode phase where the same tensor (e.g., KV cache) is used repeatedly,
  * and QNN HTP device has limited memory resources (~2.5GB typically).
- * 
+ *
  * @param storage Storage object containing the buffer to register
  * @param qnn_tensor QNN tensor structure to update with mem_handle
  * @return true if registration succeeded, false otherwise
@@ -247,13 +245,12 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     shape_str += "]";
   }
 
-  QNN_ALLOCATOR_VERBOSE(
-      "registerQnnTensorToSharedBuffer: ptr={}, tensor_id={}, tensor_name={}, tensorIdToPtrMap_.size()={}", ptr, tensor_id,
-      tensor_name, tensorIdToPtrMap_.size());
+  QNN_ALLOCATOR_VERBOSE("registerQnnTensorToSharedBuffer: ptr={}, tensor_id={}, tensor_name={}, tensorIdToPtrMap_.size()={}",
+                        ptr, tensor_id, tensor_name, tensorIdToPtrMap_.size());
 
   /**
    * @brief Update tensor ID/name mappings and size tracking
-   * 
+   *
    * This lambda updates the internal mappings that allow us to find existing buffers
    * for the same tensor in future registration attempts.
    */
@@ -265,14 +262,14 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
 
   /**
    * @brief Reuse an existing registered buffer for this tensor
-   * 
+   *
    * This lambda implements the core buffer reuse logic:
    * 1. Verifies the existing buffer is still registered
    * 2. Copies data from new buffer to existing buffer if needed
    * 3. Updates tensor to use existing mem_handle
    * 4. Updates internal mappings
    * 5. Frees the new buffer to avoid memory leak
-   * 
+   *
    * @param existing_ptr Pointer to the existing registered buffer
    * @return true if reuse succeeded, false if buffer is no longer registered
    */
@@ -326,8 +323,8 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
 
     if (existing_ptr == nullptr) {
       // Mapping exists but buffer was freed, clean up and register new buffer
-      QNN_ALLOCATOR_VERBOSE(
-          "Existing mapping for tensor_id={} has nullptr ptr (buffer was freed), will register new buffer", tensor_id);
+      QNN_ALLOCATOR_VERBOSE("Existing mapping for tensor_id={} has nullptr ptr (buffer was freed), will register new buffer",
+                            tensor_id);
       tensorIdToPtrMap_.erase(tensor_id);
     } else if (reuseExistingBuffer(existing_ptr)) {
       return true;
@@ -396,17 +393,17 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     // Multi-level fallback strategy when registration fails
     // This is critical when QNN device memory is exhausted
     bool fallback_success = false;
-    
+
     // Fallback Level 1: Try to reuse buffer by tensor ID
     if (tensorIdToPtrMap_.count(tensor_id) > 0) {
       void* existing_ptr = tensorIdToPtrMap_[tensor_id];
       if (existing_ptr != nullptr) {
-        MLLM_WARN("Fallback: Reusing existing buffer by ID for tensor_id={}, tensor_name={}, old_ptr={}, new_ptr={}",
-                  tensor_id, tensor_name, existing_ptr, ptr);
+        MLLM_WARN("Fallback: Reusing existing buffer by ID for tensor_id={}, tensor_name={}, old_ptr={}, new_ptr={}", tensor_id,
+                  tensor_name, existing_ptr, ptr);
         fallback_success = reuseExistingBuffer(existing_ptr);
       }
     }
-    
+
     // Fallback Level 2: Try to reuse buffer by tensor name
     if (!fallback_success && tensor_name != "unknown" && tensorNameToPtrMap_.count(tensor_name) > 0) {
       void* existing_ptr = tensorNameToPtrMap_[tensor_name];
@@ -421,10 +418,10 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     // This is a last resort when memory is exhausted and we can't find exact matches
     if (!fallback_success && hasLastRegistrationInfo_) {
       bool same_tensor_id = tensor_id != 0 && tensor_id == lastRegistrationInfo_.tensor_id;
-      bool same_tensor_name = tensor_name != "unknown" && !tensor_name.empty()
-                              && tensor_name == lastRegistrationInfo_.tensor_name;
-      bool ptr_still_registered = lastRegistrationInfo_.ptr != nullptr
-                                  && ptrToFdAndMemHandleMap_.count(lastRegistrationInfo_.ptr) > 0;
+      bool same_tensor_name =
+          tensor_name != "unknown" && !tensor_name.empty() && tensor_name == lastRegistrationInfo_.tensor_name;
+      bool ptr_still_registered =
+          lastRegistrationInfo_.ptr != nullptr && ptrToFdAndMemHandleMap_.count(lastRegistrationInfo_.ptr) > 0;
       if ((same_tensor_id || same_tensor_name) && ptr_still_registered) {
         MLLM_WARN("Fallback: Reusing last successful buffer for tensor_id={}, tensor_name={}, old_ptr={}, new_ptr={}",
                   tensor_id, tensor_name, lastRegistrationInfo_.ptr, ptr);
@@ -440,7 +437,8 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
     // The caller should handle this gracefully (e.g., by retrying or using CPU fallback)
     if (!fallback_success) {
       MLLM_ERROR("QNNAllocator::registerQnnTensorToSharedBuffer: memRegister failed and fallback also failed. "
-                 "Buffer ptr={} will be freed, tensor registration cannot proceed.", ptr);
+                 "Buffer ptr={} will be freed, tensor registration cannot proceed.",
+                 ptr);
 
       if (qnnMemPtrSet_.count(ptr) > 0) {
         qnnMemPtrSet_.erase(ptr);
@@ -493,17 +491,13 @@ QNNAllocator::BufferStats QNNAllocator::getRegisteredBufferStats() const {
   BufferStats stats{};
   stats.count = ptrToFdAndMemHandleMap_.size();
   stats.total_bytes = 0;
-  
-  for (const auto& [ptr, size] : ptrToSizeMap_) {
-    stats.total_bytes += size;
-  }
-  
+
+  for (const auto& [ptr, size] : ptrToSizeMap_) { stats.total_bytes += size; }
+
   return stats;
 }
 
-bool QNNAllocator::isRegistered(void* ptr) const {
-  return ptrToFdAndMemHandleMap_.count(ptr) > 0;
-}
+bool QNNAllocator::isRegistered(void* ptr) const { return ptrToFdAndMemHandleMap_.count(ptr) > 0; }
 
 size_t QNNAllocator::getRegisteredBufferSize(void* ptr) const {
   auto it = ptrToSizeMap_.find(ptr);
@@ -513,10 +507,10 @@ size_t QNNAllocator::getRegisteredBufferSize(void* ptr) const {
 
 /**
  * @brief Erase all tensor ID and name mappings that point to a specific buffer pointer
- * 
+ *
  * When a buffer is freed or de-registered, we need to clean up all mappings that reference it.
  * This ensures that future lookups won't find stale pointers.
- * 
+ *
  * @param ptr The buffer pointer to remove from mappings
  * @param reason Reason for erasure (for debugging/logging purposes)
  */
@@ -544,16 +538,16 @@ void QNNAllocator::eraseTensorMappingsForPtr(void* ptr, std::string_view reason)
 
 /**
  * @brief Remember the last successful buffer registration for fallback purposes
- * 
+ *
  * This function stores information about the most recent successful registration.
  * This information is used as a last-resort fallback when:
  * 1. New registration fails (e.g., memory exhausted)
  * 2. Exact tensor ID/name matches are not found
  * 3. The last registered buffer is still valid and matches the tensor
- * 
+ *
  * This is particularly useful in decode phase where memory pressure is high
  * and we want to maximize buffer reuse.
- * 
+ *
  * @param tensor_id Tensor ID of the registered tensor
  * @param tensor_name Tensor name of the registered tensor
  * @param ptr Buffer pointer that was successfully registered
@@ -574,11 +568,11 @@ void QNNAllocator::rememberLastRegistration(uint32_t tensor_id, const std::strin
 
 /**
  * @brief Clear the last registration info if it matches the given pointer
- * 
+ *
  * When a buffer is freed or de-registered, we should clear the last registration
  * info if it references that buffer. This prevents using stale registration info
  * in future fallback attempts.
- * 
+ *
  * @param ptr The buffer pointer to check against
  * @param reason Reason for clearing (for debugging/logging purposes)
  */
