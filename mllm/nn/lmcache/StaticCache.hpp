@@ -22,7 +22,8 @@ class AbstractStaticCache {
   [[nodiscard]] virtual int32_t getLayerNums() const { return 0; }
 
   virtual std::array<Tensor, 2> updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {  // NOLINT
-    return {Tensor::nil(), Tensor::nil()};
+    // return {Tensor::nil(), Tensor::nil()};
+    return {Tensor(), Tensor()};
   }
 };
 

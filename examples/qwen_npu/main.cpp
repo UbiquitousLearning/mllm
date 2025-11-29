@@ -102,15 +102,12 @@ int main(int argc, char** argv) {
                               ["sequence"];
   MLLM_INFO("Input tokens: {} tokens", raw_input_tokens.shape()[1]);
 
-  const int eos_token_id = 151645;
+  const int64_t eos_token_id = cpu_cfg.eos_token_id;
   const int max_new_tokens = 512;
 
   mllm::models::ARGenerationOutputPast past{{"sequence", raw_input_tokens}};
   mllm::models::ARGenerationArgs args;
   args["debug_layer_outputs"] = false;
-
-  bool enable_timing = std::getenv("MLLM_ENABLE_LAYER_TIMING") != nullptr;
-  if (enable_timing) { MLLM_INFO("Layer timing enabled"); }
 
   // Prefill phase
   if (!use_npu_prefill) {
@@ -249,15 +246,15 @@ int main(int argc, char** argv) {
     const int64_t vocab_size = shape[2];
     auto* data = logits_f.ptr<float>();
 
-    int next_id = 0;
+    int64_t next_id = 0;
     float max_logit = data[0];
     for (int64_t i = 1; i < vocab_size; ++i) {
       if (data[i] > max_logit) {
         max_logit = data[i];
-        next_id = static_cast<int>(i);
+        next_id = i;
       }
     }
-    auto next_token_str = qwen_tokenizer.detokenize(static_cast<int64_t>(next_id));
+    auto next_token_str = qwen_tokenizer.detokenize(next_id);
 
     MLLM_INFO("[Decode step {:3d}] time: {:.2f}ms, token: ", step, step_time_ms);
     std::wcout << next_token_str << std::flush;

@@ -11,7 +11,7 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 
-namespace {
+namespace mllm::models::qwen_npu::utils {
 using mllm::kCPU;
 using mllm::kFloat32;
 using mllm::Tensor;
@@ -74,7 +74,7 @@ inline auto makeRotaryPosEmbedding(const Tensor& position_ids, const Tensor& inv
 
   return {sin_emb, cos_emb};
 }
-}  // namespace
+}  // namespace mllm::models::qwen_npu::utils
 
 namespace mllm::models::qwen_npu {
 
@@ -257,7 +257,7 @@ class QwenTextCPU final : public nn::Module {
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.set_layer_idx(static_cast<int>(idx)); }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
 
-    auto inv_freq = makeRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
+    auto inv_freq = utils::makeRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
     registerBuffer("inv_freq", inv_freq);
   }
 
@@ -319,7 +319,7 @@ class QwenForCausalLMCPU : public nn::Module, public ARGeneration {
     }
 
     const auto& inv_freq = text_model_.getBuffer("inv_freq");
-    auto [llm_embedding_sin, llm_embedding_cos] = makeRotaryPosEmbedding(position_ids, inv_freq, 1.0f);
+    auto [llm_embedding_sin, llm_embedding_cos] = utils::makeRotaryPosEmbedding(position_ids, inv_freq, 1.0f);
 
     auto input_embeddings = text_model_.embedding()(sequence);
 
