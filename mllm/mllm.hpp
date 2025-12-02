@@ -187,6 +187,8 @@ void memoryReport();
 
 bool isOpenCLAvailable();
 
+extern void initOpenCLBackend();
+
 extern void initCudaBackend();
 
 extern void initAscendBackend();
