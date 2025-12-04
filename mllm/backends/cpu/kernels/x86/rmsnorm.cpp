@@ -27,22 +27,22 @@ void rmsnorm_fp32(const float* __restrict X, const float* __restrict W, float* _
     const auto ones = hn::Set(d, 1.0f);
     int i = 0;
     for (; i + hn::Lanes(d) <= D; i += hn::Lanes(d)) {
-      auto x_val = hn::Load(d, x_ptr + i);
-      auto w_val = hn::Load(d, w_ptr + i);
+      auto x_val = hn::LoadU(d, x_ptr + i);
+      auto w_val = hn::LoadU(d, w_ptr + i);
       auto multiplier = hn::Add(w_val, ones);
       multiplier = hn::Mul(multiplier, rms_vec);
       auto result = hn::Mul(x_val, multiplier);
-      hn::Store(result, d, y_ptr + i);
+      hn::StoreU(result, d, y_ptr + i);
     }
     for (; i < D; ++i) { y_ptr[i] = x_ptr[i] * rms * (w_ptr[i] + 1.0f); }
   } else {
     int i = 0;
     for (; i + hn::Lanes(d) <= D; i += hn::Lanes(d)) {
-      auto x_val = hn::Load(d, x_ptr + i);
-      auto w_val = hn::Load(d, w_ptr + i);
+      auto x_val = hn::LoadU(d, x_ptr + i);
+      auto w_val = hn::LoadU(d, w_ptr + i);
       auto multiplier = hn::Mul(w_val, rms_vec);
       auto result = hn::Mul(x_val, multiplier);
-      hn::Store(result, d, y_ptr + i);
+      hn::StoreU(result, d, y_ptr + i);
     }
     for (; i < D; ++i) { y_ptr[i] = x_ptr[i] * rms * w_ptr[i]; }
   }
