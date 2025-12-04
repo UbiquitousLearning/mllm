@@ -3,6 +3,9 @@
 
 #include "mllm/backends/opencl/OpenCLDispatcher.hpp"
 #include "mllm/backends/opencl/ops/AddOp.hpp"
+#include "mllm/backends/opencl/ops/EmbeddingOp.hpp"
+#include "mllm/backends/opencl/ops/X2XOp.hpp"
+
 #include "mllm/mllm.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
@@ -10,8 +13,6 @@
 #include "mllm/backends/opencl/OpenCLBackend.hpp"
 #include <memory>
 #include "mllm/backends/opencl/runtime/OpenCLRuntime.hpp"
-
-#include "mllm/backends/opencl/ops/X2XOp.hpp"
 
 namespace mllm {
 
@@ -32,7 +33,7 @@ void initOpenCLBackend() {
 namespace opencl {
 
 OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
-  regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory>();
+  regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLEmbeddingOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (runtime_ == nullptr || runtime_->getDevices().empty()) {
