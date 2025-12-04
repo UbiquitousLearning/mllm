@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/backends/opencl/OpenCLDispatcher.hpp"
-#include "mllm/backends/opencl/runtime/OpenCLLoader.hpp"
+#include "mllm/backends/opencl/ops/AddOp.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
@@ -10,6 +10,8 @@
 #include "mllm/backends/opencl/OpenCLBackend.hpp"
 #include <memory>
 #include "mllm/backends/opencl/runtime/OpenCLRuntime.hpp"
+
+#include "mllm/backends/opencl/ops/X2XOp.hpp"
 
 namespace mllm {
 
@@ -22,16 +24,23 @@ void initOpenCLBackend() {
 
   // 2. Initialize memory manager
   ctx.memoryManager()->registerAllocator(kOpenCL, opencl_backend->allocator(), MemoryManagerOptions());
+
+  ctx.dispatcherManager()->registerDispatcher(
+      createOpenCLDispatcher(ctx.dispatcherManager()->getExecutor(), opencl::OpenCLDispatcherOptions()));
 }
 
 namespace opencl {
 
-OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, std::make_shared<OpenCLAllocator>()) {
-  runtime_ = OpenCLRuntime::get();
+OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
+  regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory>();
+
+  runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (runtime_ == nullptr || runtime_->getDevices().empty()) {
     MLLM_ERROR("Failed to initialize OpenCL runtime.\n");
     return;
   }
+
+  this->allocator_ = std::make_shared<OpenCLAllocator>(runtime_);
 
   const auto& device = runtime_->getDevices()[0];
   std::string device_name;

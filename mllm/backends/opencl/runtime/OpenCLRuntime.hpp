@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#include "CL/opencl.hpp"
+#include "OpenCLLoader.hpp"
 
 namespace mllm::opencl {
 
@@ -22,13 +22,17 @@ enum GpuType { MALI = 0, ADRENO = 1, RADEON = 2, INTEL = 3, OTHER = 4 };
 struct KernelPool {
   uint64_t max_work_group_size_;
   std::queue<std::shared_ptr<cl::Kernel>> recycle_;
+  std::mutex mutex_;
 };
 
 class KernelWrap {
  public:
   KernelWrap(std::shared_ptr<cl::Kernel> k, KernelPool* recycle) : kernel_(std::move(k)), recycle_(recycle) {}
   ~KernelWrap() {
-    if (nullptr != recycle_) { recycle_->recycle_.push(kernel_); }
+    if (nullptr != recycle_) {
+      std::lock_guard<std::mutex> lck(recycle_->mutex_);
+      recycle_->recycle_.push(kernel_);
+    }
   }
   cl::Kernel& get() { return *kernel_; }
 
@@ -42,8 +46,6 @@ class OpenCLRuntime {
   ~OpenCLRuntime();
   OpenCLRuntime(const OpenCLRuntime&) = delete;
   OpenCLRuntime& operator=(const OpenCLRuntime&) = delete;
-
-  static OpenCLRuntime* get();
 
   cl::Context& context();
   cl::CommandQueue& commandQueue();
@@ -66,6 +68,8 @@ class OpenCLRuntime {
   bool loadProgram(const std::string& programName, cl::Program* program);
   bool buildProgram(const std::string& buildOptionsStr, cl::Program* program);
   bool getDeviceSupportsExtension(const cl::Device& device, const char* extensionName);
+
+  friend class OpenCLBackend;
 
  private:
   std::shared_ptr<cl::Context> context_;

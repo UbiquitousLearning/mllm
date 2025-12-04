@@ -3,18 +3,13 @@
 
 #include "OpenCLRuntime.hpp"
 #include "OpenCLLoader.hpp"
+#include "mllm/backends/opencl/kernels/a_opencl_source_map.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
 #include <vector>
 #include <string>
-#include <fstream>
 
 namespace mllm::opencl {
-
-OpenCLRuntime* OpenCLRuntime::get() {
-  static OpenCLRuntime runtime;
-  return &runtime;
-}
 
 OpenCLRuntime::OpenCLRuntime() {
   if (!OpenCLLoader::instance().loadOpenCLDynLib()) {
@@ -98,15 +93,17 @@ uint32_t OpenCLRuntime::maxWorkGroupSize() const { return max_work_group_size_; 
 GpuType OpenCLRuntime::getGpuType() { return gpu_type_; }
 
 bool OpenCLRuntime::loadProgram(const std::string& programName, cl::Program* program) {
-  const std::string& program_path = programName;
-  std::ifstream file(program_path);
-  if (!file.is_open()) {
-    MLLM_ERROR("Failed to open program file: %s\n", program_path.c_str());
+  auto it_source = OpenCLProgramMap.find(programName);
+  if (it_source != OpenCLProgramMap.end()) {
+    cl::Program::Sources sources;
+    std::string source(it_source->second);
+    sources.push_back(source);
+    *program = cl::Program(context(), sources);
+    return true;
+  } else {
+    MLLM_ERROR("Can't find kernel source !\n");
     return false;
   }
-  std::string source(std::istreambuf_iterator<char>(file), (std::istreambuf_iterator<char>()));
-  *program = cl::Program(*context_, source);
-  return true;
 }
 
 bool OpenCLRuntime::buildProgram(const std::string& buildOptionsStr, cl::Program* program) {
@@ -129,8 +126,7 @@ std::shared_ptr<KernelWrap> OpenCLRuntime::buildKernel(const std::string& progra
   for (const auto& option : buildOptions) { buildOptionsStr += " " + option; }
   buildOptionsStr += default_build_params_;
 
-  std::lock_guard<std::mutex> lock(build_program_mutex_);
-
+  std::lock_guard<std::mutex> lck(build_program_mutex_);
   auto key = std::make_pair(programName, buildOptionsStr);
   auto& program_with_kernel = build_program_map_[key];
 
@@ -140,6 +136,7 @@ std::shared_ptr<KernelWrap> OpenCLRuntime::buildKernel(const std::string& progra
   }
 
   auto& kernel_pool = program_with_kernel.kernels[kernelName];
+  std::lock_guard<std::mutex> pool_lck(kernel_pool.mutex_);
   if (kernel_pool.recycle_.empty()) {
     auto kernel = std::make_shared<cl::Kernel>(program_with_kernel.program, kernelName.c_str());
     kernel->getWorkGroupInfo(devices_[0], CL_KERNEL_WORK_GROUP_SIZE, &kernel_pool.max_work_group_size_);

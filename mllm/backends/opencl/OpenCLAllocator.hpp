@@ -6,16 +6,20 @@
 #include "mllm/backends/base/Allocator.hpp"
 #include "mllm/backends/opencl/runtime/OpenCLRuntime.hpp"
 #include <map>
+#include <memory>
 #include <mutex>
 
 namespace mllm::opencl {
 
 class OpenCLAllocator final : public Allocator {
  public:
-  OpenCLAllocator();
+  explicit OpenCLAllocator(std::shared_ptr<OpenCLRuntime> runtime);
   ~OpenCLAllocator();
 
-  inline bool ctrlByMemManager() override { return true; }
+  inline bool ctrlByMemManager() override {
+    // OpenCLAllocator manages its own memory pool
+    return false;
+  }
 
   bool alloc(Storage* storage) override;
   bool alloc(const Storage::ptr_t& storage) override;
@@ -30,7 +34,7 @@ class OpenCLAllocator final : public Allocator {
  private:
   std::multimap<size_t, cl_mem> memory_pool_;
   std::mutex pool_mutex_;
-  OpenCLRuntime* runtime_;
+  std::shared_ptr<OpenCLRuntime> runtime_;
 };
 
 }  // namespace mllm::opencl

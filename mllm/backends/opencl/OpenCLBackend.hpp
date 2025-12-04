@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <memory>
 #include "mllm/backends/base/Backend.hpp"
 #include "mllm/backends/opencl/runtime/OpenCLRuntime.hpp"
 
@@ -13,10 +14,10 @@ class OpenCLBackend final : public Backend {
   explicit OpenCLBackend();
   ~OpenCLBackend() = default;
 
-  [[nodiscard]] OpenCLRuntime* runtime() const { return runtime_; }
+  [[nodiscard]] std::shared_ptr<OpenCLRuntime> runtime() const { return runtime_; }
 
  private:
-  OpenCLRuntime* runtime_;
+  std::shared_ptr<OpenCLRuntime> runtime_;
 };
 
 }  // namespace mllm::opencl

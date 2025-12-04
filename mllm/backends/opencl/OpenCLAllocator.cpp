@@ -3,12 +3,11 @@
 
 #include "mllm/backends/opencl/OpenCLAllocator.hpp"
 #include "mllm/backends/opencl/runtime/OpenCLLoader.hpp"
-#include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::opencl {
 
-OpenCLAllocator::OpenCLAllocator() { runtime_ = OpenCLRuntime::get(); }
+OpenCLAllocator::OpenCLAllocator(std::shared_ptr<OpenCLRuntime> runtime) : runtime_(std::move(runtime)) {}
 
 OpenCLAllocator::~OpenCLAllocator() {
   std::lock_guard<std::mutex> lock(pool_mutex_);
@@ -56,7 +55,7 @@ bool OpenCLAllocator::generalAlloc(void** ptr, size_t cap, size_t align) {
     cl_int err;
     cl_mem buffer = OpenCLLoader::instance().clCreateBuffer(runtime_->context()(), CL_MEM_READ_WRITE, cap, nullptr, &err);
     if (err != CL_SUCCESS) {
-      MLLM_ERROR("OpenCLAllocator::clCreateBuffer failed with error %d\n", err);
+      MLLM_ERROR("OpenCLAllocator::clCreateBuffer failed with error {}", err);
       *ptr = nullptr;
       return false;
     }
@@ -74,7 +73,7 @@ void OpenCLAllocator::generalFree(void* ptr) {
   size_t buffer_size = 0;
   cl_int err = OpenCLLoader::instance().clGetMemObjectInfo(buffer, CL_MEM_SIZE, sizeof(size_t), &buffer_size, nullptr);
   if (err != CL_SUCCESS) {
-    MLLM_ERROR("OpenCLAllocator::clGetMemObjectInfo failed with error %d\n", err);
+    MLLM_ERROR("OpenCLAllocator::clGetMemObjectInfo failed with error {}", err);
     OpenCLLoader::instance().clReleaseMemObject(buffer);
     return;
   }
