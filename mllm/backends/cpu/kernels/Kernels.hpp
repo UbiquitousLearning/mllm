@@ -37,6 +37,7 @@
 #else
 #include "mllm/backends/cpu/kernels/common/gelu-inl.hpp"     // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/permute-inl.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/common/elewise-inl.hpp"    // IWYU pragma: export
 #endif
 
 // Platform free Kernels.

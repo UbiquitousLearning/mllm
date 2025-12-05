@@ -140,12 +140,18 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_add(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
 #endif
       } else if (input1.numel() == 1) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_add_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
@@ -153,8 +159,20 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const float* b = input1.ptr<mllm_fp32_t>();
         float* out = output.ptr<mllm_fp32_t>();
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+            cpu::common::HWY_NAMESPACE::element_wise_add(out + out_offset, a + a_offset, b + b_offset, vector_size);
+          }
+        }
+
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
@@ -257,7 +275,7 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
-
+        
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
@@ -299,12 +317,18 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_sub(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
 #endif
       } else if (input1.numel() == 1) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_sub_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
@@ -312,8 +336,19 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const float* b = input1.ptr<mllm_fp32_t>();
         float* out = output.ptr<mllm_fp32_t>();
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+            cpu::common::HWY_NAMESPACE::element_wise_sub(out + out_offset, a + a_offset, b + b_offset, vector_size);
+          }
+        }
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
@@ -458,12 +493,18 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_mul(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
 #endif
       } else if (input1.numel() == 1) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_mul_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
@@ -471,8 +512,19 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const float* b = input1.ptr<mllm_fp32_t>();
         float* out = output.ptr<mllm_fp32_t>();
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements  
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+            cpu::common::HWY_NAMESPACE::element_wise_mul(out + out_offset, a + a_offset, b + b_offset, vector_size);
+          }
+        }
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
@@ -617,12 +669,18 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_div(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
 #endif
       } else if (input1.numel() == 1) {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        cpu::common::HWY_NAMESPACE::element_wise_div_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+                              output.numel());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
@@ -630,8 +688,19 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const float* b = input1.ptr<mllm_fp32_t>();
         float* out = output.ptr<mllm_fp32_t>();
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        // Process each batch separately
+        for (int batch = 0; batch < batch_dims; ++batch) {
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements  
+          for (int l = 0; l < broadcast_naive_loops; ++l) {
+            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+            cpu::common::HWY_NAMESPACE::element_wise_div(out + out_offset, a + a_offset, b + b_offset, vector_size);
+          }
+        }
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
@@ -775,7 +844,9 @@ void CPUAbsOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("AbsOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::ew_abs_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
 #endif
       break;
@@ -841,7 +912,9 @@ void CPULogOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("LogOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::ew_log_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
 #endif
       break;
@@ -869,7 +942,9 @@ void CPUExpOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   auto dtype = output.dtype();
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("ExpOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::ew_exp_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
 #endif
       break;
@@ -894,7 +969,9 @@ void CPUClipOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("ClipOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::clip_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), static_cast<mllm_fp32_t>(options_.min_val),
                           static_cast<mllm_fp32_t>(options_.max_val), output.numel(), options_.getThreads());
 #endif
@@ -948,7 +1025,9 @@ void CPUSinOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   auto dtype = output.dtype();
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("SinOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::ew_sin_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
 #endif
       break;
@@ -972,7 +1051,9 @@ void CPUCosOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   auto dtype = output.dtype();
   switch (dtype) {
     case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("CosOp not supported in x86.");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       cpu::arm::ew_cos_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
 #endif
       break;
