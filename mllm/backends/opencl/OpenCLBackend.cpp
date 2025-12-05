@@ -19,7 +19,7 @@ namespace mllm {
 void initOpenCLBackend() {
   auto& ctx = Context::instance();
 
-  // 1. Register host backend
+  // 1. Register backend
   auto opencl_backend = std::make_shared<opencl::OpenCLBackend>();
   ctx.registerBackend(opencl_backend);
 
@@ -36,8 +36,12 @@ OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
   regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLEmbeddingOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
-  if (runtime_ == nullptr || runtime_->getDevices().empty()) {
+  if (!runtime_) {
     MLLM_ERROR("Failed to initialize OpenCL runtime.\n");
+    return;
+  }
+  if (runtime_->getDevices().empty()) {
+    MLLM_ERROR("No OpenCL devices found.\n");
     return;
   }
 
