@@ -16,9 +16,11 @@ void OpenCLX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto& output = outputs[0];
 
   if (input.device() == kOpenCL && output.device() == kOpenCL) {
-    // If both input and output are on OpenCL device, just copy the buffer pointer
-    output.impl()->storage()->ptr_ = input.impl()->storage()->ptr_;
-    return;
+    // If both input and output are on OpenCL device
+    // Retain the buffer to ensure proper reference counting
+    cl_mem src_buffer = static_cast<cl_mem>(input.impl()->storage()->ptr_);
+    OpenCLLoader::instance().clRetainMemObject(src_buffer);
+    output.impl()->storage()->ptr_ = src_buffer;
   } else if (input.device() == kOpenCL && output.device() == kCPU) {
     // Calculate data size in bytes
     size_t data_size = input.bytes();
