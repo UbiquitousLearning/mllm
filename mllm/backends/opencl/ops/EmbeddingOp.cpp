@@ -52,8 +52,8 @@ void OpenCLEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   auto error = runtime->commandQueue().enqueueNDRangeKernel(kernel_wrapper->get(), cl::NullRange,
                                                             cl::NDRange(global_size[0], global_size[1]), cl::NullRange);
 
-  if (error != CL_SUCCESS) { MLLM_ERROR("Failed to execute embedding kernel, error code: {}", error); }
-
-  runtime->commandQueue().finish();
+  if (error != CL_SUCCESS) {
+    MLLM_ERROR_EXIT(ExitCode::kOpenCLError, "Failed to execute embedding kernel, error code: {}", error);
+  }
 }
 }  // namespace mllm::opencl

@@ -35,8 +35,6 @@ void OpenCLAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   auto error = runtime->commandQueue().enqueueNDRangeKernel(kernel_fp32_buffer_->get(), cl::NullRange, cl::NDRange(global_size),
                                                             cl::NullRange);
 
-  if (error != CL_SUCCESS) { MLLM_ERROR("Failed to execute add kernel, error code: {}", error); }
-
-  runtime->commandQueue().finish();
+  if (error != CL_SUCCESS) { MLLM_ERROR_EXIT(ExitCode::kOpenCLError, "Failed to execute add kernel, error code: {}", error); }
 }
 }  // namespace mllm::opencl
