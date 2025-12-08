@@ -8,6 +8,7 @@
 #include "mllm/backends/opencl/ops/FillOp.hpp"
 #include "mllm/backends/opencl/ops/GraphOps.hpp"
 #include "mllm/backends/opencl/ops/LinearOp.hpp"
+#include "mllm/backends/opencl/ops/MatMulOp.hpp"
 #include "mllm/backends/opencl/ops/RMSNormOp.hpp"
 #include "mllm/backends/opencl/ops/RoPEOp.hpp"
 #include "mllm/backends/opencl/ops/SliceOp.hpp"
@@ -45,7 +46,7 @@ OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
   regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLSubOpFactory, OpenCLMulOpFactory, OpenCLDivOpFactory,
                OpenCLEmbeddingOpFactory, OpenCLGraphBeginOpFactory, OpenCLGraphEndOpFactory, OpenCLSliceOpFactory,
                OpenCLViewOpFactory, OpenCLTransposeOpFactory, OpenCLFillOpFactory, OpenCLRMSNormOpFactory, OpenCLRoPEOpFactory,
-               OpenCLCopyOpFactory, OpenCLLinearOpFactory>();
+               OpenCLCopyOpFactory, OpenCLLinearOpFactory, OpenCLMatMulOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (!runtime_) {
