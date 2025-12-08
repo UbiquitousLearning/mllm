@@ -38,7 +38,8 @@ namespace opencl {
 
 OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
   regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLEmbeddingOpFactory, OpenCLGraphBeginOpFactory,
-               OpenCLGraphEndOpFactory, OpenCLSliceOpFactory, OpenCLViewOpFactory, OpenCLTransposeOpFactory>();
+               OpenCLGraphEndOpFactory, OpenCLSliceOpFactory, OpenCLViewOpFactory, OpenCLTransposeOpFactory,
+               OpenCLX2XOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (!runtime_) {

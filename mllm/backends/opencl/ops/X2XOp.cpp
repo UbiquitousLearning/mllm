@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "X2XOp.hpp"
+#include "mllm/core/BaseOp.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/backends/opencl/OpenCLBackend.hpp"
@@ -10,6 +11,11 @@
 namespace mllm::opencl {
 
 OpenCLX2XOp::OpenCLX2XOp(const aops::X2XOpOptions& options) : aops::X2XOp(options) {}
+
+void OpenCLX2XOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  // FIXME: when input is a sliced tensor, the storage will be wrong
+  return BaseOp::setup(inputs, outputs);
+}
 
 void OpenCLX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   const auto& input = inputs[0];

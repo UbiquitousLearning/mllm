@@ -13,6 +13,7 @@ class OpenCLX2XOp final : public aops::X2XOp {
  public:
   explicit OpenCLX2XOp(const aops::X2XOpOptions& options);
 
+  void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 };
 
