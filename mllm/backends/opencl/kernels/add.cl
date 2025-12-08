@@ -57,6 +57,9 @@ __kernel void add_fp16_vector(__global const half *A, __global const half *B,
                               __global half *C) {
   const int i = get_global_id(0);
 
+  if (i >= count / 4)
+    return;
+
   // Efficiently load 4 half (total 64 bits) data
   half4 a_vec = vload4(i, A);
   half4 b_vec = vload4(i, B);

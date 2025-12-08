@@ -10,5 +10,5 @@ const std::map<std::string, const char*> OpenCLProgramMap = {
 }  // namespace mllm::opencl
 const std::map<std::string, std::string> OpenCLProgramMd5Map = {
     {"embedding", "2f53599ee23db57480589c629c0d2069"},
-    {"add", "80b65e1c6264e86f6fa4431c30655900"},
+    {"add", "f99367757685844e54326166a9e44840"},
 };

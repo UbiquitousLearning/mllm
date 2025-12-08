@@ -53,6 +53,8 @@ const char* add = "__kernel void add_float(__global const float *A,__global cons
                   "__kernel void add_fp16_vector(__global const half *A,__global const half *B,\n"
                   " __global half *C) {\n"
                   " const int i=get_global_id(0);\n"
+                  " if (i >= count/4)\n"
+                  " return;\n"
                   " // Efficiently load 4 half (total 64 bits) data\n"
                   " half4 a_vec=vload4(i,A);\n"
                   " half4 b_vec=vload4(i,B);\n"
