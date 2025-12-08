@@ -102,6 +102,9 @@ class OpenCLLoader {
   using clCreateKernel_f_t = cl_kernel(CL_API_CALL*)(cl_program, const char*, cl_int*);
   using clRetainKernel_f_t = cl_int(CL_API_CALL*)(cl_kernel kernel);
   using clCreateBuffer_f_t = cl_mem(CL_API_CALL*)(cl_context, cl_mem_flags, size_t, void*, cl_int*);
+  using clCreateSubBuffer_f_t = cl_mem(CL_API_CALL*)(cl_mem buffer, cl_mem_flags flags,
+                                                     cl_buffer_create_type buffer_create_type, const void* buffer_create_info,
+                                                     cl_int* errcode_ret);
   using clCreateImage_f_t = cl_mem(CL_API_CALL*)(cl_context, cl_mem_flags, const cl_image_format*, const cl_image_desc*, void*,
                                                  cl_int*);
   using clCreateImage2D_f_t = cl_mem(CL_API_CALL*)(cl_context,  // NOLINT
@@ -163,6 +166,7 @@ class OpenCLLoader {
   DEFINE_FUNC_PTR_MEMBER(clReleaseKernel);
   DEFINE_FUNC_PTR_MEMBER(clCreateProgramWithSource);
   DEFINE_FUNC_PTR_MEMBER(clCreateBuffer);
+  DEFINE_FUNC_PTR_MEMBER(clCreateSubBuffer);
   DEFINE_FUNC_PTR_MEMBER(clCreateImage2D);
   DEFINE_FUNC_PTR_MEMBER(clRetainKernel);
   DEFINE_FUNC_PTR_MEMBER(clCreateKernel);

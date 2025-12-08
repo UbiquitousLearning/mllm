@@ -79,6 +79,7 @@ bool OpenCLLoader::tryingToLoadOpenCLDynLibAndParseSymbols(const std::string& li
   LOAD_FUNCTION_PTR(clReleaseKernel);
   LOAD_FUNCTION_PTR(clCreateProgramWithSource);
   LOAD_FUNCTION_PTR(clCreateBuffer);
+  LOAD_FUNCTION_PTR(clCreateSubBuffer);
   LOAD_FUNCTION_PTR(clCreateImage2D);
   LOAD_FUNCTION_PTR(clRetainKernel);
   LOAD_FUNCTION_PTR(clCreateKernel);
@@ -258,6 +259,11 @@ cl_int CL_API_CALL clSetKernelArg(cl_kernel _0, cl_uint _1, size_t _2, const voi
 
 cl_mem CL_API_CALL clCreateBuffer(cl_context _0, cl_mem_flags _1, size_t _2, void* _3, cl_int* _4) {
   auto func = ::mllm::opencl::OpenCLLoader::instance().clCreateBuffer;
+  return func(_0, _1, _2, _3, _4);
+}
+
+cl_mem CL_API_CALL clCreateSubBuffer(cl_mem _0, cl_mem_flags _1, cl_buffer_create_type _2, const void* _3, cl_int* _4) {
+  auto func = ::mllm::opencl::OpenCLLoader::instance().clCreateSubBuffer;
   return func(_0, _1, _2, _3, _4);
 }
 
