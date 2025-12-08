@@ -5,6 +5,7 @@
 #include "OpenCLLoader.hpp"
 #include "mllm/backends/opencl/kernels/a_opencl_source_map.hpp"
 #include "mllm/mllm.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include <vector>
 #include <string>
@@ -18,7 +19,7 @@ OpenCLRuntime::OpenCLRuntime() {
   std::vector<cl::Platform> platforms;
   cl::Platform::get(&platforms);
   if (platforms.empty()) {
-    MLLM_ERROR("OpenCL platforms not found!\n");
+    MLLM_ERROR("OpenCL platforms not found!");
     return;
   }
 
@@ -26,7 +27,7 @@ OpenCLRuntime::OpenCLRuntime() {
   std::vector<cl::Device> devices;
   platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
   if (devices.empty()) {
-    MLLM_ERROR("OpenCL devices not found!\n");
+    MLLM_ERROR("OpenCL devices not found!");
     return;
   }
 
@@ -112,9 +113,9 @@ bool OpenCLRuntime::buildProgram(const std::string& buildOptionsStr, cl::Program
     if (ret == CL_BUILD_PROGRAM_FAILURE) {
       std::string build_log;
       program->getBuildInfo(devices_[0], CL_PROGRAM_BUILD_LOG, &build_log);
-      MLLM_INFO("Build log: %s\n", build_log.c_str());
+      MLLM_INFO("Build log: {}", build_log);
     }
-    MLLM_ERROR("Build program failed: %d\n", ret);
+    MLLM_ERROR("Build program failed: {}", ret);
     return false;
   }
   return true;
