@@ -2,16 +2,17 @@
 #include <string>
 namespace mllm::opencl {
 extern const char* transpose;
+extern const char* rmsnorm;
 extern const char* embedding;
+extern const char* fill;
+extern const char* rope;
 extern const char* add;
 const std::map<std::string, const char*> OpenCLProgramMap = {
-    {"transpose", transpose},
-    {"embedding", embedding},
-    {"add", add},
+    {"transpose", transpose}, {"rmsnorm", rmsnorm}, {"embedding", embedding}, {"fill", fill}, {"rope", rope}, {"add", add},
 };
 }  // namespace mllm::opencl
 const std::map<std::string, std::string> OpenCLProgramMd5Map = {
-    {"transpose", "87caf150f16b16711c85f250ef3b4078"},
-    {"embedding", "2f53599ee23db57480589c629c0d2069"},
-    {"add", "f99367757685844e54326166a9e44840"},
+    {"transpose", "87caf150f16b16711c85f250ef3b4078"}, {"rmsnorm", "c80a3d46b5760cddc6cca0205a7b6e85"},
+    {"embedding", "2f53599ee23db57480589c629c0d2069"}, {"fill", "0378c49b52d12aee7d7fb0d8495945c7"},
+    {"rope", "a0fb1d3c9e5f3cfbb6384471d8a40591"},      {"add", "f99367757685844e54326166a9e44840"},
 };
