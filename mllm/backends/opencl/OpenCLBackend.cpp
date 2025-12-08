@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/backends/opencl/OpenCLDispatcher.hpp"
-#include "mllm/backends/opencl/ops/AddOp.hpp"
+#include "mllm/backends/opencl/ops/ElewiseOp.hpp"
 #include "mllm/backends/opencl/ops/CopyOp.hpp"
 #include "mllm/backends/opencl/ops/EmbeddingOp.hpp"
 #include "mllm/backends/opencl/ops/FillOp.hpp"
@@ -42,9 +42,10 @@ void initOpenCLBackend() {
 namespace opencl {
 
 OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
-  regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLEmbeddingOpFactory, OpenCLGraphBeginOpFactory,
-               OpenCLGraphEndOpFactory, OpenCLSliceOpFactory, OpenCLViewOpFactory, OpenCLTransposeOpFactory,
-               OpenCLFillOpFactory, OpenCLRMSNormOpFactory, OpenCLRoPEOpFactory, OpenCLCopyOpFactory, OpenCLLinearOpFactory>();
+  regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLSubOpFactory, OpenCLMulOpFactory, OpenCLDivOpFactory,
+               OpenCLEmbeddingOpFactory, OpenCLGraphBeginOpFactory, OpenCLGraphEndOpFactory, OpenCLSliceOpFactory,
+               OpenCLViewOpFactory, OpenCLTransposeOpFactory, OpenCLFillOpFactory, OpenCLRMSNormOpFactory, OpenCLRoPEOpFactory,
+               OpenCLCopyOpFactory, OpenCLLinearOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (!runtime_) {
