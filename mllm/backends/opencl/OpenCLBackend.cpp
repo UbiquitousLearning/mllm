@@ -12,9 +12,12 @@
 #include "mllm/backends/opencl/ops/RMSNormOp.hpp"
 #include "mllm/backends/opencl/ops/RoPEOp.hpp"
 #include "mllm/backends/opencl/ops/SliceOp.hpp"
+#include "mllm/backends/opencl/ops/SoftmaxOp.hpp"
+#include "mllm/backends/opencl/ops/CausalMaskOp.hpp"
 #include "mllm/backends/opencl/ops/TransposeOp.hpp"
 #include "mllm/backends/opencl/ops/ViewOp.hpp"
 #include "mllm/backends/opencl/ops/X2XOp.hpp"
+#include "mllm/backends/opencl/ops/SiLUOp.hpp"
 
 #include "mllm/mllm.hpp"
 #include "mllm/core/DeviceTypes.hpp"
@@ -46,7 +49,8 @@ OpenCLBackend::OpenCLBackend() : Backend(kOpenCL, nullptr) {
   regOpFactory<OpenCLX2XOpFactory, OpenCLAddOpFactory, OpenCLSubOpFactory, OpenCLMulOpFactory, OpenCLDivOpFactory,
                OpenCLEmbeddingOpFactory, OpenCLGraphBeginOpFactory, OpenCLGraphEndOpFactory, OpenCLSliceOpFactory,
                OpenCLViewOpFactory, OpenCLTransposeOpFactory, OpenCLFillOpFactory, OpenCLRMSNormOpFactory, OpenCLRoPEOpFactory,
-               OpenCLCopyOpFactory, OpenCLLinearOpFactory, OpenCLMatMulOpFactory>();
+               OpenCLCopyOpFactory, OpenCLLinearOpFactory, OpenCLMatMulOpFactory, OpenCLSoftmaxOpFactory,
+               OpenCLCausalMaskOpFactory, OpenCLSiLUOpFactory>();
 
   runtime_ = std::shared_ptr<OpenCLRuntime>(new OpenCLRuntime());
   if (!runtime_) {
