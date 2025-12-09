@@ -39,5 +39,5 @@ const std::map<std::string, std::string> OpenCLProgramMd5Map = {
     {"mul", "1241c7141443ad9e18dadd14e150516a"},         {"div", "5936825bc33ffe218c11ade20fd68203"},
     {"fill", "0378c49b52d12aee7d7fb0d8495945c7"},        {"matmul_transb_bias", "9fd958568df8525ae1b6d620ff0bf5e5"},
     {"rope", "a0fb1d3c9e5f3cfbb6384471d8a40591"},        {"silu", "c9c2197b4b426d12cc652296738c24e1"},
-    {"add", "a1ed4a6207f790f5dc436cf841744cf3"},         {"matmul", "1a07079712a494d8134540564ce4fad4"},
+    {"add", "a1ed4a6207f790f5dc436cf841744cf3"},         {"matmul", "3575e473588e7034a12913e30f861ee0"},
 };

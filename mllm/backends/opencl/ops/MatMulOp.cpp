@@ -19,9 +19,9 @@ OpenCLMatMulOp::OpenCLMatMulOp(const aops::MatMulOpOptions& options) : aops::Mat
 
   std::string kernelName;
   if (!transpose_a && !transpose_b) {
-    kernelName = "matmul_buffer_nt_nt";
+    kernelName = "matmul_buffer_nt_nt_opt";
   } else if (!transpose_a && transpose_b) {
-    kernelName = "matmul_buffer_nt_t";
+    kernelName = "matmul_buffer_nt_t_opt";
   } else {
     MLLM_ERROR_EXIT(ExitCode::kOpenCLError, "MatMulOp: Unsupported transpose combination: A={}, B={}", transpose_a,
                     transpose_b);
@@ -91,8 +91,9 @@ void OpenCLMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
 
   if (err != CL_SUCCESS) { MLLM_ERROR("Failed to set OpenCL MatMulOp kernel arguments, error code: {}", err); }
 
-  cl::NDRange global(M, N, batch_count);
-  cl::NDRange local = cl::NullRange;
+  const int TILE_SIZE = 16;
+  cl::NDRange global((M + TILE_SIZE - 1) / TILE_SIZE * TILE_SIZE, (N + TILE_SIZE - 1) / TILE_SIZE * TILE_SIZE, batch_count);
+  cl::NDRange local(TILE_SIZE, TILE_SIZE, 1);
 
   auto error = runtime->commandQueue().enqueueNDRangeKernel(cl_kernel, cl::NullRange, global, local);
   if (error != CL_SUCCESS) {
