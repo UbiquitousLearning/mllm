@@ -76,6 +76,8 @@ void OpenCLLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &K);
     ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &N);
     ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &has_bias);
+    int offset_a = input.impl()->storageOffset();
+    ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &offset_a);
 
     // TILE_SIZE = 16
     int tile_size = 16;
@@ -97,6 +99,8 @@ void OpenCLLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &K);
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &N);
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &has_bias);
+      int offset_a = input.impl()->storageOffset();
+      ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &offset_a);
 
       int local_size_0 = 128;  // Must be <= 256
       int gws_0 = N * local_size_0;
@@ -116,6 +120,8 @@ void OpenCLLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &K);
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &N);
       ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &has_bias);
+      int offset_a = input.impl()->storageOffset();
+      ret |= kernel_wrapper->get().setArg(index++, sizeof(int), &offset_a);
 
       int tile_size = 16;
       int gws_0 = (N + tile_size - 1) / tile_size * tile_size;

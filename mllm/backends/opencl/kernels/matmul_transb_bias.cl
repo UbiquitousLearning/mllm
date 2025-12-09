@@ -17,7 +17,8 @@ __kernel void gemm_fp32_transb_bias(__global const float *A,
                                     __global const float *B,
                                     __global const float *bias,
                                     __global float *C, const int M, const int K,
-                                    const int N, const int has_bias) {
+                                    const int N, const int has_bias,
+                                    const int offset_a) {
   const int s = get_global_id(1);
   const int n = get_global_id(0);
   const int batch_idx = get_global_id(2);
@@ -37,7 +38,7 @@ __kernel void gemm_fp32_transb_bias(__global const float *A,
     const int a_k_idx = k_start + local_col;
     if (s < M && a_k_idx < K) {
       a_tile[local_row][local_col] =
-          A[(long)batch_idx * M * K + (long)s * K + a_k_idx];
+          A[(long)batch_idx * M * K + (long)s * K + a_k_idx + offset_a];
     } else {
       a_tile[local_row][local_col] = 0.0f;
     }
@@ -65,12 +66,11 @@ __kernel void gemm_fp32_transb_bias(__global const float *A,
   }
 }
 
-__kernel void gemm_fp32_fp16_transb_bias(__global const float *A,
-                                         __global const half *B,
-                                         __global const float *bias,
-                                         __global float *C, const int M,
-                                         const int K, const int N,
-                                         const int has_bias) {
+__kernel void
+gemm_fp32_fp16_transb_bias(__global const float *A, __global const half *B,
+                           __global const float *bias, __global float *C,
+                           const int M, const int K, const int N,
+                           const int has_bias, const int offset_a) {
   const int s = get_global_id(1);
   const int n = get_global_id(0);
   const int batch_idx = get_global_id(2);
@@ -90,7 +90,7 @@ __kernel void gemm_fp32_fp16_transb_bias(__global const float *A,
     const int a_k_idx = k_start + local_col;
     if (s < M && a_k_idx < K) {
       a_tile[local_row][local_col] =
-          A[(long)batch_idx * M * K + (long)s * K + a_k_idx];
+          A[(long)batch_idx * M * K + (long)s * K + a_k_idx + offset_a];
     } else {
       a_tile[local_row][local_col] = 0.0f;
     }
@@ -128,7 +128,8 @@ __kernel void gemm_fp16_transb_bias(__global const half *A,
                                     __global const half *B,
                                     __global const float *bias,
                                     __global half *C, const int M, const int K,
-                                    const int N, const int has_bias) {
+                                    const int N, const int has_bias,
+                                    const int offset_a) {
   const int s = get_global_id(1);
   const int n = get_global_id(0);
   const int batch_idx = get_global_id(2);
@@ -147,7 +148,7 @@ __kernel void gemm_fp16_transb_bias(__global const half *A,
     const int a_k_idx = k_start + local_col;
     if (s < M && a_k_idx < K) {
       a_tile[local_row][local_col] =
-          A[(long)batch_idx * M * K + (long)s * K + a_k_idx];
+          A[(long)batch_idx * M * K + (long)s * K + a_k_idx + offset_a];
     } else {
       a_tile[local_row][local_col] = 0.0h;
     }
@@ -179,7 +180,8 @@ __kernel void gemm_fp16_transb_bias(__global const half *A,
                                     __global const half *B,
                                     __global const float *bias,
                                     __global half *C, const int M, const int K,
-                                    const int N, const int has_bias) {
+                                    const int N, const int has_bias,
+                                    const int offset_a) {
   const int s = get_global_id(1);
   const int n = get_global_id(0);
   const int batch_idx = get_global_id(2);
@@ -189,7 +191,7 @@ __kernel void gemm_fp16_transb_bias(__global const half *A,
 
   float acc = 0.0f;
   for (int k = 0; k < K; ++k) {
-    long a_idx = (long)batch_idx * M * K + (long)s * K + k;
+    long a_idx = (long)batch_idx * M * K + (long)s * K + k + offset_a;
     long b_idx = (long)n * K + k;
     acc += (float)A[a_idx] * (float)B[b_idx];
   }
@@ -209,7 +211,8 @@ __kernel void gemv_fp32_q4_0_transb_bias(__global const float *A,
                                          __global const block_q4_0 *B,
                                          __global const float *bias,
                                          __global float *C, const int K,
-                                         const int N, const int has_bias) {
+                                         const int N, const int has_bias,
+                                         const int offset_a) {
   const int n = get_group_id(0);
   const int batch_idx = get_group_id(1);
 
@@ -221,7 +224,7 @@ __kernel void gemv_fp32_q4_0_transb_bias(__global const float *A,
   __local float partial_sums[256];
 
   float private_acc = 0.0f;
-  const long a_base_idx = (long)batch_idx * K;
+  const long a_base_idx = (long)batch_idx * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
 
   for (int k = local_id; k < K; k += wg_size) {
@@ -266,12 +269,10 @@ __kernel void gemv_fp32_q4_0_transb_bias(__global const float *A,
 // 4. FP32 * Q4_0 Fused GEMM + Bias Kernels (for M > 1, Training)
 // ==================================================================
 
-__kernel void gemm_fp32_q4_0_transb_bias(__global const float *A,
-                                         __global const block_q4_0 *B,
-                                         __global const float *bias,
-                                         __global float *C, const int M,
-                                         const int K, const int N,
-                                         const int has_bias) {
+__kernel void gemm_fp32_q4_0_transb_bias(
+    __global const float *A, __global const block_q4_0 *B,
+    __global const float *bias, __global float *C, const int M, const int K,
+    const int N, const int has_bias, const int offset_a) {
   const int s = get_global_id(1);
   const int n = get_global_id(0);
   const int batch_idx = get_global_id(2);
@@ -282,7 +283,7 @@ __kernel void gemm_fp32_q4_0_transb_bias(__global const float *A,
 
   float acc = 0.0f;
 
-  const long a_row_offset = (long)batch_idx * M * K + (long)s * K;
+  const long a_row_offset = (long)batch_idx * M * K + (long)s * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
 
   for (int k_block_idx = 0; k_block_idx < K / QK4_0; ++k_block_idx) {
@@ -341,7 +342,8 @@ __kernel void gemv_fp16_q4_0_transb_bias(__global const half *A,
                                          __global const block_q4_0 *B,
                                          __global const float *bias,
                                          __global half *C, const int K,
-                                         const int N, const int has_bias) {
+                                         const int N, const int has_bias,
+                                         const int offset_a) {
   const int n = get_group_id(0);
   const int batch_idx = get_group_id(1);
   if (n >= N)
@@ -350,7 +352,7 @@ __kernel void gemv_fp16_q4_0_transb_bias(__global const half *A,
   const int wg_size = get_local_size(0);
   __local float partial_sums[256];
   float private_acc = 0.0f;
-  const long a_base_idx = (long)batch_idx * K;
+  const long a_base_idx = (long)batch_idx * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
   const int num_k_blocks = K / QK4_0;
   for (int k_block_idx = local_id; k_block_idx < num_k_blocks;
@@ -417,8 +419,8 @@ __kernel void gemv_fp16_q4_0_transb_bias_half16(__global const half *A,
                                                 __global const block_q4_0 *B,
                                                 __global const float *bias,
                                                 __global half *C, const int K,
-                                                const int N,
-                                                const int has_bias) {
+                                                const int N, const int has_bias,
+                                                const int offset_a) {
   const int n = get_group_id(0);
   const int bh_idx = get_group_id(1);
   const int batch_idx = get_group_id(2);
@@ -432,7 +434,7 @@ __kernel void gemv_fp16_q4_0_transb_bias_half16(__global const half *A,
 
   __local float partial_sums[256];
 
-  const long a_base_idx = (long)batch_idx * K;
+  const long a_base_idx = (long)batch_idx * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
 
   const int num_k_blocks = K / QK4_0;
@@ -519,7 +521,8 @@ __kernel void gemv_fp16_q4_0_transb_bias(__global const half *A,
                                          __global const block_q4_0 *B,
                                          __global const float *bias,
                                          __global half *C, const int K,
-                                         const int N, const int has_bias) {
+                                         const int N, const int has_bias,
+                                         const int offset_a) {
   const int n = get_group_id(0);
   const int bh_idx = get_group_id(1);
   const int batch_idx = bh_idx;
@@ -529,7 +532,7 @@ __kernel void gemv_fp16_q4_0_transb_bias(__global const half *A,
   const int wg_size = get_local_size(0);
   __local float partial_sums[256];
   float private_acc = 0.0f;
-  const long a_base_idx = (long)batch_idx * K;
+  const long a_base_idx = (long)batch_idx * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
   const int num_k_blocks = K / QK4_0;
   for (int k_block_idx = local_id; k_block_idx < num_k_blocks;
@@ -600,12 +603,11 @@ __kernel void gemv_fp16_q4_0_transb_bias(__global const half *A,
 #define THREADS_X (TILE_N / WPT_N) // 8
 #define THREADS_Y (TILE_M / WPT_M) // 8
 
-__kernel void gemm_fp16_q4_0_transb_bias(__global const half *A,
-                                         __global const block_q4_0 *B,
-                                         __global const float *bias,
-                                         __global half *C, const int M,
-                                         const int K, const int N,
-                                         const int has_bias) {
+__kernel void
+gemm_fp16_q4_0_transb_bias(__global const half *A, __global const block_q4_0 *B,
+                           __global const float *bias, __global half *C,
+                           const int M, const int K, const int N,
+                           const int has_bias, const int offset_a) {
   const int group_m_idx = get_group_id(1);
   const int group_n_idx = get_group_id(0);
   const int local_m_idx = get_local_id(1);
@@ -622,7 +624,7 @@ __kernel void gemm_fp16_q4_0_transb_bias(__global const half *A,
     }
   }
 
-  const long base_a_offset = (long)batch_idx * M * K;
+  const long base_a_offset = (long)batch_idx * M * K + offset_a;
 
   const int num_k_tiles = (K + TILE_K - 1) / TILE_K;
   for (int t = 0; t < num_k_tiles; ++t) {
@@ -730,12 +732,11 @@ __kernel void gemm_fp16_q4_0_transb_bias(__global const half *A,
 
 #else
 // ---------- [Fallback] ----------
-__kernel void gemm_fp16_q4_0_transb_bias(__global const half *A,
-                                         __global const block_q4_0 *B,
-                                         __global const float *bias,
-                                         __global half *C, const int M,
-                                         const int K, const int N,
-                                         const int has_bias) {
+__kernel void
+gemm_fp16_q4_0_transb_bias(__global const half *A, __global const block_q4_0 *B,
+                           __global const float *bias, __global half *C,
+                           const int M, const int K, const int N,
+                           const int has_bias, const int offset_a) {
 
   const int s = get_global_id(1);
   const int n = get_global_id(0);
@@ -746,7 +747,7 @@ __kernel void gemm_fp16_q4_0_transb_bias(__global const half *A,
   }
 
   float acc = 0.0f;
-  const long a_row_offset = (long)batch_idx * M * K + (long)s * K;
+  const long a_row_offset = (long)batch_idx * M * K + (long)s * K + offset_a;
   const long b_row_offset_blocks = (long)n * (K / QK4_0);
 
   for (int k_block_idx = 0; k_block_idx < K / QK4_0; ++k_block_idx) {

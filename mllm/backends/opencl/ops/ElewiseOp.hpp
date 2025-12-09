@@ -16,6 +16,7 @@ class OpenCLAddOp final : public aops::AddOp {
 
  private:
   std::shared_ptr<KernelWrap> kernel_fp32_buffer_ = nullptr;
+  std::shared_ptr<KernelWrap> kernel_broadcast_fp32_buffer_ = nullptr;
 };
 
 class OpenCLAddOpFactory : public TypedOpFactory<OpTypes::kAdd, aops::AddOpOptions> {
@@ -33,6 +34,7 @@ class OpenCLSubOp final : public aops::SubOp {
 
  private:
   std::shared_ptr<KernelWrap> kernel_fp32_buffer_ = nullptr;
+  std::shared_ptr<KernelWrap> kernel_broadcast_fp32_buffer_ = nullptr;
 };
 
 class OpenCLSubOpFactory : public TypedOpFactory<OpTypes::kSub, aops::SubOpOptions> {
@@ -50,6 +52,7 @@ class OpenCLMulOp final : public aops::MulOp {
 
  private:
   std::shared_ptr<KernelWrap> kernel_fp32_buffer_ = nullptr;
+  std::shared_ptr<KernelWrap> kernel_broadcast_fp32_buffer_ = nullptr;
 };
 
 class OpenCLMulOpFactory : public TypedOpFactory<OpTypes::kMul, aops::MulOpOptions> {
@@ -67,6 +70,7 @@ class OpenCLDivOp final : public aops::DivOp {
 
  private:
   std::shared_ptr<KernelWrap> kernel_fp32_buffer_ = nullptr;
+  std::shared_ptr<KernelWrap> kernel_broadcast_fp32_buffer_ = nullptr;
 };
 
 class OpenCLDivOpFactory : public TypedOpFactory<OpTypes::kDiv, aops::DivOpOptions> {
