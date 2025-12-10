@@ -13,7 +13,7 @@ namespace hn = hwy::HWY_NAMESPACE;
 // Elementwise + - * / By Matrix
 //===----------------------------------------------------------------------===//
 template<typename T, typename Op>
-HWY_INLINE void __elementwise(const T* HWY_RESTRICT x, const T* HWY_RESTRICT y, T* HWY_RESTRICT out, size_t count, Op&& op) {
+HWY_INLINE void elementwise_impl(const T* HWY_RESTRICT x, const T* HWY_RESTRICT y, T* HWY_RESTRICT out, size_t count, Op&& op) {
   const hn::ScalableTag<T> d;
   const size_t N = hn::Lanes(d);
   size_t idx = 0;
@@ -62,19 +62,19 @@ struct DivOp {
 };
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_add_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  __elementwise(x, y, out, n, AddOp{});
+  elementwise_impl(x, y, out, n, AddOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_sub_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  __elementwise(x, y, out, n, SubOp{});
+  elementwise_impl(x, y, out, n, SubOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_mul_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  __elementwise(x, y, out, n, MulOp{});
+  elementwise_impl(x, y, out, n, MulOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_div_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  __elementwise(x, y, out, n, DivOp{});
+  elementwise_impl(x, y, out, n, DivOp{});
 }
 
 //===----------------------------------------------------------------------===//
@@ -82,7 +82,7 @@ HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_div_fp32(mllm_fp32_t* out, const mllm
 //===----------------------------------------------------------------------===//
 
 template<typename T, typename Op>
-HWY_INLINE void __elementwise_scalar(T* HWY_RESTRICT out, const T* HWY_RESTRICT x, const T y, size_t count, Op&& op) {
+HWY_INLINE void elementwise_scalar_impl(T* HWY_RESTRICT out, const T* HWY_RESTRICT x, const T y, size_t count, Op&& op) {
   const hn::ScalableTag<T> d;
   const size_t N = hn::Lanes(d);
   size_t idx = 0;
@@ -132,19 +132,19 @@ struct DivScalarOp {
 };
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_add_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
-  __elementwise_scalar(out, x, y, n, AddScalarOp{});
+  elementwise_scalar_impl(out, x, y, n, AddScalarOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_sub_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
-  __elementwise_scalar(out, x, y, n, SubScalarOp{});
+  elementwise_scalar_impl(out, x, y, n, SubScalarOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_mul_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
-  __elementwise_scalar(out, x, y, n, MulScalarOp{});
+  elementwise_scalar_impl(out, x, y, n, MulScalarOp{});
 }
 
 HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_div_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
-  __elementwise_scalar(out, x, y, n, DivScalarOp{});
+  elementwise_scalar_impl(out, x, y, n, DivScalarOp{});
 }
 
 //===----------------------------------------------------------------------===//

@@ -146,6 +146,8 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
+#else
+        NYI("AddOp not supported on this architecture.");                              
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
@@ -154,6 +156,8 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
+#else
+        NYI("AddOp not supported on this architecture.");                                        
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -164,9 +168,9 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::common::call_elewise_add_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
@@ -177,13 +181,15 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::arm::ew_add_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
         }
+#else
+        NYI("AddOp not supported on this architecture.");         
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -323,6 +329,8 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
+#else
+        NYI("SubOp not supported on this architecture.");                               
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
@@ -331,6 +339,8 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
+#else
+        NYI("SubOp not supported on this architecture.");                                       
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -341,9 +351,9 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::common::call_elewise_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
@@ -353,13 +363,15 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::arm::ew_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
         }
+#else
+        NYI("SubOp not supported on this architecture.");           
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -499,6 +511,8 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
+#else
+        NYI("MulOp not supported on this architecture.");                                
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
@@ -507,6 +521,8 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
+#else
+        NYI("MulOp not supported on this architecture.");                                        
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -517,9 +533,9 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements  
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::common::call_elewise_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
@@ -529,13 +545,15 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::arm::ew_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
         }
+#else
+        NYI("MulOp not supported on this architecture.");           
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -675,6 +693,8 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
+#else
+        NYI("DivOp not supported on this architecture.");                             
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
@@ -683,6 +703,8 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
+#else
+        NYI("DivOp not supported on this architecture.");                                     
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -693,9 +715,9 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements  
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::common::call_elewise_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
@@ -705,13 +727,15 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         for (int batch = 0; batch < batch_dims; ++batch) {
           // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
-            int a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
-            int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
-            int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
+            size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
+            size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
             cpu::arm::ew_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
         }
+#else
+        NYI("DivOp not supported on this architecture.");          
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
