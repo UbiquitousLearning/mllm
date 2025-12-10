@@ -1,11 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#pragma once
-
 #include <hwy/highway.h>
-#include <hwy/contrib/math/math-inl.h>
-#include <hwy/contrib/algo/transform-inl.h>
+#include "mllm/core/DataTypes.hpp"
 
 HWY_BEFORE_NAMESPACE();
 namespace mllm::cpu::common {  // NOLINT
@@ -64,23 +61,19 @@ struct DivOp {
   }
 };
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_add(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_add_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
   __elementwise(x, y, out, n, AddOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_sub(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_sub_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
   __elementwise(x, y, out, n, SubOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_mul(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_mul_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
   __elementwise(x, y, out, n, MulOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_div(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_div_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
   __elementwise(x, y, out, n, DivOp{});
 }
 
@@ -89,12 +82,12 @@ HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_div(T* out, const T* x, const T*
 //===----------------------------------------------------------------------===//
 
 template<typename T, typename Op>
-HWY_INLINE void __elementwise_scalar(T* HWY_RESTRICT out, const T* HWY_RESTRICT x, const T* HWY_RESTRICT y_ptr, size_t count, Op&& op) {
+HWY_INLINE void __elementwise_scalar(T* HWY_RESTRICT out, const T* HWY_RESTRICT x, const T y, size_t count, Op&& op) {
   const hn::ScalableTag<T> d;
   const size_t N = hn::Lanes(d);
   size_t idx = 0;
 
-  const T scalar = *y_ptr;
+  const T scalar = y;
   const hn::Vec<decltype(d)> sVec = hn::Set(d, scalar);
 
   for (; idx + N <= count; idx += N) {
@@ -138,23 +131,19 @@ struct DivScalarOp {
   }
 };
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_add_scalar(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_add_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
   __elementwise_scalar(out, x, y, n, AddScalarOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_sub_scalar(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_sub_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
   __elementwise_scalar(out, x, y, n, SubScalarOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_mul_scalar(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_mul_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
   __elementwise_scalar(out, x, y, n, MulScalarOp{});
 }
 
-template<typename T>
-HWY_NOINLINE HWY_MAYBE_UNUSED void element_wise_div_scalar(T* out, const T* x, const T* y, size_t n) {
+HWY_NOINLINE HWY_MAYBE_UNUSED void elewise_div_scalar_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t y, size_t n) {
   __elementwise_scalar(out, x, y, n, DivScalarOp{});
 }
 

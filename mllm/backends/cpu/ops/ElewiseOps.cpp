@@ -141,7 +141,7 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_add(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
@@ -149,7 +149,7 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_add_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_add_scalar_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
@@ -168,7 +168,7 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::HWY_NAMESPACE::element_wise_add(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::call_elewise_add_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 
@@ -318,7 +318,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_sub(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
@@ -326,7 +326,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_sub_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_sub_scalar_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
@@ -345,7 +345,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::HWY_NAMESPACE::element_wise_sub(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::call_elewise_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
@@ -494,7 +494,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_mul(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
@@ -502,7 +502,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_mul_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_mul_scalar_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
@@ -521,7 +521,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::HWY_NAMESPACE::element_wise_mul(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::call_elewise_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
@@ -670,7 +670,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_div(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
@@ -678,7 +678,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::HWY_NAMESPACE::element_wise_div_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::call_elewise_div_scalar_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
@@ -697,7 +697,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             int b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             int out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::HWY_NAMESPACE::element_wise_div(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::call_elewise_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
