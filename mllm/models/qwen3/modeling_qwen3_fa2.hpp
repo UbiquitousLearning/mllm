@@ -262,7 +262,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     if (cfg.tie_word_embeddings) {
       // NOTE:
       // model.lm_head.weight is quantization weights of model.embed_tokens.weight
-      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+      lm_head_ = reg<nn::Linear>("lm_head_out", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
 
     // Init inv freq
