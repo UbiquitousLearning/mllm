@@ -6,6 +6,7 @@
 
 #include <fmt/core.h>
 
+#include "mllm/core/DeviceTypes.hpp"
 #include "mllm/nn/Functional.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/UnsafeMacros.hpp"
@@ -91,6 +92,7 @@ void ARGenerationChatIterator::step() {
 
   Tensor logits = output["sequence"];
   auto device = logits.device();
+  logits = logits.to(kCPU);
   int64_t next_token_id;
   if (use_sampling) {
     if (top_k_ > 0) {
@@ -116,8 +118,9 @@ void ARGenerationChatIterator::step() {
   // [B, S]
   current_input_ = std::move(output);
 
-  current_input_["sequence"] = Tensor::empty({1, 1}, kInt64, device).alloc();
+  current_input_["sequence"] = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
   current_input_["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
+  current_input_["sequence"] = current_input_["sequence"].to(device);
 
   step_count_++;
   gen_->ar_steps_++;
@@ -227,6 +230,8 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
     }
 
     Tensor logits = output["sequence"];
+    auto device = logits.device();
+    logits = logits.to(kCPU);
 
     int64_t next_token_id;
     if (use_sampling) {
@@ -247,8 +252,9 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
 
     // [B, S]
     past = output;
-    past["sequence"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
+    past["sequence"] = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
     past["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
+    past["sequence"] = past["sequence"].to(device);
 
     ar_steps_++;
   }
