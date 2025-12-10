@@ -1,8 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#include "mllm/utils/CPUArchHelper.hpp"
+#if !(defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM))
 
 #include "mllm/backends/cpu/kernels/common/kernel_dispatch.hpp"
-#include "mllm/utils/CPUArchHelper.hpp"
 
 // >>>> for dynamic dispatch only, skip if you want static dispatch
 // First undef to prevent error when re-included.
@@ -73,7 +74,7 @@ HWY_DLLEXPORT void call_elewise_div_scalar_fp32(mllm_fp32_t* out, const mllm_fp3
 //   HWY_DYNAMIC_DISPATCH(gelu_fp32)(out, in, n);
 // }
 
-
 }  // namespace mllm::cpu::common
 
 #endif  // HWY_ONCE
+#endif
