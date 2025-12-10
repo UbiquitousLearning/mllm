@@ -62,6 +62,8 @@ class Layer {
 
   Layer& to(DeviceTypes device_type);
 
+  [[nodiscard]] DeviceTypes device() const { return impl_->getDevice(); }
+
   void __fmt_print(std::stringstream& ss);
 
  private:

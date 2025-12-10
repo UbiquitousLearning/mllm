@@ -359,6 +359,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   opencl_backend/index
+
+.. toctree::
+   :maxdepth: 2
+
    api/index
 
 .. toctree::

@@ -12,18 +12,21 @@ void LayerImpl::load(const ParameterFile::ptr_t& ploader) { instanced_op_->load(
 
 void LayerImpl::to(DeviceTypes device_type) {
   auto& ctx = Context::instance();
-  instanced_op_ = nullptr;
-  instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
-  instanced_op_->setName(getAbsoluteName());
 
   if (device_type != kCPU && ctx.getBackend(device_type)->isWeightOnDevice()) {
     auto temp_params_loader = ParameterFile::create();
-
-    auto params = instanced_op_->getParams();
-    for (auto& param : *params) {
-      auto t = param.second;
-      if (t) { temp_params_loader->push(param.first, t.to(device_type)); }
+    if (instanced_op_) {
+      auto params = instanced_op_->getParams();
+      for (auto& param : *params) {
+        auto t = param.second;
+        if (t) { temp_params_loader->push(param.first, t.to(device_type)); }
+      }
     }
+
+    instanced_op_ = nullptr;
+    instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
+    instanced_op_->setName(getAbsoluteName());
+
     instanced_op_->load(temp_params_loader);
   }
 

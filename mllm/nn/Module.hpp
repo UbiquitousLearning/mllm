@@ -64,6 +64,8 @@ class Module {
 
   void to(DeviceTypes device_type);
 
+  [[nodiscard]] DeviceTypes device() const { return impl_->getDevice(); }
+
   /**
    * @brief Register a module/layer into this module
    *

@@ -108,6 +108,9 @@ add_subdirectory(ffi)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)
+  add_compile_definitions(
+    MLLM_OPENCL_BACKEND
+  )
 endif()
 
 if(MLLM_BUILD_QNN_BACKEND)

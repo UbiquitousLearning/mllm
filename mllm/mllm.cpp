@@ -76,7 +76,9 @@ void setPrintMaxElementsPerDim(int max_elements) { Context::instance().setPrintM
 void memoryReport() { Context::instance().memoryManager()->report(); }
 
 bool isOpenCLAvailable() {
-  // TODO
+#ifdef MLLM_OPENCL_BACKEND
+  return true;
+#endif
   return false;
 }
 

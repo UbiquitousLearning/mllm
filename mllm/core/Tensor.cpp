@@ -145,13 +145,18 @@ Tensor Tensor::mul_(const Tensor& rhs) {
 
 Tensor Tensor::operator+(float rhs) {
   auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
-  switch (dtype()) {
-    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
-    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
-    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
-    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
-    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
-    default: NYI("Type is not supported"); break;
+  if (device() != kCPU) {
+    Context::instance().buildOpAndSubmitTask(
+        OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kSpecific, .value = rhs}, {rhs_tensor});
+  } else {
+    switch (dtype()) {
+      case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+      case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+      case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+      case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+      case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      default: NYI("Type is not supported"); break;
+    }
   }
   auto opts = aops::AddOpOptions{};
   opts.setInputsConstant(0, 0);
@@ -161,13 +166,18 @@ Tensor Tensor::operator+(float rhs) {
 
 Tensor Tensor::operator-(float rhs) {
   auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
-  switch (dtype()) {
-    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
-    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
-    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
-    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
-    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
-    default: NYI("Type is not supported"); break;
+  if (device() != kCPU) {
+    Context::instance().buildOpAndSubmitTask(
+        OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kSpecific, .value = rhs}, {rhs_tensor});
+  } else {
+    switch (dtype()) {
+      case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+      case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+      case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+      case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+      case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      default: NYI("Type is not supported"); break;
+    }
   }
   auto opts = aops::SubOpOptions{};
   opts.setInputsConstant(0, 0);
@@ -177,13 +187,18 @@ Tensor Tensor::operator-(float rhs) {
 
 Tensor Tensor::operator*(float rhs) {
   auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
-  switch (dtype()) {
-    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
-    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
-    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
-    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
-    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
-    default: NYI("Type is not supported"); break;
+  if (device() != kCPU) {
+    Context::instance().buildOpAndSubmitTask(
+        OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kSpecific, .value = rhs}, {rhs_tensor});
+  } else {
+    switch (dtype()) {
+      case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+      case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+      case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+      case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+      case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      default: NYI("Type is not supported"); break;
+    }
   }
   auto opts = aops::MulOpOptions{};
   opts.setInputsConstant(0, 0);
@@ -193,13 +208,18 @@ Tensor Tensor::operator*(float rhs) {
 
 Tensor Tensor::operator/(float rhs) {
   auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
-  switch (dtype()) {
-    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
-    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
-    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
-    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
-    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
-    default: NYI("Type is not supported"); break;
+  if (device() != kCPU) {
+    Context::instance().buildOpAndSubmitTask(
+        OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kSpecific, .value = rhs}, {rhs_tensor});
+  } else {
+    switch (dtype()) {
+      case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+      case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+      case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+      case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+      case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      default: NYI("Type is not supported"); break;
+    }
   }
   auto opts = aops::DivOpOptions{};
   opts.setInputsConstant(0, 0);
@@ -209,6 +229,7 @@ Tensor Tensor::operator/(float rhs) {
 
 Tensor Tensor::operator+(std::complex<float> rhs) {
   auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  if (device() != kCPU) { NYI("Complex scalar op on non-CPU not supported yet"); }
   switch (dtype()) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
@@ -221,6 +242,7 @@ Tensor Tensor::operator+(std::complex<float> rhs) {
 
 Tensor Tensor::operator-(std::complex<float> rhs) {
   auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  if (device() != kCPU) { NYI("Complex scalar op on non-CPU not supported yet"); }
   switch (dtype()) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
@@ -233,6 +255,7 @@ Tensor Tensor::operator-(std::complex<float> rhs) {
 
 Tensor Tensor::operator*(std::complex<float> rhs) {
   auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  if (device() != kCPU) { NYI("Complex scalar op on non-CPU not supported yet"); }
   switch (dtype()) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
@@ -245,6 +268,7 @@ Tensor Tensor::operator*(std::complex<float> rhs) {
 
 Tensor Tensor::operator/(std::complex<float> rhs) {
   auto rhs_tensor = Tensor::empty({1}, kComplexFloat32, device()).alloc();
+  if (device() != kCPU) { NYI("Complex scalar op on non-CPU not supported yet"); }
   switch (dtype()) {
     case kFloat32: *(rhs_tensor.ptr<std::complex<float>>()) = rhs; break;
     default: NYI("Type is not supported"); break;
