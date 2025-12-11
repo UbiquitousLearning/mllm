@@ -305,6 +305,41 @@ class Session(tvm_ffi.Object):
         pass
 
 
+@tvm_ffi.register_object("mllm.ParameterFile")
+class ParameterFile(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+
+@tvm_ffi.register_object("mllm.BaseOp")
+class BaseOp(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+    def load(self, pf: ParameterFile):
+        return tvm_ffi.get_global_func("mllm.BaseOp.load")(self, pf)
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QnnDeviceAndContext")
+class QnnDeviceAndContext(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QnnAOTEnv")
+class QnnAOTEnv(tvm_ffi.Object):
+    def __init__(self, path=None):
+        if path is None or path == "":
+            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, "")
+        else:
+            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, path)
+
+    def create_context(self, name: str) -> QnnDeviceAndContext:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QnnAOTEnv.createContext")(
+            self, name
+        )
+
+
 # Initialize context
 initialize_context()
 

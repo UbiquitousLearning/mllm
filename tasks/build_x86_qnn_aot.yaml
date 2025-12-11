@@ -1,6 +1,6 @@
 Tasks:
   - CMakeConfigTask:
-      cmake_cfg_path: "build"
+      cmake_cfg_path: "build-qnn-aot"
       cmake_build_type: "Release"
       cmake_extra_args:
         # Optional, If use Highway
@@ -12,6 +12,7 @@ Tasks:
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
         - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
+        - "-DMLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE=ON"
 
   - CMakeBuildTask:
-      cmake_cfg_path: "build"
+      cmake_cfg_path: "build-qnn-aot"
