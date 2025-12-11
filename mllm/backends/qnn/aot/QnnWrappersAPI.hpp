@@ -19,6 +19,7 @@
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/System/QnnSystemInterface.h>
 
+#include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::qnn::aot {
@@ -97,9 +98,9 @@ class QnnAOTEnv {
  public:
   using ptr_t = std::shared_ptr<QnnAOTEnv>;
 
-  QnnAOTEnv();
+  explicit QnnAOTEnv(QcomTargetMachine& target_machine);
 
-  explicit QnnAOTEnv(const std::string& lib_path);
+  QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine);
 
   std::shared_ptr<QnnDeviceAndContext> createContext(const std::string& name);
 
@@ -110,6 +111,7 @@ class QnnAOTEnv {
  private:
   void _setup(const std::string& path = "");
 
+  QcomTargetMachine target_machine_;
   QnnFuncSymbols qnn_htp_func_symbols_;
   std::unordered_map<std::string, std::shared_ptr<QnnDeviceAndContext>> contexts_;
 };

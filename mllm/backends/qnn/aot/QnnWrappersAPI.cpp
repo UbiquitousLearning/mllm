@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
+#include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -67,9 +68,11 @@ bool QnnDynSymbolLoader::loadQnnDynLibAtPath(const std::string& path, const std:
   return false;
 }
 
-QnnAOTEnv::QnnAOTEnv() { _setup(); }
+QnnAOTEnv::QnnAOTEnv(QcomTargetMachine& target_machine) : target_machine_(target_machine) { _setup(); }
 
-QnnAOTEnv::QnnAOTEnv(const std::string& lib_path) { _setup(lib_path); }
+QnnAOTEnv::QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine) : target_machine_(target_machine) {
+  _setup(lib_path);
+}
 
 void QnnAOTEnv::_setup(const std::string& path) {
   auto& loader = QnnDynSymbolLoader::instance();

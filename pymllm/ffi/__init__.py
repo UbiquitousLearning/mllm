@@ -326,13 +326,227 @@ class QnnDeviceAndContext(tvm_ffi.Object):
         pass
 
 
+@tvm_ffi.register_object("mllm.qualcomm.QcomHTPArch")
+class QcomHTPArch(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def NONE() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.NONE")()
+
+    @staticmethod
+    def V68() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V68")()
+
+    @staticmethod
+    def V69() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V69")()
+
+    @staticmethod
+    def V73() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V73")()
+
+    @staticmethod
+    def V75() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V75")()
+
+    @staticmethod
+    def V79() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V79")()
+
+    @staticmethod
+    def V81() -> QcomHTPArch:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomHTPArch.V81")()
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QcomChipset")
+class QcomChipset(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def UNKNOWN_SM() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.UNKNOWN_SM")()
+
+    @staticmethod
+    def SA8295() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SA8295")()
+
+    @staticmethod
+    def SM8350() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8350")()
+
+    @staticmethod
+    def SM8450() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8450")()
+
+    @staticmethod
+    def SM8475() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8475")()
+
+    @staticmethod
+    def SM8550() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8550")()
+
+    @staticmethod
+    def SM8650() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8650")()
+
+    @staticmethod
+    def SM8750() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8750")()
+
+    @staticmethod
+    def SM8850() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SM8850")()
+
+    @staticmethod
+    def SSG2115P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SSG2115P")()
+
+    @staticmethod
+    def SSG2125P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SSG2125P")()
+
+    @staticmethod
+    def SXR1230P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SXR1230P")()
+
+    @staticmethod
+    def SXR2230P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SXR2230P")()
+
+    @staticmethod
+    def SXR2330P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SXR2330P")()
+
+    @staticmethod
+    def QCS9100() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.QCS9100")()
+
+    @staticmethod
+    def SAR2230P() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SAR2230P")()
+
+    @staticmethod
+    def SA8255() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SA8255")()
+
+    @staticmethod
+    def SW6100() -> QcomChipset:
+        return tvm_ffi.get_global_func("mllm.qualcomm.QcomChipset.SW6100")()
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QcomTryBestPerformance")
+class QcomTryBestPerformance(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def HtpDefault() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpDefault"
+        )()
+
+    @staticmethod
+    def HtpSustainedHighPerformance() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpSustainedHighPerformance"
+        )()
+
+    @staticmethod
+    def HtpBurst() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpBurst"
+        )()
+
+    @staticmethod
+    def HtpHighPerformance() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpHighPerformance"
+        )()
+
+    @staticmethod
+    def HtpPowerSaver() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpPowerSaver"
+        )()
+
+    @staticmethod
+    def HtpLowPowerSaver() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpLowPowerSaver"
+        )()
+
+    @staticmethod
+    def HtpHighPowerSaver() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpHighPowerSaver"
+        )()
+
+    @staticmethod
+    def HtpLowBalanced() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpLowBalanced"
+        )()
+
+    @staticmethod
+    def HtpBalanced() -> QcomTryBestPerformance:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomTryBestPerformance.HtpBalanced"
+        )()
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QcomSecurityPDSession")
+class QcomSecurityPDSession(tvm_ffi.Object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def HtpUnsignedPd() -> QcomSecurityPDSession:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomSecurityPDSession.HtpUnsignedPd"
+        )()
+
+    @staticmethod
+    def HtpSignedPd() -> QcomSecurityPDSession:
+        return tvm_ffi.get_global_func(
+            "mllm.qualcomm.QcomSecurityPDSession.HtpSignedPd"
+        )()
+
+
+@tvm_ffi.register_object("mllm.qualcomm.QcomTargetMachine")
+class QcomTargetMachine(tvm_ffi.Object):
+    def __init__(
+        self,
+        soc_htp_chipset: QcomChipset,
+        soc_htp_arch: QcomHTPArch,
+        soc_htp_performance: QcomTryBestPerformance,
+        soc_htp_security_pd_session: QcomSecurityPDSession,
+    ):
+        self.__init_handle_by_constructor__(
+            QcomTargetMachine.__create__,
+            soc_htp_chipset,
+            soc_htp_arch,
+            soc_htp_performance,
+            soc_htp_security_pd_session,
+        )
+
+
 @tvm_ffi.register_object("mllm.qualcomm.QnnAOTEnv")
 class QnnAOTEnv(tvm_ffi.Object):
-    def __init__(self, path=None):
+    def __init__(
+        self,
+        machine: QcomTargetMachine = None,
+        path: str = None,
+    ):
+        if machine is None:
+            raise RuntimeError("machine target is none!")
         if path is None or path == "":
-            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, "")
+            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, machine, "")
         else:
-            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, path)
+            self.__init_handle_by_constructor__(QnnAOTEnv.__create__, machine, path)
 
     def create_context(self, name: str) -> QnnDeviceAndContext:
         return tvm_ffi.get_global_func("mllm.qualcomm.QnnAOTEnv.createContext")(
