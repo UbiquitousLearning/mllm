@@ -31,6 +31,7 @@ enum class ExitCode : int32_t {  // NOLINT
   kCudaError,
   kQnnError,
   kOpenCLError,
+  kAscendError,
   kIOError,
   kShapeError,
   kCPUKernelError,
