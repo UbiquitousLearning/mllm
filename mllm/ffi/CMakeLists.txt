@@ -13,10 +13,23 @@ add_library(MllmFFIExtension SHARED
   ${CMAKE_CURRENT_LIST_DIR}/ModelService.cc
   ${CMAKE_CURRENT_LIST_DIR}/Nn.cc
   ${CMAKE_CURRENT_LIST_DIR}/Compile.cc
+  ${CMAKE_CURRENT_LIST_DIR}/qualcomm/QnnAOT.cc
 )
 target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_header)
 target_link_libraries(MllmFFIExtension PUBLIC tvm_ffi_shared MllmRT MllmCPUBackend)
 set_target_properties(MllmFFIExtension PROPERTIES PREFIX "")
+
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  # Build
+  target_include_directories(MllmFFIExtension PRIVATE
+    $ENV{QAIRT_SDK_ROOT}/include # QNN SDK include
+    $ENV{QAIRT_SDK_ROOT}/include/QNN # QNN SDK include
+  )
+  add_compile_definitions(
+    MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
+  )
+endif()
+
 
 # Set the depend search path. Windows do not need this, it will search dlls in the same directory first.
 if(APPLE)

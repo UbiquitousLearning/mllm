@@ -320,6 +320,17 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 }
 
 //===----------------------------------------------------------------------===//
+// REGISTER: BaseOp Functions.
+//===----------------------------------------------------------------------===//
+TVM_FFI_STATIC_INIT_BLOCK() {
+  namespace refl = tvm::ffi::reflection;
+
+  refl::GlobalDef().def("mllm.BaseOp.load", [](const mllm::ffi::BaseOp& self, const mllm::ffi::ParameterFile& obj) -> void {
+    self.get()->op_ptr_->load(obj.get()->pf_ptr_);
+  });
+}
+
+//===----------------------------------------------------------------------===//
 // REGISTER: Service Functions.
 //===----------------------------------------------------------------------===//
 TVM_FFI_STATIC_INIT_BLOCK() {
@@ -337,6 +348,10 @@ TVM_FFI_STATIC_INIT_BLOCK() {
                           ::mllm::service::insertSession(session_id, session.get()->session_ptr_);
                         });
 }
+
+//===----------------------------------------------------------------------===//
+// REGISTER: _Context Functions.
+//===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 // REGISTER: Quantize && Packing Functions.

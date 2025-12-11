@@ -8,6 +8,9 @@ file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocesso
 if(MLLM_BUILD_EXPERIMENTS)
   file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/experiments/auto_tune/*.cpp)
 endif()
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  file(GLOB_RECURSE MLLM_QUALCOMM_AOT_SRC ${CMAKE_CURRENT_LIST_DIR}/backends/qnn/aot/*.cpp)
+endif()
 file(GLOB WENET_AUDIO_SOURCES ${PROJECT_SOURCE_DIR}/third_party/wenet_audio/*)
 
 add_library(
@@ -24,6 +27,7 @@ add_library(
   ${MLLM_RT_MODELS_SRC}
   ${MLLM_RT_COMPILE_SRC}
   ${MLLM_RT_AUTO_TUNE_SRC}
+  ${MLLM_QUALCOMM_AOT_SRC}
   ${WENET_AUDIO_SOURCES}
 )
 
@@ -110,6 +114,17 @@ if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)
   add_compile_definitions(
     MLLM_OPENCL_BACKEND
+  )
+endif()
+
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  # Build
+  target_include_directories(MllmRT PRIVATE
+    $ENV{QAIRT_SDK_ROOT}/include # QNN SDK include
+    $ENV{QAIRT_SDK_ROOT}/include/QNN # QNN SDK include
+  )
+  add_compile_definitions(
+    MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
   )
 endif()
 

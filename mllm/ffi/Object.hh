@@ -91,4 +91,42 @@ class Session : public tvm::ffi::ObjectRef {
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(Session, tvm::ffi::ObjectRef, SessionObj);  // NOLINT
 };
 
+//===----------------------------------------------------------------------===//
+// MLLM BaseOp Define
+//===----------------------------------------------------------------------===//
+class BaseOpObj : public tvm::ffi::Object {
+ public:
+  ::mllm::BaseOp::ptr_t op_ptr_ = nullptr;
+
+  explicit BaseOpObj(const ::mllm::BaseOp::ptr_t& op_ptr) : op_ptr_(op_ptr) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.BaseOp", BaseOpObj, tvm::ffi::Object);
+};
+
+class BaseOp : public tvm::ffi::ObjectRef {
+ public:
+  explicit BaseOp(::mllm::BaseOp::ptr_t& base_op_ptr) { data_ = tvm::ffi::make_object<BaseOpObj>(base_op_ptr); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(BaseOp, tvm::ffi::ObjectRef, BaseOpObj);  // NOLINT
+};
+
+//===----------------------------------------------------------------------===//
+// MLLM Parameter File Define
+//===----------------------------------------------------------------------===//
+class ParameterFileObj : public tvm::ffi::Object {
+ public:
+  ::mllm::ParameterFile::ptr_t pf_ptr_ = nullptr;
+
+  explicit ParameterFileObj(const ::mllm::ParameterFile::ptr_t& pf_ptr) : pf_ptr_(pf_ptr) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.ParameterFile", ParameterFileObj, tvm::ffi::Object);
+};
+
+class ParameterFile : public tvm::ffi::ObjectRef {
+ public:
+  explicit ParameterFile(::mllm::ParameterFile::ptr_t& pf_ptr) { data_ = tvm::ffi::make_object<ParameterFileObj>(pf_ptr); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(ParameterFile, tvm::ffi::ObjectRef, ParameterFileObj);  // NOLINT
+};
+
 }  // namespace mllm::ffi
