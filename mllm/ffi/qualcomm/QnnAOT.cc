@@ -10,6 +10,8 @@
 
 #include "mllm/ffi/qualcomm/QnnAOT.hh"
 
+#ifdef MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
+
 TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;
 
@@ -28,3 +30,5 @@ TVM_FFI_STATIC_INIT_BLOCK() {
     return mllm::ffi::QnnDeviceAndContext(s);
   });
 }
+
+#endif
