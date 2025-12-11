@@ -14,3 +14,5 @@ endif()
 if(MLLM_TRACY_ENABLE)
   add_subdirectory(tracy_example)
 endif()
+
+add_subdirectory(ascend_add_demo)
