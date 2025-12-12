@@ -129,4 +129,40 @@ class ParameterFile : public tvm::ffi::ObjectRef {
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(ParameterFile, tvm::ffi::ObjectRef, ParameterFileObj);  // NOLINT
 };
 
+//===----------------------------------------------------------------------===//
+// MLLM Ops
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// MLLM Softmax Op
+//===----------------------------------------------------------------------===//
+class SoftmaxOpOptionsObj : public tvm::ffi::Object {
+ public:
+  ::mllm::aops::SoftmaxOpOptions options_;
+
+  explicit SoftmaxOpOptionsObj(const ::mllm::aops::SoftmaxOpOptions& opt) : options_(opt) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.aops.SoftmaxOpOptions", SoftmaxOpOptionsObj, tvm::ffi::Object);
+};
+
+class SoftmaxOpOptions : public tvm::ffi::ObjectRef {
+ public:
+  explicit SoftmaxOpOptions(::mllm::aops::SoftmaxOpOptions& opt) { data_ = tvm::ffi::make_object<SoftmaxOpOptionsObj>(opt); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(SoftmaxOpOptions, tvm::ffi::ObjectRef, SoftmaxOpOptionsObj);  // NOLINT
+};
+
+class SoftmaxOpObj : public BaseOpObj {
+ public:
+  explicit SoftmaxOpObj(const ::mllm::BaseOp::ptr_t& opt) : BaseOpObj(opt) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.aops.SoftmaxOp", SoftmaxOpObj, tvm::ffi::Object);
+};
+
+class SoftmaxOp : public BaseOp {
+ public:
+  explicit SoftmaxOp(::mllm::aops::SoftmaxOp::ptr_t& opt) { data_ = tvm::ffi::make_object<SoftmaxOpObj>(opt); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(SoftmaxOp, BaseOp, SoftmaxOpObj);  // NOLINT
+};
+
 }  // namespace mllm::ffi
