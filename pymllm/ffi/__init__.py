@@ -524,6 +524,7 @@ class QcomTargetMachine(tvm_ffi.Object):
         soc_htp_arch: QcomHTPArch,
         soc_htp_performance: QcomTryBestPerformance,
         soc_htp_security_pd_session: QcomSecurityPDSession,
+        soc_htp_vtcm: int,
     ):
         self.__init_handle_by_constructor__(
             QcomTargetMachine.__create__,
@@ -531,6 +532,7 @@ class QcomTargetMachine(tvm_ffi.Object):
             soc_htp_arch,
             soc_htp_performance,
             soc_htp_security_pd_session,
+            soc_htp_vtcm,
         )
 
 
@@ -548,9 +550,11 @@ class QnnAOTEnv(tvm_ffi.Object):
         else:
             self.__init_handle_by_constructor__(QnnAOTEnv.__create__, machine, path)
 
-    def create_context(self, name: str) -> QnnDeviceAndContext:
+    def create_context(
+        self, name: str, weights_sharing: bool = False
+    ) -> QnnDeviceAndContext:
         return tvm_ffi.get_global_func("mllm.qualcomm.QnnAOTEnv.createContext")(
-            self, name
+            self, name, weights_sharing
         )
 
 

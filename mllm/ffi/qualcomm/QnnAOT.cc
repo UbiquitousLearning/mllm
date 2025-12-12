@@ -35,7 +35,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
     return mllm::ffi::QcomHTPArch(ret);
   });
   refl::GlobalDef().def("mllm.qualcomm.QcomHTPArch.V75", []() {
-    auto ret = mllm::qnn::aot::QcomHTPArch::V79;
+    auto ret = mllm::qnn::aot::QcomHTPArch::V75;
     return mllm::ffi::QcomHTPArch(ret);
   });
   refl::GlobalDef().def("mllm.qualcomm.QcomHTPArch.V79", []() {
@@ -173,13 +173,15 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   });
 
   refl::ObjectDef<mllm::ffi::QcomTargetMachineObj>().def_static(
-      "__create__", [](const mllm::ffi::QcomChipset& chipset, const mllm::ffi::QcomHTPArch& arch,
-                       const mllm::ffi::QcomTryBestPerformance& perf, const mllm::ffi::QcomSecurityPDSession& pd_session) {
+      "__create__",
+      [](const mllm::ffi::QcomChipset& chipset, const mllm::ffi::QcomHTPArch& arch,
+         const mllm::ffi::QcomTryBestPerformance& perf, const mllm::ffi::QcomSecurityPDSession& pd_session, uint32_t htp_vtcm) {
         auto tm = mllm::qnn::aot::QcomTargetMachine{
             .soc_htp_chipset = chipset.get()->chipset_,
             .soc_htp_arch = arch.get()->htp_arch_,
             .soc_htp_performance = perf.get()->perf_,
             .soc_htp_security_pd_session = pd_session.get()->pd_,
+            .soc_htp_vtcm_total_memory_size = htp_vtcm,
         };
         return ::mllm::ffi::QcomTargetMachine(tm);
       });
@@ -199,10 +201,11 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 
   refl::ObjectDef<::mllm::ffi::QnnDeviceAndContextObj>();
 
-  refl::GlobalDef().def("mllm.qualcomm.QnnAOTEnv.createContext", [](const mllm::ffi::QnnAOTEnv& self, const std::string& name) {
-    auto s = self.get()->qnn_aot_env_ptr_->createContext(name);
-    return mllm::ffi::QnnDeviceAndContext(s);
-  });
+  refl::GlobalDef().def("mllm.qualcomm.QnnAOTEnv.createContext",
+                        [](const mllm::ffi::QnnAOTEnv& self, const std::string& name, bool weights_sharing) {
+                          auto s = self.get()->qnn_aot_env_ptr_->createContext(name, weights_sharing);
+                          return mllm::ffi::QnnDeviceAndContext(s);
+                        });
 }
 
 #endif

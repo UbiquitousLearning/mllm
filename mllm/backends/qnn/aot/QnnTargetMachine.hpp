@@ -17,7 +17,7 @@ enum class QcomHTPArch : uint32_t {
   V81 = 81,
 };
 
-enum QcomChipset : int {
+enum QcomChipset : uint32_t {
   UNKNOWN_SM = 0,
   SA8295 = 39,
   SM8350 = 35,
@@ -38,7 +38,7 @@ enum QcomChipset : int {
   SW6100 = 96,
 };
 
-enum QcomTryBestPerformance : int {
+enum QcomTryBestPerformance : uint32_t {
   kHtpDefault = 0,
   kHtpSustainedHighPerformance,
   kHtpBurst,
@@ -51,7 +51,7 @@ enum QcomTryBestPerformance : int {
 };
 
 //  Protection Domain Session
-enum QcomSecurityPDSession : int {
+enum QcomSecurityPDSession : uint32_t {
   kHtpUnsignedPd = 0,
   kHtpSignedPd,
 };
@@ -61,6 +61,7 @@ struct QcomTargetMachine {
   QcomHTPArch soc_htp_arch;
   QcomTryBestPerformance soc_htp_performance;
   QcomSecurityPDSession soc_htp_security_pd_session;
+  uint32_t soc_htp_vtcm_total_memory_size;
 };
 
 }  // namespace mllm::qnn::aot

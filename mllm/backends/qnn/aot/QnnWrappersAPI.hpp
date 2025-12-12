@@ -14,6 +14,7 @@
 #include <unordered_map>
 
 #include <QNN/QnnCommon.h>
+#include <QNN/QnnContext.h>
 #include <QNN/QnnInterface.h>
 #include <QNN/QnnSdkBuildId.h>
 #include <QNN/HTP/QnnHtpDevice.h>
@@ -102,11 +103,19 @@ class QnnAOTEnv {
 
   QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine);
 
-  std::shared_ptr<QnnDeviceAndContext> createContext(const std::string& name);
+  std::shared_ptr<QnnDeviceAndContext> createContext(const std::string& name, bool weights_sharing = false);
 
   void saveContext(const std::string& name, const std::string& path);
 
   void destroyContext(const std::string& name);
+
+  // This is for All PUs, such as CPU, GPU, NPU
+  std::vector<QnnDevice_PlatformInfo_t*> createDevicePlatformInfo();
+
+  // This function is for NPU only.
+  std::vector<QnnDevice_CustomConfig_t> createDecideCustomConfigInfo();
+
+  std::vector<QnnContext_CustomConfig_t> createContextCustomConfig(bool weights_sharing);
 
  private:
   void _setup(const std::string& path = "");
@@ -114,6 +123,13 @@ class QnnAOTEnv {
   QcomTargetMachine target_machine_;
   QnnFuncSymbols qnn_htp_func_symbols_;
   std::unordered_map<std::string, std::shared_ptr<QnnDeviceAndContext>> contexts_;
+
+  // device config for all to use
+  std::vector<QnnDevice_Config_t> target_machine_qnn_config_;
+  std::vector<const QnnDevice_Config_t*> target_machine_qnn_config_ptrs_;
+
+  // void* handle that should be freed when QnnAOTEnv end
+  std::vector<void*> unreachable_handel_;
 };
 
 }  // namespace mllm::qnn::aot
