@@ -558,6 +558,29 @@ class QnnAOTEnv(tvm_ffi.Object):
         )
 
 
+# =============================================================================
+# Mllm Ops Binding
+#
+# =============================================================================
+@tvm_ffi.register_object("mllm.aops.SoftmaxOpOptions")
+class SoftmaxOpOptions(tvm_ffi.Object):
+    def __init__(self, dim=-1):
+        super().__init__()
+        self.__init_handle_by_constructor__(SoftmaxOpOptions.__create__, dim)
+
+
+@tvm_ffi.register_object("mllm.aops.SoftmaxOp")
+class SoftmaxOp(BaseOp):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def create(device: Device, options: SoftmaxOpOptions):
+        return tvm_ffi.get_global_func("mllm.aops.__ctx_create_softmax_op")(
+            device, options
+        )
+
+
 # Initialize context
 initialize_context()
 
