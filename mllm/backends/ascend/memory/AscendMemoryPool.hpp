@@ -26,12 +26,12 @@ public:
 private:
     uint64_t generateBlocksId();
 
-    std::atomic<uint64_t> id_ = 0;  
-    std::mutex block_mutex_;              
+    std::atomic<uint64_t> id_ = 0;
+    std::mutex block_mutex_;
     
-    void* base_mem_ptr_ = nullptr;      
-    void* cur_mem_ptr_ = nullptr;   
-    int64_t remain_size_ = 0;       
+    void* base_mem_ptr_ = nullptr;
+    void* cur_mem_ptr_ = nullptr;
+    int64_t remain_size_ = 0;
     
     std::unordered_map<int, MemoryBlock> used_blocks_;  
     std::unordered_map<int, MemoryBlock> free_blocks_;  

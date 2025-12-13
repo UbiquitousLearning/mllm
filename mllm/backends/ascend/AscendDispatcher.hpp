@@ -18,7 +18,7 @@ class AscendDispatcher final : public Dispatcher {
  public:
   using ptr_t = std::shared_ptr<AscendDispatcher>;
 
-  explicit AscendDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id,
+  explicit AscendDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t dispatcher_id,
                             const AscendDispatcherOptions& options);
 
   void receive(const Task::ptr_t& task) override;

@@ -10,12 +10,11 @@
 
 namespace mllm::ascend {
 
-static AscendMemoryManager g_ascendMemoryManager;
-
-AscendMemoryManager::AscendMemoryManager() {}
+AscendMemoryManager::AscendMemoryManager() = default;
 
 AscendMemoryManager &getAscendMemoryManager() {
-    return g_ascendMemoryManager;
+    static AscendMemoryManager instance;
+    return instance;
 }
 
 void AscendMemoryManager::createMemoryPool(size_t pool_size)
