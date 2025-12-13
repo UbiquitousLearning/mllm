@@ -290,8 +290,10 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       MLLM_RT_ASSERT_EQ(weight_.dtype(), kFloat32);
       MLLM_RT_ASSERT_EQ(o.dtype(), kFloat32);
       if (bias_) { MLLM_RT_ASSERT_EQ(bias_.dtype(), kFloat32); }
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("LinearImplTypes not supported in x86 yet");
 
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       if (batch_count == 1) {
         arm::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
                                    options_.bias ? bias_.ptr<mllm_fp32_t>() : nullptr, false, true, options_.getThreads());
