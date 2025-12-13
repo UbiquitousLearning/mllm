@@ -4,12 +4,17 @@
 #include "mllm/backends/ascend/AscendCommon.hpp"
 
 #include <vector>
-
+#include <mutex>
 #include "mllm/backends/ascend/memory/AscendMemoryManager.hpp"
 
 namespace mllm::ascend {
 
-static aclrtStream g_atb_stream = nullptr;
+namespace {
+aclrtStream& globalAtbStream() {
+  static aclrtStream stream = nullptr;
+  return stream;
+}
+}  // namespace
 
 AscendTensorHandle::AscendTensorHandle(Tensor tensor, int block_id)
     : tensor_(std::move(tensor)), block_id_(block_id) {}
@@ -37,6 +42,8 @@ void AscendTensorHandle::release() {
     mem_mgr.freeBlock(block_id_);
     block_id_ = -1;
     tensor_.impl()->storage()->ptr_ = nullptr;
+  } else if (tensor_.impl() != nullptr) {
+    tensor_.delete_();
   }
 }
 
@@ -52,16 +59,10 @@ AscendTensorHandle prepareAscendTensor(const std::vector<float>& host_data,
   }
 
   auto tensor = Tensor::empty({batch, size}, kFloat16, kAscend);
+  tensor.alloc();
 
-  auto& mem_mgr = getAscendMemoryManager();
-  int block_id = -1;
-  const uint32_t bytes = static_cast<uint32_t>(expected_elements * sizeof(half_float::half));
-
-  mem_mgr.allocateBlock(bytes, block_id);
-
-  void* device_ptr = nullptr;
-  mem_mgr.getBlockPtr(block_id, device_ptr);
-  tensor.impl()->storage()->ptr_ = device_ptr;
+  void* device_ptr = tensor.ptr<void>();
+  const size_t bytes = tensor.bytes();
 
   auto ret = aclrtMemcpy(
       device_ptr, bytes,
@@ -69,43 +70,45 @@ AscendTensorHandle prepareAscendTensor(const std::vector<float>& host_data,
       ACL_MEMCPY_HOST_TO_DEVICE);
 
   if (ret != ACL_SUCCESS) {
-    mem_mgr.freeBlock(block_id);
     MLLM_ACL_CHECK(ret);
   }
 
-  return AscendTensorHandle(std::move(tensor), block_id);
+  return AscendTensorHandle(std::move(tensor), -1);
 }
 
 atb::Context* getGlobalAtbContext() {
   static atb::Context* ctx = nullptr;
-  
-  if (ctx == nullptr) {
+  static std::once_flag init_flag;
+
+  std::call_once(init_flag, [&] {
     // 1. Set Device
     auto acl_ret = aclrtSetDevice(0);
     MLLM_ACL_CHECK(acl_ret);
-    
+
     // 2. Create Context
     auto ret = atb::CreateContext(&ctx);
     MLLM_ATB_CHECK(ret);
-    
+
     // 3. Create Stream
-    acl_ret = aclrtCreateStream(&g_atb_stream);
+    auto& stream = globalAtbStream();
+    acl_ret = aclrtCreateStream(&stream);
     MLLM_ACL_CHECK(acl_ret);
-    
+
     // 4. Set Stream
-    ctx->SetExecuteStream(g_atb_stream);
-  }
+    ctx->SetExecuteStream(stream);
+  });
   return ctx;
 }
 
 aclrtStream getGlobalAtbStream() {
   getGlobalAtbContext(); // Ensure initialized
-  return g_atb_stream;
+  return globalAtbStream();
 }
 
 void syncGlobalAtbStream() {
-  if (g_atb_stream != nullptr) {
-    auto ret = aclrtSynchronizeStream(g_atb_stream);
+  auto stream = globalAtbStream();
+  if (stream != nullptr) {
+    auto ret = aclrtSynchronizeStream(stream);
     MLLM_ACL_CHECK(ret);
   }
 }

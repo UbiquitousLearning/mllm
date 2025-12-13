@@ -3,7 +3,7 @@
 
 #include "mllm/backends/ascend/AscendAllocator.hpp"
 #include "mllm/backends/ascend/memory/AscendMemoryManager.hpp"
-
+#include <iostream>
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::ascend {
@@ -80,11 +80,14 @@ void AscendAllocator::free(Storage* storage) {
 }
 
 bool AscendAllocator::generalAlloc(void** ptr, size_t cap, size_t align) {
-    return true;
+    //we don't support generalAlloc , therefore return false
+    std::cout << "generalAlloc is not supported in AscendAllocator" << std::endl;
+    return false;
 }
 
 void AscendAllocator::generalFree(void* ptr) {
-    
+    //we don't support generalFree , therefore do nothing
+    std::cout << "generalFree is not supported in AscendAllocator" << std::endl;
 }
 
 size_t AscendAllocator::allocSize(const Storage::ptr_t& storage) {

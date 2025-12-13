@@ -50,10 +50,9 @@ void AscendDispatcher::process(const Task::ptr_t& task) {
       task->op->reshape(task->inputs, task->outputs);
       task->op->setup(task->inputs, task->outputs);
       task->op->forward(task->inputs, task->outputs);
-      
       break;
     }
-    case TaskTypes::kExecuteModule: {
+    case TaskTypes::kExecuteModule: {   //TODO: execute module
       auto moduleName = static_cast<nn::Module*>(task->custom_context_ptr)->getModuleName();
 #ifdef MLLM_PERFETTO_ENABLE
       MLLM_PERF_TRACE_EVENT("mllm.ascend.execute.", perfetto::DynamicString{moduleName},
@@ -78,7 +77,7 @@ void AscendDispatcher::process(const Task::ptr_t& task) {
 }
 
 void AscendDispatcher::syncWait() {
-  // TODO
+  // TODO: Implement synchronization behavior for outstanding scheduled tasks (if required by engine).
 }
 
 AscendDispatcher::ptr_t createAscendDispatcher(exec::static_thread_pool& thread_pool,

@@ -114,7 +114,6 @@ int main() {
       std::cout << "\n✗✗✗ Test FAILED! Results don't match expected values. ✗✗✗" << std::endl;
     }
     
-    // 清理内存池中的块
     x_handle.release();
     y_handle.release();
     
