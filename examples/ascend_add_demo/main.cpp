@@ -57,63 +57,36 @@ int main() {
     )[0];
     std::cout << "   ✓ Add operation completed\n" << std::endl;
 
-    std::cout << "\n5. Copying result from NPU to CPU for verification..." << std::endl;
-    std::vector<half_float::half> z_data_fp16(batch * size);
-    
-    auto ret = aclrtMemcpy(
-        z_data_fp16.data(), batch * size * sizeof(half_float::half),
-        z_ascend.ptr<void>(), z_ascend.bytes(),
-        ACL_MEMCPY_DEVICE_TO_HOST
-    );
-    if (ret != ACL_SUCCESS) {
-      std::cerr << "   ✗ Failed to copy result back to CPU: ACL error " << ret << std::endl;
-      x_handle.release();
-      y_handle.release();
-      return 1;
-    }
-    
-    std::vector<float> result(batch * size);
-    for (size_t i = 0; i < result.size(); ++i) {
-      result[i] = static_cast<float>(z_data_fp16[i]);
-    }
-    
-    std::cout << "   ✓ Result copied to CPU\n" << std::endl;
-    
-    std::cout << "6. Verifying results..." << std::endl;
-    std::cout << "   Actual result:   [";
-    for (size_t i = 0; i < result.size(); ++i) {
-      std::cout << result[i];
-      if (i < result.size() - 1) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-    
-    std::cout << "   Expected result: [";
-    for (size_t i = 0; i < expected.size(); ++i) {
-      std::cout << expected[i];
-      if (i < expected.size() - 1) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-    
-    bool correct = true;
-    const float tolerance = 0.1f;  
-    
-    for (size_t i = 0; i < result.size(); ++i) {
-      float diff = std::abs(result[i] - expected[i]);
-      if (diff > tolerance) {
-        correct = false;
-        std::cout << "   ✗ Mismatch at index " << i 
-                  << ": expected " << expected[i] 
-                  << ", got " << result[i] 
-                  << " (diff: " << diff << ")" << std::endl;
-      }
-    }
-    
-    if (correct) {
-      std::cout << "\n✓✓✓ Test PASSED! All values match expected results. ✓✓✓" << std::endl;
-    } else {
-      std::cout << "\n✗✗✗ Test FAILED! Results don't match expected values. ✗✗✗" << std::endl;
-    }
-    
+  std::cout << "\n5. Copying result from NPU to CPU for verification..." << std::endl;
+  std::vector<float> actual;
+  bool correct = ascend::verifyAscendTensor(
+      z_ascend,
+      expected,
+      /*atol=*/1e-2f,
+      /*rtol=*/1e-2f,
+      /*verbose=*/true,
+      &actual);
+
+  std::cout << "   Actual result:   [";
+  for (size_t i = 0; i < actual.size(); ++i) {
+    std::cout << actual[i];
+    if (i < actual.size() - 1) std::cout << ", ";
+  }
+  std::cout << "]" << std::endl;
+
+  std::cout << "   Expected result: [";
+  for (size_t i = 0; i < expected.size(); ++i) {
+    std::cout << expected[i];
+    if (i < expected.size() - 1) std::cout << ", ";
+  }
+  std::cout << "]" << std::endl;
+
+  if (correct) {
+    std::cout << "\n✓✓✓ Test PASSED! All values match expected results. ✓✓✓" << std::endl;
+  } else {
+    std::cout << "\n✗✗✗ Test FAILED! Results don't match expected values. ✗✗✗" << std::endl;
+  }
+  
     x_handle.release();
     y_handle.release();
     

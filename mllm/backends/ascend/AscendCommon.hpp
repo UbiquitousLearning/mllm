@@ -3,16 +3,17 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include <acl/acl.h>
 #include <atb/atb_infer.h>
 #include <atb/types.h>
 
-#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Tensor.hpp"
-#include "mllm/utils/Common.hpp"
+#include "mllm/utils/Common.hpp"  // IWYU pragma: keep
 
 // Ascend ACL error checking macro
 #define MLLM_ACL_CHECK(err)                                                                                    \
@@ -92,5 +93,41 @@ struct AscendTensorHandle {
 AscendTensorHandle prepareAscendTensor(const std::vector<float>& host_data,
                                        int batch,
                                        int size);
+
+// Copy Ascend tensor to host as float (currently assumes FP16 tensor data).
+std::vector<float> copyAscendTensorToHost(const Tensor& t);
+
+// Verify Ascend tensor against expected values.
+bool verifyAscendTensor(const Tensor& t,
+                        const std::vector<float>& expected,
+                        float atol = 1e-2f,
+                        float rtol = 1e-2f,
+                        bool verbose = true,
+                        std::vector<float>* actual_out = nullptr);
+
+using RefFn = std::function<std::vector<float>()>;
+bool verifyAscendTensor(const Tensor& t,
+                        const RefFn& ref_fn,
+                        float atol = 1e-2f,
+                        float rtol = 1e-2f,
+                        bool verbose = true,
+                        std::vector<float>* actual_out = nullptr);
+
+// RAII timer for measuring scoped durations (optionally syncs the global stream).
+class AscendTimer {
+ public:
+  explicit AscendTimer(const char* tag, bool sync_before = true, bool sync_after = true);
+  ~AscendTimer();
+
+ private:
+  const char* tag_;
+  bool sync_before_;
+  bool sync_after_;
+  std::chrono::high_resolution_clock::time_point start_;
+};
+
+// Convenience macros for scoped timing.
+#define ASCEND_TIME_SCOPE(tag) ::mllm::ascend::AscendTimer timer_scope_##__LINE__(tag, true, true)
+#define ASCEND_TIME_SCOPE_NOSYNC(tag) ::mllm::ascend::AscendTimer timer_scope_##__LINE__(tag, false, false)
 
 }  // namespace mllm::ascend

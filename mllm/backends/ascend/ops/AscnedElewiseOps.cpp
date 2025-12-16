@@ -98,8 +98,10 @@ void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mem_mgr.allocateBlock(static_cast<uint32_t>(workspaceSize), workspace_block_id);
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
-
-  st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
+  {
+    ASCEND_TIME_SCOPE("AscendAddOp::forward");
+    st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
+  }
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB AddOp Execute failed, status={}", static_cast<int>(st));
   }

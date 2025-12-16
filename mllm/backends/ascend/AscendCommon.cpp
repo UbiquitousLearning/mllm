@@ -3,9 +3,13 @@
 
 #include "mllm/backends/ascend/AscendCommon.hpp"
 
-#include <vector>
+#include <chrono>
+#include <cmath>
+#include <iostream>
 #include <mutex>
+#include <vector>
 #include "mllm/backends/ascend/memory/AscendMemoryManager.hpp"
+#include "mllm/core/DataTypes.hpp"
 
 namespace mllm::ascend {
 
@@ -73,7 +77,97 @@ AscendTensorHandle prepareAscendTensor(const std::vector<float>& host_data,
     MLLM_ACL_CHECK(ret);
   }
 
-  return AscendTensorHandle(std::move(tensor), -1);
+  return {std::move(tensor), -1};
+}
+
+std::vector<float> copyAscendTensorToHost(const Tensor& t) {
+  MLLM_RT_ASSERT(t.dtype() == kFloat16);
+  syncGlobalAtbStream();
+
+  const size_t elem_cnt = t.numel();
+  std::vector<half_float::half> device_fp16(elem_cnt);
+
+  auto ret = aclrtMemcpy(
+      device_fp16.data(), elem_cnt * sizeof(half_float::half),
+      t.ptr<void>(), t.bytes(),
+      ACL_MEMCPY_DEVICE_TO_HOST);
+  MLLM_ACL_CHECK(ret);
+
+  std::vector<float> host(elem_cnt);
+  for (size_t i = 0; i < elem_cnt; ++i) {
+    host[i] = static_cast<float>(device_fp16[i]);
+  }
+  return host;
+}
+
+bool verifyAscendTensor(const Tensor& t,
+                        const std::vector<float>& expected,
+                        float atol,
+                        float rtol,
+                        bool verbose,
+                        std::vector<float>* actual_out) {
+  auto actual = copyAscendTensorToHost(t);
+  if (actual_out != nullptr) {
+    *actual_out = actual;
+  }
+
+  if (actual.size() != expected.size()) {
+    if (verbose) {
+      std::cout << "[AscendVerify] size mismatch: actual " << actual.size()
+                << " vs expected " << expected.size() << "\n";
+    }
+    return false;
+  }
+
+  bool ok = true;
+  for (size_t i = 0; i < actual.size(); ++i) {
+    const float diff = std::abs(actual[i] - expected[i]);
+    const float thr = atol + rtol * std::abs(expected[i]);
+    if (diff > thr) {
+      ok = false;
+      if (verbose) {
+        std::cout << "[AscendVerify] idx " << i
+                  << " expected " << expected[i]
+                  << " got " << actual[i]
+                  << " diff " << diff
+                  << " thr " << thr << "\n";
+      }
+    }
+  }
+
+  if (verbose) {
+    std::cout << (ok ? "[AscendVerify] OK" : "[AscendVerify] FAIL") << "\n";
+  }
+  return ok;
+}
+
+bool verifyAscendTensor(const Tensor& t,
+                        const RefFn& ref_fn,
+                        float atol,
+                        float rtol,
+                        bool verbose,
+                        std::vector<float>* actual_out) {
+  auto expected = ref_fn();
+  return verifyAscendTensor(t, expected, atol, rtol, verbose, actual_out);
+}
+
+AscendTimer::AscendTimer(const char* tag, bool sync_before, bool sync_after)
+    : tag_(tag),
+      sync_before_(sync_before),
+      sync_after_(sync_after) {
+  if (sync_before_) {
+    syncGlobalAtbStream();
+  }
+  start_ = std::chrono::high_resolution_clock::now();
+}
+
+AscendTimer::~AscendTimer() {
+  if (sync_after_) {
+    syncGlobalAtbStream();
+  }
+  const auto end = std::chrono::high_resolution_clock::now();
+  const double ms = std::chrono::duration<double, std::milli>(end - start_).count();
+  std::cout << "[AscendTimer] " << tag_ << " : " << ms << " ms\n";
 }
 
 atb::Context* getGlobalAtbContext() {
