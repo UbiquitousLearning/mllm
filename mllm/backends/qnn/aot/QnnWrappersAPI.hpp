@@ -129,7 +129,7 @@ class QnnAOTEnv {
   std::vector<const QnnDevice_Config_t*> target_machine_qnn_config_ptrs_;
 
   // void* handle that should be freed when QnnAOTEnv end
-  std::vector<void*> unreachable_handel_;
+  std::vector<void*> unreachable_handle_;
 };
 
 }  // namespace mllm::qnn::aot

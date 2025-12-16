@@ -540,11 +540,11 @@ class QcomTargetMachine(tvm_ffi.Object):
 class QnnAOTEnv(tvm_ffi.Object):
     def __init__(
         self,
-        machine: QcomTargetMachine = None,
+        machine: QcomTargetMachine | None = None,
         path: str = None,
     ):
         if machine is None:
-            raise RuntimeError("machine target is none!")
+            raise ValueError("QnnAOTEnv requires a non-None QcomTargetMachine")
         if path is None or path == "":
             self.__init_handle_by_constructor__(QnnAOTEnv.__create__, machine, "")
         else:

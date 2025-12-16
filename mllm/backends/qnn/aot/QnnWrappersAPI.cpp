@@ -139,7 +139,7 @@ void QnnAOTEnv::_setup(const std::string& path) {
     switch (target_machine_.soc_htp_security_pd_session) {
       case QcomSecurityPDSession::kHtpSignedPd: {
         p_custom_config = (QnnHtpDevice_CustomConfig_t*)malloc(sizeof(QnnHtpDevice_CustomConfig_t));
-        unreachable_handel_.push_back(p_custom_config);
+        unreachable_handle_.push_back(p_custom_config);
         p_custom_config->option = QNN_HTP_DEVICE_CONFIG_OPTION_SIGNEDPD;
         p_custom_config->useSignedProcessDomain.useSignedProcessDomain = true;
         p_custom_config->useSignedProcessDomain.deviceId = 0;
@@ -256,19 +256,19 @@ std::vector<QnnDevice_PlatformInfo_t*> QnnAOTEnv::createDevicePlatformInfo() {
   QnnDevice_CoreInfo_t* p_core_info = nullptr;
 
   p_platform_info = (QnnDevice_PlatformInfo_t*)malloc(sizeof(QnnDevice_PlatformInfo_t));
-  unreachable_handel_.push_back(p_platform_info);
+  unreachable_handle_.push_back(p_platform_info);
   p_platform_info->version = QNN_DEVICE_PLATFORM_INFO_VERSION_1;
   p_platform_info->v1.numHwDevices = 1;
 
   p_hw_device_info = (QnnDevice_HardwareDeviceInfo_t*)malloc(sizeof(QnnDevice_HardwareDeviceInfo_t));
-  unreachable_handel_.push_back(p_hw_device_info);
+  unreachable_handle_.push_back(p_hw_device_info);
   p_hw_device_info->version = QNN_DEVICE_HARDWARE_DEVICE_INFO_VERSION_1;
   p_hw_device_info->v1.deviceId = 0;
   p_hw_device_info->v1.deviceType = 0;
   p_hw_device_info->v1.numCores = 1;
 
   p_device_info_extension = (QnnHtpDevice_DeviceInfoExtension_t*)malloc(sizeof(QnnHtpDevice_DeviceInfoExtension_t));
-  unreachable_handel_.push_back(p_device_info_extension);
+  unreachable_handle_.push_back(p_device_info_extension);
   // clang-format off
   p_device_info_extension->devType = QNN_HTP_DEVICE_TYPE_ON_CHIP;
   p_device_info_extension->onChipDevice.vtcmSize = target_machine_.soc_htp_vtcm_total_memory_size;  // in MB
@@ -280,7 +280,7 @@ std::vector<QnnDevice_PlatformInfo_t*> QnnAOTEnv::createDevicePlatformInfo() {
   // clang-format on
 
   p_core_info = (QnnDevice_CoreInfo_t*)malloc(sizeof(QnnDevice_CoreInfo_t));
-  unreachable_handel_.push_back(p_core_info);
+  unreachable_handle_.push_back(p_core_info);
   p_core_info->version = QNN_DEVICE_CORE_INFO_VERSION_1;
   p_core_info->v1.coreId = 0;
   p_core_info->v1.coreType = 0;
@@ -297,7 +297,7 @@ std::vector<QnnDevice_CustomConfig_t> QnnAOTEnv::createDecideCustomConfigInfo() 
   std::vector<QnnDevice_CustomConfig_t> ret;
 
   QnnHtpDevice_CustomConfig_t* p_custom_config = (QnnHtpDevice_CustomConfig_t*)malloc(sizeof(QnnHtpDevice_CustomConfig_t));
-  unreachable_handel_.push_back(p_custom_config);
+  unreachable_handle_.push_back(p_custom_config);
   p_custom_config->option = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
   p_custom_config->socModel = static_cast<uint32_t>(target_machine_.soc_htp_chipset);
   ret.push_back(static_cast<QnnDevice_CustomConfig_t>(p_custom_config));
@@ -311,7 +311,7 @@ std::vector<QnnContext_CustomConfig_t> QnnAOTEnv::createContextCustomConfig(bool
 
   if (weights_sharing) {
     p_custom_config = (QnnHtpContext_CustomConfig_t*)malloc(sizeof(QnnHtpContext_CustomConfig_t));
-    unreachable_handel_.push_back(p_custom_config);
+    unreachable_handle_.push_back(p_custom_config);
     p_custom_config->option = QNN_HTP_CONTEXT_CONFIG_OPTION_WEIGHT_SHARING_ENABLED;
     p_custom_config->weightSharingEnabled = true;
     ret.push_back(static_cast<QnnContext_CustomConfig_t>(p_custom_config));

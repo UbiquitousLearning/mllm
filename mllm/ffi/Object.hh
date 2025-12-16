@@ -100,7 +100,7 @@ class BaseOpObj : public tvm::ffi::Object {
 
   explicit BaseOpObj(const ::mllm::BaseOp::ptr_t& op_ptr) : op_ptr_(op_ptr) { MLLM_EMPTY_SCOPE; }
 
-  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.BaseOp", BaseOpObj, tvm::ffi::Object);
+  TVM_FFI_DECLARE_OBJECT_INFO("mllm.BaseOp", BaseOpObj, tvm::ffi::Object);
 };
 
 class BaseOp : public tvm::ffi::ObjectRef {
@@ -155,7 +155,7 @@ class SoftmaxOpObj : public BaseOpObj {
  public:
   explicit SoftmaxOpObj(const ::mllm::BaseOp::ptr_t& opt) : BaseOpObj(opt) { MLLM_EMPTY_SCOPE; }
 
-  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.aops.SoftmaxOp", SoftmaxOpObj, tvm::ffi::Object);
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.aops.SoftmaxOp", SoftmaxOpObj, BaseOpObj);
 };
 
 class SoftmaxOp : public BaseOp {
