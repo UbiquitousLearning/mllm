@@ -20,18 +20,19 @@ namespace mllm::ascend {
 AscendAddOp::AscendAddOp(const aops::AddOpOptions& options) : aops::AddOp(options) {}
 
 void AscendAddOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  for (auto& t : outputs) {
-    if (!t.isNil()) {
-      auto& mem_mgr = getAscendMemoryManager();
-      int block_id = -1;
-      void* device_ptr = nullptr;
+  // for (auto& t : outputs) {
+  //   if (!t.isNil()) {
+  //     auto& mem_mgr = getAscendMemoryManager();
+  //     int block_id = -1;
+  //     void* device_ptr = nullptr;
       
-      mem_mgr.allocateBlock(static_cast<uint32_t>(t.bytes()), block_id);
-      mem_mgr.getBlockPtr(block_id, device_ptr);
+  //     mem_mgr.allocateBlock(static_cast<uint32_t>(t.bytes()), block_id);
+  //     mem_mgr.getBlockPtr(block_id, device_ptr);
       
-      t.impl()->storage()->ptr_ = device_ptr;
-    }
-  }
+  //     t.impl()->storage()->ptr_ = device_ptr;
+  //   }
+  // }
+  BaseOp::setup(inputs, outputs);
 }
 
 void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
