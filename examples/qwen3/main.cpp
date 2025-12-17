@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fmt/core.h>
 #include <mllm/mllm.hpp>
-#include <mllm/models/qwen3/modeling_qwen3.hpp>
+#include <mllm/models/qwen3/modeling_qwen3_fa2.hpp>
 #include <mllm/models/qwen3/tokenization_qwen3.hpp>
 #include <mllm/utils/AnyValue.hpp>
 

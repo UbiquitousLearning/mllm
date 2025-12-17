@@ -43,6 +43,7 @@
 
 // NOTE: common/blas.hpp should be include after all kernels. That because in apple platform.
 // Tensor::nil()'s nil keyword has been defined in apple's system head.
+#include "mllm/backends/cpu/kernels/common/kernel_dispatch.hpp"      // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/ggml/matmul.hpp"          // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/common/paged_attn/fwd_bshd.hpp"  // IWYU pragma: export

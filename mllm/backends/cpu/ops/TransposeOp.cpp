@@ -27,13 +27,17 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   if (input_shape.size() == 2 && (dim0 + dim1 == 1)) {
     switch (dtype) {
       case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(HW -> WH) fp32 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_hw_wh_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1]);
 #endif
         break;
       }
       case kFloat16: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(HW -> WH) fp16 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_hw_wh_fp16(input.ptr<mllm_fp16_t>(), output.ptr<mllm_fp16_t>(), input_shape[0], input_shape[1]);
 #endif
         break;
@@ -52,14 +56,18 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   else if (input.shape().size() == 4 && ((dim0 == 1 && dim1 == 2) || (dim0 == 2 && dim1 == 1))) {
     switch (dtype) {
       case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(BSHD -> BHSD) fp32 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_bshd_bhsd_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1],
                                       input_shape[2], input_shape[3]);
 #endif
         break;
       }
       case kFloat16: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(BSHD -> BHSD) fp16 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_bshd_bhsd_fp16(input.ptr<mllm_fp16_t>(), output.ptr<mllm_fp16_t>(), input_shape[0], input_shape[1],
                                       input_shape[2], input_shape[3]);
 #endif
@@ -84,14 +92,18 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
 
     switch (dtype) {
       case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(BSHD -> BSDH) fp32 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_last_dims_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), batch, input_shape[0],
                                       input_shape[1]);
 #endif
         break;
       }
       case kFloat16: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(BSHD -> BSDH) fp16 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_last_dims_fp16(input.ptr<mllm_fp16_t>(), output.ptr<mllm_fp16_t>(), batch, input_shape[0],
                                       input_shape[1]);
 #endif
