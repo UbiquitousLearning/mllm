@@ -341,7 +341,7 @@ enum DataTypes : int32_t {
 
   // Int4 and low bits
   kInt4 = 136,
-  KUInt4 = 137,
+  kUInt4 = 137,
   kInt2 = 138,
   kUInt2 = 139,
 

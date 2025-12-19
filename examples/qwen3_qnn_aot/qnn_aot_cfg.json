@@ -1,0 +1,9 @@
+{
+    "target_machine": {
+        "htp_arch": "V81",
+        "htp_chipset": "SM8850",
+        "htp_try_best_performance": "HtpBurst",
+        "htp_security_pd_session": "HtpSignedPd",
+        "htp_vtcm_capability_in_mb": 8
+    }
+}
