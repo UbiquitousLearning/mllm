@@ -339,6 +339,12 @@ enum DataTypes : int32_t {
   kByte = 134,
   kMXFP4 = 135,
 
+  // Int4 and low bits
+  kInt4 = 136,
+  KUInt4 = 137,
+  kInt2 = 138,
+  kUInt2 = 139,
+
   // complex dtypes for STFT and other ops
   kComplexFloat32 = 201,
   kComplexFloat64 = 202,

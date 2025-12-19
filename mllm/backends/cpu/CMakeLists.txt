@@ -168,6 +168,10 @@ if(MLLM_BUILD_ARM_BACKEND)
     PATTERN "*.h"
     PATTERN "*.hpp")
 else()
-  # X86 highway
-  # TODO
+  install(
+    TARGETS hwy
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
 endif()

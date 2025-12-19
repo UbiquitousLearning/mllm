@@ -1,4 +1,4 @@
-// Auto generated: 2025-11-26 11:54:51
+// Auto generated: 2025-12-19 07:36:12
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -325,7 +325,11 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_ATTR_IMPL(v) return (v)->getKind() >= RK_Attr && (v)->getKind() <= RK_Attr_Last
 
 #define RTTI_RK_ATTR_LINALGIRATTR_IMPL(v) \
-  return (v)->getKind() >= RK_Attr_LinalgIRAttr && (v)->getKind() <= RK_Attr_LinalgIRAttr
+  return (v)->getKind() >= RK_Attr_LinalgIRAttr && (v)->getKind() <= RK_Attr_LinalgIRAttr_Last
+
+#define RTTI_RK_ATTR_LINALGIRATTR_QUANTIZATIONANNOTATION_IMPL(v)       \
+  return (v)->getKind() >= RK_Attr_LinalgIRAttr_QuantizationAnnotation \
+         && (v)->getKind() <= RK_Attr_LinalgIRAttr_QuantizationAnnotation
 
 #define RTTI_RK_ATTR_GRAPHIRATTR_IMPL(v) return (v)->getKind() >= RK_Attr_GraphIRAttr && (v)->getKind() <= RK_Attr_GraphIRAttr
 

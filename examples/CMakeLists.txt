@@ -8,9 +8,15 @@ add_subdirectory(minicpm4)
 add_subdirectory(qwen3)
 add_subdirectory(qwen3_service)
 add_subdirectory(deepseek_ocr)
+
 if(MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen_npu)
 endif()
+
 if(MLLM_TRACY_ENABLE)
   add_subdirectory(tracy_example)
+endif()
+
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  add_subdirectory(qwen3_qnn_aot)
 endif()

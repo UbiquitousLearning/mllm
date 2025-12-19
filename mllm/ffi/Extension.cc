@@ -45,8 +45,11 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   refl::GlobalDef().def("mllm.echo", mllm::ffi::echo);
   refl::GlobalDef().def("mllm.initialize_context", mllm::initializeContext);
   refl::GlobalDef().def("mllm.shutdown_context", mllm::shutdownContext);
+  refl::GlobalDef().def("mllm.is_qnn_aot_on_x86_enabled", mllm::isQnnAOTOnX86Enabled);
 
   // Primitives
+  refl::ObjectDef<::mllm::ffi::DeviceObj>();
+  refl::ObjectDef<::mllm::ffi::DTypeObj>();
   refl::GlobalDef().def("mllm.cpu_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kCPU); });
   refl::GlobalDef().def("mllm.cuda_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kCUDA); });
   refl::GlobalDef().def("mllm.qnn_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kQNN); });
@@ -325,6 +328,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;
 
+  refl::ObjectDef<::mllm::ffi::BaseOpObj>();
   refl::GlobalDef().def("mllm.BaseOp.load", [](const mllm::ffi::BaseOp& self, const mllm::ffi::ParameterFile& obj) -> void {
     self.get()->op_ptr_->load(obj.get()->pf_ptr_);
   });
@@ -336,6 +340,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;
 
+  refl::ObjectDef<::mllm::ffi::SessionObj>();
   refl::GlobalDef().def("mllm.service.startService",
                         [](int work_threads = 1) -> void { ::mllm::service::startService(work_threads); });
   refl::GlobalDef().def("mllm.service.stopService", []() -> void { ::mllm::service::stopService(); });

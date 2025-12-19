@@ -59,6 +59,107 @@ class QnnDeviceAndContext : public tvm::ffi::ObjectRef {
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QnnDeviceAndContext, tvm::ffi::ObjectRef, QnnDeviceAndContextObj);  // NOLINT
 };
 
+//===----------------------------------------------------------------------===//
+// MLLM QcomHTPArch Define
+//===----------------------------------------------------------------------===//
+class QcomHTPArchObj : public tvm::ffi::Object {
+ public:
+  mllm::qnn::aot::QcomHTPArch htp_arch_;
+
+  explicit QcomHTPArchObj(const mllm::qnn::aot::QcomHTPArch& obj) : htp_arch_(obj) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.qualcomm.QcomHTPArch", QcomHTPArchObj, tvm::ffi::Object);
+};
+
+class QcomHTPArch : public tvm::ffi::ObjectRef {
+ public:
+  explicit QcomHTPArch(mllm::qnn::aot::QcomHTPArch& ptr) { data_ = tvm::ffi::make_object<QcomHTPArchObj>(ptr); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QcomHTPArch, tvm::ffi::ObjectRef, QcomHTPArchObj);  // NOLINT
+};
+
+//===----------------------------------------------------------------------===//
+// MLLM QcomChipset Define
+//===----------------------------------------------------------------------===//
+class QcomChipsetObj : public tvm::ffi::Object {
+ public:
+  mllm::qnn::aot::QcomChipset chipset_;
+
+  explicit QcomChipsetObj(const mllm::qnn::aot::QcomChipset& obj) : chipset_(obj) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.qualcomm.QcomChipset", QcomChipsetObj, tvm::ffi::Object);
+};
+
+class QcomChipset : public tvm::ffi::ObjectRef {
+ public:
+  explicit QcomChipset(mllm::qnn::aot::QcomChipset& ptr) { data_ = tvm::ffi::make_object<QcomChipsetObj>(ptr); }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QcomChipset, tvm::ffi::ObjectRef, QcomChipsetObj);  // NOLINT
+};
+
+//===----------------------------------------------------------------------===//
+// MLLM QcomTryBestPerformance Define
+//===----------------------------------------------------------------------===//
+class QcomTryBestPerformanceObj : public tvm::ffi::Object {
+ public:
+  mllm::qnn::aot::QcomTryBestPerformance perf_;
+
+  explicit QcomTryBestPerformanceObj(const mllm::qnn::aot::QcomTryBestPerformance& obj) : perf_(obj) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.qualcomm.QcomTryBestPerformance", QcomTryBestPerformanceObj, tvm::ffi::Object);
+};
+
+class QcomTryBestPerformance : public tvm::ffi::ObjectRef {
+ public:
+  explicit QcomTryBestPerformance(mllm::qnn::aot::QcomTryBestPerformance& ptr) {
+    data_ = tvm::ffi::make_object<QcomTryBestPerformanceObj>(ptr);
+  }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QcomTryBestPerformance, tvm::ffi::ObjectRef, QcomTryBestPerformanceObj);  // NOLINT
+};
+
+//===----------------------------------------------------------------------===//
+// MLLM QcomSecurityPDSession Define
+//===----------------------------------------------------------------------===//
+class QcomSecurityPDSessionObj : public tvm::ffi::Object {
+ public:
+  mllm::qnn::aot::QcomSecurityPDSession pd_;
+
+  explicit QcomSecurityPDSessionObj(const mllm::qnn::aot::QcomSecurityPDSession& obj) : pd_(obj) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.qualcomm.QcomSecurityPDSession", QcomSecurityPDSessionObj, tvm::ffi::Object);
+};
+
+class QcomSecurityPDSession : public tvm::ffi::ObjectRef {
+ public:
+  explicit QcomSecurityPDSession(mllm::qnn::aot::QcomSecurityPDSession& ptr) {
+    data_ = tvm::ffi::make_object<QcomSecurityPDSessionObj>(ptr);
+  }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QcomSecurityPDSession, tvm::ffi::ObjectRef, QcomSecurityPDSessionObj);  // NOLINT
+};
+
+//===----------------------------------------------------------------------===//
+// MLLM QcomTargetMachine Define
+//===----------------------------------------------------------------------===//
+class QcomTargetMachineObj : public tvm::ffi::Object {
+ public:
+  mllm::qnn::aot::QcomTargetMachine target_machine_;
+
+  explicit QcomTargetMachineObj(const mllm::qnn::aot::QcomTargetMachine& obj) : target_machine_(obj) { MLLM_EMPTY_SCOPE; }
+
+  TVM_FFI_DECLARE_OBJECT_INFO_FINAL("mllm.qualcomm.QcomTargetMachine", QcomTargetMachineObj, tvm::ffi::Object);
+};
+
+class QcomTargetMachine : public tvm::ffi::ObjectRef {
+ public:
+  explicit QcomTargetMachine(mllm::qnn::aot::QcomTargetMachine& ptr) {
+    data_ = tvm::ffi::make_object<QcomTargetMachineObj>(ptr);
+  }
+
+  TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(QcomTargetMachine, tvm::ffi::ObjectRef, QcomTargetMachineObj);  // NOLINT
+};
+
 #endif
 
 }  // namespace mllm::ffi
