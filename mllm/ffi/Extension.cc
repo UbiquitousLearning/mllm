@@ -45,6 +45,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   refl::GlobalDef().def("mllm.echo", mllm::ffi::echo);
   refl::GlobalDef().def("mllm.initialize_context", mllm::initializeContext);
   refl::GlobalDef().def("mllm.shutdown_context", mllm::shutdownContext);
+  refl::GlobalDef().def("mllm.is_qnn_aot_on_x86_enabled", mllm::isQnnAOTOnX86Enabled);
 
   // Primitives
   refl::ObjectDef<::mllm::ffi::DeviceObj>();

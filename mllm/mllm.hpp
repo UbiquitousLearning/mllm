@@ -187,6 +187,8 @@ void memoryReport();
 
 bool isOpenCLAvailable();
 
+bool isQnnAOTOnX86Enabled();
+
 extern void initOpenCLBackend();
 
 extern void initCudaBackend();

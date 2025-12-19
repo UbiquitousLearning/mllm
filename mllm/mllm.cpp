@@ -82,6 +82,14 @@ bool isOpenCLAvailable() {
   return false;
 }
 
+bool isQnnAOTOnX86Enabled() {
+#ifdef MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
+  return true;
+#else
+  return false;
+#endif
+}
+
 bool isQnnAvailable() {
 #ifdef MLLM_QNN_BACKEND
   return true;

@@ -1,4 +1,4 @@
-// Auto generated: 2025-11-26 11:54:51
+// Auto generated: 2025-12-19 07:36:12
 // do not modify this file
 #pragma once
 
@@ -133,6 +133,8 @@ enum NodeKind : uint32_t {
   RK_Val_Last,
   RK_Attr,
   RK_Attr_LinalgIRAttr,
+  RK_Attr_LinalgIRAttr_QuantizationAnnotation,
+  RK_Attr_LinalgIRAttr_Last,
   RK_Attr_GraphIRAttr,
   RK_Attr_TensorIRAttr,
   RK_Attr_BuiltinIRAttr,

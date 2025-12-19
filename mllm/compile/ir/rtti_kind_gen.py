@@ -215,6 +215,8 @@ def define_lianlg_ir(ir: dict):
     val: Cls = ir["Value"]
     attr: Cls = ir["Attribute"]
 
+    attr.derive(Cls("QuantizationAnnotation"))
+
     # op
     op.derive(Cls("RegisterOp"))
     op.derive(Cls("CustomKernelOp"))
