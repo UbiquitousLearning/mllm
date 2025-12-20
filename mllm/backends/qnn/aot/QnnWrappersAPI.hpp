@@ -99,9 +99,9 @@ class QnnAOTEnv {
  public:
   using ptr_t = std::shared_ptr<QnnAOTEnv>;
 
-  explicit QnnAOTEnv(QcomTargetMachine& target_machine);
+  explicit QnnAOTEnv(const QcomTargetMachine& target_machine);
 
-  QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine);
+  QnnAOTEnv(const std::string& lib_path, const QcomTargetMachine& target_machine);
 
   std::shared_ptr<QnnDeviceAndContext> createContext(const std::string& name, bool weights_sharing = false);
 

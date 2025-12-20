@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 #include <mllm/mllm.hpp>
+#include <mllm/backends/qnn/aot/QnnTargetMachineParser.hpp>
+#include <mllm/backends/qnn/aot/QnnWrappersAPI.hpp>
 #include "modeling_qwen_qnn_aot.hpp"
 
 using mllm::Argparse;
@@ -52,5 +54,10 @@ MLLM_MAIN({
           {"causal_mask", causal_mask},
       },
       {});
-  mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
+
+  // Create Qnn AOT Model
+  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
+                                               mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
+
+  // mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
 });
