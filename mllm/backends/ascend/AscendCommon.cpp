@@ -81,21 +81,20 @@ AscendTensorHandle prepareAscendTensor(const std::vector<float>& host_data,
 }
 
 std::vector<float> copyAscendTensorToHost(const Tensor& t) {
+  // Current implementation assumes FP16 tensor on Ascend.
   MLLM_RT_ASSERT(t.dtype() == kFloat16);
-  syncGlobalAtbStream();
 
-  const size_t elem_cnt = t.numel();
-  std::vector<half_float::half> device_fp16(elem_cnt);
+  // Use generic .to(kCPU) + CPU-side cast instead of raw aclrtMemcpy.
+  // This goes through the X2X op we implemented for Ascend, keeping
+  // all device transfer logic in one place.
+  auto cpu_tensor = const_cast<Tensor&>(t).to(::mllm::kCPU);
 
-  auto ret = aclrtMemcpy(
-      device_fp16.data(), elem_cnt * sizeof(half_float::half),
-      t.ptr<void>(), t.bytes(),
-      ACL_MEMCPY_DEVICE_TO_HOST);
-  MLLM_ACL_CHECK(ret);
-
+  const size_t elem_cnt = cpu_tensor.numel();
   std::vector<float> host(elem_cnt);
+
+  auto* src = cpu_tensor.ptr<mllm_fp16_t>();
   for (size_t i = 0; i < elem_cnt; ++i) {
-    host[i] = static_cast<float>(device_fp16[i]);
+    host[i] = static_cast<float>(src[i]);
   }
   return host;
 }
