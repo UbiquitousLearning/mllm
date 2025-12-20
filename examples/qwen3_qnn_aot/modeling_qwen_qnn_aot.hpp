@@ -7,10 +7,10 @@
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
-#include "mllm/nn/lmcache/StaticCache.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
 #include "mllm/utils/Enumerate.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/compile/ir/Trace.hpp"
 
 namespace mllm::models::qwen3 {
 
@@ -112,6 +112,7 @@ class Qwen3Attention final : public nn::Module {
   int num_attention_heads_;
   int num_key_value_heads_;
   int num_key_value_groups_;
+  float scale_;
 
  public:
   Qwen3Attention() = default;
@@ -122,6 +123,7 @@ class Qwen3Attention final : public nn::Module {
     num_key_value_heads_ = cfg.num_key_value_heads;
     head_dim_ = cfg.head_dim;
     num_key_value_groups_ = num_attention_heads_ / num_key_value_heads_;
+    scale_ = (1.f / sqrtf((float)head_dim_));
 
     // clang-format off
     q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias);
@@ -144,61 +146,53 @@ class Qwen3Attention final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+    auto past_key = inputs[3];
+    auto past_value = inputs[4];
+    auto causal_mask = inputs[5];
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
     auto key_states = k_proj_(x);
     auto value_states = v_proj_(x);
 
-    int B = inputs[0].shape()[0];
-    int S = inputs[0].shape()[1];
-
-    // [B, S, H, D]
-    query_states = query_states.view({B, S, num_attention_heads_, head_dim_});
-    key_states = key_states.view({B, S, num_key_value_heads_, head_dim_});
-    value_states = value_states.view({B, S, num_key_value_heads_, head_dim_});
-
-    // [B, S, H, D]
-    query_states = rms_norm_q_(query_states);
-    key_states = rms_norm_k_(key_states);
+    // [B, H, S, D]
+    query_states = query_states.view({1, -1, num_attention_heads_, head_dim_}).transpose(1, 2);
+    key_states = key_states.view({1, -1, num_key_value_heads_, head_dim_}).transpose(1, 2);
+    value_states = value_states.view({1, -1, num_key_value_heads_, head_dim_}).transpose(1, 2);
 
     // [B, H, S, D]
-    query_states = query_states.transpose(1, 2);
-    key_states = key_states.transpose(1, 2);
-    value_states = value_states.transpose(1, 2);
+    query_states = rms_norm_q_(query_states);
+    key_states = rms_norm_k_(key_states);
 
     // [B, H, S, D]
     query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
-    // [B, H, S, D]
-    auto [key_states_new, value_states_new] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
-    key_states = key_states_new;
-    value_states = value_states_new;
+    // [B, H, D, S]
+    key_states = key_states.transpose(2, 3);
 
-    Tensor attn;
-    if (key_states.dtype() == kFloat32) {
-      // attention weight
-      // [B, H, S, S]
-      attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-    } else if (key_states.dtype() == kFloat16) {
-      attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-      attn = attn.to(kFloat16);
-    }
+    // Handle KV Cache
+    auto kh = nn::functional::concat({past_key, key_states}, -1);     // [B, H, D, S]
+    auto vh = nn::functional::concat({past_value, value_states}, 2);  // [B, H, S, D]
 
-    // attn output
-    // [B, H, S, S] @ [B, H, S, D] -> [B, H, S, D]
-    auto output = nn::functional::matmul(attn, value_states);
-    // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
-    output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
-    output = o_proj_(output);
+    // Repeat
+    kh = kh.repeat(num_key_value_groups_, 1);
+    vh = vh.repeat(num_key_value_groups_, 1);
 
-    return {output};
+    // Attn
+    auto attn = nn::functional::matmul(query_states, kh);
+    attn = attn * scale_;
+
+    // Masked Softmax
+    auto attn_min = attn.min(-1, true);
+    float minus_value = -20;
+    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min + minus_value);
+    attn = nn::functional::softmax(attn, -1);
+    auto y = nn::functional::matmul(attn, vh);
+    y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_});
+    y = o_proj_(y);
+
+    return {y, key_states, value_states};
   }
 
   int layer_idx_;
@@ -223,15 +217,18 @@ class Qwen3Decoder final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto& kv_cache = args[0];
+    auto past_key = inputs[3];
+    auto past_value = inputs[4];
+    auto causal_mask = inputs[5];
 
     auto x = input_layer_norm_(inputs[0]);
-    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0];
+    auto _ = self_attn_(x, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask);
+    x = _[0];
     auto tmp = x + inputs[0];
     x = post_attention_layer_norm_(tmp);
     x = mlp_(x)[0];
     x = x + tmp;
-    return {x};
+    return {x, _[1], _[2]};
   }
 };
 
@@ -258,13 +255,27 @@ class Qwen3Text final : public nn::Module {
 
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto& kv_cache = args[0];
+    auto past_key = inputs[3];
+    auto past_value = inputs[4];
+    auto causal_mask = inputs[5];
 
-    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+    std::vector<Tensor> keys;
+    std::vector<Tensor> values;
+
+    for (auto& block : blocks) {
+      auto _ = block(x, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask);
+      x = _[0];
+      keys.push_back(_[1]);
+      values.push_back(_[2]);
+    }
 
     x = norm_(x);
 
-    return {x};
+    auto ret = std::vector<Tensor>{x};
+    for (const auto& item : keys) { ret.push_back(item); }
+    for (const auto& item : values) { ret.push_back(item); }
+
+    return ret;
   }
 };
 
@@ -280,7 +291,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     if (cfg.tie_word_embeddings) {
       // NOTE:
       // model.lm_head.weight is quantization weights of model.embed_tokens.weight
-      lm_head_ = reg<nn::Linear>("lm_head_out", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
 
     // Init inv freq
@@ -288,8 +299,14 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     registerBuffer("inv_freq", inv);
   }
 
-  ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
+  IROutput trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
+    // Things we need to return
+    ir::IRContext::ptr_t llm_ir = nullptr;
+
     auto sequence = input.at("sequence");
+    auto past_key = input.at("past_key");
+    auto past_value = input.at("past_value");
+    auto causal_mask = input.at("causal_mask");
 
     // Generate position_ids for the current sequence
     auto batch_size = sequence.shape()[0];
@@ -318,20 +335,21 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     // Generate RoPE embeddings using the inv_freq buffer
     auto [llm_embedding_sin, llm_embedding_cos] = makeRotaryPosEmbedding(position_ids, getBuffer("inv_freq"), 1.0f);
 
-    sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos)[0];
+    ir::lowlevel::traceStart();
+    sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask)[0];
+    sequence = lm_head_(sequence);
+    ir::lowlevel::traceComment("    ╔═════╗   ");
+    ir::lowlevel::traceComment("   ║  o o  ║  ");
+    ir::lowlevel::traceComment("   ║   ▽   ║  ");
+    ir::lowlevel::traceComment("   ╚═════╝   ");
+    ir::lowlevel::traceComment("    ║   ║     ");
+    ir::lowlevel::traceComment("   ╱╩╦╦╩╲    ");
+    llm_ir = ir::lowlevel::traceStop();
 
-    // clip x to one seq length
-    {
-      auto S = sequence.shape()[1];
-      sequence = sequence[{kAll, {S - 1}, kAll}];
-    }
-    if (tie_word_embeddings_) { sequence = lm_head_(sequence); }
-
-    return {
-        {"sequence", sequence},
-        {"position_ids", position_ids},
-    };
+    return {{"model", llm_ir}};
   }
+
+  ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override { return {}; }
 
  private:
   const Qwen3Config& cfg;

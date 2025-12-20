@@ -414,6 +414,18 @@ class Tensor {
   Tensor cuda();
 
   /**
+   * @brief equal
+   * @return uint8 mask
+   */
+  Tensor equal(Tensor v);
+
+  /**
+   * @brief equal
+   * @return uint8 mask
+   */
+  Tensor equal(float v);
+
+  /**
    * @brief Gets the tensor's name.
    * @return Name string (empty if unnamed).
    */

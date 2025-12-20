@@ -158,4 +158,6 @@ Tensor radixAttnSWAwSink(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const
 mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, const mllm::Tensor& V_idx, int batch, int q_head,
                             int kv_head, int d_qk, int d_v);
 
+mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v);
+
 }  // namespace mllm::nn::functional

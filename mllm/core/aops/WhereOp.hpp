@@ -4,15 +4,15 @@
 #pragma once
 
 #include "mllm/core/BaseOp.hpp"
-#include "mllm/compile/ir/linalg/Op.hpp"
+#include "mllm/core/ParameterFile.hpp"
 
 namespace mllm::aops {
 
-struct EqualOpOptions : public BaseOpOptions<EqualOpOptions> {};
+struct WhereOpOptions : public BaseOpOptions<WhereOpOptions> {};
 
-class EqualOp : public BaseOp {
+class WhereOp : public BaseOp {
  public:
-  explicit EqualOp(const EqualOpOptions& cargo);
+  explicit WhereOp(const WhereOpOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -24,10 +24,10 @@ class EqualOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
-  inline const EqualOpOptions& options() const { return options_; }
+  inline WhereOpOptions& options() { return options_; }
 
  protected:
-  EqualOpOptions options_;
+  WhereOpOptions options_;
 };
 
 }  // namespace mllm::aops

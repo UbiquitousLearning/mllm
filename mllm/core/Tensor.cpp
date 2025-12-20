@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include <optional>
+#include <utility>
 
 #include <xxHash/xxhash.h>
 
@@ -9,6 +10,7 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/CastTypeOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
+#include "mllm/core/aops/CmpOp.hpp"
 #include "mllm/core/aops/ContiguousOp.hpp"
 #include "mllm/core/aops/CopyOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
@@ -344,6 +346,31 @@ Tensor Tensor::cpu() {
 Tensor Tensor::cuda() {
   if (kCUDA == impl_->device()) { return *this; }
   return to(kCUDA);
+}
+
+Tensor Tensor::equal(Tensor v) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kEqual, aops::EqualOpOptions{}, {*this, std::move(v)})[0];
+}
+
+Tensor Tensor::equal(float v) {
+  auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
+  if (device() != kCPU) {
+    Context::instance().buildOpAndSubmitTask(
+        OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kSpecific, .value = v}, {rhs_tensor});
+  } else {
+    switch (dtype()) {
+      case kFloat32: *(rhs_tensor.ptr<float>()) = v; break;
+      case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(v); break;
+      case kInt32: *(rhs_tensor.ptr<int32_t>()) = v; break;
+      case kInt16: *(rhs_tensor.ptr<int16_t>()) = v; break;
+      case kInt8: *(rhs_tensor.ptr<int8_t>()) = v; break;
+      default: NYI("Type is not supported"); break;
+    }
+  }
+  auto opts = aops::EqualOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kEqual, opts, {*this, rhs_tensor})[0];
 }
 
 std::string Tensor::name() const { return impl()->name(); }

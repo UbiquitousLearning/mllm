@@ -1,7 +1,7 @@
 Tasks:
   - CMakeConfigTask:
       cmake_cfg_path: "build-qnn-aot"
-      cmake_build_type: "Release"
+      cmake_build_type: "RelWithDebInfo"
       cmake_extra_args:
         # Optional, If use Highway
         - "-DHWY_ENABLE_TESTS=OFF"
