@@ -20,4 +20,3 @@ endif()
 if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
   add_subdirectory(qwen3_qnn_aot)
 endif()
-
