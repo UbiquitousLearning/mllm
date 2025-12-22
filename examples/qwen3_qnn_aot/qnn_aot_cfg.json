@@ -11,5 +11,6 @@
     ],
     "op_on_qnn": [
         "lm_head"
-    ]
+    ],
+    "quant_recipe": {}
 }
