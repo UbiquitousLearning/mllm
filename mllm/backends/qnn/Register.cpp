@@ -1,8 +1,6 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#pragma once
-
 #include <memory>
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/DeviceTypes.hpp"

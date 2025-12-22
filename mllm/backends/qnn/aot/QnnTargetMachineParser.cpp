@@ -1,11 +1,12 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "QnnTargetMachineParser.hpp"
-#include <nlohmann/json.hpp>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <nlohmann/json.hpp>
+
+#include "QnnTargetMachineParser.hpp"
 
 namespace mllm::qnn::aot {
 

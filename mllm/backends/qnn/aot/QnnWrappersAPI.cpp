@@ -1,10 +1,11 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+
+#include <QNN/QnnContext.h>
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/HTP/QnnHtpCommon.h>
 #include <QNN/HTP/QnnHtpContext.h>
 
-#include "QnnContext.h"
 #include "mllm/utils/Common.hpp"
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"

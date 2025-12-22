@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "QnnTargetMachine.hpp"
 #include <string>
+
+#include "QnnTargetMachine.hpp"
 
 namespace mllm::qnn::aot {
 
