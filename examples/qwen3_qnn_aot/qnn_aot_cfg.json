@@ -12,5 +12,13 @@
     "op_on_qnn": [
         "lm_head"
     ],
-    "quant_recipe": {}
+    "quant_recipe": {
+        "builtin_qwen3_recipe": {
+            "linear": "w4a16-lpbq",
+            "kv_cache": {
+                "key": "int8-per-tensor",
+                "value": "int8-per-tensor"
+            }
+        }
+    }
 }

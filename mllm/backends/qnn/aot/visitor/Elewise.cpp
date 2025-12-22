@@ -20,7 +20,7 @@ bool QnnAOTAddPattern::addNode(const std::string& g_name, const ir::op_ptr_t& op
     return false;
   }
 
-  auto* mllm_op = dynamic_cast<cpu::CPUAddOp*>(add_op->getAOp());
+  auto* mllm_op = dynamic_cast<aops::AddOp*>(add_op->getAOp());
   if (!mllm_op) {
     MLLM_ERROR("Failed to cast to cpu::CPUAddOp");
     return false;

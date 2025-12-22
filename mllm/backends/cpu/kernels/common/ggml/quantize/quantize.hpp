@@ -126,8 +126,12 @@ inline static float lookup_fp16_to_fp32(mllm_fp16_t f) {
   return table_f32_f16[s];
 }
 
+#ifndef MLLM_FP16_TO_FP32
 #define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
+#endif
+#ifndef MLLM_FP32_TO_FP16
 #define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
+#endif
 #endif
 
 static mllm_fp16_t table_exp_f16[1 << 16];
