@@ -201,10 +201,19 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
   // 4. Create Context
   {
     auto cfgs = createContextCustomConfig(weights_sharing);
-    // Current not support
-    MLLM_RT_ASSERT_EQ(cfgs.size(), 0);
+    if (cfgs.size()) {
+      context->qnn_context_config_ = (QnnContext_Config_t**)malloc(sizeof(QnnContext_Config_t*) * (cfgs.size() + 1));
+      unreachable_handle_.emplace_back(context->qnn_context_config_);
+    }
+    for (int i = 0; i < cfgs.size(); ++i) {
+      context->qnn_context_config_[i] = (QnnContext_Config_t*)malloc(sizeof(QnnContext_Config_t));
+      context->qnn_context_config_[i]->option = QNN_CONTEXT_CONFIG_OPTION_CUSTOM;
+      context->qnn_context_config_[i]->customConfig = cfgs[i];
+      unreachable_handle_.emplace_back(context->qnn_context_config_[i]);
+    }
+    if (cfgs.size()) { context->qnn_context_config_[cfgs.size()] = nullptr; }
     auto status = qnn_htp_func_symbols_.qnn_interface_.contextCreate(context->bk_handle_, context->device_handle_,
-                                                                     (const QnnContext_Config_t**)&context->qnn_context_config_,
+                                                                     (const QnnContext_Config_t**)context->qnn_context_config_,
                                                                      &context->qnn_ctx_handle_);
     MLLM_RT_ASSERT_EQ(QNN_CONTEXT_NO_ERROR, status);
   }

@@ -61,10 +61,11 @@ MLLM_MAIN({
   // Create Qnn AOT Model
   auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
                                                mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
+  auto c = qnn_aot_env.createContext("name", true);
 
   mllm::ir::PassManager pm(ir["model"]);
-  pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline());
+  pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get()));
   pm.run();
 
-  // mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
+  mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
 });

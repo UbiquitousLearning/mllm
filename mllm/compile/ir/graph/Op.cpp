@@ -46,6 +46,8 @@ void SubGraphOp::dump(IRPrinter& p) {
   p.print("{}", abstract_nn_node_ == nullptr ? "notype" : deviceTypes2Str(abstract_nn_node_->getDevice()));
   p.rangle();
   p.blank();
+  dumpAttributes(p);
+  p.blank();
   p.lbrace();
 
   getTopRegion()->dump(p);

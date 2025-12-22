@@ -5,5 +5,11 @@
         "htp_try_best_performance": "HtpBurst",
         "htp_security_pd_session": "HtpSignedPd",
         "htp_vtcm_capability_in_mb": 8
-    }
+    },
+    "graph_on_qnn": [
+        "model"
+    ],
+    "op_on_qnn": [
+        "lm_head"
+    ]
 }

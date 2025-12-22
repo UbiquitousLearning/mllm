@@ -110,7 +110,12 @@ class WhereOp;
   }                                                                                                                         \
   void class_name::dump(IRPrinter& p) {                                                                                     \
     p.print("linalg.{}.{}", deviceTypes2Str(getDevice()), #class_name);                                                     \
-    if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }                                   \
+    if (!getAOp()->getName().empty()) { p.print(" <name=\"{}\">", getAOp()->getName()); }                                   \
+    if (attrNum()) {                                                                                                        \
+      p.blank();                                                                                                            \
+      dumpAttributes(p);                                                                                                    \
+      p.blank();                                                                                                            \
+    }                                                                                                                       \
     Op::dump(p);                                                                                                            \
   }
 
