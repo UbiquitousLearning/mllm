@@ -268,8 +268,9 @@ class Qwen3Text final : public nn::Module {
 
     auto position_ids = inputs[1];
     auto causal_mask = inputs[2];
-    auto llm_embedding_sin = rope_sin_.weight()[{{0}, position_ids.squeeze(0), {kAll}}];
-    auto llm_embedding_cos = rope_cos_.weight()[{{0}, position_ids.squeeze(0), {kAll}}];
+    position_ids = position_ids.squeeze(0);
+    auto llm_embedding_sin = rope_sin_.weight()[{{0}, position_ids, {kAll}}];
+    auto llm_embedding_cos = rope_cos_.weight()[{{0}, position_ids, {kAll}}];
 
     std::vector<Tensor> keys;
     std::vector<Tensor> values;
