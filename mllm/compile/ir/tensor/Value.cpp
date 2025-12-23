@@ -71,12 +71,6 @@ void TensorValue::dump(IRPrinter& p) {
     IRPrinter::rsbracket();
   }
 
-  if (getAttr("constant")) {
-    IRPrinter::lsbracket();
-    p.print("constant: {}", getAttr("constant")->cast_<ir::VectorFP32Attr>()->data());
-    IRPrinter::rsbracket();
-  }
-
   dumpAttributes(p);
 }
 

@@ -31,4 +31,13 @@ bool QnnAOTAddPattern::addNode(const std::string& g_name, const ir::op_ptr_t& op
   return true;
 }
 
+bool QnnAOTAddQuantRecipePattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  return op->isa_<mllm::ir::linalg::AddOp>() && (op->getAttr("using_qnn") != nullptr);
+}
+
+bool QnnAOTAddQuantRecipePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  // TODO
+  return true;
+}
+
 }  // namespace mllm::qnn::aot

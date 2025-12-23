@@ -12,7 +12,7 @@
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/utils/Common.hpp"
 
-namespace mllm::qnn {
+namespace mllm::qnn::aot {
 
 namespace {
 
@@ -87,4 +87,4 @@ uint8_t OpNamingPass::run(const ir::node_ptr_t& op) {
 
 ir::Pass::ptr_t createOpNamingPass() { return std::make_shared<OpNamingPass>(); }
 
-}  // namespace mllm::qnn
+}  // namespace mllm::qnn::aot

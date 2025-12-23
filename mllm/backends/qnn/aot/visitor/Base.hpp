@@ -23,4 +23,13 @@ class QnnAOTBasePattern : public ir::Pattern {
                        const std::vector<ir::tensor::TensorValue::ptr_t>& outputs) = 0;
 };
 
+class QnnAOTQuantRecipeBasePattern : public ir::Pattern {
+ public:
+  QnnAOTQuantRecipeBasePattern() = default;
+
+  bool isMatch(const mllm::ir::op_ptr_t& op) override { return false; }
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override { return false; }
+};
+
 }  // namespace mllm::qnn::aot

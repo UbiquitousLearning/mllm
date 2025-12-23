@@ -22,4 +22,15 @@ class QnnAOTAddPattern : public QnnAOTBasePattern {
   }
 };
 
+class QnnAOTAddQuantRecipePattern : public QnnAOTQuantRecipeBasePattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTAddQuantRecipePattern>> create() {
+    return {OpTypes::kAdd, std::make_shared<QnnAOTAddQuantRecipePattern>()};
+  }
+};
+
 }  // namespace mllm::qnn::aot

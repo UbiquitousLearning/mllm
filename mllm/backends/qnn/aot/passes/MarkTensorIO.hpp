@@ -8,15 +8,15 @@
 
 namespace mllm::qnn::aot {
 
-class OpNamingPass final : public ir::Pass {
+class MarkTensorIOPass final : public ir::Pass {
  public:
-  OpNamingPass() = default;
+  MarkTensorIOPass() = default;
 
-  ~OpNamingPass() override = default;
+  ~MarkTensorIOPass() override = default;
 
   uint8_t run(const ir::node_ptr_t& op) override;
 };
 
-ir::Pass::ptr_t createOpNamingPass();
+ir::Pass::ptr_t createMarkTensorIOPass();
 
 }  // namespace mllm::qnn::aot
