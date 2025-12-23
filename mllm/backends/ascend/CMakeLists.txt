@@ -1,11 +1,8 @@
-set(RUN_MODE "npu" CACHE STRING "cpu/sim/npu")
-set(SOC_VERSION "Ascend310B1" CACHE STRING "system on chip type")
-
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type Release/Debug (default Debug)" FORCE)
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type Release/Debug (default Debug)" FORCE)
 endif()
 if(CMAKE_INSTALL_PREFIX STREQUAL /usr/local)
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/out" CACHE STRING "path for install()" FORCE)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/out" CACHE STRING "path for install()" FORCE)
 endif()
 
 message(STATUS "SOC_VERSION is ${SOC_VERSION}, RUN_MODE is ${RUN_MODE}")
@@ -29,20 +26,20 @@ add_library(MllmAscendBackend SHARED ${MLLM_ASCEND_SOURCES})
 
 if(DEFINED ENV{ASCEND_HOME_PATH})
   target_include_directories(MllmAscendBackend PUBLIC $ENV{ASCEND_HOME_PATH}/include)
-  target_link_directories(MllmAscendBackend PRIVATE $ENV{ASCEND_HOME_PATH}/lib64)
+  target_link_directories(MllmAscendBackend PUBLIC $ENV{ASCEND_HOME_PATH}/lib64)
 else()
   message(WARNING "ASCEND_HOME_PATH is not set, Ascend headers and libs may not be found")
 endif()
 
 if(DEFINED ENV{ATB_HOME_PATH})
   target_include_directories(MllmAscendBackend PUBLIC $ENV{ATB_HOME_PATH}/include)
-  target_link_directories(MllmAscendBackend PRIVATE $ENV{ATB_HOME_PATH}/lib)
+  target_link_directories(MllmAscendBackend PUBLIC $ENV{ATB_HOME_PATH}/lib)
 else()
   message(WARNING "ATB_HOME_PATH not defined, ATB library will not be linked")
 endif()
 
 
-target_link_libraries(MllmAscendBackend PRIVATE
+target_link_libraries(MllmAscendBackend PUBLIC
   ascendcl
   opapi
   nnopbase

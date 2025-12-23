@@ -28,11 +28,11 @@ TEST_F(AscendKernelTest, AddFloat16) {
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   
-  // Initialize Ascend backend
-  mllm::initAscendBackend();
-  
   // Initialize context
   mllm::initializeContext();
+
+  // Initialize Ascend backend
+  mllm::initAscendBackend();
   
   auto ret = RUN_ALL_TESTS();
   

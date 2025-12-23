@@ -10,7 +10,6 @@ target_link_libraries(Mllm-Test-AscendKernel PRIVATE
   MllmRT
   MllmCPUBackend
   MllmAscendBackend
-  ascendcl
 )
 
 target_include_directories(Mllm-Test-AscendKernel PRIVATE
