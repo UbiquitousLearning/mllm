@@ -20,11 +20,11 @@ add_library(
 )
 
 target_include_directories(MllmQNNBackend PUBLIC
-    $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
+    $ENV{QAIRT_SDK_ROOT}/include/QNN # QNN SDK include
     ${MLLM_INCLUDE_DIR}
 )
 
-message(STATUS "QNN SDK root: $ENV{QNN_SDK_ROOT}")
+message(STATUS "QNN SDK root: $ENV{QAIRT_SDK_ROOT}")
 
 get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories

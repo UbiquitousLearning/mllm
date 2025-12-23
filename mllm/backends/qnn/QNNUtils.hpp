@@ -20,7 +20,7 @@ class TensorValue;
  * @brief Utility functions for working with QNN tensors and QNN graphInfo structures.
  * @note It will NOT perform QNN checks, such as tensor version checks, etc.
  *       Currently, QNN tensor v1 and v2 are compatible for common variables.
- *       Future modifications should refer to $QNN_SDK_ROOT/examples/QNN/SampleApp
+ *       Future modifications should refer to $QAIRT_SDK_ROOT/examples/QNN/SampleApp
  */
 
 namespace mllm::qnn {

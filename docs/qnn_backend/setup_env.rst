@@ -31,7 +31,7 @@ QNN SDK Installation
 
 1. Download the QNN SDK from the `official Qualcomm website <https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk>`_
 2. Unzip the downloaded file
-3. Set the environment variable ``QNN_SDK_ROOT`` to point to the unzipped directory
+3. Set the environment variable ``QAIRT_SDK_ROOT`` to point to the unzipped directory
 
 Hexagon SDK Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,7 +68,7 @@ After setting up the environment, verify that the following environment variable
 
 .. code-block:: bash
 
-   echo $QNN_SDK_ROOT      # Should point to /path/to/your/qnn/sdk
+   echo $QAIRT_SDK_ROOT      # Should point to /path/to/your/qnn/sdk
    echo $HEXAGON_SDK_ROOT  # Should point to /path/to/your/hexagon/sdk
 
 .. note::
@@ -84,7 +84,7 @@ Prerequisites for Compilation
 
 Ensure the following environment variables are set:
 
-- ``QNN_SDK_ROOT``
+- ``QAIRT_SDK_ROOT``
 - ``HEXAGON_SDK_ROOT`` 
 - ``ANDROID_NDK_ROOT``
 
