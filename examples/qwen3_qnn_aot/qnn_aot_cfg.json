@@ -13,6 +13,7 @@
         "lm_head"
     ],
     "quant_recipe": {
+        "llm_recipe": true,
         "builtin_qwen3_recipe": {
             "linear": "w4a16-lpbq",
             "kv_cache": {

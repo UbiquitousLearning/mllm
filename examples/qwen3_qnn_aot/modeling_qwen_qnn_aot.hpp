@@ -176,6 +176,7 @@ class Qwen3Attention final : public nn::Module {
     key_states = key_states.transpose(2, 3);
 
     // Handle KV Cache
+    value_states = value_states.to(kInt8PerTensorSym);
     auto kh = nn::functional::concat({past_key, key_states}, -1);     // [B, H, D, S]
     auto vh = nn::functional::concat({past_value, value_states}, 2);  // [B, H, S, D]
 
