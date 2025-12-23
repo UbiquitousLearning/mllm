@@ -57,6 +57,7 @@ uint8_t MarkQnnGraphPass::run(const ir::node_ptr_t& op) {
         auto name = linalg_op->getAOp()->getName();
         if (op_visited.count(name) && !op_visited[name]) {
           linalg_op->setAttr("using_qnn", details::createTrueBoolAttr(getCtx()));
+          op_visited[name] = true;
         }
         return ir::IRWriter::WalkResult::WALK_CONTINUE;
       });

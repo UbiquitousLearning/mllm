@@ -112,8 +112,9 @@ QnnAOTParamTensor::QnnAOTParamTensor(const std::string& param_name, const std::s
 }
 
 QnnAOTParamTensor::~QnnAOTParamTensor() {
-  MLLM_RT_ASSERT(QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data != nullptr);
-  free(QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data);
+  auto data = QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data;
+  MLLM_RT_ASSERT(data != nullptr);
+  if (data) { free(data); }
 }
 
 void* QnnAOTParamTensor::alloc() {
