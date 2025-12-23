@@ -25,7 +25,7 @@ void softmax_v1_fp32(const mllm_fp32_t* __restrict X, mllm_fp32_t* __restrict Y,
     // Pass 2: minus max_value and calculate exp
     float sum = 0.f;
     for (int i = 0; i < len; ++i) {
-      auto tmp = std::expf(X[i * stride] - max_value);
+      auto tmp = std::exp(X[i * stride] - max_value);
       Y[i * stride] = tmp;
       sum += tmp;
     }
@@ -112,7 +112,7 @@ void softmax_v1_fp32(const mllm_fp32_t* __restrict X, mllm_fp32_t* __restrict Y,
   }
   float sum_value = vaddvq_f32(sum_vec_0);
   for (; i < len; ++i) {
-    float tmp = std::expf(X[i] - max_value);
+    float tmp = std::exp(X[i] - max_value);
     Y[i] = tmp;
     sum_value += tmp;
   }
@@ -163,7 +163,7 @@ void softmax_v1_fp16(const mllm_fp16_t* __restrict X, mllm_fp16_t* __restrict Y,
     // Pass 2: minus max_value and calculate exp
     float sum = 0.f;
     for (int i = 0; i < len; ++i) {
-      auto tmp = std::expf(X[i * stride] - max_value);
+      auto tmp = std::exp(X[i * stride] - max_value);
       Y[i * stride] = static_cast<float16_t>(tmp);
       sum += tmp;
     }
@@ -229,7 +229,7 @@ void softmax_v1_fp16(const mllm_fp16_t* __restrict X, mllm_fp16_t* __restrict Y,
   sum_vec_0 = vaddq_f32(sum_vec_0, sum_vec_2);
   float sum_value = vaddvq_f32(sum_vec_0);
   for (; i < len; ++i) {
-    float tmp = std::expf(X[i] - max_value);
+    float tmp = std::exp(X[i] - max_value);
     Y[i] = static_cast<float16_t>(tmp);
     sum_value += tmp;
   }
