@@ -45,6 +45,10 @@ option(MLLM_CPU_BACKEND_USE_SME2 "Enable SME2" OFF)
 # Ascend Backend: Options
 option(MLLM_ASCEND_CPU_DEBUG_MODE "Enable CPU Debug mode in ascend" OFF)
 
+# run mode and SOC version for Ascend backend
+set(MLLM_RUN_MODE "npu" CACHE STRING "Run mode for mLLM backends: cpu/sim/npu")
+set(MLLM_SOC_VERSION "Ascend310B1" CACHE STRING "SOC version for Ascend backend")
+
 # Threads
 option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
 option(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM "Enable mllm's thread pool" ON)

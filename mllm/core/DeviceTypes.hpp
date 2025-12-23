@@ -33,6 +33,8 @@ inline const char* deviceTypes2Str(DeviceTypes type) {
     case DeviceTypes::kCUDA: return "CUDA";
     case DeviceTypes::kOpenCL: return "OpenCL";
     case DeviceTypes::kQNN: return "QNN";
+    case DeviceTypes::kAscend: return "Ascend";
+    case DeviceTypes::kAscendHost: return "AscendHost";
     case DeviceTypes::kDeviceTypes_End: return "DeviceTypes_End";
     default: return "Unknown";
   }
@@ -47,6 +49,10 @@ inline DeviceTypes str2DeviceType(const std::string& type_str) {
     return DeviceTypes::kOpenCL;
   } else if (type_str == "QNN") {
     return DeviceTypes::kQNN;
+  } else if (type_str == "Ascend") {
+    return DeviceTypes::kAscend;
+  } else if (type_str == "AscendHost") {
+    return DeviceTypes::kAscendHost;
   } else {
     return DeviceTypes::kDeviceTypes_End;
   }

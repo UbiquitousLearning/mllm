@@ -1,0 +1,18 @@
+Tasks:
+  - CMakeConfigTask:
+      cmake_cfg_path: "build-arm-ascend"
+      cmake_build_type: "ReleaseDebInfo"
+      cmake_extra_args:
+        - "-DMLLM_CROSS_COMPILE=ON"
+        - "-DMLLM_BUILD_ARM_BACKEND=ON"
+        - "-DMLLM_BUILD_ASCEND_BACKEND=ON"
+        - "-DANDROID_PLATFORM=android-28"
+        - "-DANDROID_ABI=arm64-v8a"
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=armv8.2-a+fp16+fp16fml+dotprod+i8mm;-ffast-math;-Wno-nan-infinity-disabled"'
+        - "-DCMAKE_INSTALL_PREFIX=./mllm-install-android-arm64-v8a"
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
+
+  - CMakeBuildTask:
+      cmake_cfg_path: "build-arm-ascend"

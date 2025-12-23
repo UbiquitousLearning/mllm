@@ -3,11 +3,24 @@
 
 #include "mllm/backends/ascend/AscendBackend.hpp"
 #include "mllm/backends/ascend/AscendAllocator.hpp"
+#include "mllm/backends/ascend/AscendCommon.hpp"
 #include "mllm/core/DeviceTypes.hpp"
+
+#include "mllm/backends/ascend/ops/AscendElewiseOps.hpp"
+#include "mllm/backends/ascend/ops/AscendX2XOp.hpp"
 
 namespace mllm::ascend {
 
-AscendBackend::AscendBackend() : Backend(kAscend, createAscendAllocator()) {}
+AscendBackend::AscendBackend() : Backend(kAscend, createAscendAllocator()) {
+  regOpFactory<AscendAddOpFactory>();
+  regOpFactory<AscendX2XOpFactory>();
+  auto& devices = AscendDeviceMetaInfo::instance().devices;
+  for (const auto& device : devices) {
+    const auto bytes_to_mb = [](size_t bytes) { return bytes / (1024.0 * 1024.0); };
+    MLLM_INFO("Found Ascend device {} (ID: {}, SOC: {}, Memory: {:.2f} MB free / {:.2f} MB total)", device.name,
+              device.id, device.soc_version, bytes_to_mb(device.free_memory), bytes_to_mb(device.total_memory));
+  }
+}
 
 std::shared_ptr<AscendBackend> createAscendBackend() { return std::make_shared<AscendBackend>(); }
 
