@@ -20,6 +20,7 @@
 #include "mllm/core/aops/StackOp.hpp"
 #include "mllm/core/aops/RadixAttnDiffDimOp.hpp"
 #include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
+#include "mllm/core/aops/WhereOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -197,6 +198,11 @@ mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, co
                                       .D_V = d_v,
                                   },
                                   {Q, K_idx, V_idx})[0];
+}
+
+mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v) {
+  auto& ctx = mllm::Context::instance();
+  return ctx.buildOpAndSubmitTask(OpTypes::kWhere, aops::WhereOpOptions{}, {mask, original, v})[0];
 }
 
 }  // namespace mllm::nn::functional

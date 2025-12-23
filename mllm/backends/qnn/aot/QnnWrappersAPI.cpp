@@ -1,11 +1,13 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+
+#include <QNN/QnnContext.h>
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/HTP/QnnHtpCommon.h>
 #include <QNN/HTP/QnnHtpContext.h>
 
-#include "QnnContext.h"
 #include "mllm/utils/Common.hpp"
+#include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 
@@ -30,7 +32,179 @@ void __mllmLoggerCallback4QnnLogger(const char* fmt, QnnLog_Level_t level, uint6
   }
 }
 
-const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_ = {
+size_t QnnAOTDataTypeSize(Qnn_DataType_t dtype) {
+  switch (dtype) {
+    case QNN_DATATYPE_INT_8:
+    case QNN_DATATYPE_UINT_8:
+    case QNN_DATATYPE_BOOL_8:
+    case QNN_DATATYPE_SFIXED_POINT_8:
+    case QNN_DATATYPE_UFIXED_POINT_8: return 1;
+
+    case QNN_DATATYPE_INT_16:
+    case QNN_DATATYPE_UINT_16:
+    case QNN_DATATYPE_FLOAT_16:
+    case QNN_DATATYPE_SFIXED_POINT_16:
+    case QNN_DATATYPE_UFIXED_POINT_16: return 2;
+
+    case QNN_DATATYPE_INT_32:
+    case QNN_DATATYPE_UINT_32:
+    case QNN_DATATYPE_FLOAT_32:
+    case QNN_DATATYPE_SFIXED_POINT_32:
+    case QNN_DATATYPE_UFIXED_POINT_32: return 4;
+
+    case QNN_DATATYPE_INT_64:
+    case QNN_DATATYPE_UINT_64: return 8;
+
+    default:
+      MLLM_ERROR("QnnAOTDataTypeSize: unsupported Qnn_DataType_t {}", static_cast<int>(dtype));
+      MLLM_RT_ASSERT(false);
+      return 0;
+  }
+}
+
+QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, bool value) {
+  name_ = name;
+  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnn_param_.name = name_.c_str();
+  qnn_param_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
+  qnn_param_.scalarParam.bool8Value = static_cast<uint8_t>(value);
+}
+
+QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, uint32_t value) {
+  name_ = name;
+  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnn_param_.name = name_.c_str();
+  qnn_param_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
+  qnn_param_.scalarParam.uint32Value = value;
+}
+
+QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, float value) {
+  name_ = name;
+  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnn_param_.name = name_.c_str();
+  qnn_param_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
+  qnn_param_.scalarParam.floatValue = value;
+}
+
+Qnn_Param_t* QnnAOTParamScalar::getQnnParam() { return &(qnn_param_); }
+
+QnnAOTParamTensor::QnnAOTParamTensor(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
+                                     const std::vector<uint32_t>& dimensions) {
+  param_name_ = param_name;
+  tensor_name_ = tensor_name;
+  dimensions_ = dimensions;
+  // Fix parameters.
+  qnn_param_.paramType = QNN_PARAMTYPE_TENSOR;
+  qnn_param_.tensorParam.version = QNN_TENSOR_VERSION_2;
+  qnn_param_.tensorParam.v2 = QNN_TENSOR_V2_INIT;
+  qnn_param_.tensorParam.v2.type = QNN_TENSOR_TYPE_STATIC;
+  qnn_param_.tensorParam.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER;
+  qnn_param_.tensorParam.v2.quantizeParams = Qnn_QuantizeParams_t{
+      QNN_DEFINITION_UNDEFINED, QNN_QUANTIZATION_ENCODING_UNDEFINED, {.scaleOffsetEncoding = {.scale = 0.0f, .offset = 0}}};
+  qnn_param_.tensorParam.v2.memType = QNN_TENSORMEMTYPE_RAW;
+  // Custom parameters.
+  qnn_param_.name = param_name_.c_str();
+  qnn_param_.tensorParam.v2.name = tensor_name_.c_str();
+  qnn_param_.tensorParam.v2.dataType = data_type;
+  qnn_param_.tensorParam.v2.rank = dimensions_.size();
+  qnn_param_.tensorParam.v2.dimensions = dimensions_.data();
+  qnn_param_.tensorParam.v2.clientBuf = {.data = nullptr, .dataSize = 0};
+}
+
+QnnAOTParamTensor::~QnnAOTParamTensor() {
+  auto data = QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data;
+  MLLM_RT_ASSERT(data != nullptr);
+  if (data) { free(data); }
+}
+
+void* QnnAOTParamTensor::alloc() {
+  uint32_t data_size = QnnAOTDataTypeSize(QNN_TENSOR_GET_DATA_TYPE(qnn_param_.tensorParam));
+  for (int i = 0; i < QNN_TENSOR_GET_RANK(qnn_param_.tensorParam); i++) {
+    data_size *= qnn_param_.tensorParam.v2.dimensions[i];
+  }
+  Qnn_ClientBuffer_t clientBuffer = {.data = malloc(data_size), .dataSize = data_size};
+  QNN_TENSOR_SET_CLIENT_BUF(qnn_param_.tensorParam, clientBuffer);
+  MLLM_RT_ASSERT(QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data != nullptr);
+  return QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data;
+}
+
+Qnn_Param_t* QnnAOTParamTensor::getQnnParam() { return &qnn_param_; }
+
+Qnn_Tensor_t* QnnAOTParamTensor::getQnnTensor() { return &qnn_param_.tensorParam; }
+
+QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v) {
+  tensor_ir_ = v;
+  // TODO
+}
+
+Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR() {
+  // TODO
+}
+
+Qnn_DataType_t QnnAOTNodeTensor::parseQnnDataTypeFromIR() {
+  // TODO
+}
+
+std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR() {
+  // TODO
+}
+
+Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR() {
+  // TODO
+}
+
+// QnnAOTNodeOperation implementations
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addInputs(const std::vector<QnnAOTNodeTensor::ptr_t>& ins) {
+  inputs.insert(inputs.end(), ins.begin(), ins.end());
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addOutputs(const std::vector<QnnAOTNodeTensor::ptr_t>& ous) {
+  outputs.insert(outputs.end(), ous.begin(), ous.end());
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceInput(const QnnAOTNodeTensor::ptr_t& input) {
+  inputs.push_back(input);
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceOutput(const QnnAOTNodeTensor::ptr_t& output) {
+  outputs.push_back(output);
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamScalar(const std::vector<QnnAOTParamScalar::ptr_t>& params) {
+  param_scalar.insert(param_scalar.end(), params.begin(), params.end());
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamScalar(const QnnAOTParamScalar::ptr_t& param) {
+  param_scalar.push_back(param);
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamTensor(const std::vector<QnnAOTParamTensor::ptr_t>& params) {
+  param_tensor.insert(param_tensor.end(), params.begin(), params.end());
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamTensor(const QnnAOTParamTensor::ptr_t& param) {
+  param_tensor.push_back(param);
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setOpName(const std::string& op_name) {
+  op_name_ = op_name;
+  return shared_from_this();
+}
+
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string& package_name) {
+  package_name_ = package_name;
+  return shared_from_this();
+}
+
+const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_{
     "/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
 };
 
@@ -74,9 +248,9 @@ bool QnnDynSymbolLoader::loadQnnDynLibAtPath(const std::string& path, const std:
   return false;
 }
 
-QnnAOTEnv::QnnAOTEnv(QcomTargetMachine& target_machine) : target_machine_(target_machine) { _setup(); }
+QnnAOTEnv::QnnAOTEnv(const QcomTargetMachine& target_machine) : target_machine_(target_machine) { _setup(); }
 
-QnnAOTEnv::QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine) : target_machine_(target_machine) {
+QnnAOTEnv::QnnAOTEnv(const std::string& lib_path, const QcomTargetMachine& target_machine) : target_machine_(target_machine) {
   _setup(lib_path);
 }
 
@@ -201,10 +375,19 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
   // 4. Create Context
   {
     auto cfgs = createContextCustomConfig(weights_sharing);
-    // Current not support
-    MLLM_RT_ASSERT_EQ(cfgs.size(), 0);
+    if (cfgs.size()) {
+      context->qnn_context_config_ = (QnnContext_Config_t**)malloc(sizeof(QnnContext_Config_t*) * (cfgs.size() + 1));
+      unreachable_handle_.emplace_back(context->qnn_context_config_);
+    }
+    for (int i = 0; i < cfgs.size(); ++i) {
+      context->qnn_context_config_[i] = (QnnContext_Config_t*)malloc(sizeof(QnnContext_Config_t));
+      context->qnn_context_config_[i]->option = QNN_CONTEXT_CONFIG_OPTION_CUSTOM;
+      context->qnn_context_config_[i]->customConfig = cfgs[i];
+      unreachable_handle_.emplace_back(context->qnn_context_config_[i]);
+    }
+    if (cfgs.size()) { context->qnn_context_config_[cfgs.size()] = nullptr; }
     auto status = qnn_htp_func_symbols_.qnn_interface_.contextCreate(context->bk_handle_, context->device_handle_,
-                                                                     (const QnnContext_Config_t**)&context->qnn_context_config_,
+                                                                     (const QnnContext_Config_t**)context->qnn_context_config_,
                                                                      &context->qnn_ctx_handle_);
     MLLM_RT_ASSERT_EQ(QNN_CONTEXT_NO_ERROR, status);
   }

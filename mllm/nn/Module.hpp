@@ -152,6 +152,12 @@ class Module {
         tensors.push_back(std::forward<Args>(args));
       } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
         others.push_back(std::forward<Args>(args));
+      } else if constexpr (std::is_same_v<CleanType, std::vector<Tensor>>) {
+        tensors.reserve(tensors.size() + args.size());
+        for (auto& tensor : args) { tensors.push_back(std::move(tensor)); }
+      } else if constexpr (std::is_same_v<CleanType, std::vector<AnyValue>>) {
+        others.reserve(others.size() + args.size());
+        for (auto& value : args) { others.push_back(std::move(value)); }
       } else {
         static_assert(always_false<CleanType>::value, "Unsupported argument type!");
       }

@@ -1,0 +1,24 @@
+{
+    "target_machine": {
+        "htp_arch": "V81",
+        "htp_chipset": "SM8850",
+        "htp_try_best_performance": "HtpBurst",
+        "htp_security_pd_session": "HtpSignedPd",
+        "htp_vtcm_capability_in_mb": 8
+    },
+    "graph_on_qnn": [
+        "model"
+    ],
+    "op_on_qnn": [
+        "lm_head"
+    ],
+    "quant_recipe": {
+        "builtin_qwen3_recipe": {
+            "linear": "w4a16-lpbq",
+            "kv_cache": {
+                "key": "int8-per-tensor",
+                "value": "int8-per-tensor"
+            }
+        }
+    }
+}

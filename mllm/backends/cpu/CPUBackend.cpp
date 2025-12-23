@@ -10,6 +10,7 @@
 #include "mllm/backends/cpu/ops/CastTypeOp.hpp"
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
 #include "mllm/backends/cpu/ops/CloneOp.hpp"
+#include "mllm/backends/cpu/ops/CmpOp.hpp"
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
 #include "mllm/backends/cpu/ops/Conv1DOp.hpp"
@@ -56,6 +57,7 @@
 #include "mllm/backends/cpu/ops/TransposeOp.hpp"
 #include "mllm/backends/cpu/ops/ViewOp.hpp"
 #include "mllm/backends/cpu/ops/VisionRoPEOp.hpp"
+#include "mllm/backends/cpu/ops/WhereOp.hpp"
 #include "mllm/backends/cpu/ops/X2XOp.hpp"
 #include "mllm/backends/cpu/ops/StackOp.hpp"
 
@@ -78,7 +80,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
                CPUConv2DOpFactory, CPULayerNorm2DOpFactory, CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory,
                CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
-               CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory>();
+               CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {

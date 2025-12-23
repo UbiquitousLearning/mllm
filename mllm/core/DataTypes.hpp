@@ -286,6 +286,48 @@ typedef struct {     // NOLINT
 } mllm_mxfp4_t;
 static_assert(sizeof(mllm_mxfp4_t) == 17, "wrong mxfp4 size/padding");
 
+typedef struct {  // NOLINT
+  uint8_t data;
+} mllm_uint8_per_tensor_t;
+static_assert(sizeof(mllm_uint8_per_tensor_t) == 1, "wrong uint8 size/padding");
+
+// These are placeholder types for per-tensor and per-channel quantization.
+// They cannot actually run; at runtime, they require three tensors (weight, scale, zp) to be拼接.
+typedef struct {  // NOLINT
+  uint8_t data;
+} mllm_uint8_per_channel_t;
+static_assert(sizeof(mllm_uint8_per_channel_t) == 1, "wrong uint8 size/padding");
+
+typedef struct {  // NOLINT
+  int8_t data;
+} mllm_int8_per_tensor_t;
+static_assert(sizeof(mllm_int8_per_tensor_t) == 1, "wrong int8 size/padding");
+
+typedef struct {  // NOLINT
+  int8_t data;
+} mllm_int8_per_channel_t;
+static_assert(sizeof(mllm_int8_per_channel_t) == 1, "wrong int8 size/padding");
+
+typedef struct {  // NOLINT
+  uint16_t data;
+} mllm_uint16_per_tensor_t;
+static_assert(sizeof(mllm_uint16_per_tensor_t) == 2, "wrong uint16 size/padding");
+
+typedef struct {  // NOLINT
+  uint16_t data;
+} mllm_uint16_per_channel_t;
+static_assert(sizeof(mllm_uint16_per_channel_t) == 2, "wrong uint16 size/padding");
+
+typedef struct {  // NOLINT
+  int16_t data;
+} mllm_int16_per_tensor_t;
+static_assert(sizeof(mllm_int16_per_tensor_t) == 2, "wrong int16 size/padding");
+
+typedef struct {  // NOLINT
+  int16_t data;
+} mllm_int16_per_channel_t;
+static_assert(sizeof(mllm_int16_per_channel_t) == 2, "wrong int16 size/padding");
+
 #pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
@@ -341,9 +383,28 @@ enum DataTypes : int32_t {
 
   // Int4 and low bits
   kInt4 = 136,
-  KUInt4 = 137,
+  kUInt4 = 137,
   kInt2 = 138,
   kUInt2 = 139,
+
+  // Quantization
+  // Per-tensor, Per-channel for int8, uint8, int16, uint16
+  kInt8PerTensorSym = 140,
+  kInt8PerChannelSym = 141,
+  kUInt8PerTensorSym = 142,
+  kUInt8PerChannelSym = 143,
+  kInt16PerTensorSym = 144,
+  kInt16PerChannelSym = 145,
+  kUInt16PerTensorSym = 146,
+  kUInt16PerChannelSym = 147,
+  kInt8PerTensorAsy = 148,
+  kInt8PerChannelAsy = 149,
+  kUInt8PerTensorAsy = 150,
+  kUInt8PerChannelAsy = 151,
+  kInt16PerTensorAsy = 152,
+  kInt16PerChannelAsy = 153,
+  kUInt16PerTensorAsy = 154,
+  kUInt16PerChannelAsy = 155,
 
   // complex dtypes for STFT and other ops
   kComplexFloat32 = 201,
@@ -481,6 +542,39 @@ MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint8_t, 0, 1, std::numeric_limits<mllm_uint8_t
 
 // There is no need to declare mllm_byte_t. It's already declared in mllm_uint8_t.
 
+// Placeholder types for per-tensor and per-channel quantization
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint8_per_tensor_t, mllm_uint8_per_tensor_t{0}, mllm_uint8_per_tensor_t{1},
+                            mllm_uint8_per_tensor_t{std::numeric_limits<uint8_t>::max()},
+                            mllm_uint8_per_tensor_t{std::numeric_limits<uint8_t>::min()}, "UInt8PerTensor");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint8_per_channel_t, mllm_uint8_per_channel_t{0}, mllm_uint8_per_channel_t{1},
+                            mllm_uint8_per_channel_t{std::numeric_limits<uint8_t>::max()},
+                            mllm_uint8_per_channel_t{std::numeric_limits<uint8_t>::min()}, "UInt8PerChannel");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int8_per_tensor_t, mllm_int8_per_tensor_t{0}, mllm_int8_per_tensor_t{1},
+                            mllm_int8_per_tensor_t{std::numeric_limits<int8_t>::max()},
+                            mllm_int8_per_tensor_t{std::numeric_limits<int8_t>::min()}, "Int8PerTensor");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int8_per_channel_t, mllm_int8_per_channel_t{0}, mllm_int8_per_channel_t{1},
+                            mllm_int8_per_channel_t{std::numeric_limits<int8_t>::max()},
+                            mllm_int8_per_channel_t{std::numeric_limits<int8_t>::min()}, "Int8PerChannel");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint16_per_tensor_t, mllm_uint16_per_tensor_t{0}, mllm_uint16_per_tensor_t{1},
+                            mllm_uint16_per_tensor_t{std::numeric_limits<uint16_t>::max()},
+                            mllm_uint16_per_tensor_t{std::numeric_limits<uint16_t>::min()}, "UInt16PerTensor");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint16_per_channel_t, mllm_uint16_per_channel_t{0}, mllm_uint16_per_channel_t{1},
+                            mllm_uint16_per_channel_t{std::numeric_limits<uint16_t>::max()},
+                            mllm_uint16_per_channel_t{std::numeric_limits<uint16_t>::min()}, "UInt16PerChannel");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int16_per_tensor_t, mllm_int16_per_tensor_t{0}, mllm_int16_per_tensor_t{1},
+                            mllm_int16_per_tensor_t{std::numeric_limits<int16_t>::max()},
+                            mllm_int16_per_tensor_t{std::numeric_limits<int16_t>::min()}, "Int16PerTensor");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int16_per_channel_t, mllm_int16_per_channel_t{0}, mllm_int16_per_channel_t{1},
+                            mllm_int16_per_channel_t{std::numeric_limits<int16_t>::max()},
+                            mllm_int16_per_channel_t{std::numeric_limits<int16_t>::min()}, "Int16PerChannel");
+
 // Complex types can not be declared by MLLM_DEFINE_BASIC_TYPE_INFO macro
 template<>
 struct DataTypeInfo<mllm_complex_fp64_t> {
@@ -573,6 +667,25 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt32, mllm_int32_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt32, mllm_uint32_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt64, mllm_int64_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt64, mllm_uint64_t);
+
+// Quantization types - weight part only
+// Placeholder types for per-tensor and per-channel quantization
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt8PerTensorSym, mllm_uint8_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt8PerChannelSym, mllm_uint8_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt8PerTensorSym, mllm_int8_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt8PerChannelSym, mllm_int8_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerTensorSym, mllm_uint16_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerChannelSym, mllm_uint16_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16PerTensorSym, mllm_int16_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16PerChannelSym, mllm_int16_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt8PerTensorAsy, mllm_int8_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt8PerChannelAsy, mllm_int8_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt8PerTensorAsy, mllm_uint8_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt8PerChannelAsy, mllm_uint8_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16PerTensorAsy, mllm_int16_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16PerChannelAsy, mllm_int16_per_channel_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerTensorAsy, mllm_uint16_per_tensor_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerChannelAsy, mllm_uint16_per_channel_t);
 
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q4_0, mllm_block_q4_0_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q4_K, mllm_block_q4_K_t);

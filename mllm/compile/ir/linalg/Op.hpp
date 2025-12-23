@@ -77,6 +77,8 @@ class CustomizedOp;
 class FlashAttention2SwaSinkOp;
 class RadixAttnRelaxOp;
 class RadixAttnSwaSinkOp;
+class EqualOp;
+class WhereOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -108,7 +110,12 @@ class RadixAttnSwaSinkOp;
   }                                                                                                                         \
   void class_name::dump(IRPrinter& p) {                                                                                     \
     p.print("linalg.{}.{}", deviceTypes2Str(getDevice()), #class_name);                                                     \
-    if (!getAOp()->getName().empty()) { p.print(" [name=\"{}\"]", getAOp()->getName()); }                                   \
+    if (!getAOp()->getName().empty()) { p.print(" <name=\"{}\">", getAOp()->getName()); }                                   \
+    if (attrNum()) {                                                                                                        \
+      p.blank();                                                                                                            \
+      dumpAttributes(p);                                                                                                    \
+      p.blank();                                                                                                            \
+    }                                                                                                                       \
     Op::dump(p);                                                                                                            \
   }
 
@@ -236,6 +243,9 @@ LINALG_AOPS_DEFINE(MaskedScatterOp, MASKEDSCATTEROP);
 LINALG_AOPS_DEFINE(ScatterOp, SCATTEROP);
 LINALG_AOPS_DEFINE(GatherOp, GATHEROP);
 LINALG_AOPS_DEFINE(ArgsortOp, ARGSORTOP);
+
+LINALG_AOPS_DEFINE(EqualOp, EQUALOP);
+LINALG_AOPS_DEFINE(WhereOp, WHEREOP);
 
 // Customized Ops
 LINALG_AOPS_DEFINE(FlashAttention2SwaSinkOp, FLASHATTENTION2SWASINKOP);
