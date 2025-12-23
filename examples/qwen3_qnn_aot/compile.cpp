@@ -47,8 +47,8 @@ MLLM_MAIN({
       for (int s = 0; s < CL; ++s) { position_ids_ptr[b * CL + s] = s; }
     }
     auto [rope_sin, rope_cos] = mllm::models::qwen3::makeRotaryPosEmbedding(position_ids, inv, 1.f);
-    params->push("rope_sin", rope_sin);
-    params->push("rope_cos", rope_cos);
+    params->push("rope_sin", rope_sin.to(mllm::kInt16PerTensorSym));
+    params->push("rope_cos", rope_cos.to(mllm::kInt16PerTensorSym));
   }
   model.load(params);
 
