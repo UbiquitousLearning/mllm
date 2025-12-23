@@ -366,7 +366,8 @@ Tensor Tensor::equal(float v) {
       case kInt32: *(rhs_tensor.ptr<int32_t>()) = v; break;
       case kInt16: *(rhs_tensor.ptr<int16_t>()) = v; break;
       case kInt8: *(rhs_tensor.ptr<int8_t>()) = v; break;
-      default: NYI("Type is not supported"); break;
+      case kUInt16: *(rhs_tensor.ptr<uint16_t>()) = v; break;
+      default: NYI("Type is not supported {}", nameOfType(dtype())); break;
     }
   }
   auto opts = aops::EqualOpOptions{};

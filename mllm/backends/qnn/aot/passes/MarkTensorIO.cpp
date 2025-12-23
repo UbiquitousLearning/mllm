@@ -19,6 +19,12 @@ uint8_t MarkTensorIOPass::run(const ir::node_ptr_t& op) {
   auto& aot_compile_ctx = AOTCompileContext::getInstance();
   auto config = aot_compile_ctx.getConfig();
 
+  if (!config.contains("split_graph") || config["split_graph"] != 1) {
+    MLLM_ERROR_EXIT(
+        ExitCode::kCoreError,
+        "split_graph should be 1 in mark tensor IO pass. Pls send us a issue or give us a PR if you want split graph");
+  }
+
   // The top op should be ModuleOp
   MLLM_RT_ASSERT(op->isa_<ir::ModuleOp>());
 

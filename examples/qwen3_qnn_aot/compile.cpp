@@ -56,8 +56,8 @@ MLLM_MAIN({
   // past_key_i: [B, H, D, CL-N] for each layer i
   // past_value_i: [B, H, CL-N, D] for each layer i
   // causal_mask: [B, 1, N, CL]
-  auto sequence = mllm::Tensor::zeros({1, N});
-  auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL});
+  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt64);
+  auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
 
   // Create KV cache inputs for all layers
   std::unordered_map<std::string, mllm::Tensor> trace_inputs;

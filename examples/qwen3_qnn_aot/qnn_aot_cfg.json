@@ -12,6 +12,7 @@
     "op_on_qnn": [
         "lm_head"
     ],
+    "split_graph": 1,
     "quant_recipe": {
         "llm_recipe": true,
         "builtin_qwen3_recipe": {
