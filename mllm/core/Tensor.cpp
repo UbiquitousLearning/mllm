@@ -157,6 +157,7 @@ Tensor Tensor::operator+(float rhs) {
       case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
       case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
       case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      case kInt16PerTensorSym: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
       default: NYI("Type is not supported"); break;
     }
   }
@@ -199,6 +200,7 @@ Tensor Tensor::operator*(float rhs) {
       case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
       case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
       case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+      case kInt16PerTensorSym: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
       default: NYI("Type is not supported"); break;
     }
   }

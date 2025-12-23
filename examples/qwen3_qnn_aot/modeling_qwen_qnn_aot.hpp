@@ -146,9 +146,9 @@ class Qwen3Attention final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_key = inputs[3];
-    auto past_value = inputs[4];
-    auto causal_mask = inputs[5];
+    auto causal_mask = inputs[3];
+    auto past_key = inputs[4];
+    auto past_value = inputs[5];
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
@@ -167,6 +167,10 @@ class Qwen3Attention final : public nn::Module {
     // [B, H, S, D]
     query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
     key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
+
+    // De-quantization and quantization again
+    key_states = key_states.to(kFloat16);
+    key_states = key_states.to(kInt8PerTensorSym);
 
     // [B, H, D, S]
     key_states = key_states.transpose(2, 3);
@@ -217,12 +221,12 @@ class Qwen3Decoder final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    auto past_key = inputs[3];
-    auto past_value = inputs[4];
-    auto causal_mask = inputs[5];
+    auto causal_mask = inputs[3];
+    auto past_key = inputs[4];
+    auto past_value = inputs[5];
 
     auto x = input_layer_norm_(inputs[0]);
-    auto _ = self_attn_(x, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask);
+    auto _ = self_attn_(x, llm_embedding_sin, llm_embedding_cos, causal_mask, past_key, past_value);
     x = _[0];
     auto tmp = x + inputs[0];
     x = post_attention_layer_norm_(tmp);
@@ -236,15 +240,21 @@ class Qwen3Text final : public nn::Module {
   nn::ModuleList<Qwen3Decoder> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Embedding embedding_;
+  nn::Param rope_sin_;
+  nn::Param rope_cos_;
+  int32_t num_hidden_layers_;
 
  public:
   Qwen3Text() = default;
 
   Qwen3Text(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+    num_hidden_layers_ = cfg.num_hidden_layers;
     decode_blocks_ = reg<nn::ModuleList<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
+    rope_sin_ = reg<nn::Param>("rope_sin", "rope_sin");
+    rope_cos_ = reg<nn::Param>("rope_cos", "rope_cos");
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -253,17 +263,20 @@ class Qwen3Text final : public nn::Module {
     // X is already embedded
     auto x = embedding_(inputs[0]);
 
-    auto llm_embedding_sin = inputs[1];
-    auto llm_embedding_cos = inputs[2];
-    auto past_key = inputs[3];
-    auto past_value = inputs[4];
-    auto causal_mask = inputs[5];
+    // Quantization
+    x = x.to(kInt16PerTensorSym);
+
+    auto position_ids = inputs[1];
+    auto causal_mask = inputs[2];
+    auto llm_embedding_sin = rope_sin_.weight()[{{0}, position_ids.squeeze(0), {kAll}}];
+    auto llm_embedding_cos = rope_cos_.weight()[{{0}, position_ids.squeeze(0), {kAll}}];
 
     std::vector<Tensor> keys;
     std::vector<Tensor> values;
-
-    for (auto& block : blocks) {
-      auto _ = block(x, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask);
+    for (auto [index, block] : enumerate(blocks)) {
+      auto pk = inputs[3 + index];
+      auto pv = inputs[3 + index + num_hidden_layers_];
+      auto _ = block(x, llm_embedding_sin, llm_embedding_cos, causal_mask, pk, pv);
       x = _[0];
       keys.push_back(_[1]);
       values.push_back(_[2]);
@@ -293,10 +306,6 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
       // model.lm_head.weight is quantization weights of model.embed_tokens.weight
       lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
-
-    // Init inv freq
-    auto inv = makeRoPEInvFreq(cfg.head_dim, cfg.rope_theta);
-    registerBuffer("inv_freq", inv);
   }
 
   IROutput trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
@@ -304,9 +313,35 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     ir::IRContext::ptr_t llm_ir = nullptr;
 
     auto sequence = input.at("sequence");
-    auto past_key = input.at("past_key");
-    auto past_value = input.at("past_value");
     auto causal_mask = input.at("causal_mask");
+
+    std::vector<Tensor> kv_caches;
+
+    // Append Key
+    for (int i = 0; i < cfg.num_hidden_layers; ++i) {
+      auto past_key_name = "past_key_" + std::to_string(i);
+      if (input.count(past_key_name)) {
+        kv_caches.push_back(input.at(past_key_name));
+      } else {
+        // If KV cache doesn't exist, we need to handle this case
+        // For now, we'll create empty tensors or handle it appropriately
+        // This might need adjustment based on your initialization logic
+        throw std::runtime_error("Missing KV cache for layer " + std::to_string(i));
+      }
+    }
+
+    // Append Value
+    for (int i = 0; i < cfg.num_hidden_layers; ++i) {
+      auto past_value_name = "past_value_" + std::to_string(i);
+      if (input.count(past_value_name)) {
+        kv_caches.push_back(input.at(past_value_name));
+      } else {
+        // If KV cache doesn't exist, we need to handle this case
+        // For now, we'll create empty tensors or handle it appropriately
+        // This might need adjustment based on your initialization logic
+        throw std::runtime_error("Missing KV cache for layer " + std::to_string(i));
+      }
+    }
 
     // Generate position_ids for the current sequence
     auto batch_size = sequence.shape()[0];
@@ -332,11 +367,13 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
       }
     }
 
-    // Generate RoPE embeddings using the inv_freq buffer
-    auto [llm_embedding_sin, llm_embedding_cos] = makeRotaryPosEmbedding(position_ids, getBuffer("inv_freq"), 1.0f);
-
     ir::lowlevel::traceStart();
-    sequence = llm(sequence, llm_embedding_sin, llm_embedding_cos, past_key, past_value, causal_mask)[0];
+
+    // Build inputs for llm: sequence, llm_embedding_sin, llm_embedding_cos, causal_mask, then all KV caches
+    std::vector<Tensor> llm_inputs = {sequence, position_ids, causal_mask};
+    llm_inputs.insert(llm_inputs.end(), kv_caches.begin(), kv_caches.end());
+
+    sequence = llm(llm_inputs)[0];
     sequence = lm_head_(sequence);
     ir::lowlevel::traceComment("    ╔═════╗   ");
     ir::lowlevel::traceComment("   ║  o o  ║  ");
