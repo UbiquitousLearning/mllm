@@ -114,6 +114,9 @@ LINALG_AOPS_DECL(OpTypes::kScatter, ScatterOp);
 LINALG_AOPS_DECL(OpTypes::kGather, GatherOp);
 LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
 
+LINALG_AOPS_DECL(OpTypes::kEqual, EqualOp);
+LINALG_AOPS_DECL(OpTypes::kWhere, WhereOp);
+
 // Customized Ops
 LINALG_AOPS_DECL(OpTypes::kFlashAttention2WithSinkAndSwa, FlashAttention2SwaSinkOp);
 LINALG_AOPS_DECL(OpTypes::kRadixAttnRelax, RadixAttnRelaxOp);

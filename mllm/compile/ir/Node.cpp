@@ -54,6 +54,8 @@ attr_ptr_t Node::getAttr(const std::string& str) {
   return it != attrs_.end() ? it->second : nullptr;
 }
 
+size_t Node::attrNum() { return attrs_.size(); }
+
 Region::Region(const op_ptr_t& belongs_to) : belongs_to_(belongs_to) {}
 
 std::list<op_ptr_t>& Region::ops() { return ops_; }

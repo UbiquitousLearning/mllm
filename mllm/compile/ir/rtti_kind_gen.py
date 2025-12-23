@@ -286,6 +286,8 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("FlashAttention2SwaSinkOp"))
     op.derive(Cls("RadixAttnRelaxOp"))
     op.derive(Cls("RadixAttnSwaSinkOp"))
+    op.derive(Cls("EqualOp"))
+    op.derive(Cls("WhereOp"))
 
     # customized ops
     op.derive(Cls("CustomizedOp"))

@@ -3,6 +3,7 @@
 
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/LinearOp.hpp"
 
 namespace mllm::cpu {
@@ -355,6 +356,11 @@ void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
     }
     case aops::LinearImplTypes::kGGUF: {
       o_dtype = kFloat32;
+      break;
+    }
+    case aops::LinearImplTypes::kQNN_LPBQ_w4a16o16_G32:
+    case aops::LinearImplTypes::kQNN_LPBQ_w4a16o16_G64: {
+      o_dtype = kInt16PerTensorSym;
       break;
     }
     default: o_dtype = i.dtype();

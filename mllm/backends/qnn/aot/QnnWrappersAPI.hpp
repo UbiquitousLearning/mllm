@@ -8,11 +8,10 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <chrono>
-#include <atomic>
 #include <functional>
 #include <unordered_map>
 
+#include <QNN/QnnTypes.h>
 #include <QNN/QnnCommon.h>
 #include <QNN/QnnContext.h>
 #include <QNN/QnnInterface.h>
@@ -21,11 +20,14 @@
 #include <QNN/System/QnnSystemInterface.h>
 
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::qnn::aot {
 
 void __mllmLoggerCallback4QnnLogger(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp);
+
+size_t QnnAOTDataTypeSize(Qnn_DataType_t dtype);
 
 // Collection of symbols that we need to load from qnn dyn lib.
 struct QnnFuncSymbols {
@@ -37,6 +39,131 @@ struct QnnFuncSymbols {
   QNN_SYSTEM_INTERFACE_VER_TYPE qnn_system_interface_;
 };
 
+class QnnAOTParamScalar {
+ public:
+  using ptr_t = std::shared_ptr<QnnAOTParamScalar>;
+
+  template<typename T>
+  static inline ptr_t create(const std::string& name, T value) {
+    return std::make_shared<QnnAOTParamScalar>(name, value);
+  };
+
+  QnnAOTParamScalar(const std::string& name, bool value);
+
+  QnnAOTParamScalar(const std::string& name, uint32_t value);
+
+  QnnAOTParamScalar(const std::string& name, float value);
+
+  Qnn_Param_t* getQnnParam();
+
+ private:
+  std::string name_;
+  Qnn_Param_t qnn_param_ = QNN_PARAM_INIT;
+};
+
+class QnnAOTParamTensor {
+ public:
+  using ptr_t = std::shared_ptr<QnnAOTParamTensor>;
+
+  static inline ptr_t create(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
+                             const std::vector<int32_t>& dimensions) {
+    std::vector<uint32_t> vec(dimensions.size());
+    for (int i = 0; i < dimensions.size(); i++) { vec[i] = (uint32_t)dimensions[i]; }
+    return std::make_shared<QnnAOTParamTensor>(param_name, tensor_name, data_type, vec);
+  }
+
+  static inline ptr_t create(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
+                             const std::vector<uint32_t>& dimensions) {
+    return std::make_shared<QnnAOTParamTensor>(param_name, tensor_name, data_type, dimensions);
+  }
+
+  QnnAOTParamTensor(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
+                    const std::vector<uint32_t>& dimensions);
+
+  ~QnnAOTParamTensor();
+
+  void* alloc();
+
+  Qnn_Param_t* getQnnParam();
+
+  Qnn_Tensor_t* getQnnTensor();
+
+ private:
+  std::string param_name_;
+  std::string tensor_name_;
+  std::vector<uint32_t> dimensions_;
+  Qnn_Param_t qnn_param_ = QNN_PARAM_INIT;
+};
+
+class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
+ public:
+  using ptr_t = std::shared_ptr<QnnAOTNodeTensor>;
+
+  static inline ptr_t create(const ir::tensor::TensorValue::ptr_t& v) { return std::make_shared<QnnAOTNodeTensor>(v); }
+
+  explicit QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v);
+
+ private:
+  Qnn_TensorType_t parseQnnTensorTypeFromIR();
+
+  Qnn_DataType_t parseQnnDataTypeFromIR();
+
+  std::string parseQnnTensorNameFromIR();
+
+  Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR();
+
+  ir::tensor::TensorValue::ptr_t tensor_ir_;
+  Qnn_Tensor_t qnn_tensor_ = QNN_TENSOR_INIT;
+};
+
+class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperation> {
+ public:
+  using ptr_t = std::shared_ptr<QnnAOTNodeOperation>;
+
+  QnnAOTNodeOperation::ptr_t addInputs(const std::vector<QnnAOTNodeTensor::ptr_t>& ins);
+
+  QnnAOTNodeOperation::ptr_t addOutputs(const std::vector<QnnAOTNodeTensor::ptr_t>& ous);
+
+  QnnAOTNodeOperation::ptr_t emplaceInput(const QnnAOTNodeTensor::ptr_t& input);
+
+  QnnAOTNodeOperation::ptr_t emplaceOutput(const QnnAOTNodeTensor::ptr_t& output);
+
+  QnnAOTNodeOperation::ptr_t addParamScalar(const std::vector<QnnAOTParamScalar::ptr_t>& params);
+
+  QnnAOTNodeOperation::ptr_t emplaceParamScalar(const QnnAOTParamScalar::ptr_t& param);
+
+  QnnAOTNodeOperation::ptr_t addParamTensor(const std::vector<QnnAOTParamTensor::ptr_t>& params);
+
+  QnnAOTNodeOperation::ptr_t emplaceParamTensor(const QnnAOTParamTensor::ptr_t& param);
+
+  QnnAOTNodeOperation::ptr_t setOpName(const std::string& op_name);
+
+  QnnAOTNodeOperation::ptr_t setPackageName(const std::string& package_name);
+
+ private:
+  std::string op_name_;
+  std::string package_name_ = "qti.aisw";
+  std::vector<QnnAOTParamScalar::ptr_t> param_scalar;
+  std::vector<QnnAOTParamTensor::ptr_t> param_tensor;
+  std::vector<QnnAOTNodeTensor::ptr_t> inputs;
+  std::vector<QnnAOTNodeTensor::ptr_t> outputs;
+};
+
+class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
+ public:
+  using ptr_t = std::shared_ptr<QnnAOTGraph>;
+
+  QnnAOTGraph::ptr_t addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op);
+
+  bool compile();
+
+ private:
+  Qnn_GraphHandle_t qnn_graph_handle_ = nullptr;
+
+  bool is_compiled_ = false;
+  std::unordered_map<std::string, QnnAOTNodeOperation::ptr_t> op_node_;
+};
+
 struct QnnDeviceAndContext {
   std::string name_;
   Qnn_LogHandle_t log_ = nullptr;
@@ -46,6 +173,9 @@ struct QnnDeviceAndContext {
   QnnContext_Config_t** qnn_context_config_ = nullptr;
   Qnn_ProfileHandle_t profile_bk_handle_ = nullptr;
   Qnn_ContextHandle_t qnn_ctx_handle_;
+
+  std::unordered_map<std::string, QnnAOTNodeTensor::ptr_t> static_tensor_;  //< for weight sharing.
+  std::unordered_map<std::string, QnnAOTGraph::ptr_t> graphs_;              //< for persistence keep graphs.
 };
 
 struct QnnDynLibDescriptor {
@@ -99,9 +229,9 @@ class QnnAOTEnv {
  public:
   using ptr_t = std::shared_ptr<QnnAOTEnv>;
 
-  explicit QnnAOTEnv(QcomTargetMachine& target_machine);
+  explicit QnnAOTEnv(const QcomTargetMachine& target_machine);
 
-  QnnAOTEnv(const std::string& lib_path, QcomTargetMachine& target_machine);
+  QnnAOTEnv(const std::string& lib_path, const QcomTargetMachine& target_machine);
 
   std::shared_ptr<QnnDeviceAndContext> createContext(const std::string& name, bool weights_sharing = false);
 

@@ -50,6 +50,8 @@ RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, const TensorValue::ptr_t& te
     ctx->addToSymbolTable(ret, symbol_attr->str());
   }
 
+  ret->setDevice(tensor_v->getDevice());
+
   return ret;
 }
 
