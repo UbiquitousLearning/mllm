@@ -216,6 +216,7 @@ def define_lianlg_ir(ir: dict):
     attr: Cls = ir["Attribute"]
 
     attr.derive(Cls("QuantizationAnnotation"))
+    attr.derive(Cls("QuantizationSpec"))
 
     # op
     op.derive(Cls("RegisterOp"))
