@@ -7,9 +7,16 @@
 
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/passes/Pass.hpp"
+#include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/passes/Pattern.hpp"
 
 namespace mllm::qnn::aot {
+//===----------------------------------------------------------------------===//
+// Utility functions
+//===----------------------------------------------------------------------===//
+bool shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(const ir::IRContext::ptr_t& ctx,
+                                                                  const ir::linalg::LinalgIROp::ptr_t& op);
+
 //===----------------------------------------------------------------------===//
 // Index Pattern
 //===----------------------------------------------------------------------===//

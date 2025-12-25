@@ -108,7 +108,7 @@ void LinalgIRQuantizatonAnnotationAttr::dump(IRPrinter& p) {
         break;
       }
       case QuantizationSpecType::kNone: {
-        ss << "None(";
+        ss << "None()";
         break;
       }
       case QuantizationSpecType::kRaw: {

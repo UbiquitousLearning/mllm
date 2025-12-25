@@ -11,6 +11,26 @@
 #include "mllm/backends/qnn/aot/passes/LLMQuantRecipePass.hpp"
 
 namespace mllm::qnn::aot {
+bool shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(const ir::IRContext::ptr_t& ctx,
+                                                                  const ir::linalg::LinalgIROp::ptr_t& op) {
+  // OP has no quant_recipe
+  MLLM_RETURN_FALSE_IF_NOT(op->getAttr("quant_recipe"));
+  MLLM_RETURN_FALSE_IF_NOT(op->inputs().size() == 1);
+  MLLM_RETURN_FALSE_IF_NOT(op->outputs().size() == 1);
+  MLLM_RETURN_FALSE_IF_NOT(op->inputs().front()->getAttr("quant_recipe"));
+
+  // Create annotation
+  auto annotation_attr = ctx->create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
+
+  // Share
+  auto quant_spec = op->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+  annotation_attr->annotation_.inputs.emplace_back(quant_spec);
+  annotation_attr->annotation_.outputs.emplace_back(quant_spec);
+  op->outputs().front()->setAttr("quant_recipe", quant_spec);
+  op->setAttr("quant_recipe", annotation_attr);
+
+  return true;
+}
 
 //===----------------------------------------------------------------------===//
 // Index Pattern
@@ -50,8 +70,8 @@ bool LLMQuantRecipeTransposePattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeTransposePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  // TODO: Implement transpose pattern rewrite logic
-  return true;
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -76,8 +96,8 @@ bool LLMQuantRecipeRepeatPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeRepeatPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  // TODO: Implement repeat pattern rewrite logic
-  return true;
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -128,8 +148,8 @@ bool LLMQuantRecipeSoftmaxPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeSoftmaxPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  // TODO: Implement softmax pattern rewrite logic
-  return true;
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -166,6 +186,7 @@ bool LLMQuantRecipeViewPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t
     view_op->outputs().front()->setAttr("quant_recipe", quant_spec);
     annotation_attr->annotation_.inputs.emplace_back(quant_spec->spec_);
     annotation_attr->annotation_.outputs.emplace_back(quant_spec->spec_);
+    view_op->setAttr("quant_recipe", annotation_attr);
   } else
   // Using Raw dtype, shared inputs and outputs
   {
