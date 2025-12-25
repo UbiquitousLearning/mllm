@@ -1,13 +1,19 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#include <memory>
+
+#include <QNN/QnnTypes.h>
 
 #include <QNN/QnnContext.h>
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/HTP/QnnHtpCommon.h>
 #include <QNN/HTP/QnnHtpContext.h>
 
+#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
+#include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 
@@ -132,25 +138,236 @@ Qnn_Param_t* QnnAOTParamTensor::getQnnParam() { return &qnn_param_; }
 
 Qnn_Tensor_t* QnnAOTParamTensor::getQnnTensor() { return &qnn_param_.tensorParam; }
 
-QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v) {
-  tensor_ir_ = v;
-  // TODO
+QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
+  name_ = v->name();
+  mllm_tensor_ = v->tensor_;
+  for (auto s : v->tensor_.shape()) { shape_.emplace_back(s); }
+
+  qnn_tensor_.version = QNN_TENSOR_VERSION_2;
+  qnn_tensor_.v2 = QNN_TENSOR_V2_INIT;
+  qnn_tensor_.v2.id = v->tensor_.uuid();
+  qnn_tensor_.v2.name = name_.c_str();
+  qnn_tensor_.v2.type = parseQnnTensorTypeFromIR(v);
+  qnn_tensor_.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER;
+  qnn_tensor_.v2.dataType = parseQnnDataTypeFromIR(v);
+  qnn_tensor_.v2.quantizeParams = parseQnnQuantizeParamFromIR(v);
+  qnn_tensor_.v2.rank = (uint32_t)v->tensor_.rank();
+  qnn_tensor_.v2.dimensions = shape_.data();
+  qnn_tensor_.v2.isDynamicDimensions = nullptr;
+  qnn_tensor_.v2.sparseParams = QNN_SPARSE_PARAMS_INIT;
+  qnn_tensor_.v2.isProduced = 0u;
+
+  if (force_static_weight) {
+    qnn_tensor_.v2.memType = QNN_TENSORMEMTYPE_RAW;
+    qnn_tensor_.v2.clientBuf = {
+        .data = (void*)mllm_tensor_.ptr<char>(),
+        .dataSize = (uint32_t)mllm_tensor_.bytes(),
+    };
+  }
 }
 
-Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR() {
-  // TODO
+Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::TensorValue::ptr_t& v) {
+  auto type = v->tensor_.memType();
+  Qnn_TensorType_t ret_qnn_tensor_type = QNN_TENSOR_TYPE_UNDEFINED;
+  switch (type) {
+    case kTensorMemTypes_Start: {
+      break;
+    }
+
+    // For MLLM Frame work to use
+    case kNormal: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_NATIVE;
+      break;
+    }
+    case kExtraInput: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+      break;
+    }
+    case kExtraOutput: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
+      break;
+    }
+    case kManual: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE;
+      break;
+    }
+    case kGlobal: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_STATIC;
+      break;
+    }
+
+    // Framework need to judge if this tensor is mmap from disk.
+    case kParams_Start:
+    case kParamsMMAP:
+    case kParamsNormal:
+    case kParams_End: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_STATIC;
+      break;
+    }
+
+    // For QNN Backend to use.
+    case kQnnAppRead: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+      break;
+    }
+    case kQnnAppWrite: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
+      break;
+    }
+    case kQnnAppReadWrite: {
+      ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE;
+      break;
+    }
+    case kTensorMemTypes_End: break;
+  }
+
+  // Check Attribute. The Attribute priority is higher than tensor type
+  if (v->getAttr("qnn_graph_outputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ; }
+  if (v->getAttr("qnn_graph_inputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE; }
+
+  return ret_qnn_tensor_type;
 }
 
-Qnn_DataType_t QnnAOTNodeTensor::parseQnnDataTypeFromIR() {
-  // TODO
+Qnn_DataType_t QnnAOTNodeTensor::parseQnnDataTypeFromIR(const ir::tensor::TensorValue::ptr_t& v) {
+  Qnn_DataType_t ret = QNN_DATATYPE_UNDEFINED;
+  switch (v->tensor_.dtype()) {
+    case kInt8: {
+      ret = QNN_DATATYPE_INT_8;
+      break;
+    }
+    case kInt16: {
+      ret = QNN_DATATYPE_INT_16;
+      break;
+    }
+    case kInt32: {
+      ret = QNN_DATATYPE_INT_32;
+      break;
+    }
+    case kInt64: {
+      ret = QNN_DATATYPE_INT_64;
+      break;
+    }
+    case kUInt8: {
+      ret = QNN_DATATYPE_UINT_8;
+      break;
+    }
+    case kUInt16: {
+      ret = QNN_DATATYPE_UINT_16;
+      break;
+    }
+    case kUInt32: {
+      ret = QNN_DATATYPE_UINT_32;
+      break;
+    }
+    case kUInt64: {
+      ret = QNN_DATATYPE_UINT_64;
+      break;
+    }
+    case kFloat16: {
+      ret = QNN_DATATYPE_FLOAT_16;
+      break;
+    }
+    case kFloat32: {
+      ret = QNN_DATATYPE_FLOAT_32;
+      break;
+    }
+    case kBFloat16: {
+      ret = QNN_DATATYPE_BFLOAT_16;
+      break;
+    }
+    // FIXME: Maybe error here.
+    case kInt4: {
+      ret = QNN_DATATYPE_SFIXED_POINT_4;
+      break;
+    }
+    case kUInt4: {
+      ret = QNN_DATATYPE_UFIXED_POINT_4;
+      break;
+    }
+    case kInt8PerTensorSym:
+    case kInt8PerTensorAsy:
+    case kInt8PerChannelAsy:
+    case kInt8PerChannelSym: {
+      ret = QNN_DATATYPE_SFIXED_POINT_8;
+      break;
+    }
+    case kUInt8PerTensorSym:
+    case kUInt8PerTensorAsy:
+    case kUInt8PerChannelAsy:
+    case kUInt8PerChannelSym: {
+      ret = QNN_DATATYPE_UFIXED_POINT_8;
+      break;
+    }
+    case kInt16PerTensorSym:
+    case kInt16PerTensorAsy:
+    case kInt16PerChannelSym:
+    case kInt16PerChannelAsy: {
+      ret = QNN_DATATYPE_SFIXED_POINT_16;
+      break;
+    }
+    case kUInt16PerTensorSym:
+    case kUInt16PerTensorAsy:
+    case kUInt16PerChannelSym:
+    case kUInt16PerChannelAsy: {
+      ret = QNN_DATATYPE_UFIXED_POINT_16;
+      break;
+    }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't parse datatype: {}", nameOfType(v->tensor_.dtype()));
+      ret = QNN_DATATYPE_UNDEFINED;
+    }
+  }
+  return ret;
 }
 
-std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR() {
-  // TODO
-}
+std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v) { return v->name(); }
 
-Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR() {
-  // TODO
+Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v) {
+  Qnn_QuantizeParams_t ret = QNN_QUANTIZE_PARAMS_INIT;
+
+  MLLM_RT_ASSERT(v->getAttr("quant_recipe"));
+  auto quant_spec = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
+
+  switch (quant_spec->type) {
+    case ir::linalg::QuantizationSpecType::kRaw: {
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerTensor: {
+      auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(quant_spec);
+      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
+      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerChannel: {
+      auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerChannel>(quant_spec);
+      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
+      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET;
+      ret.axisScaleOffsetEncoding = Qnn_AxisScaleOffset_t{
+          .axis = cfg->ch_axis,
+          .numScaleOffsets = (uint32_t)v->tensor_.shape()[cfg->ch_axis],
+          .scaleOffset = nullptr,  // TODO make this correct.
+      };
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerBlock:
+    case ir::linalg::QuantizationSpecType::kAsymPerTensor:
+    case ir::linalg::QuantizationSpecType::kAsymPerChannel:
+    case ir::linalg::QuantizationSpecType::kAsymPerBlock: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle [kSymPerBlock, kAsymPerTensor, kAsymPerChannel, kAsymPerBlock] type");
+    }
+    case ir::linalg::QuantizationSpecType::kLPBQ: {
+      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
+      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION;
+      ret.blockwiseExpansion = nullptr;  // TODO
+      break;
+    }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle kNone type");
+    }
+  }
+
+  return ret;
 }
 
 // QnnAOTNodeOperation implementations
@@ -199,9 +416,46 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setOpName(const std::string& op_
   return shared_from_this();
 }
 
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setName(const std::string& name) {
+  name_ = name;
+  return shared_from_this();
+}
+
+std::string QnnAOTNodeOperation::getName() { return name_; }
+
 QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string& package_name) {
   package_name_ = package_name;
   return shared_from_this();
+}
+
+void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
+  auto env = AOTCompileContext::getInstance().getEnv();
+  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
+
+  Qnn_OpConfig_t qnn_op_config = QNN_OPCONFIG_INIT;
+  qnn_op_config.version = QNN_OPCONFIG_VERSION_1;
+  qnn_op_config.v1 = QNN_OPCONFIG_V1_INIT;
+  qnn_op_config.v1.name = qnn_op->name_.c_str();
+  qnn_op_config.v1.packageName = qnn_op->package_name_.c_str();
+  qnn_op_config.v1.typeName = qnn_op->op_name_.c_str();
+
+  // TODO PARAMs
+  // TODO Inputs
+  // TODO Outputs
+
+  // TODO node validations
+
+  // TODO add node to graph.
+
+  op_node_.insert({qnn_op->getName(), qnn_op});
+}
+
+bool QnnAOTGraph::compile() {
+  if (is_compiled_) { return true; }
+  // TODO
+
+  is_compiled_ = true;
+  return true;
 }
 
 const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_{
@@ -498,6 +752,56 @@ std::vector<QnnContext_CustomConfig_t> QnnAOTEnv::createContextCustomConfig(bool
     p_custom_config->option = QNN_HTP_CONTEXT_CONFIG_OPTION_WEIGHT_SHARING_ENABLED;
     p_custom_config->weightSharingEnabled = true;
     ret.push_back(static_cast<QnnContext_CustomConfig_t>(p_custom_config));
+  }
+
+  return ret;
+}
+
+QnnAOTGraph::ptr_t QnnAOTEnv::captureAOTGraph(const std::string& qnn_context_name, const std::string& g_name) {
+  // TODO
+  return nullptr;
+}
+
+void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std::string& graph_name,
+                                 const QnnAOTNodeOperation::ptr_t& op) {
+  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
+  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
+  contexts_[qnn_context_name]->graphs_[graph_name]->addOperation(op);
+}
+
+QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
+                                                           const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
+  auto __qnn_tensor_name = v->name();
+
+  bool __qnn_enable_static_weight = force_static_weight;
+
+  // Check if this value want static qnn weight. The static qnn weight will be shared through one context in diff graphs!
+  if (v->tensor_.memType() == kGlobal || (v->tensor_.memType() <= kParams_End && v->tensor_.memType() >= kParams_Start)) {
+    __qnn_enable_static_weight = true;
+  }
+
+  // If static weight is cached, we return it directly.
+  if (__qnn_enable_static_weight) {
+    MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
+    if (contexts_[qnn_context_name]->static_tensor_.count(__qnn_tensor_name)) {
+      return contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name];
+    }
+  }
+
+  // If normal weight is cached, we return it directly
+  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
+  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
+  if (contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.count(__qnn_tensor_name)) {
+    return contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_[__qnn_tensor_name];
+  }
+
+  // There has no Tensor in the cache.
+  // Create Tensor and register it!.
+  auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+  if (__qnn_enable_static_weight) {
+    contexts_[qnn_context_name]->static_tensor_.insert({__qnn_tensor_name, ret});
+  } else {
+    contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.insert({__qnn_tensor_name, ret});
   }
 
   return ret;

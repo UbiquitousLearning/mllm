@@ -99,26 +99,36 @@ class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTNodeTensor>;
 
-  static inline ptr_t create(const ir::tensor::TensorValue::ptr_t& v) { return std::make_shared<QnnAOTNodeTensor>(v); }
+  static inline ptr_t create(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false) {
+    return std::make_shared<QnnAOTNodeTensor>(v);
+  }
 
-  explicit QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v);
+  explicit QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
 
  private:
-  Qnn_TensorType_t parseQnnTensorTypeFromIR();
+  Qnn_TensorType_t parseQnnTensorTypeFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  Qnn_DataType_t parseQnnDataTypeFromIR();
+  Qnn_DataType_t parseQnnDataTypeFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  std::string parseQnnTensorNameFromIR();
+  std::string parseQnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR();
+  Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  ir::tensor::TensorValue::ptr_t tensor_ir_;
+  Tensor mllm_tensor_;
+  std::string name_;
+  std::vector<uint32_t> shape_;
   Qnn_Tensor_t qnn_tensor_ = QNN_TENSOR_INIT;
 };
 
 class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperation> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTNodeOperation>;
+
+  static inline ptr_t create(const std::string& op_name) {
+    auto ret = std::make_shared<QnnAOTNodeOperation>();
+    ret->op_name_ = op_name;
+    return ret;
+  }
 
   QnnAOTNodeOperation::ptr_t addInputs(const std::vector<QnnAOTNodeTensor::ptr_t>& ins);
 
@@ -138,9 +148,13 @@ class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperat
 
   QnnAOTNodeOperation::ptr_t setOpName(const std::string& op_name);
 
+  QnnAOTNodeOperation::ptr_t setName(const std::string& name);
+
+  std::string getName();
+
   QnnAOTNodeOperation::ptr_t setPackageName(const std::string& package_name);
 
- private:
+  std::string name_;
   std::string op_name_;
   std::string package_name_ = "qti.aisw";
   std::vector<QnnAOTParamScalar::ptr_t> param_scalar;
@@ -153,15 +167,18 @@ class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTGraph>;
 
-  QnnAOTGraph::ptr_t addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op);
+  void addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op);
 
   bool compile();
 
- private:
-  Qnn_GraphHandle_t qnn_graph_handle_ = nullptr;
-
   bool is_compiled_ = false;
   std::unordered_map<std::string, QnnAOTNodeOperation::ptr_t> op_node_;
+  std::unordered_map<std::string, QnnAOTNodeTensor::ptr_t> all_tensors_;
+
+ private:
+  std::string graph_name_;
+  std::string belongs_context_name_;
+  Qnn_GraphHandle_t qnn_graph_handle_ = nullptr;
 };
 
 struct QnnDeviceAndContext {
@@ -174,8 +191,8 @@ struct QnnDeviceAndContext {
   Qnn_ProfileHandle_t profile_bk_handle_ = nullptr;
   Qnn_ContextHandle_t qnn_ctx_handle_;
 
-  std::unordered_map<std::string, QnnAOTNodeTensor::ptr_t> static_tensor_;  //< for weight sharing.
   std::unordered_map<std::string, QnnAOTGraph::ptr_t> graphs_;              //< for persistence keep graphs.
+  std::unordered_map<std::string, QnnAOTNodeTensor::ptr_t> static_tensor_;  //< for weight sharing.
 };
 
 struct QnnDynLibDescriptor {
@@ -246,6 +263,17 @@ class QnnAOTEnv {
   std::vector<QnnDevice_CustomConfig_t> createDecideCustomConfigInfo();
 
   std::vector<QnnContext_CustomConfig_t> createContextCustomConfig(bool weights_sharing);
+
+  // Functions for build qnn graphs
+  QnnAOTGraph::ptr_t captureAOTGraph(const std::string& qnn_context_name, const std::string& g_name);
+
+  void captureAOTNodeOp(const std::string& qnn_context_name, const std::string& graph_name,
+                        const QnnAOTNodeOperation::ptr_t& op);
+
+  QnnAOTNodeTensor::ptr_t captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
+                                                  const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
+
+  inline QnnFuncSymbols& getFuncSymbol() { return qnn_htp_func_symbols_; }
 
  private:
   void _setup(const std::string& path = "");
