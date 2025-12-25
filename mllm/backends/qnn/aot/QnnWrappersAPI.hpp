@@ -19,9 +19,10 @@
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/System/QnnSystemInterface.h>
 
-#include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
-#include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
+#include "mllm/compile/ir/linalg/Attribute.hpp"
+#include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -114,10 +115,14 @@ class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
 
   Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  Tensor mllm_tensor_;
   std::string name_;
+  Tensor mllm_tensor_;
   std::vector<uint32_t> shape_;
   Qnn_Tensor_t qnn_tensor_ = QNN_TENSOR_INIT;
+  ir::linalg::QuantizationSpec::ptr_t quant_spec_ = nullptr;
+
+  // To handle Qnn stuff
+  std::vector<void*> unreachable_handle_;
 };
 
 class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperation> {
@@ -161,6 +166,9 @@ class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperat
   std::vector<QnnAOTParamTensor::ptr_t> param_tensor;
   std::vector<QnnAOTNodeTensor::ptr_t> inputs;
   std::vector<QnnAOTNodeTensor::ptr_t> outputs;
+
+  // To handle Qnn stuff
+  std::vector<void*> unreachable_handle_;
 };
 
 class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {

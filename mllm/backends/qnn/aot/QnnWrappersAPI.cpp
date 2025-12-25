@@ -141,6 +141,7 @@ Qnn_Tensor_t* QnnAOTParamTensor::getQnnTensor() { return &qnn_param_.tensorParam
 QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
   name_ = v->name();
   mllm_tensor_ = v->tensor_;
+  quant_spec_ = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
   for (auto s : v->tensor_.shape()) { shape_.emplace_back(s); }
 
   qnn_tensor_.version = QNN_TENSOR_VERSION_2;
@@ -341,12 +342,24 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
     }
     case ir::linalg::QuantizationSpecType::kSymPerChannel: {
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerChannel>(quant_spec);
+
+      // Prepare data
+      auto num_scale_offsets = (uint32_t)v->tensor_.size(cfg->ch_axis);
+      Qnn_ScaleOffset_t* scale_array = (Qnn_ScaleOffset_t*)malloc(sizeof(Qnn_ScaleOffset_t) * num_scale_offsets);
+      MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale.size(0));
+      MLLM_RT_ASSERT_EQ(cfg->scale.dtype(), kFloat32);
+      for (int i = 0; i < num_scale_offsets; ++i) {
+        scale_array[i].scale = cfg->scale.at<float>({i});
+        scale_array[i].offset = 0;
+      }
+      unreachable_handle_.emplace_back(scale_array);
+
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET;
       ret.axisScaleOffsetEncoding = Qnn_AxisScaleOffset_t{
           .axis = cfg->ch_axis,
-          .numScaleOffsets = (uint32_t)v->tensor_.shape()[cfg->ch_axis],
-          .scaleOffset = nullptr,  // TODO make this correct.
+          .numScaleOffsets = num_scale_offsets,
+          .scaleOffset = scale_array,
       };
       break;
     }
@@ -357,9 +370,31 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle [kSymPerBlock, kAsymPerTensor, kAsymPerChannel, kAsymPerBlock] type");
     }
     case ir::linalg::QuantizationSpecType::kLPBQ: {
+      auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(quant_spec);
+
+      // Prepare data
+      auto num_scale_offsets = (uint32_t)v->tensor_.size(cfg->ch_axis);
+      Qnn_ScaleOffset_t* scale_array = (Qnn_ScaleOffset_t*)malloc(sizeof(Qnn_ScaleOffset_t) * num_scale_offsets);
+      MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(0));
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
+      for (int i = 0; i < num_scale_offsets; ++i) {
+        scale_array[i].scale = cfg->scale_level_1_fp.at<float>({i});
+        scale_array[i].offset = 0;
+      }
+      unreachable_handle_.emplace_back(scale_array);
+
+      auto block_scale_array = (Qnn_BlockwiseExpansion_t*)malloc(sizeof(Qnn_BlockwiseExpansion_t));
+      unreachable_handle_.emplace_back(block_scale_array);
+      block_scale_array[0].axis = cfg->ch_axis;
+      block_scale_array[0].scaleOffsets = scale_array;
+      block_scale_array[0].numBlocksPerAxis = v->tensor_.size(cfg->ch_axis) / cfg->block_size;
+      block_scale_array[0].blockScaleBitwidth = 12;  // 12 bits for 4 to 16 expansion
+      block_scale_array[0].blockScaleStorageType = QNN_BLOCKWISE_EXPANSION_BITWIDTH_SCALE_STORAGE_8;
+      block_scale_array[0].blocksScale8 = cfg->scale_level_0_int.ptr<mllm_uint8_t>();
+
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION;
-      ret.blockwiseExpansion = nullptr;  // TODO
+      ret.blockwiseExpansion = block_scale_array;
       break;
     }
     default: {

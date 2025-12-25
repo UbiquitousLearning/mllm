@@ -101,13 +101,13 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.inputs.emplace_back(
-      i_1->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_1->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.outputs.emplace_back(
-      i_0->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
 
-  o_0->setAttr("quant_recipe", i_0->getAttr("quant_attr"));
+  o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
   node->setAttr("quant_recipe", annotation_attr);
 
   return true;
@@ -151,13 +151,13 @@ bool LLMQuantRecipeConcatPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.inputs.emplace_back(
-      i_1->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_1->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.outputs.emplace_back(
-      i_0->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
 
-  o_0->setAttr("quant_recipe", i_0->getAttr("quant_attr"));
+  o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
   node->setAttr("quant_recipe", annotation_attr);
 
   return true;
@@ -223,15 +223,15 @@ bool LLMQuantRecipeWherePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.inputs.emplace_back(
-      i_1->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_1->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.inputs.emplace_back(
-      i_2->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_2->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.outputs.emplace_back(
-      i_2->getAttr("quant_attr")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+      i_2->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
 
-  o_0->setAttr("quant_recipe", i_2->getAttr("quant_attr"));
+  o_0->setAttr("quant_recipe", i_2->getAttr("quant_recipe"));
   node->setAttr("quant_recipe", annotation_attr);
 
   return true;
