@@ -54,4 +54,10 @@ enum class ExitCode : int32_t {  // NOLINT
   fmt::print(fg(fmt::color::green_yellow) | fmt::emphasis::bold, "[NYI]"); \
   fmt::print(" {}:{} {}\n", __FILE__, __LINE__, fmt::format(__VA_ARGS__));
 
+#define MLLM_RETURN_FALSE_IF_NOT(x) \
+  if (!(x)) { return false; }
+
+#define MLLM_RETURN_FALSE_IF(x) \
+  if ((x)) { return false; }
+
 }  // namespace mllm

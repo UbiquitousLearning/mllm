@@ -4,11 +4,11 @@
 #include <algorithm>
 #include <memory>
 
-#include "mllm/compile/ir/Node.hpp"
-#include "mllm/compile/ir/GeneratedRTTIKind.hpp"
-#include "mllm/compile/ir/IRPrinter.hpp"
-#include "mllm/utils/RTTIHelper.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/compile/ir/Node.hpp"
+#include "mllm/utils/RTTIHelper.hpp"
+#include "mllm/compile/ir/IRPrinter.hpp"
+#include "mllm/compile/ir/GeneratedRTTIKind.hpp"
 
 namespace mllm::ir {
 
@@ -60,9 +60,9 @@ Region::Region(const op_ptr_t& belongs_to) : belongs_to_(belongs_to) {}
 
 std::list<op_ptr_t>& Region::ops() { return ops_; }
 
-std::list<val_ptr_t>& Region::inputs() { return inputs_; }
+std::list<node_weak_ptr_t>& Region::inputs() { return inputs_; }
 
-std::list<val_ptr_t>& Region::outputs() { return outputs_; }
+std::list<node_weak_ptr_t>& Region::outputs() { return outputs_; }
 
 node_weak_ptr_t& Region::belongsTo() { return belongs_to_; }
 
@@ -301,6 +301,7 @@ void IRWriter::removeOp(const op_ptr_t& op) {
   // Cutoff the edge
   for (auto& input : op->inputs()) { input->outputs().remove(op); }
   for (auto& output : op->outputs()) { output->inputs().remove(op); }
+  op->belongsTo() = nullptr;
 
   auto it = std::find(ops.begin(), ops.end(), op);
   MLLM_RT_ASSERT(it != ops.end());

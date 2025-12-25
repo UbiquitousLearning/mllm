@@ -18,9 +18,7 @@ class QnnAOTBasePattern : public ir::Pattern {
 
   bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override { return false; }
 
-  virtual bool addNode(const std::string& g_name, const ir::op_ptr_t& op,
-                       const std::vector<ir::tensor::TensorValue::ptr_t>& inputs,
-                       const std::vector<ir::tensor::TensorValue::ptr_t>& outputs) = 0;
+  virtual bool compile(ir::IRWriter& writer, const ir::op_ptr_t& op) = 0;
 };
 
 class QnnAOTQuantRecipeBasePattern : public ir::Pattern {

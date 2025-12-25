@@ -15,11 +15,34 @@
     "split_graph": 1,
     "quant_recipe": {
         "llm_recipe": true,
-        "builtin_qwen3_recipe": {
-            "linear": "w4a16-lpbq",
+        "builtin_llm_pass": {
+            "model": "qwen3",
+            "lm_head": {
+                "fallback": {
+                    "method": "per-channel",
+                    "sym": true,
+                    "precision": "w8a16"
+                }
+            },
+            "linear": {
+                "fallback": {
+                    "method": "LPBQ",
+                    "sym": true,
+                    "precision": "w4a16",
+                    "block_size": 32
+                }
+            },
             "kv_cache": {
-                "key": "int8-per-tensor",
-                "value": "int8-per-tensor"
+                "key": {
+                    "method": "per-tensor",
+                    "sym": true,
+                    "precision": "w8a8"
+                },
+                "value": {
+                    "method": "per-tensor",
+                    "sym": true,
+                    "precision": "w8a8"
+                }
             }
         }
     }
