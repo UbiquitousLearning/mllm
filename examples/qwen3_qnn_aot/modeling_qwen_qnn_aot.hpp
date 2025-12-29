@@ -21,8 +21,8 @@ inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
-    -> std::pair<Tensor, Tensor> {
+inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
+                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -176,6 +176,7 @@ class Qwen3Attention final : public nn::Module {
     key_states = key_states.transpose(2, 3);
 
     // Handle KV Cache
+    value_states = value_states.to(kFloat16);
     value_states = value_states.to(kInt8PerTensorSym);
     auto kh = nn::functional::concat({past_key, key_states}, -1);     // [B, H, D, S]
     auto vh = nn::functional::concat({past_value, value_states}, 2);  // [B, H, S, D]
@@ -186,12 +187,12 @@ class Qwen3Attention final : public nn::Module {
 
     // Attn
     auto attn = nn::functional::matmul(query_states, kh);
-    attn = attn * scale_;
+    attn = attn.mul(scale_, kFloat32);
 
     // Masked Softmax
     auto attn_min = attn.min(-1, true);
     float minus_value = -20;
-    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min + minus_value);
+    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min.add(minus_value, kInt16));
     attn = nn::functional::softmax(attn, -1);
     auto y = nn::functional::matmul(attn, vh);
     y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_});

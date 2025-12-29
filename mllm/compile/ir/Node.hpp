@@ -122,9 +122,9 @@ class Region : public std::enable_shared_from_this<Region> {
 
   std::list<op_ptr_t>& ops();
 
-  std::list<val_ptr_t>& inputs();
+  std::list<node_weak_ptr_t>& inputs();
 
-  std::list<val_ptr_t>& outputs();
+  std::list<node_weak_ptr_t>& outputs();
 
   node_weak_ptr_t& belongsTo();
 
@@ -133,8 +133,8 @@ class Region : public std::enable_shared_from_this<Region> {
  private:
   node_weak_ptr_t belongs_to_ = nullptr;
   std::list<op_ptr_t> ops_;
-  std::list<val_ptr_t> inputs_;
-  std::list<val_ptr_t> outputs_;
+  std::list<node_weak_ptr_t> inputs_;
+  std::list<node_weak_ptr_t> outputs_;
 };
 
 template<typename T>

@@ -1,4 +1,4 @@
-// Auto generated: 2025-12-20 10:32:48
+// Auto generated: 2025-12-29 05:14:54
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -337,6 +337,9 @@ struct NodeRTTIClassOfImpl {
   return (v)->getKind() >= RK_Attr_LinalgIRAttr_QuantizationAnnotation \
          && (v)->getKind() <= RK_Attr_LinalgIRAttr_QuantizationAnnotation
 
+#define RTTI_RK_ATTR_LINALGIRATTR_QUANTIZATIONSPEC_IMPL(v) \
+  return (v)->getKind() >= RK_Attr_LinalgIRAttr_QuantizationSpec && (v)->getKind() <= RK_Attr_LinalgIRAttr_QuantizationSpec
+
 #define RTTI_RK_ATTR_GRAPHIRATTR_IMPL(v) return (v)->getKind() >= RK_Attr_GraphIRAttr && (v)->getKind() <= RK_Attr_GraphIRAttr
 
 #define RTTI_RK_ATTR_TENSORIRATTR_IMPL(v) \
@@ -362,6 +365,9 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_ATTR_BUILTINIRATTR_VECTORFP32ATTR_IMPL(v) \
   return (v)->getKind() >= RK_Attr_BuiltinIRAttr_VectorFP32Attr && (v)->getKind() <= RK_Attr_BuiltinIRAttr_VectorFP32Attr
+
+#define RTTI_RK_ATTR_BUILTINIRATTR_VECTORINT16ATTR_IMPL(v) \
+  return (v)->getKind() >= RK_Attr_BuiltinIRAttr_VectorInt16Attr && (v)->getKind() <= RK_Attr_BuiltinIRAttr_VectorInt16Attr
 
 #define RTTI_RK_ATTR_CONTROLFLOWIRATTR_IMPL(v) \
   return (v)->getKind() >= RK_Attr_ControlFlowIRAttr && (v)->getKind() <= RK_Attr_ControlFlowIRAttr
