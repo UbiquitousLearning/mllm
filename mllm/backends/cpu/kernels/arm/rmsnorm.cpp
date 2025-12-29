@@ -17,7 +17,7 @@ void rmsnorm_fp32(const mllm_fp32_t* __restrict X, const mllm_fp32_t* __restrict
   auto w_ptr = W;
 
   // pass 1
-  const float rms = 1.f / std::sqrtf(vsquare_mean_fp32(x_ptr, D) + epsilon);
+  const float rms = 1.f / std::sqrt(vsquare_mean_fp32(x_ptr, D) + epsilon);
 
   // pass 2
   if (add_unit_offset) {
@@ -106,7 +106,7 @@ void rmsnorm_fp16(const mllm_fp16_t* __restrict X, const mllm_fp16_t* __restrict
 
   // pass 1: compute RMS scaling factor
   float mean_square = vsquare_mean_fp16(x_ptr, D);
-  const float rms_float = 1.f / std::sqrtf(mean_square + epsilon);
+  const float rms_float = 1.f / std::sqrt(mean_square + epsilon);
   float16_t rms_fp16 = static_cast<float16_t>(rms_float);
   float16x8_t rms_vec = vdupq_n_f16(rms_fp16);
 

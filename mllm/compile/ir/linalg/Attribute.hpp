@@ -38,9 +38,27 @@ enum class QuantizationSpecType : uint32_t {
   kLPBQ,
 };
 
+class QuantizationSpecUUIDGiver {
+ public:
+  static QuantizationSpecUUIDGiver& getInstance() {
+    static QuantizationSpecUUIDGiver instance;
+    return instance;
+  }
+
+  uint64_t getUUID() { return next_uuid_++; }
+
+ private:
+  QuantizationSpecUUIDGiver() = default;
+  QuantizationSpecUUIDGiver(const QuantizationSpecUUIDGiver&) = delete;             // NOLINT
+  QuantizationSpecUUIDGiver& operator=(const QuantizationSpecUUIDGiver&) = delete;  // NOLINT
+
+  uint64_t next_uuid_ = 0;
+};
+
 struct QuantizationSpec {
   using ptr_t = std::shared_ptr<QuantizationSpec>;
   QuantizationSpecType type;
+  uint64_t uuid;
 };
 
 struct QuantizationSpecSymPerTensor : public QuantizationSpec {
@@ -54,6 +72,7 @@ struct QuantizationSpecSymPerTensor : public QuantizationSpec {
                              Tensor scale) {
     auto spec = std::make_shared<QuantizationSpecSymPerTensor>();
     spec->type = QuantizationSpecType::kSymPerTensor;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->quant_to_type = quant_to_type;
@@ -65,6 +84,7 @@ struct QuantizationSpecSymPerTensor : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecSymPerTensor>();
     spec->type = QuantizationSpecType::kSymPerTensor;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -81,6 +101,7 @@ struct QuantizationSpecSymPerChannel : public QuantizationSpec {
                              DataTypes scale_type, Tensor scale) {
     auto spec = std::make_shared<QuantizationSpecSymPerChannel>();
     spec->type = QuantizationSpecType::kSymPerChannel;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->ch_axis = ch_axis;
@@ -93,6 +114,7 @@ struct QuantizationSpecSymPerChannel : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecSymPerChannel>();
     spec->type = QuantizationSpecType::kSymPerChannel;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -109,6 +131,7 @@ struct QuantizationSpecSymPerBlock : public QuantizationSpec {
                              DataTypes scale_type, Tensor scale) {
     auto spec = std::make_shared<QuantizationSpecSymPerBlock>();
     spec->type = QuantizationSpecType::kSymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->block_size = block_size;
@@ -121,6 +144,7 @@ struct QuantizationSpecSymPerBlock : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecSymPerBlock>();
     spec->type = QuantizationSpecType::kSymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -138,6 +162,7 @@ struct QuantizationSpecAsymPerTensor : public QuantizationSpec {
                              DataTypes zero_point_type, Tensor scale, Tensor zero_point) {
     auto spec = std::make_shared<QuantizationSpecAsymPerTensor>();
     spec->type = QuantizationSpecType::kAsymPerTensor;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->quant_to_type = quant_to_type;
@@ -151,6 +176,7 @@ struct QuantizationSpecAsymPerTensor : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecAsymPerTensor>();
     spec->type = QuantizationSpecType::kAsymPerTensor;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -169,6 +195,7 @@ struct QuantizationSpecAsymPerChannel : public QuantizationSpec {
                              DataTypes scale_type, DataTypes zero_point_type, Tensor scale, Tensor zero_point) {
     auto spec = std::make_shared<QuantizationSpecAsymPerChannel>();
     spec->type = QuantizationSpecType::kAsymPerChannel;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->ch_axis = ch_axis;
@@ -183,6 +210,7 @@ struct QuantizationSpecAsymPerChannel : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecAsymPerChannel>();
     spec->type = QuantizationSpecType::kAsymPerChannel;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -271,6 +299,8 @@ class LinalgIRQuantizatonAnnotationAttr final : public LinalgIRAttr {
   LinalgIRQuantizatonAnnotationAttr();
 
   explicit LinalgIRQuantizatonAnnotationAttr(const NodeKind& kind);
+
+  void dump(IRPrinter& p) override;
 
   static inline bool classof(const Node* node) { RTTI_RK_ATTR_LINALGIRATTR_QUANTIZATIONANNOTATION_IMPL(node); }
 };

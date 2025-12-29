@@ -6,10 +6,17 @@
 #include "mllm/backends/base/Allocator.hpp"
 #include "mllm/core/Storage.hpp"
 
+#include <unordered_map>
+#include <mutex>
+
+
 namespace mllm::ascend {
 
 class AscendAllocator final : public Allocator {
  public:
+  AscendAllocator();
+  ~AscendAllocator();
+
   inline bool ctrlByMemManager() override { return false; }
 
   bool alloc(Storage* storage) override;
@@ -29,6 +36,11 @@ class AscendAllocator final : public Allocator {
   size_t allocSize(const Storage::ptr_t& storage) override;
 
   [[nodiscard]] size_t alignSize() const override;
+
+private:
+  std::mutex block_map_mutex_;
+  std::unordered_map<void*, int> storage_to_block_id_;  // Storage ptr -> block ID
+
 };
 
 std::shared_ptr<AscendAllocator> createAscendAllocator();
