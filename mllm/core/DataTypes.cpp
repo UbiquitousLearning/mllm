@@ -97,6 +97,8 @@ size_t bytesOfType(DataTypes dtype) {
     CASE(kComplexFloat64)
     CASE(kInt16PerTensorSym)
     CASE(kInt8PerTensorSym)
+    CASE(kInt4)
+    CASE(kUInt4)
     case kByte: return MllmDataTypeInfo<kUInt8>::bytes();
     default: NYI("Unknown data type");
   }
@@ -146,6 +148,8 @@ std::string nameOfType(DataTypes dtype) {
     CASE(kComplexFloat64)
     CASE(kInt16PerTensorSym)
     CASE(kInt8PerTensorSym)
+    CASE(kInt4)
+    CASE(kUInt4)
     case kByte: return MllmDataTypeInfo<kUInt8>::name();
     default: NYI("Unknown data type");
   }

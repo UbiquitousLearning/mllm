@@ -104,4 +104,18 @@ VectorFP32Attr::ptr_t VectorFP32Attr::build(IRContext*, const std::vector<float>
   return ret;
 }
 
+VectorInt16Attr::VectorInt16Attr() : BuiltinIRAttr(RK_Attr_BuiltinIRAttr_VectorInt16Attr) {}
+
+VectorInt16Attr::VectorInt16Attr(const NodeKind& kind) : BuiltinIRAttr(kind) {}
+
+void VectorInt16Attr::dump(IRPrinter& p) { p.print("{}", data()); }
+
+std::vector<int16_t>& VectorInt16Attr::data() { return data_; }
+
+VectorInt16Attr::ptr_t VectorInt16Attr::build(IRContext*, const std::vector<int16_t>& data) {
+  auto ret = std::make_shared<VectorInt16Attr>();
+  ret->data() = data;
+  return ret;
+}
+
 }  // namespace mllm::ir

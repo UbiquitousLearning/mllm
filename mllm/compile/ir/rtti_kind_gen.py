@@ -208,6 +208,7 @@ def define_builtin_ir(ir: dict):
     attr.derive(Cls("SymbolAttr"))
     attr.derive(Cls("BoolAttr"))
     attr.derive(Cls("VectorFP32Attr"))
+    attr.derive(Cls("VectorInt16Attr"))
 
 
 def define_lianlg_ir(ir: dict):

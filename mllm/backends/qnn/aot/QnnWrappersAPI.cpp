@@ -806,6 +806,7 @@ void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std:
 
 QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
                                                            const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
+  // TODO Constant value
   auto __qnn_tensor_name = v->name();
 
   bool __qnn_enable_static_weight = force_static_weight;

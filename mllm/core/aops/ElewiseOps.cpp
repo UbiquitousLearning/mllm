@@ -39,7 +39,19 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     auto i_irs = ir::tensor::wrapTensors2TensorIR(ctx, inputs);                                            \
     auto o_irs = ir::tensor::wrapTensors2TensorIR(ctx, outputs);                                           \
     if (options_.getInputsConstant(1)) {                                                                   \
-      i_irs[1]->setAttr("constant", ctx->create<ir::VectorFP32Attr>(inputs[1].toVector<float>()));         \
+      switch (inputs[1].dtype()) {                                                                         \
+        case kFloat32: {                                                                                   \
+          i_irs[1]->setAttr("constant", ctx->create<ir::VectorFP32Attr>(inputs[1].toVector<float>()));     \
+          break;                                                                                           \
+        }                                                                                                  \
+        case kInt16: {                                                                                     \
+          i_irs[1]->setAttr("constant", ctx->create<ir::VectorInt16Attr>(inputs[1].toVector<int16_t>()));  \
+          break;                                                                                           \
+        }                                                                                                  \
+        default: {                                                                                         \
+          MLLM_WARN("Constant Type {} is not supported in elementwise op", nameOfType(inputs[1].dtype())); \
+        }                                                                                                  \
+      }                                                                                                    \
     }                                                                                                      \
     ctx->create<ir::linalg::name>(shared_from_this(), i_irs, o_irs);                                       \
   }                                                                                                        \

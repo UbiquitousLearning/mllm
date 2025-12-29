@@ -244,6 +244,7 @@ struct QuantizationSpecAsymPerBlock : public QuantizationSpec {
                              DataTypes scale_type, DataTypes zero_point_type, Tensor scale, Tensor zero_point) {
     auto spec = std::make_shared<QuantizationSpecAsymPerBlock>();
     spec->type = QuantizationSpecType::kAsymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->block_size = block_size;
@@ -258,6 +259,7 @@ struct QuantizationSpecAsymPerBlock : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecAsymPerBlock>();
     spec->type = QuantizationSpecType::kAsymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -278,6 +280,7 @@ struct QuantizationSpecLPBQ : public QuantizationSpec {
                              Tensor scale_level_0_int, Tensor scale_level_1_fp) {
     auto spec = std::make_shared<QuantizationSpecLPBQ>();
     spec->type = QuantizationSpecType::kLPBQ;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->block_size = block_size;
@@ -293,6 +296,7 @@ struct QuantizationSpecLPBQ : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecLPBQ>();
     spec->type = QuantizationSpecType::kLPBQ;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };

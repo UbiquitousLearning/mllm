@@ -9,13 +9,91 @@
 #include "mllm/compile/passes/Pass.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/passes/Pattern.hpp"
+#include "mllm/compile/ir/linalg/Attribute.hpp"
 
 namespace mllm::qnn::aot {
 //===----------------------------------------------------------------------===//
 // Utility functions
 //===----------------------------------------------------------------------===//
+/**
+ * @brief This function for single in and single out. Some complex op(linear, conv2d) should not use this function.
+ *
+ * @param v
+ * @return ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t
+ */
+ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t genSimpleQuantizationSpecAttr(const ir::IRContext::ptr_t& ctx,
+                                                                             const ir::tensor::TensorValue::ptr_t& v);
+
 bool shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(const ir::IRContext::ptr_t& ctx,
                                                                   const ir::linalg::LinalgIROp::ptr_t& op);
+
+bool noSharingSingleInAndSingleOutQuantAnnoAttr(const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIROp::ptr_t& op);
+
+//===----------------------------------------------------------------------===//
+// ReduceMin Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeReduceMinPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeReduceMinPattern> create() {
+    return std::make_shared<LLMQuantRecipeReduceMinPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// RoPE Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeRoPEPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeRoPEPattern> create() { return std::make_shared<LLMQuantRecipeRoPEPattern>(); }
+};
+
+//===----------------------------------------------------------------------===//
+// CastType Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeCastTypePattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeCastTypePattern> create() {
+    return std::make_shared<LLMQuantRecipeCastTypePattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// RMSNorm Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeRMSNormPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeRMSNormPattern> create() {
+    return std::make_shared<LLMQuantRecipeRMSNormPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// SiLU Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeSiLUPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeSiLUPattern> create() { return std::make_shared<LLMQuantRecipeSiLUPattern>(); }
+};
 
 //===----------------------------------------------------------------------===//
 // Index Pattern
