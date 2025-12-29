@@ -334,7 +334,7 @@ typedef struct {  // NOLINT
 static_assert(sizeof(mllm_int4_t) == 1, "wrong int4 size/padding");
 
 typedef struct {  // NOLINT
-  int8_t data;
+  uint8_t data;
 } mllm_uint4_t;
 static_assert(sizeof(mllm_uint4_t) == 1, "wrong uint4 size/padding");
 

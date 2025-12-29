@@ -29,6 +29,9 @@ bool shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(const ir::IRCo
 
 bool noSharingSingleInAndSingleOutQuantAnnoAttr(const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIROp::ptr_t& op);
 
+ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
+    const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t& from);
+
 //===----------------------------------------------------------------------===//
 // ReduceMin Pattern
 //===----------------------------------------------------------------------===//

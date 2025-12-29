@@ -6,6 +6,8 @@
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
+#include "mllm/compile/ir/tensor/Op.hpp"
+#include "mllm/compile/ir/graph/Op.hpp"
 
 namespace mllm::aops {
 
@@ -29,6 +31,13 @@ void RMSNormOp::load(const ParameterFile::ptr_t& ploader) {
 
 void RMSNormOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto ir_ctx = (ir::IRContext*)trace_context;
+
+  // Register Params
+  if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
+    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
+  }
+
   auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
   auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
   ir_ctx->create<ir::linalg::RMSNormOp>(shared_from_this(), i_irs, o_irs);

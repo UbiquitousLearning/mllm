@@ -165,6 +165,82 @@ bool noSharingSingleInAndSingleOutQuantAnnoAttr(const ir::IRContext::ptr_t& ctx,
   return true;
 }
 
+ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
+    const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t& from) {
+  // clone all type, but not clone scale or other self-contained data.
+  if (!from || !from->spec_) { return nullptr; }
+
+  auto from_spec = from->spec_;
+  ir::linalg::QuantizationSpec::ptr_t cloned_spec = nullptr;
+
+  switch (from_spec->type) {
+    case ir::linalg::QuantizationSpecType::kRaw: {
+      auto raw_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecRaw>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecRaw::create(raw_spec->type_);
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerTensor: {
+      auto sym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecSymPerTensor::create(sym_spec->quant_min, sym_spec->quant_max,
+                                                                     sym_spec->quant_to_type, sym_spec->scale_type,
+                                                                     Tensor::nil());  // Not cloning scale
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerChannel: {
+      auto sym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerChannel>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecSymPerChannel::create(
+          sym_spec->quant_min, sym_spec->quant_max, sym_spec->ch_axis, sym_spec->quant_to_type, sym_spec->scale_type,
+          Tensor::nil());  // Not cloning scale
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kSymPerBlock: {
+      auto sym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerBlock>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecSymPerBlock::create(sym_spec->quant_min, sym_spec->quant_max,
+                                                                    sym_spec->block_size, sym_spec->quant_to_type,
+                                                                    sym_spec->scale_type, Tensor::nil());  // Not cloning scale
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kAsymPerTensor: {
+      auto asym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(
+          asym_spec->quant_min, asym_spec->quant_max, asym_spec->quant_to_type, asym_spec->scale_type,
+          asym_spec->zero_point_type, Tensor::nil(), Tensor::nil());  // Not cloning scale and zero_point
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kAsymPerChannel: {
+      auto asym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerChannel>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecAsymPerChannel::create(
+          asym_spec->quant_min, asym_spec->quant_max, asym_spec->ch_axis, asym_spec->quant_to_type, asym_spec->scale_type,
+          asym_spec->zero_point_type, Tensor::nil(), Tensor::nil());  // Not cloning scale and zero_point
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kAsymPerBlock: {
+      auto asym_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerBlock>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecAsymPerBlock::create(
+          asym_spec->quant_min, asym_spec->quant_max, asym_spec->block_size, asym_spec->quant_to_type, asym_spec->scale_type,
+          asym_spec->zero_point_type, Tensor::nil(), Tensor::nil());  // Not cloning scale and zero_point
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kLPBQ: {
+      auto lpbq_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(from_spec);
+      cloned_spec = ir::linalg::QuantizationSpecLPBQ::create(
+          lpbq_spec->quant_min, lpbq_spec->quant_max, lpbq_spec->block_size, lpbq_spec->ch_axis,
+          lpbq_spec->scale_level_0_bitwidth, lpbq_spec->quant_to_type, lpbq_spec->scale_1_type, Tensor::nil(),
+          Tensor::nil());  // Not cloning scale_level_0_int and scale_level_1_fp
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kNone:
+    default: {
+      cloned_spec = nullptr;
+      break;
+    }
+  }
+
+  if (!cloned_spec) { return nullptr; }
+
+  return ctx->create<ir::linalg::LinalgIRQuantizatonSpecAttr>(cloned_spec);
+}
+
 //===----------------------------------------------------------------------===//
 // ReduceMin Pattern
 //===----------------------------------------------------------------------===//
@@ -260,7 +336,25 @@ bool LLMQuantRecipeRMSNormPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  return noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
+  auto ret = noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
+
+  if (!ret) return false;
+
+  auto rms_norm_ir = node->cast_<ir::linalg::RMSNormOp>();
+
+  // RMS Norm's weight quantization method same as inputs, but not share, just same type
+  auto weight_name = rms_norm_ir->getAOp()->getName() + ".weight";
+  auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+  auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+
+  auto weight_spec_attr = cloneQuantizationSpecType(
+      writer.getContext(), node->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>());
+  weight_reg_tensor_ir->outputs().front()->setAttr("qnn_recipe", weight_spec_attr);
+
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -301,6 +395,8 @@ bool LLMQuantRecipeIndexPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
       i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   annotation_attr->annotation_.outputs.emplace_back(
       o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+
+  node->setAttr("quant_recipe", annotation_attr);
 
   return true;
 }
@@ -498,7 +594,7 @@ bool LLMQuantRecipeEqualPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
           break;
         }
         default: {
-          NYI("Only support  for now.");
+          NYI("Only support [int16, int8, bf16, f16, f32] for now.");
         }
       }
 
