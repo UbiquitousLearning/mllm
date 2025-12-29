@@ -32,7 +32,7 @@ add_library(
 )
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
-target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash)
+target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash flatbuffers)
 
 # Compiler stack need mlir
 if(MLLM_ENABLE_MLLM_COMPILE_STACK)
