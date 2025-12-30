@@ -4,6 +4,7 @@
 #include <regex>
 
 #include "mllm/backends/qnn/aot/passes/LLM2QnnLoweringPass.hpp"
+#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
@@ -106,6 +107,17 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
   for (const auto& [name, _] : subgraph_map_) { sorted_names.push_back(name); }
   std::sort(sorted_names.begin(), sorted_names.end());
 
+  // Get AOT Compile Context
+  auto aot_cfg = AOTCompileContext::getInstance().getConfig();
+  auto aot_env = AOTCompileContext::getInstance().getEnv();
+
+  // FIXME: Only support one context right now.
+  {
+    int split_graph = aot_cfg["split_graph"];
+    MLLM_RT_ASSERT_EQ(split_graph, 1);
+    aot_env->createContext("context.0", true);
+  }
+
   // Process each subgraph in order
   for (const auto& subgraph_name : sorted_names) {
     auto subgraph = subgraph_map_[subgraph_name];
@@ -115,12 +127,7 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
     // Create IRWriter for this subgraph
     auto subgraph_writer = ir::IRWriter(getCtx(), region);
 
-    // TODO, you should create A AOT Graph in AOTEnv.
-    // TODO, you should create A AOT Graph in AOTEnv.
-    // TODO, you should create A AOT Graph in AOTEnv.
-    // TODO, you should create A AOT Graph in AOTEnv.
-    // TODO, you should create A AOT Graph in AOTEnv.
-    // TODO, you should create A AOT Graph in AOTEnv.
+    auto aot_graph = aot_env->captureAOTGraph("context.0", subgraph_name);
 
     // Walk through all linalg operations in the subgraph
     subgraph_writer.walk<ir::linalg::LinalgIROp>(

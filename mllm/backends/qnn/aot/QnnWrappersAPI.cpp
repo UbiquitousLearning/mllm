@@ -4,18 +4,19 @@
 
 #include <QNN/QnnTypes.h>
 
+#include <QNN/QnnGraph.h>
 #include <QNN/QnnContext.h>
 #include <QNN/HTP/QnnHtpDevice.h>
 #include <QNN/HTP/QnnHtpCommon.h>
 #include <QNN/HTP/QnnHtpContext.h>
 
-#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
-#include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
+#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -470,6 +471,17 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string
   return shared_from_this();
 }
 
+QnnAOTGraph::QnnAOTGraph(const std::string& g_name, const std::shared_ptr<QnnDeviceAndContext>& context)
+    : graph_name_(g_name), qnn_context_(context) {
+  belongs_context_name_ = context->name_;
+
+  auto env = AOTCompileContext::getInstance().getEnv();
+  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
+
+  auto ok = qnn_interface.graphCreate(context->qnn_ctx_handle_, g_name.c_str(), nullptr /*graph_config*/, &qnn_graph_handle_);
+  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
+}
+
 void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
   auto env = AOTCompileContext::getInstance().getEnv();
   auto qnn_interface = env->getFuncSymbol().qnn_interface_;
@@ -692,25 +704,6 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
   // clang-format off
   {
     // FIXME(wch): we need to register our own opset of qnn.
-    // struct OpPackageInfo {
-    //   std::string path;
-    //   std::string interface_provider;
-    //   std::string target;
-    // };
-
-    // std::vector<OpPackageInfo> op_packages = {
-    //     {.path = "libQnnMllmPackageCPU.so", .interface_provider = "MllmPackageInterfaceProvider", .target = "CPU"},
-    //     {.path = "libQnnMllmPackageHTP.so", .interface_provider = "MllmPackageInterfaceProvider", .target = "HTP"},
-    // };
-
-    // for (const auto& pkg : op_packages) {
-    //   if (!qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage) {
-    //     MLLM_ERROR_EXIT(ExitCode::kCoreError, "qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage is nullptr.");
-    //   }
-    //   auto status = qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage(context->bk_handle_, pkg.path.c_str(), pkg.interface_provider.c_str(), pkg.target.c_str());
-    //   MLLM_RT_ASSERT_EQ(status, QNN_BACKEND_NO_ERROR);
-    //   MLLM_INFO("QNN Registered op package: {}, interface provider: {}, target: {}", pkg.path, pkg.interface_provider, pkg.target);
-    // }
   }
   // clang-format on
 
@@ -800,8 +793,11 @@ std::vector<QnnContext_CustomConfig_t> QnnAOTEnv::createContextCustomConfig(bool
 }
 
 QnnAOTGraph::ptr_t QnnAOTEnv::captureAOTGraph(const std::string& qnn_context_name, const std::string& g_name) {
-  // TODO
-  return nullptr;
+  MLLM_RT_ASSERT(contexts_.count(qnn_context_name) == 1);
+  auto ret = QnnAOTGraph::create(g_name, contexts_[qnn_context_name]);
+  ret->belongs_context_name_ = qnn_context_name;
+  contexts_[qnn_context_name]->graphs_.insert({g_name, ret});
+  return ret;
 }
 
 void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std::string& graph_name,
