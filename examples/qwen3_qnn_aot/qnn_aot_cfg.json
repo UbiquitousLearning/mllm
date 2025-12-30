@@ -15,6 +15,7 @@
     "split_graph": 1,
     "quant_recipe": {
         "llm_recipe": true,
+        "layers": 28,
         "builtin_llm_pass": {
             "model": "qwen3",
             "lm_head": {
