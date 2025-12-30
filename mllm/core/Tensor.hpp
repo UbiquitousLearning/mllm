@@ -286,6 +286,10 @@ class Tensor {
   Tensor operator/(float rhs);
   /// @}
 
+  Tensor add(float rhs, DataTypes data_type = kFloat32);
+  Tensor sub(float rhs, DataTypes data_type = kFloat32);
+  Tensor mul(float rhs, DataTypes data_type = kFloat32);
+
   /// @name Scalar Operations with complex rhs type
   /// Element-wise operations with complex rhs type scalar values.
   /// @{

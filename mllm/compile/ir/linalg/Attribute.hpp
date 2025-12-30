@@ -29,6 +29,7 @@ class LinalgIRAttr : public Attr {
 
 enum class QuantizationSpecType : uint32_t {
   kNone = 0,
+  kRaw,
   kSymPerTensor,
   kSymPerChannel,
   kSymPerBlock,
@@ -59,6 +60,20 @@ struct QuantizationSpec {
   using ptr_t = std::shared_ptr<QuantizationSpec>;
   QuantizationSpecType type;
   uint64_t uuid;
+};
+
+struct QuantizationSpecRaw : public QuantizationSpec {
+  DataTypes type_ = kFloat32;
+
+  static inline ptr_t create(DataTypes type) {
+    auto spec = std::make_shared<QuantizationSpecRaw>();
+    spec->type = QuantizationSpecType::kRaw;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
+    spec->type_ = type;
+    return spec;
+  }
+
+  static inline ptr_t create() { return create(kFloat32); }
 };
 
 struct QuantizationSpecSymPerTensor : public QuantizationSpec {
@@ -229,6 +244,7 @@ struct QuantizationSpecAsymPerBlock : public QuantizationSpec {
                              DataTypes scale_type, DataTypes zero_point_type, Tensor scale, Tensor zero_point) {
     auto spec = std::make_shared<QuantizationSpecAsymPerBlock>();
     spec->type = QuantizationSpecType::kAsymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->block_size = block_size;
@@ -243,6 +259,7 @@ struct QuantizationSpecAsymPerBlock : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecAsymPerBlock>();
     spec->type = QuantizationSpecType::kAsymPerBlock;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -263,6 +280,7 @@ struct QuantizationSpecLPBQ : public QuantizationSpec {
                              Tensor scale_level_0_int, Tensor scale_level_1_fp) {
     auto spec = std::make_shared<QuantizationSpecLPBQ>();
     spec->type = QuantizationSpecType::kLPBQ;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     spec->quant_min = quant_min;
     spec->quant_max = quant_max;
     spec->block_size = block_size;
@@ -278,6 +296,7 @@ struct QuantizationSpecLPBQ : public QuantizationSpec {
   static inline ptr_t create() {
     auto spec = std::make_shared<QuantizationSpecLPBQ>();
     spec->type = QuantizationSpecType::kLPBQ;
+    spec->uuid = QuantizationSpecUUIDGiver::getInstance().getUUID();
     return spec;
   }
 };
@@ -302,7 +321,30 @@ class LinalgIRQuantizatonAnnotationAttr final : public LinalgIRAttr {
 
   void dump(IRPrinter& p) override;
 
+  static ptr_t build(IRContext* ctx);
+
   static inline bool classof(const Node* node) { RTTI_RK_ATTR_LINALGIRATTR_QUANTIZATIONANNOTATION_IMPL(node); }
+};
+
+class LinalgIRQuantizatonSpecAttr final : public LinalgIRAttr {
+ public:
+  QuantizationSpec::ptr_t spec_;
+
+  DEFINE_SPECIFIC_IR_CLASS(LinalgIRQuantizatonSpecAttr);
+
+  ~LinalgIRQuantizatonSpecAttr() override;
+
+  LinalgIRQuantizatonSpecAttr();
+
+  explicit LinalgIRQuantizatonSpecAttr(const NodeKind& kind);
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx);
+
+  static ptr_t build(IRContext* ctx, const QuantizationSpec::ptr_t& spec);
+
+  static inline bool classof(const Node* node) { RTTI_RK_ATTR_LINALGIRATTR_QUANTIZATIONSPEC_IMPL(node); }
 };
 
 }  // namespace mllm::ir::linalg

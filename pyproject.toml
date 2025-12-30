@@ -28,6 +28,8 @@ dependencies=[
   "fastapi",
   "uvicorn",
   "typer",
+  "torch",
+  "torchao",
 ]
 
 [project.optional-dependencies]

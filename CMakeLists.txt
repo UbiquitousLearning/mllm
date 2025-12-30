@@ -260,6 +260,8 @@ set(MLLM_JSON_INCLUDE_DIR
 
 add_subdirectory(third_party/fmt)
 add_subdirectory(third_party/xxHash)
+set(FLATBUFFERS_BUILD_TESTS OFF)
+add_subdirectory(third_party/flatbuffers EXCLUDE_FROM_ALL)
 add_subdirectory(mllm)
 
 if(MLLM_ENABLE_TEST)

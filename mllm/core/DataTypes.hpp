@@ -328,6 +328,16 @@ typedef struct {  // NOLINT
 } mllm_int16_per_channel_t;
 static_assert(sizeof(mllm_int16_per_channel_t) == 2, "wrong int16 size/padding");
 
+typedef struct {  // NOLINT
+  int8_t data;
+} mllm_int4_t;
+static_assert(sizeof(mllm_int4_t) == 1, "wrong int4 size/padding");
+
+typedef struct {  // NOLINT
+  uint8_t data;
+} mllm_uint4_t;
+static_assert(sizeof(mllm_uint4_t) == 1, "wrong uint4 size/padding");
+
 #pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
@@ -575,6 +585,13 @@ MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int16_per_channel_t, mllm_int16_per_channel_t{0
                             mllm_int16_per_channel_t{std::numeric_limits<int16_t>::max()},
                             mllm_int16_per_channel_t{std::numeric_limits<int16_t>::min()}, "Int16PerChannel");
 
+// 4-bit types
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int4_t, mllm_int4_t{0}, mllm_int4_t{1}, mllm_int4_t{7},  // 4-bit signed: -8 to 7
+                            mllm_int4_t{-8}, "Int4");
+
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint4_t, mllm_uint4_t{0}, mllm_uint4_t{1}, mllm_uint4_t{15},  // 4-bit unsigned: 0 to 15
+                            mllm_uint4_t{0}, "UInt4");
+
 // Complex types can not be declared by MLLM_DEFINE_BASIC_TYPE_INFO macro
 template<>
 struct DataTypeInfo<mllm_complex_fp64_t> {
@@ -687,6 +704,9 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16PerChannelAsy, mllm_int16_per_channe
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerTensorAsy, mllm_uint16_per_tensor_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16PerChannelAsy, mllm_uint16_per_channel_t);
 
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt4, mllm_int4_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt4, mllm_uint4_t);
+
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q4_0, mllm_block_q4_0_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q4_K, mllm_block_q4_K_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q6_K, mllm_block_q6_K_t);
@@ -748,3 +768,5 @@ std::string nameOfType(DataTypes dtype);
 #define MLLM_TYPE_UINT32 ::mllm::DataTypes::kUInt32
 #define MLLM_TYPE_BYTE ::mllm::DataTypes::kByte
 #define MLLM_TYPE_MXFP4 ::mllm::DataTypes::kMXFP4
+#define MLLM_TYPE_I4 ::mllm::DataTypes::kInt4
+#define MLLM_TYPE_U4 ::mllm::DataTypes::kUInt4

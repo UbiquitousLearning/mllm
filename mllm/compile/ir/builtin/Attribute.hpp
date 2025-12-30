@@ -151,4 +151,26 @@ class VectorFP32Attr : public BuiltinIRAttr {
   std::vector<float> data_;
 };
 
+class VectorInt16Attr : public BuiltinIRAttr {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(VectorInt16Attr);
+
+  ~VectorInt16Attr() override = default;
+
+  VectorInt16Attr();
+
+  explicit VectorInt16Attr(const NodeKind& kind);
+
+  void dump(IRPrinter& p) override;
+
+  std::vector<int16_t>& data();
+
+  static ptr_t build(IRContext*, const std::vector<int16_t>& data);
+
+  static inline bool classof(const Node* node) { RTTI_RK_ATTR_BUILTINIRATTR_VECTORINT16ATTR_IMPL(node); }
+
+ private:
+  std::vector<int16_t> data_;
+};
+
 }  // namespace mllm::ir

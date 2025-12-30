@@ -37,3 +37,6 @@
 	path = mllm/backends/ascend/vendors/catlass
 	url = https://gitcode.com/cann/catlass.git
 	update = none
+[submodule "third_party/flatbuffers"]
+	path = third_party/flatbuffers
+	url = https://github.com/google/flatbuffers
