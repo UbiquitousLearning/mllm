@@ -115,10 +115,17 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
     // Create IRWriter for this subgraph
     auto subgraph_writer = ir::IRWriter(getCtx(), region);
 
+    // TODO, you should create A AOT Graph in AOTEnv.
+    // TODO, you should create A AOT Graph in AOTEnv.
+    // TODO, you should create A AOT Graph in AOTEnv.
+    // TODO, you should create A AOT Graph in AOTEnv.
+    // TODO, you should create A AOT Graph in AOTEnv.
+    // TODO, you should create A AOT Graph in AOTEnv.
+
     // Walk through all linalg operations in the subgraph
     subgraph_writer.walk<ir::linalg::LinalgIROp>(
         [&](ir::IRWriter& this_tough_writer, const ir::linalg::LinalgIROp::ptr_t& linalg_op) -> ir::IRWriter::WalkResult {
-          if (!linalg_op->getAttr("use_qnn")) {
+          if (!linalg_op->belongsTo()->getAttr("use_qnn")) {
             MLLM_WARN("Found none qnn op: {} in graph: {}", linalg_op->getAOp()->getName(), subgraph_name);
             return ir::IRWriter::WalkResult::WALK_BREAK;
           }
