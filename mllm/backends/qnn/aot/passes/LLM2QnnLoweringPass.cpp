@@ -155,6 +155,9 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
 
           return ir::IRWriter::WalkResult::WALK_CONTINUE;
         });
+
+    // Compile
+    MLLM_RT_ASSERT(aot_graph->compile());
   }
 
   return ir::PASS_RET_SUCCESS;

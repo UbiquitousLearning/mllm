@@ -106,6 +106,8 @@ class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
 
   explicit QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
 
+  inline Qnn_Tensor_t* getQnnTensor() { return &qnn_tensor_; }
+
  private:
   Qnn_TensorType_t parseQnnTensorTypeFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
@@ -292,6 +294,8 @@ class QnnAOTEnv {
                                                   const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
 
   inline QnnFuncSymbols& getFuncSymbol() { return qnn_htp_func_symbols_; }
+
+  std::shared_ptr<QnnDeviceAndContext> getContext(const std::string& name);
 
  private:
   void _setup(const std::string& path = "");

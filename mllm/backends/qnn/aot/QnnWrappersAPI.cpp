@@ -140,13 +140,6 @@ Qnn_Param_t* QnnAOTParamTensor::getQnnParam() { return &qnn_param_; }
 Qnn_Tensor_t* QnnAOTParamTensor::getQnnTensor() { return &qnn_param_.tensorParam; }
 
 QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-
   name_ = v->name();
   mllm_tensor_ = v->tensor_;
   quant_spec_ = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
@@ -233,6 +226,7 @@ Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::Te
   // Check Attribute. The Attribute priority is higher than tensor type
   if (v->getAttr("qnn_graph_outputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ; }
   if (v->getAttr("qnn_graph_inputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE; }
+  if (v->getAttr("constant")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_STATIC; }
 
   return ret_qnn_tensor_type;
 }
@@ -493,20 +487,52 @@ void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
   qnn_op_config.v1.packageName = qnn_op->package_name_.c_str();
   qnn_op_config.v1.typeName = qnn_op->op_name_.c_str();
 
-  // TODO PARAMs
-  // TODO Inputs
-  // TODO Outputs
+  // Params
+  uint32_t param_counter = 0;
+  size_t total_param_size = qnn_op->param_scalar.size() + qnn_op->param_tensor.size();
+  Qnn_Param_t* qnn_param_array = (Qnn_Param_t*)malloc(total_param_size * sizeof(Qnn_Param_t));
+  qnn_op->unreachable_handle_.emplace_back(qnn_param_array);
+  {
+    // Tensor Param
+    for (const auto& p : qnn_op->param_tensor) {
+      auto ok = qnn_interface.tensorCreateGraphTensor(qnn_graph_handle_, p->getQnnTensor());
+      MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
+      qnn_param_array[param_counter++] = *p->getQnnParam();
+    }
+    for (const auto& p : qnn_op->param_scalar) { qnn_param_array[param_counter++] = *p->getQnnParam(); }
+  }
 
-  // TODO node validations
+  // Inputs
+  Qnn_Tensor_t* qnn_inputs_array = (Qnn_Tensor_t*)malloc(qnn_op->inputs.size() * sizeof(Qnn_Tensor_t));
+  qnn_op->unreachable_handle_.emplace_back(qnn_inputs_array);
+  for (int i = 0; i < qnn_op->inputs.size(); ++i) { qnn_inputs_array[i] = *qnn_op->inputs[i]->getQnnTensor(); }
 
-  // TODO add node to graph.
+  // Outputs
+  Qnn_Tensor_t* qnn_outputs_array = (Qnn_Tensor_t*)malloc(qnn_op->outputs.size() * sizeof(Qnn_Tensor_t));
+  qnn_op->unreachable_handle_.emplace_back(qnn_outputs_array);
+  for (int i = 0; i < qnn_op->outputs.size(); ++i) { qnn_outputs_array[i] = *qnn_op->outputs[i]->getQnnTensor(); }
+
+  qnn_op_config.v1.params = qnn_param_array;
+  qnn_op_config.v1.numOfParams = total_param_size;
+  qnn_op_config.v1.inputTensors = qnn_inputs_array;
+  qnn_op_config.v1.numOfInputs = qnn_op->inputs.size();
+  qnn_op_config.v1.outputTensors = qnn_outputs_array;
+  qnn_op_config.v1.numOfOutputs = qnn_op->outputs.size();
+
+  auto ok = qnn_interface.backendValidateOpConfig(env->getContext(belongs_context_name_)->bk_handle_, qnn_op_config);
+  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
+  ok = qnn_interface.graphAddNode(qnn_graph_handle_, qnn_op_config);
+  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
 
   op_node_.insert({qnn_op->getName(), qnn_op});
 }
 
 bool QnnAOTGraph::compile() {
   if (is_compiled_) { return true; }
-  // TODO
+
+  auto env = AOTCompileContext::getInstance().getEnv();
+  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
+  qnn_interface.graphFinalize(qnn_graph_handle_, env->getContext(belongs_context_name_)->profile_bk_handle_, nullptr);
 
   is_compiled_ = true;
   return true;
@@ -809,18 +835,13 @@ void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std:
 
 QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
                                                            const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
   auto __qnn_tensor_name = v->name();
 
   bool __qnn_enable_static_weight = force_static_weight;
 
   // Check if this value want static qnn weight. The static qnn weight will be shared through one context in diff graphs!
-  if (v->tensor_.memType() == kGlobal || (v->tensor_.memType() <= kParams_End && v->tensor_.memType() >= kParams_Start)) {
+  if (v->tensor_.memType() == kGlobal || (v->tensor_.memType() <= kParams_End && v->tensor_.memType() >= kParams_Start)
+      || v->getAttr("constant")) {
     __qnn_enable_static_weight = true;
   }
 
@@ -844,11 +865,17 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
   auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
   if (__qnn_enable_static_weight) {
     contexts_[qnn_context_name]->static_tensor_.insert({__qnn_tensor_name, ret});
+    qnn_htp_func_symbols_.qnn_interface_.tensorCreateContextTensor(contexts_[qnn_context_name]->qnn_ctx_handle_,
+                                                                   ret->getQnnTensor());
   } else {
     contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.insert({__qnn_tensor_name, ret});
+    qnn_htp_func_symbols_.qnn_interface_.tensorCreateGraphTensor(
+        contexts_[qnn_context_name]->graphs_[graph_name]->qnn_graph_handle_, ret->getQnnTensor());
   }
 
   return ret;
 }
+
+std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::getContext(const std::string& name) { return contexts_[name]; }
 
 }  // namespace mllm::qnn::aot
