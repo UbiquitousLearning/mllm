@@ -233,6 +233,9 @@ class Qwen3Attention(nn.Module):
         self.qdq_rope_4 = QDQ_OP["A16-PerTensor"]()
         self.qdq_rope_5 = QDQ_OP["A16-PerTensor"]()
 
+        self.k_cache = None
+        self.v_cache = None
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -287,8 +290,25 @@ class Qwen3Attention(nn.Module):
         )
 
         key_states = self.qdq_4(key_states)
-        key_states = key_states.transpose(2, 3)  # [B, H, D, S]
+        # [B, H, D, S]
+        key_states = key_states.transpose(2, 3)
+        # [B, H, S, D]
+        value_states = self.qdq_14(self.qdq_13(value_states))
+
+        # KV Cache Here
+        if seq_len > 1 and self.k_cache is not None and self.v_cache is not None:
+            self.k_cache = None
+            self.v_cache = None
+
+        if seq_len == 1:
+            self.k_cache = torch.cat([self.k_cache, key_states], dim=-1)
+            self.v_cache = torch.cat([self.v_cache, value_states], dim=2)
+        else:
+            self.k_cache = key_states
+            self.v_cache = value_states
+
         key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         attn = query_states @ key_states
         attn = self.qdq_5(attn)
@@ -302,7 +322,7 @@ class Qwen3Attention(nn.Module):
         attn = self.qdq_10(attn)
         attn = F.softmax(attn, -1)
         attn = self.qdq_11(attn)
-        y = attn @ self.qdq_14(self.qdq_13(value_states))
+        y = attn @ value_states
         y = self.qdq_12(y)
         y = y.transpose(1, 2).reshape(bsz, seq_len, -1)
         y = self.o_proj(y)
@@ -403,9 +423,6 @@ class Qwen3ForCausalLM:
         self.register_buffer("sin", None)
         self.register_buffer("cos", None)
 
-        self.k_cache = None
-        self.v_cache = None
-
     def forward(
         self,
         input_ids,
@@ -441,9 +458,6 @@ class Qwen3ForCausalLM:
             self.sin = self.qdq_1(sin)
             self.cos = self.qdq_2(cos)
 
-        if self.k_cache is None or self.v_cache is None:
-            pass
-
         # Slice RoPE embeddings to current sequence length
         cos = self.cos[position_ids]
         sin = self.sin[position_ids]
@@ -465,4 +479,5 @@ class Qwen3ForCausalLM:
         """
         calibrate Only on PREFILL stage !!!
         """
+        # Call infer after calibrate done.
         pass
