@@ -9,6 +9,7 @@ from pymllm.backends.qualcomm.transformers.core.qlinear import (
 )
 
 
+# This settings below is for Qwen1.7B
 class Qwen3Config:
     def __init__(self):
         self.attention_bias = False
@@ -411,14 +412,21 @@ class Qwen3ForCausalLM:
         position_ids,
         max_length,
     ):
-        bsz, seq_len = input_ids.shape
+        _, seq_len = input_ids.shape
 
         # Generate causal mask based on position_ids length
         # For prefill, we need a lower triangular mask
-        causal_mask = 1 - torch.tril(
-            torch.ones(seq_len, seq_len, dtype=torch.int8, device=input_ids.device)
-        )
-        causal_mask = causal_mask.unsqueeze(0).unsqueeze(0)  # [1, 1, seq_len, seq_len]
+        if seq_len != 1:
+            causal_mask = 1 - torch.tril(
+                torch.ones(seq_len, seq_len, dtype=torch.int8, device=input_ids.device)
+            )
+            # [1, 1, seq_len, seq_len]
+            causal_mask = causal_mask.unsqueeze(0).unsqueeze(0)
+        else:
+            # [1, 1, seq_len, seq_len]
+            causal_mask = torch.zeros(
+                (1, 1, 1, seq_len), dtype=torch.int8, device=input_ids.device
+            )
 
         # Generate or use registered RoPE embeddings
         if self.sin is None or self.cos is None or self.cos.shape[0] < max_length:
@@ -454,4 +462,7 @@ class Qwen3ForCausalLM:
         pass
 
     def calibrate(self, model_path: str, dataset_path: str):
+        """
+        calibrate Only on PREFILL stage !!!
+        """
         pass
