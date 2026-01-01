@@ -201,8 +201,6 @@ class QNNTensorWrapper {
 
   // alloc graph input/output tensor memory in QNN shared buffer
   void alloc();
-  // reset allocation flag when dataContainer is updated
-  void resetAlloc();
   Tensor& getDataContainer() { return dataContainer_; }
   const std::vector<uint32_t>* getDimension() { return &dimensions_; }
 

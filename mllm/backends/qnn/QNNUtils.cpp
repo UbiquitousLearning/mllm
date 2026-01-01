@@ -485,70 +485,21 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std
 }
 
 void QNNTensorWrapper::alloc() {
+  if (isAlloc_) {
+    MLLM_WARN("Tensor {} has already been allocated.", name_);
+    return;
+  }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
 
-  void* currentPtr = dataContainer_.impl()->ptr<void>();
-  if (!currentPtr) {
-    dataContainer_.alloc();
-    currentPtr = dataContainer_.ptr<void>();
-  }
+  // if storage is not allocated, allocate it
+  // or, register the existing storage to QNN(passing allocated input to QNN)
+  if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
 
-  auto allocator = std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator());
+  std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
+      ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
 
-  auto storage = dataContainer_.impl()->storage();
-  MLLM_RT_ASSERT(storage != nullptr);
-
-  size_t requiredBytes = dataContainer_.bytes();
-
-  // Check if we have a previously registered buffer pointer
-  // This handles the case where tensor dimensions change (e.g., in decode phase)
-  // and the existing registered buffer is too small
-  if (registeredPtr_) {
-    // Verify that the registered buffer is still valid
-    if (!allocator->isRegistered(registeredPtr_)) {
-      // Buffer was de-registered, clear the reference
-      registeredPtr_ = nullptr;
-      isAlloc_ = false;
-    } else {
-      // Check if the registered buffer is large enough for current requirements
-      // If not, we need to de-register it and allocate a new one
-      size_t registeredBytes = allocator->getRegisteredBufferSize(registeredPtr_);
-      if (registeredBytes > 0 && registeredBytes < requiredBytes) {
-        // Registered buffer is too small, de-register it
-        // A new buffer will be allocated and registered below
-        allocator->deRegisterQnnTensorFromSharedBuffer(registeredPtr_);
-        registeredPtr_ = nullptr;
-        isAlloc_ = false;
-      }
-    }
-  }
-
-  if (registeredPtr_ && registeredPtr_ != storage->ptr_) {
-    if (!allocator->isRegistered(registeredPtr_)) {
-      registeredPtr_ = nullptr;
-    } else {
-      void* freshPtr = storage->ptr_;
-      size_t bytesToCopy = dataContainer_.bytes();
-      if (freshPtr && bytesToCopy > 0) { std::memcpy(registeredPtr_, freshPtr, bytesToCopy); }
-      if (freshPtr) { allocator->free(storage.get()); }
-      storage->ptr_ = registeredPtr_;
-      currentPtr = registeredPtr_;
-    }
-  }
-
-  if (isAlloc_ && registeredPtr_ == currentPtr) { return; }
-
-  if (!allocator->registerQnnTensorToSharedBuffer(storage.get(), qnnTensor_)) {
-    MLLM_ERROR("QNNTensorWrapper::alloc failed to register shared buffer for tensor {}", name_);
-    // Fail fast: prevent executing graph with invalid mem handle
-    MLLM_RT_ASSERT(false);
-  }
-
-  registeredPtr_ = storage->ptr_;
   isAlloc_ = true;
 }
-
-void QNNTensorWrapper::resetAlloc() { isAlloc_ = false; }
 
 void QNNTensorWrapper::setScaleOffsetQuantization(const std::vector<Qnn_ScaleOffset_t>& scaleOffsets, int32_t axis) {
   scaleOffsets_ = scaleOffsets;
