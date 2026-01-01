@@ -13,6 +13,14 @@ file(GLOB MLLM_QNN_SRC
     
 )
 
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  file(GLOB_RECURSE MLLM_QUALCOMM_AOT_SRC 
+    ${CMAKE_CURRENT_LIST_DIR}/aot/*.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/aot/*.cpp
+  )
+  list(APPEND MLLM_QNN_SRC ${MLLM_QUALCOMM_AOT_SRC})
+endif()
+
 add_library(
     MllmQNNBackend
     SHARED

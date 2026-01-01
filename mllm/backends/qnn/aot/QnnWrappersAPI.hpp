@@ -11,24 +11,24 @@
 #include <functional>
 #include <unordered_map>
 
-#include <QNN/QnnTypes.h>
-#include <QNN/QnnCommon.h>
-#include <QNN/QnnContext.h>
-#include <QNN/QnnInterface.h>
-#include <QNN/QnnSdkBuildId.h>
-#include <QNN/HTP/QnnHtpDevice.h>
-#include <QNN/System/QnnSystemInterface.h>
+#include <QnnTypes.h>
+#include <QnnCommon.h>
+#include <QnnContext.h>
+#include <QnnInterface.h>
+#include <QnnSdkBuildId.h>
+#include <HTP/QnnHtpDevice.h>
+#include <System/QnnSystemInterface.h>
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
+#include "mllm/backends/qnn/QNNModel.hpp"
+#include "mllm/backends/qnn/QNNUtils.hpp"
 
 namespace mllm::qnn::aot {
 
 void __mllmLoggerCallback4QnnLogger(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp);
-
-size_t QnnAOTDataTypeSize(Qnn_DataType_t dtype);
 
 // Collection of symbols that we need to load from qnn dyn lib.
 struct QnnFuncSymbols {
@@ -40,71 +40,17 @@ struct QnnFuncSymbols {
   QNN_SYSTEM_INTERFACE_VER_TYPE qnn_system_interface_;
 };
 
-class QnnAOTParamScalar {
- public:
-  using ptr_t = std::shared_ptr<QnnAOTParamScalar>;
-
-  template<typename T>
-  static inline ptr_t create(const std::string& name, T value) {
-    return std::make_shared<QnnAOTParamScalar>(name, value);
-  };
-
-  QnnAOTParamScalar(const std::string& name, bool value);
-
-  QnnAOTParamScalar(const std::string& name, uint32_t value);
-
-  QnnAOTParamScalar(const std::string& name, float value);
-
-  Qnn_Param_t* getQnnParam();
-
- private:
-  std::string name_;
-  Qnn_Param_t qnn_param_ = QNN_PARAM_INIT;
-};
-
-class QnnAOTParamTensor {
- public:
-  using ptr_t = std::shared_ptr<QnnAOTParamTensor>;
-
-  static inline ptr_t create(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
-                             const std::vector<int32_t>& dimensions) {
-    std::vector<uint32_t> vec(dimensions.size());
-    for (int i = 0; i < dimensions.size(); i++) { vec[i] = (uint32_t)dimensions[i]; }
-    return std::make_shared<QnnAOTParamTensor>(param_name, tensor_name, data_type, vec);
-  }
-
-  static inline ptr_t create(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
-                             const std::vector<uint32_t>& dimensions) {
-    return std::make_shared<QnnAOTParamTensor>(param_name, tensor_name, data_type, dimensions);
-  }
-
-  QnnAOTParamTensor(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
-                    const std::vector<uint32_t>& dimensions);
-
-  ~QnnAOTParamTensor();
-
-  void* alloc();
-
-  Qnn_Param_t* getQnnParam();
-
-  Qnn_Tensor_t* getQnnTensor();
-
- private:
-  std::string param_name_;
-  std::string tensor_name_;
-  std::vector<uint32_t> dimensions_;
-  Qnn_Param_t qnn_param_ = QNN_PARAM_INIT;
-};
-
 class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTNodeTensor>;
 
   static inline ptr_t create(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false) {
-    return std::make_shared<QnnAOTNodeTensor>(v);
+    return std::make_shared<QnnAOTNodeTensor>(v, force_static_weight);
   }
 
   explicit QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
+
+  std::shared_ptr<mllm::qnn::QNNTensorWrapper> getWrapper() { return tensor_wrapper_; }
 
  private:
   Qnn_TensorType_t parseQnnTensorTypeFromIR(const ir::tensor::TensorValue::ptr_t& v);
@@ -115,14 +61,7 @@ class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
 
   Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
-  std::string name_;
-  Tensor mllm_tensor_;
-  std::vector<uint32_t> shape_;
-  Qnn_Tensor_t qnn_tensor_ = QNN_TENSOR_INIT;
-  ir::linalg::QuantizationSpec::ptr_t quant_spec_ = nullptr;
-
-  // To handle Qnn stuff
-  std::vector<void*> unreachable_handle_;
+  std::shared_ptr<mllm::qnn::QNNTensorWrapper> tensor_wrapper_;
 };
 
 class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperation> {
@@ -143,13 +82,13 @@ class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperat
 
   QnnAOTNodeOperation::ptr_t emplaceOutput(const QnnAOTNodeTensor::ptr_t& output);
 
-  QnnAOTNodeOperation::ptr_t addParamScalar(const std::vector<QnnAOTParamScalar::ptr_t>& params);
+  QnnAOTNodeOperation::ptr_t addParamScalar(const std::vector<std::shared_ptr<mllm::qnn::QNNParamScalarWrapper>>& params);
 
-  QnnAOTNodeOperation::ptr_t emplaceParamScalar(const QnnAOTParamScalar::ptr_t& param);
+  QnnAOTNodeOperation::ptr_t emplaceParamScalar(const std::shared_ptr<mllm::qnn::QNNParamScalarWrapper>& param);
 
-  QnnAOTNodeOperation::ptr_t addParamTensor(const std::vector<QnnAOTParamTensor::ptr_t>& params);
+  QnnAOTNodeOperation::ptr_t addParamTensor(const std::vector<std::shared_ptr<mllm::qnn::QNNParamTensorWrapper>>& params);
 
-  QnnAOTNodeOperation::ptr_t emplaceParamTensor(const QnnAOTParamTensor::ptr_t& param);
+  QnnAOTNodeOperation::ptr_t emplaceParamTensor(const std::shared_ptr<mllm::qnn::QNNParamTensorWrapper>& param);
 
   QnnAOTNodeOperation::ptr_t setOpName(const std::string& op_name);
 
@@ -162,18 +101,18 @@ class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperat
   std::string name_;
   std::string op_name_;
   std::string package_name_ = "qti.aisw";
-  std::vector<QnnAOTParamScalar::ptr_t> param_scalar;
-  std::vector<QnnAOTParamTensor::ptr_t> param_tensor;
+  std::vector<std::shared_ptr<mllm::qnn::QNNParamScalarWrapper>> param_scalar;
+  std::vector<std::shared_ptr<mllm::qnn::QNNParamTensorWrapper>> param_tensor;
   std::vector<QnnAOTNodeTensor::ptr_t> inputs;
   std::vector<QnnAOTNodeTensor::ptr_t> outputs;
-
-  // To handle Qnn stuff
-  std::vector<void*> unreachable_handle_;
 };
 
 class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTGraph>;
+
+  QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle_t backendHandle, Qnn_ContextHandle_t contextHandle,
+              const std::string& graphName);
 
   void addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op);
 
@@ -184,9 +123,7 @@ class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
   std::unordered_map<std::string, QnnAOTNodeTensor::ptr_t> all_tensors_;
 
  private:
-  std::string graph_name_;
-  std::string belongs_context_name_;
-  Qnn_GraphHandle_t qnn_graph_handle_ = nullptr;
+  std::shared_ptr<mllm::qnn::QNNModel> qnn_model_;
 };
 
 struct QnnDeviceAndContext {

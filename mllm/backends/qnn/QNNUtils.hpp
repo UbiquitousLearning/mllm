@@ -49,18 +49,12 @@ bool loadQNNSystemSymbol();
 
 // --------------- End of QNN symbols loading ---------------
 
+Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype);
+size_t qnnDataTypeToSize(Qnn_DataType_t dtype);
+
 #define DEFAULT_QUANTIZE_PARAMS \
   (Qnn_QuantizeParams_t{        \
       QNN_DEFINITION_UNDEFINED, QNN_QUANTIZATION_ENCODING_UNDEFINED, {.scaleOffsetEncoding = {.scale = 0.0f, .offset = 0}}})
-
-const std::map<Qnn_DataType_t, size_t> QNNDataTypeToSize = {
-    {QNN_DATATYPE_INT_8, 1},           {QNN_DATATYPE_INT_16, 2},          {QNN_DATATYPE_INT_32, 4},
-    {QNN_DATATYPE_INT_64, 8},          {QNN_DATATYPE_UINT_8, 1},          {QNN_DATATYPE_UINT_16, 2},
-    {QNN_DATATYPE_UINT_32, 4},         {QNN_DATATYPE_UINT_64, 8},         {QNN_DATATYPE_FLOAT_16, 2},
-    {QNN_DATATYPE_FLOAT_32, 4},        {QNN_DATATYPE_BOOL_8, 1},          {QNN_DATATYPE_SFIXED_POINT_8, 1},
-    {QNN_DATATYPE_SFIXED_POINT_16, 2}, {QNN_DATATYPE_SFIXED_POINT_32, 4}, {QNN_DATATYPE_UFIXED_POINT_8, 1},
-    {QNN_DATATYPE_UFIXED_POINT_16, 2}, {QNN_DATATYPE_UFIXED_POINT_32, 4},
-};
 
 // Utils for copying metadata to GraphInfo
 using GraphInfo_t = struct GraphInfo {
@@ -212,6 +206,10 @@ class QNNTensorWrapper {
   Tensor& getDataContainer() { return dataContainer_; }
   const std::vector<uint32_t>* getDimension() { return &dimensions_; }
 
+  // Helper to set complex quantization params and manage memory
+  void setScaleOffsetQuantization(const std::vector<Qnn_ScaleOffset_t>& scaleOffsets, int32_t axis);
+  void setBlockwiseQuantization(const Qnn_BlockwiseExpansion_t& blockwise, const std::vector<Qnn_ScaleOffset_t>& scaleOffsets);
+
  private:
   std::string name_;
   std::vector<uint32_t> dimensions_;
@@ -219,6 +217,10 @@ class QNNTensorWrapper {
   Qnn_Tensor_t qnnTensor_;
   bool isAlloc_ = false;
   void* registeredPtr_ = nullptr;
+
+  // Storage for quantization parameters to ensure lifetime matches the tensor wrapper
+  std::vector<Qnn_ScaleOffset_t> scaleOffsets_;
+  Qnn_BlockwiseExpansion_t blockwiseExpansion_;
 };
 
 class QNNParamTensorWrapper {

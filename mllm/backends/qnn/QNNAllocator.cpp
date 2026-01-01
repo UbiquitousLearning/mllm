@@ -221,8 +221,7 @@ bool QNNAllocator::registerQnnTensorToSharedBuffer(Storage* storage, Qnn_Tensor_
   uint32_t* dims_ptr = QNN_TENSOR_GET_DIMENSIONS(qnn_tensor);
   Qnn_DataType_t data_type = QNN_TENSOR_GET_DATA_TYPE(qnn_tensor);
 
-  size_t element_bytes = 0;
-  if (auto it = QNNDataTypeToSize.find(data_type); it != QNNDataTypeToSize.end()) { element_bytes = it->second; }
+  size_t element_bytes = qnnDataTypeToSize(data_type);
 
   size_t element_cnt = 1;
   std::vector<uint32_t> dims;
