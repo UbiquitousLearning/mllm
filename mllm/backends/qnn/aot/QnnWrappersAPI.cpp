@@ -91,6 +91,7 @@ Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::Te
   // Check Attribute. The Attribute priority is higher than tensor type
   if (v->getAttr("qnn_graph_outputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ; }
   if (v->getAttr("qnn_graph_inputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE; }
+  if (v->getAttr("constant")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_STATIC; }
 
   return ret_qnn_tensor_type;
 }
@@ -456,25 +457,6 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
   // clang-format off
   {
     // FIXME(wch): we need to register our own opset of qnn.
-    // struct OpPackageInfo {
-    //   std::string path;
-    //   std::string interface_provider;
-    //   std::string target;
-    // };
-
-    // std::vector<OpPackageInfo> op_packages = {
-    //     {.path = "libQnnMllmPackageCPU.so", .interface_provider = "MllmPackageInterfaceProvider", .target = "CPU"},
-    //     {.path = "libQnnMllmPackageHTP.so", .interface_provider = "MllmPackageInterfaceProvider", .target = "HTP"},
-    // };
-
-    // for (const auto& pkg : op_packages) {
-    //   if (!qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage) {
-    //     MLLM_ERROR_EXIT(ExitCode::kCoreError, "qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage is nullptr.");
-    //   }
-    //   auto status = qnn_htp_func_symbols_.qnn_interface_.backendRegisterOpPackage(context->bk_handle_, pkg.path.c_str(), pkg.interface_provider.c_str(), pkg.target.c_str());
-    //   MLLM_RT_ASSERT_EQ(status, QNN_BACKEND_NO_ERROR);
-    //   MLLM_INFO("QNN Registered op package: {}, interface provider: {}, target: {}", pkg.path, pkg.interface_provider, pkg.target);
-    // }
   }
   // clang-format on
 
@@ -585,18 +567,13 @@ void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std:
 
 QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
                                                            const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
-  // TODO Constant value should also use Static!!! And they can be pruned
   auto __qnn_tensor_name = v->name();
 
   bool __qnn_enable_static_weight = force_static_weight;
 
   // Check if this value want static qnn weight. The static qnn weight will be shared through one context in diff graphs!
-  if (v->tensor_.memType() == kGlobal || (v->tensor_.memType() <= kParams_End && v->tensor_.memType() >= kParams_Start)) {
+  if (v->tensor_.memType() == kGlobal || (v->tensor_.memType() <= kParams_End && v->tensor_.memType() >= kParams_Start)
+      || v->getAttr("constant")) {
     __qnn_enable_static_weight = true;
   }
 
@@ -618,13 +595,10 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
   // There has no Tensor in the cache.
   // Create Tensor and register it!.
   auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
-  if (__qnn_enable_static_weight) {
-    contexts_[qnn_context_name]->static_tensor_.insert({__qnn_tensor_name, ret});
-  } else {
-    contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.insert({__qnn_tensor_name, ret});
-  }
 
   return ret;
 }
+
+std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::getContext(const std::string& name) { return contexts_[name]; }
 
 }  // namespace mllm::qnn::aot

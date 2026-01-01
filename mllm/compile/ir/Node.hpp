@@ -191,6 +191,8 @@ class Attr : public Node {
 
 class Val : public Node, public DeviceInterface<Val> {
  public:
+  using ptr_t = val_ptr_t;
+
   ~Val() override;
   Val();
   explicit Val(const NodeKind& kind);

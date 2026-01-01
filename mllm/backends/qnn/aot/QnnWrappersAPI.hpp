@@ -107,6 +107,7 @@ class QnnAOTNodeOperation : public std::enable_shared_from_this<QnnAOTNodeOperat
   std::vector<QnnAOTNodeTensor::ptr_t> outputs;
 };
 
+struct QnnDeviceAndContext;
 class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
  public:
   using ptr_t = std::shared_ptr<QnnAOTGraph>;
@@ -127,6 +128,8 @@ class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
 };
 
 struct QnnDeviceAndContext {
+  using ptr_t = std::shared_ptr<QnnDeviceAndContext>;
+
   std::string name_;
   Qnn_LogHandle_t log_ = nullptr;
   Qnn_BackendHandle_t bk_handle_ = nullptr;
@@ -219,6 +222,8 @@ class QnnAOTEnv {
                                                   const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight = false);
 
   inline QnnFuncSymbols& getFuncSymbol() { return qnn_htp_func_symbols_; }
+
+  std::shared_ptr<QnnDeviceAndContext> getContext(const std::string& name);
 
  private:
   void _setup(const std::string& path = "");
