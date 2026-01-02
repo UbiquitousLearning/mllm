@@ -7,37 +7,7 @@ from pymllm.backends.qualcomm.transformers.core.qlinear import (
     QLinearLPBQ,
     QLinearW8A16_PerChannelSym_PerTensorSym,
 )
-
-
-# This settings below is for Qwen1.7B
-class Qwen3Config:
-    def __init__(self):
-        self.attention_bias = False
-        self.attention_dropout = 0.0
-        self.bos_token_id = 151643
-        self.eos_token_id = 151645
-        self.head_dim = 128
-        self.hidden_act = "silu"
-        self.hidden_size = 2048
-        self.initializer_range = 0.02
-        self.intermediate_size = 6144
-        self.max_position_embeddings = 40960
-        self.max_window_layers = 28
-        self.model_type = "qwen3"
-        self.num_attention_heads = 16
-        self.num_hidden_layers = 28
-        self.num_key_value_heads = 8
-        self.pad_token_id = 151643
-        self.rms_norm_eps = 1e-06
-        self.rope_scaling = None
-        self.rope_theta = 1000000
-        self.sliding_window = None
-        self.tie_word_embeddings = True
-        self.torch_dtype = "bfloat16"
-        self.transformers_version = "4.51.0"
-        self.use_cache = True
-        self.use_sliding_window = False
-        self.vocab_size = 151936
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
 def generate_rope_cache(
@@ -153,6 +123,13 @@ class Qwen3MLP(nn.Module):
         self.qdq_act = QDQ_OP["A16-PerTensor"]()
         self.qdq_middle = QDQ_OP["A16-PerTensor"]()
 
+    def freeze_observer(self):
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_observer()
+
     def forward(self, x):
         """
         input:
@@ -163,7 +140,7 @@ class Qwen3MLP(nn.Module):
         x = self.qdq_x(x)
         up_result = self.qdq_up_result(self.up_proj(x))
         gate_result = self.qdq_gate_result(self.gate_proj(x))
-        up_result = self.qdq_act(self.act_fn(up_result))
+        gate_result = self.qdq_act(self.act_fn(gate_result))
         o = self.qdq_middle(gate_result * up_result)
         o = self.down_proj(o)
         return o
@@ -236,6 +213,13 @@ class Qwen3Attention(nn.Module):
         self.k_cache = None
         self.v_cache = None
 
+    def freeze_observer(self):
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_observer()
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -258,6 +242,7 @@ class Qwen3Attention(nn.Module):
         query_states = (
             self.q_proj(quantized_hidden_states).view(hidden_shape).transpose(1, 2)
         )
+
         key_states = (
             self.k_proj(quantized_hidden_states).view(hidden_shape).transpose(1, 2)
         )
@@ -289,6 +274,9 @@ class Qwen3Attention(nn.Module):
             + self.qdq_rope_5(rot_k * sin_embedding)
         )
 
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+
         key_states = self.qdq_4(key_states)
         # [B, H, D, S]
         key_states = key_states.transpose(2, 3)
@@ -307,12 +295,11 @@ class Qwen3Attention(nn.Module):
             self.k_cache = key_states
             self.v_cache = value_states
 
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
-
         attn = query_states @ key_states
         attn = self.qdq_5(attn)
-        attn = attn / self.qdq_6(torch.ones(1, dtype=torch.bfloat16) * self.scaling)
+        attn = attn / self.qdq_6(
+            torch.ones(1, dtype=torch.bfloat16, device=attn.device) * self.scaling
+        )
         attn = self.qdq_7(attn)
         attn_min = torch.amin(attn, dim=-1, keepdim=True)
         attn_min = self.qdq_8(attn_min)
@@ -320,12 +307,17 @@ class Qwen3Attention(nn.Module):
         attn_vv = self.qdq_9(attn_vv)
         attn = torch.where(causal_mask == 0, attn, attn_vv)
         attn = self.qdq_10(attn)
-        attn = F.softmax(attn, -1)
+        attn = F.softmax(attn.to(torch.float32), -1).to(torch.bfloat16)
+        print(attn)
+        exit(0)
         attn = self.qdq_11(attn)
         y = attn @ value_states
         y = self.qdq_12(y)
         y = y.transpose(1, 2).reshape(bsz, seq_len, -1)
         y = self.o_proj(y)
+        print(y.shape)
+        print(y)
+        exit(0)
         return y
 
 
@@ -344,6 +336,17 @@ class Qwen3DecodeLayer(nn.Module):
         self.qdq_1 = QDQ_OP["A16-PerTensor"]()
         self.qdq_2 = QDQ_OP["A16-PerTensor"]()
         self.qdq_3 = QDQ_OP["A16-PerTensor"]()
+
+    def freeze_observer(self):
+        self.mlp.freeze_observer()
+        self.self_attn.freeze_observer()
+        self.input_layernorm.freeze_observer()
+        self.post_attention_layernorm.freeze_observer()
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_observer()
 
     def forward(
         self,
@@ -396,8 +399,18 @@ class Qwen3Model(nn.Module):
         self.norm = QRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.qdq_0 = QDQ_OP["A16-PerTensor"]()
 
+    def freeze_observer(self):
+        self.norm.freeze_observer()
+        for item in self.layers:
+            item.freeze_observer()
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_observer()
+
     def forward(self, input_ids, sin, cos, causal_mask):
-        inputs_embeds = self.embed_tokens(input_ids)
+        inputs_embeds = self.embed_tokens(input_ids).to(torch.bfloat16)
         hidden_states = inputs_embeds
 
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
@@ -407,8 +420,9 @@ class Qwen3Model(nn.Module):
         return hidden_states
 
 
-class Qwen3ForCausalLM:
+class Qwen3ForCausalLM(nn.Module):
     def __init__(self, config):
+        super().__init__()
         self.config = config
         self.model = Qwen3Model(config)
         self.vocab_size = config.vocab_size
@@ -422,6 +436,22 @@ class Qwen3ForCausalLM:
         # Register sin and cos as buffers
         self.register_buffer("sin", None)
         self.register_buffer("cos", None)
+
+    def freeze_observer(self):
+        self.model.freeze_observer()
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_observer()
+
+    def disable_fakequant(self):
+        # self.model.disable_fakequant()
+        for name, value in self.__dict__.items():
+            if isinstance(value, QDQ_OP["A16-PerTensor"]) or isinstance(
+                value, QDQ_OP["A8-PerTensor"]
+            ):
+                value.disable_fakequant()
 
     def forward(
         self,
@@ -466,18 +496,134 @@ class Qwen3ForCausalLM:
         logits = self.lm_head(self.qdq_0(out))
         return logits
 
-    def _update_kv_cache_by_copy(self):
-        pass
 
-    def _freeze_observer(self):
-        pass
+class Qwen3Quantizer:
+    def __init__(self):
+        # Other stuff
+        self.tokenizer: AutoTokenizer = None
+        self.model: Qwen3ForCausalLM = None
+        self.config: AutoConfig = None
 
-    def infer(self, model_path: str, prompt: str, max_length) -> str:
-        pass
+    def load_from_hf(self, model_path: str, verbose: bool = False):
+        self.config = AutoConfig.from_pretrained(model_path)
+        state_dict = AutoModelForCausalLM.from_pretrained(model_path).state_dict()
+        self.model = Qwen3ForCausalLM(self.config)
 
-    def calibrate(self, model_path: str, dataset_path: str):
+        # Check if all original weight is in state_dict
+        model_keys = set(self.model.state_dict().keys())
+        loaded_keys = set(state_dict.keys())
+
+        # 1. Keys present in model but missing in state_dict
+        missing_keys = model_keys - loaded_keys
+        if missing_keys and verbose:
+            print(
+                f"\n⚠️  Keys present in model but missing in state_dict ({len(missing_keys)} keys):"
+            )
+            for k in sorted(missing_keys):
+                print(f"   - {k}")
+
+        # 2. Keys present in state_dict but unexpected in model
+        unexpected_keys = loaded_keys - model_keys
+        if unexpected_keys:
+            print(
+                f"\n⚠️  Keys present in state_dict but unexpected in model ({len(unexpected_keys)} keys):"
+            )
+            for k in sorted(unexpected_keys):
+                print(f"   - {k}")
+
+        self.model.load_state_dict(state_dict, strict=False)
+        self.model.cuda()
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+    def infer(self, prompt: str, enable_fake_quant: bool = True) -> str:
         """
-        calibrate Only on PREFILL stage !!!
+        Generate response for the given prompt.
+
+        Args:
+            prompt: Input text prompt
+
+        Returns:
+            Generated text response
+        """
+        # Tokenize the input prompt
+        self.model.freeze_observer()
+        if not enable_fake_quant:
+            self.model.disable_fakequant()
+        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template:
+            formatted_prompt = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        else:
+            formatted_prompt = prompt
+        inputs = self.tokenizer(formatted_prompt, return_tensors="pt").to("cuda")
+        input_ids = inputs["input_ids"]
+        seq_len = input_ids.shape[1]
+
+        # Initialize position_ids
+        position_ids = torch.arange(seq_len, dtype=torch.long, device=input_ids.device)
+        position_ids = position_ids.unsqueeze(0)  # Add batch dimension
+
+        # Get max_length from config or use a default value
+        max_length = getattr(self.config, "max_position_embeddings", 2048)
+
+        # TODO remove this
+        max_length = 8
+
+        # Prefill stage: process the prompt and build KV cache
+        with torch.no_grad():
+            logits = self.model(
+                input_ids=input_ids,
+                position_ids=position_ids,
+                max_length=2048,
+            )
+
+        # Get the last token from prefill as the first generated token
+        next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+        generated_tokens = next_token.clone()
+
+        # Decode stage: generate tokens one by one using KV cache
+        while generated_tokens.shape[1] < max_length:
+            # Update position_ids for the new token
+            new_position_id = position_ids[:, -1] + 1
+            position_ids = new_position_id.unsqueeze(0)
+
+            with torch.no_grad():
+                logits = self.model(
+                    input_ids=next_token,
+                    position_ids=position_ids,
+                    max_length=max_length,
+                )
+
+            # Get next token (greedy decoding)
+            next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+
+            # Append generated token
+            generated_tokens = torch.cat([generated_tokens, next_token], dim=1)
+
+            # Stop if EOS token is generated
+            if next_token.item() == self.tokenizer.eos_token_id:
+                break
+
+        # Decode generated tokens to text
+        generated_text = self.tokenizer.decode(
+            generated_tokens[0], skip_special_tokens=True
+        )
+
+        return generated_text
+
+    def calibrate(self, dataset_path: str):
+        """
+        Calibrate Only on PREFILL stage !!!
         """
         # Call infer after calibrate done.
         pass
+
+
+if __name__ == "__main__":
+    quantizer = Qwen3Quantizer()
+    quantizer.load_from_hf("/mnt/user-ssd/shared_models/Qwen3-1.7B/")
+    result = quantizer.infer("hello")
+    print(result)

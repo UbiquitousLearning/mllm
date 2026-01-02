@@ -865,6 +865,7 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
   auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
   if (__qnn_enable_static_weight) {
     contexts_[qnn_context_name]->static_tensor_.insert({__qnn_tensor_name, ret});
+    // FIXME, That may be error.
     qnn_htp_func_symbols_.qnn_interface_.tensorCreateContextTensor(contexts_[qnn_context_name]->qnn_ctx_handle_,
                                                                    ret->getQnnTensor());
   } else {
