@@ -65,9 +65,7 @@ class Qwen3Quantizer:
         # conduct text completion
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=self.mllm_qualcomm_max_length
-            - len(model_inputs.input_ids[0])
-            - 1,
+            max_new_tokens=128 - len(model_inputs.input_ids[0]) - 1,
             do_sample=False,
             temperature=None,
             top_p=None,
@@ -125,6 +123,9 @@ class Qwen3Quantizer:
                 if samples_processed >= num_samples:
                     break
 
+                if len(entry["text"].strip()) < 1024:
+                    continue
+
                 messages = [{"role": "user", "content": entry["text"]}]
                 text = self.tokenizer.apply_chat_template(
                     messages,
@@ -132,9 +133,13 @@ class Qwen3Quantizer:
                     add_generation_prompt=True,
                     enable_thinking=False,  # Switches between thinking and non-thinking modes. Default is True.
                 )
-                model_inputs = self.tokenizer([text], return_tensors="pt").to(
-                    self.model.device
-                )
+                model_inputs = self.tokenizer(
+                    [text],
+                    return_tensors="pt",
+                    max_length=max_seq_length,
+                    truncation=True,
+                    padding=False,
+                ).to(self.model.device)
 
                 # Only need Prefill stage: directly call forward
                 # This will trigger observer update statistics in ActivationQDQ

@@ -202,9 +202,11 @@ class Qwen3Attention(nn.Module):
         self.k_rope_add_0_output_qdq = ActivationQDQ(bits=16)
         self.k_cast_to_int8_qdq = ActivationQDQ(bits=8)
         self.v_cast_to_int8_qdq = ActivationQDQ(bits=8)
+        self.v_cast_to_int16_qdq = ActivationQDQ(bits=16)
         self.qk_matmul_output_qdq = ActivationQDQ(bits=16)
         self.scaling_qdq = ActivationQDQ(bits=16)
         self.reduce_min_output_qdq = ActivationQDQ(bits=16)
+        self.mul_0_output_qdq = ActivationQDQ(bits=16)
         self.minus_0_output_qdq = ActivationQDQ(bits=16)
         self.softmax_output_qdq = ActivationQDQ(bits=16)
         self.attn_value_matmul_output_qdq = ActivationQDQ(bits=16)
@@ -248,7 +250,7 @@ class Qwen3Attention(nn.Module):
         )
 
         key_states = self.k_cast_to_int8_qdq(key_states)
-        value_states = self.v_cast_to_int8_qdq(value_states)
+        value_states = self.v_cast_to_int8_qdq(self.v_cast_to_int16_qdq(value_states))
 
         if past_key_values is not None:
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
@@ -260,11 +262,14 @@ class Qwen3Attention(nn.Module):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = self.qk_matmul_output_qdq(
-            torch.matmul(query_states, key_states.transpose(2, 3))
-        ) * self.scaling_qdq(
-            torch.ones(1, dtype=torch.bfloat16, device=value_states.device)
-            * self.scaling
+        attn_weights = self.mul_0_output_qdq(
+            self.qk_matmul_output_qdq(
+                torch.matmul(query_states, key_states.transpose(2, 3))
+            )
+            * self.scaling_qdq(
+                torch.ones(1, dtype=torch.bfloat16, device=value_states.device)
+                * self.scaling
+            )
         )
 
         attn_min = self.reduce_min_output_qdq(
@@ -444,6 +449,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
         self.register_buffer("mllm_max_cos_embedding", None)
         self.sin_embedding_input_qdq = ActivationQDQ(bits=16)
         self.cos_embedding_input_qdq = ActivationQDQ(bits=16)
+        self.norm_input_qdq = ActivationQDQ(bits=16)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -560,7 +566,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
                 **kwargs,
             )
 
-        hidden_states = self.norm(hidden_states)
+        hidden_states = self.norm(self.norm_input_qdq(hidden_states))
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values if use_cache else None,
@@ -581,6 +587,9 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
             config.hidden_size, config.vocab_size, bias=False
         )
         self.mllm_qualcomm_max_length = None
+
+        self.lm_head_input_qdq = ActivationQDQ(bits=16)
+        self.lm_head_output_qdq = ActivationQDQ(bits=16)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -641,7 +650,10 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
             if isinstance(logits_to_keep, int)
             else logits_to_keep
         )
-        logits = self.lm_head(hidden_states[:, slice_indices, :])
+        logits = self.lm_head(
+            self.lm_head_input_qdq(hidden_states[:, slice_indices, :])
+        )
+        logits = self.lm_head_output_qdq(logits)
 
         loss = None
         if labels is not None:

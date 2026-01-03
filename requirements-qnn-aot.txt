@@ -1,1 +1,4 @@
 addict==2.4.0
+modelscope==1.33.0
+datasets==2.21.0
+transformers==4.57.3
