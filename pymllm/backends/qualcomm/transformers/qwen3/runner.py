@@ -65,7 +65,9 @@ class Qwen3Quantizer:
         # conduct text completion
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=128 - len(model_inputs.input_ids[0]) - 1,
+            max_new_tokens=self.mllm_qualcomm_max_length
+            - len(model_inputs.input_ids[0])
+            - 1,
             do_sample=False,
             temperature=None,
             top_p=None,

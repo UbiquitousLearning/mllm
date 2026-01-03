@@ -17,6 +17,7 @@ from typing import Callable, Optional, Union
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache
@@ -68,7 +69,6 @@ class Qwen3MLP(nn.Module):
         self.down_proj = QLinearLPBQ(
             self.intermediate_size, self.hidden_size, bias=False, block_size=32
         )
-        self.act_fn = ACT2FN[config.hidden_act]
 
         # QDQ
         self.up_proj_input_qdq = ActivationQDQ(bits=16)
@@ -76,12 +76,18 @@ class Qwen3MLP(nn.Module):
         self.gate_proj_output_qdq = ActivationQDQ(bits=16)
         self.act_output_qdq = ActivationQDQ(bits=16)
         self.down_proj_input_qdq = ActivationQDQ(bits=16)
+        self.sigmoid_output_qdq = ActivationQDQ(bits=16)
 
     def forward(self, x):
         x = self.up_proj_input_qdq(x)
         up_result = self.up_proj_output_qdq(self.up_proj(x))
         gate_result = self.gate_proj_output_qdq(self.gate_proj(x))
-        gate_result = self.act_output_qdq(self.act_fn(gate_result))
+
+        # SiLU
+        gate_result = self.act_output_qdq(
+            gate_result * self.sigmoid_output_qdq(F.sigmoid(gate_result))
+        )
+
         o = self.down_proj_input_qdq(gate_result * up_result)
         o = self.down_proj(o)
         return o
