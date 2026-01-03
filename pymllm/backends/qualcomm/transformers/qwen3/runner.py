@@ -52,6 +52,13 @@ class Qwen3Quantizer:
     def enable_activation_update(self):
         self.model.apply(enable_qdq_observer)
 
+    def compile(self):
+        print("Compile Start.")
+        self.model = torch.compile(
+            self.model, mode="reduce-overhead", fullgraph=False, backend="inductor"
+        )
+        print("Compile done.")
+
     def infer(self, prompt: str):
         messages = [{"role": "user", "content": prompt}]
         text = self.tokenizer.apply_chat_template(
