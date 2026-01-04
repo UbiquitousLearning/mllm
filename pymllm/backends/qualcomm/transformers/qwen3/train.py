@@ -1,4 +1,5 @@
 import os
+import torch
 import argparse
 from safetensors.torch import save_model
 from pymllm.backends.qualcomm.transformers.qwen3.runner import Qwen3Quantizer
@@ -39,6 +40,9 @@ def main():
     m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
     # m.compile()
     m.infer(args.infer_text)
+    m.model.lm_head.weight = torch.nn.Parameter(
+        m.model.model.embed_tokens.weight.clone()
+    )
 
     os.makedirs(args.output_dir, exist_ok=True)
     model_save_path = os.path.join(args.output_dir, "model.safetensors")

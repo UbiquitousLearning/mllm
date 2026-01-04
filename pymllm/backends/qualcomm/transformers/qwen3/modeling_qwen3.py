@@ -206,11 +206,19 @@ class Qwen3Attention(nn.Module):
         self.k_rope_mul_0_output_qdq = ActivationQDQ(bits=16)
         self.k_rope_mul_1_output_qdq = ActivationQDQ(bits=16)
         self.k_rope_add_0_output_qdq = ActivationQDQ(bits=16)
-        self.k_cast_to_int8_qdq = ActivationQDQ(bits=8)
-        self.v_cast_to_int8_qdq = ActivationQDQ(bits=8)
+
+        # In qnn, is uint8 sym.
+        self.k_cast_to_int8_qdq = ActivationQDQ(
+            bits=8, qscheme=torch.per_tensor_symmetric
+        )
+        self.v_cast_to_int8_qdq = ActivationQDQ(
+            bits=8, qscheme=torch.per_tensor_symmetric
+        )
+
         self.v_cast_to_int16_qdq = ActivationQDQ(bits=16)
         self.qk_matmul_output_qdq = ActivationQDQ(bits=16)
         self.scaling_qdq = ActivationQDQ(bits=16)
+        self.neg_20_qdq = ActivationQDQ(bits=16)
         self.reduce_min_output_qdq = ActivationQDQ(bits=16)
         self.mul_0_output_qdq = ActivationQDQ(bits=16)
         self.minus_0_output_qdq = ActivationQDQ(bits=16)
@@ -281,7 +289,12 @@ class Qwen3Attention(nn.Module):
         attn_min = self.reduce_min_output_qdq(
             torch.amin(attn_weights, dim=-1, keepdim=True)
         )
-        attn_vv = self.minus_0_output_qdq(attn_min - 20)
+        attn_vv = self.minus_0_output_qdq(
+            attn_min
+            + self.neg_20_qdq(
+                torch.ones(1, dtype=torch.bfloat16, device=value_states.device) * (-20)
+            )
+        )
         attn_weights = torch.where(attention_mask == 0, attn_weights, attn_vv)
 
         attn_weights = self.softmax_output_qdq(
@@ -589,8 +602,8 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = Qwen3Model(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = QLinearW8A16_PerChannelSym(
-            config.hidden_size, config.vocab_size, bias=False
+        self.lm_head = QLinearLPBQ(
+            config.hidden_size, config.vocab_size, bias=False, block_size=32
         )
         self.mllm_qualcomm_max_length = None
 

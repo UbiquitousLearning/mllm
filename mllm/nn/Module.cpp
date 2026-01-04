@@ -22,7 +22,7 @@ void ModuleImpl::load(const ParameterFile::ptr_t& param_file) {
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->load(param_file); break;
     }
   }
-  resources_mapped_files_.push_back(param_file->getMappedFile());
+  resources_mapped_files_.push_back(param_file);
 }
 
 ParameterFile::ptr_t ModuleImpl::params(ModelFileVersion v) {
@@ -75,6 +75,11 @@ Tensor ModuleImpl::getBuffer(const std::string& name) { return buffer_[name]; }
 
 void ModuleImpl::updateBuffer(const std::string& name, const Tensor& tensor) { buffer_[name] = tensor; }
 
+ParameterFile::ptr_t ModuleImpl::getTopParameterFile() {
+  if (resources_mapped_files_.empty()) { return nullptr; }
+  return resources_mapped_files_.back();
+}
+
 Module::Module() {
   impl_ = std::make_shared<ModuleImpl>();
   impl()->setName("");
@@ -92,6 +97,8 @@ Module::Module(const std::string& name) {
 ModuleImpl::ptr_t Module::impl() const { return impl_; }
 
 void Module::to(DeviceTypes device_type) { impl()->to(device_type); }
+
+ParameterFile::ptr_t Module::getTopParameterFile() { return impl_->getTopParameterFile(); }
 
 void Module::load(const ParameterFile::ptr_t& param_file) { impl_->load(param_file); }
 

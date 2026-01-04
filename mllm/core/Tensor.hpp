@@ -175,6 +175,8 @@ class Tensor {
    */
   static Tensor empty(const std::vector<int32_t>& shape, DataTypes dtype = kFloat32, DeviceTypes device = kCPU);
 
+  static Tensor constant(float x, DataTypes dtype = kFloat32, DeviceTypes device = kCPU);
+
   /**
    * @brief Creates an uninitialized tensor with the same shape and attributes as another tensor.
    *
@@ -289,6 +291,10 @@ class Tensor {
   Tensor add(float rhs, DataTypes data_type = kFloat32);
   Tensor sub(float rhs, DataTypes data_type = kFloat32);
   Tensor mul(float rhs, DataTypes data_type = kFloat32);
+
+  Tensor addConstant(Tensor rhs);
+  Tensor subConstant(Tensor rhs);
+  Tensor mulConstant(Tensor rhs);
 
   /// @name Scalar Operations with complex rhs type
   /// Element-wise operations with complex rhs type scalar values.
@@ -692,16 +698,15 @@ class Tensor {
     return *(const_cast<Tensor*>(this)->offsettedPtr<T>(offsets));
   }
 
-  [[nodiscard]] std::unordered_map<std::string, TensorViewImpl::ptr_t>& attachedViews() { return attached_views_; }
+  [[nodiscard]] std::unordered_map<std::string, TensorViewImpl::ptr_t>& attachedViews() { return impl_->attachedViews(); }
 
-  void attach(const std::string& name, const TensorViewImpl::ptr_t& view) { attached_views_[name] = view; }
+  void attach(const std::string& name, const TensorViewImpl::ptr_t& view) { impl_->attachedViews()[name] = view; }
 
  private:
   template<typename T>
   friend __LinkedTensor operator<<(const Tensor& t, T first);
 
   std::shared_ptr<TensorViewImpl> impl_ = nullptr;
-  std::unordered_map<std::string, TensorViewImpl::ptr_t> attached_views_;
 };
 
 template<typename T>

@@ -32,12 +32,12 @@ namespace mllm {
 
 void Tensor::operator delete(void* ptr) noexcept {
   ((Tensor*)ptr)->impl_.reset();
-  for (auto& [a, _] : ((Tensor*)ptr)->attached_views_) { ((Tensor*)ptr)->attached_views_[a].reset(); }
+  for (auto& [a, _] : ((Tensor*)ptr)->impl_->attachedViews()) { ((Tensor*)ptr)->impl_->attachedViews()[a].reset(); }
 }
 
 void Tensor::delete_() noexcept {
   this->impl_.reset();
-  for (auto& [a, _] : this->attached_views_) { this->attached_views_[a].reset(); }
+  for (auto& [a, _] : this->impl_->attachedViews()) { this->impl_->attachedViews()[a].reset(); }
 }
 
 /**
@@ -75,6 +75,21 @@ Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceT
   return Tensor(impl);
 }
 
+Tensor Tensor::constant(float x, DataTypes dtype, DeviceTypes device) {
+  auto rhs_tensor = Tensor::empty({1}, dtype, device).alloc();
+  switch (dtype) {
+    case kFloat32: *(rhs_tensor.ptr<float>()) = x; break;
+    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(x); break;
+    case kInt32: *(rhs_tensor.ptr<int32_t>()) = x; break;
+    case kInt16: *(rhs_tensor.ptr<int16_t>()) = x; break;
+    case kInt8: *(rhs_tensor.ptr<int8_t>()) = x; break;
+    case kInt16PerTensorSym: *(rhs_tensor.ptr<int16_t>()) = x; break;
+    case kUInt16PerTensorAsy: *(rhs_tensor.ptr<int16_t>()) = x; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return rhs_tensor;
+}
+
 Tensor Tensor::emptyLike(const Tensor& liked_tensor) {
   auto ret = Tensor::empty(liked_tensor.shape(), liked_tensor.dtype(), liked_tensor.device());
   return ret;
@@ -82,16 +97,16 @@ Tensor Tensor::emptyLike(const Tensor& liked_tensor) {
 
 Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const std::vector<int32_t>& shape, DataTypes dtype,
                                      DeviceTypes device) {
-  MLLM_RT_ASSERT_EQ(attached_views_.count(extra_tensor_name), 0);
+  MLLM_RT_ASSERT_EQ(impl_->attachedViews().count(extra_tensor_name), 0);
   auto storage = TensorStorage::create(shape, dtype, device);
   auto impl = TensorViewImpl::create(shape, storage);
-  attached_views_.insert({extra_tensor_name, impl});
+  impl_->attachedViews().insert({extra_tensor_name, impl});
   return *this;
 }
 
 Tensor Tensor::getExtraTensorViewInTensor(const std::string& extra_tensor_name) {
-  MLLM_RT_ASSERT_EQ(attached_views_.count(extra_tensor_name), 1);
-  return Tensor(attached_views_.at(extra_tensor_name));
+  MLLM_RT_ASSERT_EQ(impl_->attachedViews().count(extra_tensor_name), 1);
+  return Tensor(impl_->attachedViews().at(extra_tensor_name));
 }
 
 Tensor Tensor::zeros(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
@@ -273,6 +288,27 @@ Tensor Tensor::mul(float rhs, DataTypes data_type) {
   opts.setInputsConstant(0, 0);
   opts.setInputsConstant(1, 1);
   return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs_tensor})[0];
+}
+
+Tensor Tensor::addConstant(Tensor rhs) {
+  auto opts = aops::AddOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, opts, {*this, rhs})[0];  // NOLINT
+}
+
+Tensor Tensor::subConstant(Tensor rhs) {
+  auto opts = aops::SubOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, opts, {*this, rhs})[0];  // NOLINT
+}
+
+Tensor Tensor::mulConstant(Tensor rhs) {
+  auto opts = aops::MulOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, opts, {*this, rhs})[0];  // NOLINT
 }
 
 Tensor Tensor::operator/(float rhs) {
@@ -485,14 +521,14 @@ size_t Tensor::hash() const {
   std::vector<uint32_t> heap_buf;
 
   auto* buf = stack_buf;
-  size_t count = 1 + attached_views_.size();
+  size_t count = 1 + impl_->attachedViews().size();
   if (count > kStackCap) {
     heap_buf.resize(count);
     buf = heap_buf.data();
   }
   buf[0] = uuid();
   size_t idx = 1;
-  for (const auto& [_, view] : attached_views_) { buf[idx++] = view ? view->uuid() : 0u; }
+  for (const auto& [_, view] : impl_->attachedViews()) { buf[idx++] = view ? view->uuid() : 0u; }
   return XXH64(buf, count * sizeof(uint32_t), 0);
 }
 

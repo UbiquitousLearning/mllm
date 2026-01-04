@@ -21,4 +21,8 @@ void AOTCompileContext::setConfig(const std::string& fp) {
 
 nlohmann::json& AOTCompileContext::getConfig() { return config_; }
 
+void AOTCompileContext::setParamFile(const ParameterFile::ptr_t& params) { params_ = params; }
+
+ParameterFile::ptr_t AOTCompileContext::getParamFile() { return params_; }
+
 }  // namespace mllm::qnn::aot

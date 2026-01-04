@@ -41,14 +41,12 @@ MLLM_MAIN({
   // Gen sin and cos
   {
     auto inv = mllm::models::qwen3::makeRoPEInvFreq(model_cfg.head_dim, model_cfg.rope_theta);
-    auto position_ids = mllm::Tensor::empty({1, CL}, mllm::kInt64, mllm::kCPU).alloc();
-    auto position_ids_ptr = position_ids.ptr<int64_t>();
-    for (int b = 0; b < 1; ++b) {
-      for (int s = 0; s < CL; ++s) { position_ids_ptr[b * CL + s] = s; }
-    }
+    auto position_ids = mllm::Tensor::empty({CL}, mllm::kInt32, mllm::kCPU).alloc();
+    auto position_ids_ptr = position_ids.ptr<int32_t>();
+    for (int s = 0; s < CL; ++s) { position_ids_ptr[s] = s; }
     auto [rope_sin, rope_cos] = mllm::models::qwen3::makeRotaryPosEmbedding(position_ids, inv, 1.f);
-    params->push("rope_sin", rope_sin.to(mllm::kInt16PerTensorSym));
-    params->push("rope_cos", rope_cos.to(mllm::kInt16PerTensorSym));
+    params->push("rope_sin", rope_sin.to(mllm::kUInt16PerTensorSym).setMemType(mllm::kParamsNormal).setName("rope_sin"));
+    params->push("rope_cos", rope_cos.to(mllm::kUInt16PerTensorSym).setMemType(mllm::kParamsNormal).setName("rope_cos"));
   }
   model.load(params);
 
@@ -56,7 +54,7 @@ MLLM_MAIN({
   // past_key_i: [B, H, D, CL-N] for each layer i
   // past_value_i: [B, H, CL-N, D] for each layer i
   // causal_mask: [B, 1, N, CL]
-  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt64);
+  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
   auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
 
   // Create KV cache inputs for all layers
@@ -75,7 +73,7 @@ MLLM_MAIN({
         model_cfg.head_dim,
         CL - N,
     }, mllm::kInt8PerTensorSym);
-    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kInt8PerTensorSym);
+    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
     // clang-format on
   }
 

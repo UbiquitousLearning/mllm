@@ -290,6 +290,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("RadixAttnSwaSinkOp"))
     op.derive(Cls("EqualOp"))
     op.derive(Cls("WhereOp"))
+    op.derive(Cls("SigmoidOp"))
 
     # customized ops
     op.derive(Cls("CustomizedOp"))

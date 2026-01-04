@@ -33,6 +33,32 @@ ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
     const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t& from);
 
 //===----------------------------------------------------------------------===//
+// Sigmoid Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeSigmoidPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeSigmoidPattern> create() {
+    return std::make_shared<LLMQuantRecipeSigmoidPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// Negative Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeNegPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeNegPattern> create() { return std::make_shared<LLMQuantRecipeNegPattern>(); }
+};
+
+//===----------------------------------------------------------------------===//
 // ReduceMin Pattern
 //===----------------------------------------------------------------------===//
 class LLMQuantRecipeReduceMinPattern : public ir::Pattern {
@@ -108,6 +134,18 @@ class LLMQuantRecipeIndexPattern : public ir::Pattern {
   bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
 
   static inline std::shared_ptr<LLMQuantRecipeIndexPattern> create() { return std::make_shared<LLMQuantRecipeIndexPattern>(); }
+};
+
+//===----------------------------------------------------------------------===//
+// Slice Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeSlicePattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeSlicePattern> create() { return std::make_shared<LLMQuantRecipeSlicePattern>(); }
 };
 
 //===----------------------------------------------------------------------===//
