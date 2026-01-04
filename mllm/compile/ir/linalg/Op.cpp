@@ -54,6 +54,7 @@ LINALG_AOPS_DECL(OpTypes::kSoftmax, SoftmaxOp);
 LINALG_AOPS_DECL(OpTypes::kTranspose, TransposeOp);
 LINALG_AOPS_DECL(OpTypes::kRMSNorm, RMSNormOp);
 LINALG_AOPS_DECL(OpTypes::kSiLU, SiLUOp);
+LINALG_AOPS_DECL(OpTypes::kSigmoid, SigmoidOp);
 
 LINALG_AOPS_DECL(OpTypes::kCastType, CastTypeOp);
 

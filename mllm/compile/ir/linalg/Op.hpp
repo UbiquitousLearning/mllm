@@ -28,6 +28,7 @@ class ISTFTOp;
 class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
+class SigmoidOp;
 class CausalMaskOp;
 class CastTypeOp;
 class X2XOp;
@@ -185,6 +186,7 @@ LINALG_AOPS_DEFINE(SoftmaxOp, SOFTMAXOP);
 LINALG_AOPS_DEFINE(TransposeOp, TRANSPOSEOP);
 LINALG_AOPS_DEFINE(RMSNormOp, RMSNORMOP);
 LINALG_AOPS_DEFINE(SiLUOp, SILUOP);
+LINALG_AOPS_DEFINE(SigmoidOp, SIGMOIDOP);
 
 LINALG_AOPS_DEFINE(CastTypeOp, CASTTYPEOP);
 
