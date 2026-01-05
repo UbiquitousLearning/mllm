@@ -181,7 +181,7 @@ void recursiveSolveNormal(const std::shared_ptr<ir::IRContext>& ir_ctx, const ir
       auto outputs = op->outputs();
 
       for (auto iii : inputs) { __recursiveSolveNormalImpl(iii->cast_<ir::Val>()); }
-      for (auto ooo : inputs) { __recursiveSolveNormalImpl(ooo->cast_<ir::Val>()); }
+      for (auto ooo : outputs) { __recursiveSolveNormalImpl(ooo->cast_<ir::Val>()); }
     }
 
     if (op->isa_<ir::graph::CallGraphOp>()) {
