@@ -298,6 +298,129 @@ bool freeQnnTensors(Qnn_Tensor_t*& tensors, uint32_t numTensors) {
 }
 
 // --------------- QNN Wrapper ---------------
+
+Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
+  Qnn_DataType_t ret = QNN_DATATYPE_UNDEFINED;
+  switch (dtype) {
+    case kInt8: {
+      ret = QNN_DATATYPE_INT_8;
+      break;
+    }
+    case kInt16: {
+      ret = QNN_DATATYPE_INT_16;
+      break;
+    }
+    case kInt32: {
+      ret = QNN_DATATYPE_INT_32;
+      break;
+    }
+    case kInt64: {
+      ret = QNN_DATATYPE_INT_64;
+      break;
+    }
+    case kUInt8: {
+      ret = QNN_DATATYPE_UINT_8;
+      break;
+    }
+    case kUInt16: {
+      ret = QNN_DATATYPE_UINT_16;
+      break;
+    }
+    case kUInt32: {
+      ret = QNN_DATATYPE_UINT_32;
+      break;
+    }
+    case kUInt64: {
+      ret = QNN_DATATYPE_UINT_64;
+      break;
+    }
+    case kFloat16: {
+      ret = QNN_DATATYPE_FLOAT_16;
+      break;
+    }
+    case kFloat32: {
+      ret = QNN_DATATYPE_FLOAT_32;
+      break;
+    }
+    // case kBFloat16: {
+    //   ret = QNN_DATATYPE_BFLOAT_16;
+    //   break;
+    // }
+    // FIXME: Maybe error here.
+    case kInt4: {
+      ret = QNN_DATATYPE_SFIXED_POINT_4;
+      break;
+    }
+    case kUInt4: {
+      ret = QNN_DATATYPE_UFIXED_POINT_4;
+      break;
+    }
+    case kInt8PerTensorSym:
+    case kInt8PerTensorAsy:
+    case kInt8PerChannelAsy:
+    case kInt8PerChannelSym: {
+      ret = QNN_DATATYPE_SFIXED_POINT_8;
+      break;
+    }
+    case kUInt8PerTensorSym:
+    case kUInt8PerTensorAsy:
+    case kUInt8PerChannelAsy:
+    case kUInt8PerChannelSym: {
+      ret = QNN_DATATYPE_UFIXED_POINT_8;
+      break;
+    }
+    case kInt16PerTensorSym:
+    case kInt16PerTensorAsy:
+    case kInt16PerChannelSym:
+    case kInt16PerChannelAsy: {
+      ret = QNN_DATATYPE_SFIXED_POINT_16;
+      break;
+    }
+    case kUInt16PerTensorSym:
+    case kUInt16PerTensorAsy:
+    case kUInt16PerChannelSym:
+    case kUInt16PerChannelAsy: {
+      ret = QNN_DATATYPE_UFIXED_POINT_16;
+      break;
+    }
+    default: {
+      MLLM_ERROR("Can't parse datatype: {}", nameOfType(dtype));
+      ret = QNN_DATATYPE_UNDEFINED;
+    }
+  }
+  return ret;
+}
+
+size_t qnnDataTypeToSize(Qnn_DataType_t dtype) {
+  switch (dtype) {
+    case QNN_DATATYPE_INT_8:
+    case QNN_DATATYPE_UINT_8:
+    case QNN_DATATYPE_BOOL_8:
+    case QNN_DATATYPE_SFIXED_POINT_8:
+    case QNN_DATATYPE_UFIXED_POINT_8: return 1;
+
+    case QNN_DATATYPE_INT_16:
+    case QNN_DATATYPE_UINT_16:
+    case QNN_DATATYPE_FLOAT_16:
+    case QNN_DATATYPE_SFIXED_POINT_16:
+    case QNN_DATATYPE_UFIXED_POINT_16: return 2;
+
+    case QNN_DATATYPE_INT_32:
+    case QNN_DATATYPE_UINT_32:
+    case QNN_DATATYPE_FLOAT_32:
+    case QNN_DATATYPE_SFIXED_POINT_32:
+    case QNN_DATATYPE_UFIXED_POINT_32: return 4;
+
+    case QNN_DATATYPE_INT_64:
+    case QNN_DATATYPE_UINT_64: return 8;
+
+    default:
+      MLLM_ERROR("qnnDataTypeToSize: unsupported Qnn_DataType_t {}", static_cast<int>(dtype));
+      MLLM_RT_ASSERT(false);
+      return 0;
+  }
+}
+
 QNNTensorWrapper::QNNTensorWrapper(const std::string& name, Qnn_TensorType_t type, Qnn_DataType_t dataType,
                                    const std::vector<uint32_t>& dimensions, Qnn_QuantizeParams_t quantize) {
   name_ = name;
@@ -328,16 +451,7 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   MLLM_RT_ASSERT(!name.empty());
   if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
 
-  Qnn_DataType_t dataType = QNN_DATATYPE_UNDEFINED;
-  switch (tensor.dtype()) {
-    case kFloat32: dataType = QNN_DATATYPE_FLOAT_32; break;
-    case kFloat16: dataType = QNN_DATATYPE_FLOAT_16; break;
-    case kInt8: dataType = QNN_DATATYPE_SFIXED_POINT_8; break;
-    case kInt16: dataType = QNN_DATATYPE_SFIXED_POINT_16; break;
-    case kInt32: dataType = QNN_DATATYPE_SFIXED_POINT_32; break;
-    case kUInt8: dataType = QNN_DATATYPE_UFIXED_POINT_8; break;
-    default: MLLM_ERROR("Unsupported tensor element type for QNN: {}", (int)tensor.dtype()); break;
-  }
+  Qnn_DataType_t dataType = mllmDataTypeToQnnDataType(tensor.dtype());
 
   std::vector<uint32_t> dimensions(tensor.rank());
   for (int i = 0; i < tensor.rank(); i++) { dimensions[i] = tensor.shape()[i]; }
@@ -371,70 +485,44 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std
 }
 
 void QNNTensorWrapper::alloc() {
+  if (isAlloc_) {
+    MLLM_WARN("Tensor {} has already been allocated.", name_);
+    return;
+  }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
 
-  void* currentPtr = dataContainer_.impl()->ptr<void>();
-  if (!currentPtr) {
-    dataContainer_.alloc();
-    currentPtr = dataContainer_.ptr<void>();
-  }
+  // if storage is not allocated, allocate it
+  // or, register the existing storage to QNN(passing allocated input to QNN)
+  if (!dataContainer_.impl()->ptr<void>()) { dataContainer_.alloc(); }
 
-  auto allocator = std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator());
+  std::static_pointer_cast<QNNAllocator>(Context::instance().getBackend(kQNN)->allocator())
+      ->registerQnnTensorToSharedBuffer(dataContainer_.ptr<void>(), qnnTensor_);
 
-  auto storage = dataContainer_.impl()->storage();
-  MLLM_RT_ASSERT(storage != nullptr);
-
-  size_t requiredBytes = dataContainer_.bytes();
-
-  // Check if we have a previously registered buffer pointer
-  // This handles the case where tensor dimensions change (e.g., in decode phase)
-  // and the existing registered buffer is too small
-  if (registeredPtr_) {
-    // Verify that the registered buffer is still valid
-    if (!allocator->isRegistered(registeredPtr_)) {
-      // Buffer was de-registered, clear the reference
-      registeredPtr_ = nullptr;
-      isAlloc_ = false;
-    } else {
-      // Check if the registered buffer is large enough for current requirements
-      // If not, we need to de-register it and allocate a new one
-      size_t registeredBytes = allocator->getRegisteredBufferSize(registeredPtr_);
-      if (registeredBytes > 0 && registeredBytes < requiredBytes) {
-        // Registered buffer is too small, de-register it
-        // A new buffer will be allocated and registered below
-        allocator->deRegisterQnnTensorFromSharedBuffer(registeredPtr_);
-        registeredPtr_ = nullptr;
-        isAlloc_ = false;
-      }
-    }
-  }
-
-  if (registeredPtr_ && registeredPtr_ != storage->ptr_) {
-    if (!allocator->isRegistered(registeredPtr_)) {
-      registeredPtr_ = nullptr;
-    } else {
-      void* freshPtr = storage->ptr_;
-      size_t bytesToCopy = dataContainer_.bytes();
-      if (freshPtr && bytesToCopy > 0) { std::memcpy(registeredPtr_, freshPtr, bytesToCopy); }
-      if (freshPtr) { allocator->free(storage.get()); }
-      storage->ptr_ = registeredPtr_;
-      currentPtr = registeredPtr_;
-    }
-  }
-
-  if (isAlloc_ && registeredPtr_ == currentPtr) { return; }
-
-  if (!allocator->registerQnnTensorToSharedBuffer(storage.get(), qnnTensor_)) {
-    MLLM_ERROR("QNNTensorWrapper::alloc failed to register shared buffer for tensor {}", name_);
-    // Fail fast: prevent executing graph with invalid mem handle
-    MLLM_RT_ASSERT(false);
-  }
-
-  registeredPtr_ = storage->ptr_;
   isAlloc_ = true;
 }
 
-void QNNTensorWrapper::resetAlloc() { isAlloc_ = false; }
+void QNNTensorWrapper::setScaleOffsetQuantization(const std::vector<Qnn_ScaleOffset_t>& scaleOffsets, int32_t axis) {
+  scaleOffsets_ = scaleOffsets;
+  qnnTensor_.v2.quantizeParams.encodingDefinition = QNN_DEFINITION_DEFINED;
+  qnnTensor_.v2.quantizeParams.quantizationEncoding = QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET;
+  qnnTensor_.v2.quantizeParams.axisScaleOffsetEncoding = Qnn_AxisScaleOffset_t{
+      .axis = axis,
+      .numScaleOffsets = (uint32_t)scaleOffsets_.size(),
+      .scaleOffset = scaleOffsets_.data(),
+  };
+}
+
+void QNNTensorWrapper::setBlockwiseQuantization(const Qnn_BlockwiseExpansion_t& blockwise,
+                                                const std::vector<Qnn_ScaleOffset_t>& scaleOffsets) {
+  scaleOffsets_ = scaleOffsets;
+  blockwiseExpansion_ = blockwise;
+
+  blockwiseExpansion_.scaleOffsets = scaleOffsets_.data();
+
+  qnnTensor_.v2.quantizeParams.encodingDefinition = QNN_DEFINITION_DEFINED;
+  qnnTensor_.v2.quantizeParams.quantizationEncoding = QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION;
+  qnnTensor_.v2.quantizeParams.blockwiseExpansion = &blockwiseExpansion_;
+}
 
 void QNNTensorWrapper::initFromQnnTensor(Qnn_Tensor_t* qnnTensor) {
   if (qnnTensor == nullptr) {
@@ -493,7 +581,7 @@ QNNParamTensorWrapper::~QNNParamTensorWrapper() {
   free(QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data);
 }
 void* QNNParamTensorWrapper::alloc() {
-  uint32_t dataSize = QNNDataTypeToSize.find(QNN_TENSOR_GET_DATA_TYPE(qnnParam_.tensorParam))->second;
+  uint32_t dataSize = qnnDataTypeToSize(QNN_TENSOR_GET_DATA_TYPE(qnnParam_.tensorParam));
   for (int i = 0; i < QNN_TENSOR_GET_RANK(qnnParam_.tensorParam); i++) { dataSize *= qnnParam_.tensorParam.v2.dimensions[i]; }
   Qnn_ClientBuffer_t clientBuffer = {.data = malloc(dataSize), .dataSize = dataSize};
   QNN_TENSOR_SET_CLIENT_BUF(qnnParam_.tensorParam, clientBuffer);

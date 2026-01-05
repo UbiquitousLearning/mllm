@@ -13,6 +13,14 @@ file(GLOB MLLM_QNN_SRC
     
 )
 
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  file(GLOB_RECURSE MLLM_QUALCOMM_AOT_SRC 
+    ${CMAKE_CURRENT_LIST_DIR}/aot/*.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/aot/*.cpp
+  )
+  list(APPEND MLLM_QNN_SRC ${MLLM_QUALCOMM_AOT_SRC})
+endif()
+
 add_library(
     MllmQNNBackend
     SHARED
@@ -20,11 +28,11 @@ add_library(
 )
 
 target_include_directories(MllmQNNBackend PUBLIC
-    $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
+    $ENV{QAIRT_SDK_ROOT}/include/QNN # QNN SDK include
     ${MLLM_INCLUDE_DIR}
 )
 
-message(STATUS "QNN SDK root: $ENV{QNN_SDK_ROOT}")
+message(STATUS "QNN SDK root: $ENV{QAIRT_SDK_ROOT}")
 
 get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories

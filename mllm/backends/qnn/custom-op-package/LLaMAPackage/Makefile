@@ -1,15 +1,15 @@
 # check all setup prerequisites if the command goal is not clean
 ifneq ($(MAKECMDGOALS),clean)
 ifndef QNN_INCLUDE
-$(info "INFO: Qnn include not explicitly defined, attempting to use QNN_SDK_ROOT if it is valid")
-QNN_INCLUDE := $(QNN_SDK_ROOT)/include/QNN
+$(info "INFO: Qnn include not explicitly defined, attempting to use QAIRT_SDK_ROOT if it is valid")
+QNN_INCLUDE := $(QAIRT_SDK_ROOT)/include/QNN
 endif
 ifeq ($(wildcard $(QNN_INCLUDE)),)
 $(error "ERROR: QNN_INCLUDE path is not set. QNN include paths must be set to obtain BE headers necessary to compile the package")
 endif
 ifndef QNN_TARGET_LIB
-$(info "INFO: Qnn target not explicitly defined, attempting to use QNN_SDK_ROOT if it is valid")
-QNN_TARGET_LIB := $(QNN_SDK_ROOT)/lib/aarch64-android
+$(info "INFO: Qnn target not explicitly defined, attempting to use QAIRT_SDK_ROOT if it is valid")
+QNN_TARGET_LIB := $(QAIRT_SDK_ROOT)/lib/aarch64-android
 endif
 ifeq ($(wildcard $(QNN_TARGET_LIB)),)
 ifeq ($(MAKECMDGOALS),htp_aarch64)
