@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/aops/ParamOp.hpp"
+#include "mllm/compile/ir/graph/Op.hpp"
+#include "mllm/compile/ir/tensor/Op.hpp"
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
@@ -31,14 +33,16 @@ void ParamOp::load(const ParameterFile::ptr_t& ploader) {
 
 void ParamOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto ir_ctx = (ir::IRContext*)trace_context;
-  auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
-  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
-  ir_ctx->create<ir::linalg::ParamOp>(shared_from_this(), i_irs, o_irs);
+  // Register Params
+  if (weight_ && !ir_ctx->lookupSymbolTable(getName())) {
+    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
+  }
 }
 
 void ParamOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
 
-void ParamOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
+void ParamOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { outputs.emplace_back(weight_); }
 
 void ParamOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
 

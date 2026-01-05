@@ -8,6 +8,7 @@
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/Scatter2ShardsOp.hpp"
+#include "mllm/core/aops/SigmoidOp.hpp"
 #include "mllm/core/aops/SoftmaxOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
@@ -203,6 +204,11 @@ mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, co
 mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v) {
   auto& ctx = mllm::Context::instance();
   return ctx.buildOpAndSubmitTask(OpTypes::kWhere, aops::WhereOpOptions{}, {mask, original, v})[0];
+}
+
+mllm::Tensor sigmoid(const Tensor& x) {
+  auto& ctx = mllm::Context::instance();
+  return ctx.buildOpAndSubmitTask(OpTypes::kSigmoid, aops::SigmoidOpOptions{}, {x})[0];
 }
 
 }  // namespace mllm::nn::functional

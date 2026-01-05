@@ -116,6 +116,7 @@ LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
 
 LINALG_AOPS_DECL(OpTypes::kEqual, EqualOp);
 LINALG_AOPS_DECL(OpTypes::kWhere, WhereOp);
+LINALG_AOPS_DECL(OpTypes::kSigmoid, SigmoidOp);
 
 // Customized Ops
 LINALG_AOPS_DECL(OpTypes::kFlashAttention2WithSinkAndSwa, FlashAttention2SwaSinkOp);

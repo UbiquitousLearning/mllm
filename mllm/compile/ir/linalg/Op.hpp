@@ -79,6 +79,7 @@ class RadixAttnRelaxOp;
 class RadixAttnSwaSinkOp;
 class EqualOp;
 class WhereOp;
+class SigmoidOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -251,6 +252,7 @@ LINALG_AOPS_DEFINE(WhereOp, WHEREOP);
 LINALG_AOPS_DEFINE(FlashAttention2SwaSinkOp, FLASHATTENTION2SWASINKOP);
 LINALG_AOPS_DEFINE(RadixAttnRelaxOp, RADIXATTNRELAXOP);
 LINALG_AOPS_DEFINE(RadixAttnSwaSinkOp, RADIXATTNSWASINKOP);
+LINALG_AOPS_DEFINE(SigmoidOp, SIGMOIDOP);
 
 /**
  * @brief CustomizedOp: A generic operation type for implementing backend-specific operations

@@ -37,10 +37,12 @@ class ModuleImpl : public AbstractNnNode {
 
   void updateBuffer(const std::string& name, const Tensor& tensor);
 
+  ParameterFile::ptr_t getTopParameterFile();
+
  private:
   /// Buffer is tensors that will not shown in params. And will not be saved.
   SymbolTable<std::string, Tensor> buffer_;
-  std::vector<MappedFile::ptr_t> resources_mapped_files_;
+  std::vector<ParameterFile::ptr_t> resources_mapped_files_;
 };
 
 template<typename T>
@@ -65,6 +67,8 @@ class Module {
   void to(DeviceTypes device_type);
 
   [[nodiscard]] DeviceTypes device() const { return impl_->getDevice(); }
+
+  ParameterFile::ptr_t getTopParameterFile();
 
   /**
    * @brief Register a module/layer into this module

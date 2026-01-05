@@ -134,7 +134,7 @@ inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint6
 inline const std::string QNN_QUANT_SCALE_NAME = "qnn_quant_scale";
 inline float getQuantScale(Tensor& tensor) {
   if (!tensor.attachedViews().contains(QNN_QUANT_SCALE_NAME)) { return 0.0f; }
-  return tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0];
+  return tensor.attachedViews()[QNN_QUANT_SCALE_NAME].second->ptr<float>()[0];
 }
 
 inline void setQuantScale(Tensor& tensor, float scale) {
@@ -143,7 +143,7 @@ inline void setQuantScale(Tensor& tensor, float scale) {
     t.at<float>({0}) = scale;
     tensor.attach(QNN_QUANT_SCALE_NAME, t.impl());
   } else {
-    tensor.attachedViews()[QNN_QUANT_SCALE_NAME]->ptr<float>()[0] = scale;
+    tensor.attachedViews()[QNN_QUANT_SCALE_NAME].second->ptr<float>()[0] = scale;
   }
 }
 

@@ -595,6 +595,16 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
   // There has no Tensor in the cache.
   // Create Tensor and register it!.
   auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+  if (__qnn_enable_static_weight) {
+    contexts_[qnn_context_name]->static_tensor_.insert({__qnn_tensor_name, ret});
+    // FIXME, That may be error.
+    qnn_htp_func_symbols_.qnn_interface_.tensorCreateContextTensor(contexts_[qnn_context_name]->qnn_ctx_handle_,
+                                                                   ret->getQnnTensor());
+  } else {
+    contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.insert({__qnn_tensor_name, ret});
+    qnn_htp_func_symbols_.qnn_interface_.tensorCreateGraphTensor(
+        contexts_[qnn_context_name]->graphs_[graph_name]->qnn_graph_handle_, ret->getQnnTensor());
+  }
 
   return ret;
 }

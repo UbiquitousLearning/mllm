@@ -48,8 +48,11 @@ size_t lanesOfType(DataTypes dtype) {
     CASE(kComplexFloat64)
     CASE(kInt16PerTensorSym)
     CASE(kInt8PerTensorSym)
+    CASE(kUInt8PerTensorSym)
+    CASE(kUInt16PerTensorAsy)
+    CASE(kUInt16PerTensorSym)
     case kByte: return MllmDataTypeInfo<kUInt8>::lanes();
-    default: NYI("Unknown data type");
+    default: NYI("Unknown data type {}", (int32_t)dtype);
   }
   return 1;
 #undef CASE
@@ -96,7 +99,10 @@ size_t bytesOfType(DataTypes dtype) {
     CASE(kComplexFloat32)
     CASE(kComplexFloat64)
     CASE(kInt16PerTensorSym)
+    CASE(kUInt16PerTensorSym)
+    CASE(kUInt16PerTensorAsy)
     CASE(kInt8PerTensorSym)
+    CASE(kUInt8PerTensorSym)
     CASE(kInt4)
     CASE(kUInt4)
     case kByte: return MllmDataTypeInfo<kUInt8>::bytes();
@@ -147,7 +153,10 @@ std::string nameOfType(DataTypes dtype) {
     CASE(kComplexFloat32)
     CASE(kComplexFloat64)
     CASE(kInt16PerTensorSym)
+    CASE(kUInt16PerTensorSym)
+    CASE(kUInt16PerTensorAsy)
     CASE(kInt8PerTensorSym)
+    CASE(kUInt8PerTensorSym)
     CASE(kInt4)
     CASE(kUInt4)
     case kByte: return MllmDataTypeInfo<kUInt8>::name();

@@ -6,14 +6,18 @@
 #include "mllm/backends/qnn/aot/passes/MarkTensorIO.hpp"
 #include "mllm/backends/qnn/aot/passes/MergeLLMHeadIntoMainGraphPass.hpp"
 #include "mllm/backends/qnn/aot/passes/OpNamingPass.hpp"
+#include "mllm/backends/qnn/aot/passes/PTQPass.hpp"
 #include "mllm/backends/qnn/aot/passes/SplitLLMGraphPass.hpp"
+#include "mllm/core/ParameterFile.hpp"
 
 namespace mllm::qnn::aot {
-std::vector<std::shared_ptr<ir::Pass>> createQnnAOTLoweringPipeline(QnnAOTEnv* env, const std::string& config_path) {
+std::vector<std::shared_ptr<ir::Pass>> createQnnAOTLoweringPipeline(QnnAOTEnv* env, const std::string& config_path,
+                                                                    const ParameterFile::ptr_t& pf) {
   std::vector<ir::Pass::ptr_t> ret;
 
   AOTCompileContext::getInstance().setEnv(env);
   AOTCompileContext::getInstance().setConfig(config_path);
+  AOTCompileContext::getInstance().setParamFile(pf);
   auto config = AOTCompileContext::getInstance().getConfig();
 
   if (config.contains("quant_recipe") && config["quant_recipe"].contains("llm_recipe")
@@ -22,9 +26,10 @@ std::vector<std::shared_ptr<ir::Pass>> createQnnAOTLoweringPipeline(QnnAOTEnv* e
     ret.emplace_back(createOpNamingPass());
     ret.emplace_back(createMergeLLMHeadIntoMainGraphPass());
     ret.emplace_back(createLLMQuantRecipePass());
+    ret.emplace_back(createPTQPass());
     ret.emplace_back(createSplitLLMGraphPass());
     ret.emplace_back(createMarkTensorIOPass());
-    ret.emplace_back(createLLM2QnnLoweringPass());
+    // ret.emplace_back(createLLM2QnnLoweringPass());
   } else {
     MLLM_WARN("This pass currently only supports LLM applications. Please ensure your config contains 'quant_recipe.llm_recipe "
               "= true'.");
