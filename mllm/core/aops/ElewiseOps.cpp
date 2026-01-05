@@ -112,7 +112,6 @@ __MLLM_ELEWISE_OP_IMPL(kAdd, AddOp);
 __MLLM_ELEWISE_OP_IMPL(kSub, SubOp);
 __MLLM_ELEWISE_OP_IMPL(kMul, MulOp);
 __MLLM_ELEWISE_OP_IMPL(kDiv, DivOp);
-__MLLM_ELEWISE_OP_IMPL(kNeg, NegOp);
 
 // ---------- Unary Ops
 __MLLM_ELEWISE_UNARY_OP_IMPL(kAbs, AbsOp);
@@ -121,6 +120,7 @@ __MLLM_ELEWISE_UNARY_OP_IMPL(kClip, ClipOp);
 __MLLM_ELEWISE_UNARY_OP_IMPL(kExp, ExpOp);
 __MLLM_ELEWISE_UNARY_OP_IMPL(kSin, SinOp);
 __MLLM_ELEWISE_UNARY_OP_IMPL(kCos, CosOp);
+__MLLM_ELEWISE_UNARY_OP_IMPL(kNeg, NegOp);
 
 }  // namespace mllm::aops
 

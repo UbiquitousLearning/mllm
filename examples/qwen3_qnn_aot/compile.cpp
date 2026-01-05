@@ -37,26 +37,13 @@ MLLM_MAIN({
   auto model_cfg = mllm::models::qwen3::Qwen3Config(model_cfg_path.get());
   auto model = mllm::models::qwen3::Qwen3ForCausalLM(model_cfg);
   auto params = mllm::load(model_path.get(), mllm::ModelFileVersion::kV2);
-
-  // Gen sin and cos
-  {
-    auto inv = mllm::models::qwen3::makeRoPEInvFreq(model_cfg.head_dim, model_cfg.rope_theta);
-    auto position_ids = mllm::Tensor::empty({1, CL}, mllm::kInt64, mllm::kCPU).alloc();
-    auto position_ids_ptr = position_ids.ptr<int64_t>();
-    for (int b = 0; b < 1; ++b) {
-      for (int s = 0; s < CL; ++s) { position_ids_ptr[b * CL + s] = s; }
-    }
-    auto [rope_sin, rope_cos] = mllm::models::qwen3::makeRotaryPosEmbedding(position_ids, inv, 1.f);
-    params->push("rope_sin", rope_sin.to(mllm::kInt16PerTensorSym));
-    params->push("rope_cos", rope_cos.to(mllm::kInt16PerTensorSym));
-  }
   model.load(params);
 
   // Sequence: [B, N]
   // past_key_i: [B, H, D, CL-N] for each layer i
   // past_value_i: [B, H, CL-N, D] for each layer i
   // causal_mask: [B, 1, N, CL]
-  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt64);
+  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
   auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
 
   // Create KV cache inputs for all layers
@@ -74,8 +61,14 @@ MLLM_MAIN({
         model_cfg.num_key_value_heads,
         model_cfg.head_dim,
         CL - N,
-    }, mllm::kInt8PerTensorSym);
-    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kInt8PerTensorSym);
+    }, mllm::kUInt8PerTensorSym);
+    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
+    
+    trace_inputs[past_key_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.scale").impl(), true);
+    trace_inputs[past_key_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
+
+    trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
+    trace_inputs[past_value_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
     // clang-format on
   }
 
@@ -86,7 +79,7 @@ MLLM_MAIN({
                                                mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
 
   mllm::ir::PassManager pm(ir["model"]);
-  pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get()));
+  pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
   pm.run();
 
   mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });

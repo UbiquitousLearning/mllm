@@ -10,6 +10,7 @@
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 #include "mllm/backends/cpu/kernels/x86/fill.hpp"     // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/x86/silu.hpp"     // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/x86/sigmoid.hpp"  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/x86/softmax.hpp"  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/x86/rmsnorm.hpp"  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/x86/gelu.hpp"     // IWYU pragma: export
@@ -22,6 +23,7 @@
 #include "mllm/backends/cpu/kernels/arm/transpose.hpp"                  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/permute.hpp"                    // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/silu.hpp"                       // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/sigmoid.hpp"                    // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/cast_types.hpp"                 // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/layernorm.hpp"                  // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/softmax.hpp"                    // IWYU pragma: export

@@ -38,6 +38,13 @@ void recursiveVisitGraph(const ir::IRContext::ptr_t& ctx,
       if (!some_op->getAttr("quant_recipe")) {
         for (auto& pattern : patterns_w_priority_) {
           if (pattern.second->isMatch(some_op)) {
+            for (auto& _named_pattern_ : _named_pattern) {
+              if (_named_pattern_.second == pattern.second) {
+                MLLM_INFO("LLMQuantizationRecipePass Processing op: {} with pass: {}",
+                          some_op->cast_<ir::linalg::LinalgIROp>()->getAOp()->getName(), _named_pattern_.first);
+              }
+            }
+
             if (!pattern.second->rewrite(iw, some_op)) {
               for (auto& _named_pattern_ : _named_pattern) {
                 if (_named_pattern_.second == pattern.second) {
@@ -85,6 +92,11 @@ ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t genSimpleQuantizationSpecAttr(con
     }
     case kUInt16PerTensorSym: {
       spec = ir::linalg::QuantizationSpecSymPerTensor::create(0, 65535, kUInt16, kFloat32, Tensor::nil());
+      break;
+    }
+    case kUInt16PerTensorAsy: {
+      spec =
+          ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65535, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil());
       break;
     }
     case kUInt8:
@@ -242,6 +254,31 @@ ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
 }
 
 //===----------------------------------------------------------------------===//
+// Sigmoid Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeSigmoidPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::SigmoidOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeSigmoidPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  return noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
+}
+
+//===----------------------------------------------------------------------===//
+// Negative Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeNegPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::NegOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeNegPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
+}
+
+//===----------------------------------------------------------------------===//
 // ReduceMin Pattern
 //===----------------------------------------------------------------------===//
 bool LLMQuantRecipeReduceMinPattern::isMatch(const mllm::ir::op_ptr_t& op) {
@@ -350,9 +387,15 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
   auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
 
-  auto weight_spec_attr = cloneQuantizationSpecType(
-      writer.getContext(), node->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>());
-  weight_reg_tensor_ir->outputs().front()->setAttr("qnn_recipe", weight_spec_attr);
+  // FIXME: This dtype is hardcoded. We should make it right.
+  auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
+      ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));
+  weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
+
+  // Get self anno
+  node->getAttr("quant_recipe")
+      ->cast_<ir::linalg::LinalgIRQuantizatonAnnotationAttr>()
+      ->annotation_.weights.insert({"weight", weight_spec_attr->spec_});
 
   return true;
 }
@@ -379,26 +422,28 @@ bool LLMQuantRecipeIndexPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 
 bool LLMQuantRecipeIndexPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
   auto index_ir = node->cast_<ir::linalg::IndexOp>();
-  auto i_0 = *(node->inputs().begin());   // Index what
-  auto o_0 = *(node->outputs().begin());  // Output
+  auto i_0 = *(node->inputs().begin());  // Index what
 
   if (!i_0->getAttr("quant_recipe")) {
     auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
     i_0->setAttr("quant_recipe", i_0_spec);
   }
 
-  auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
-  o_0->setAttr("quant_recipe", o_0_spec);
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
+}
 
-  auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
-  annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
-  annotation_attr->annotation_.outputs.emplace_back(
-      o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+//===----------------------------------------------------------------------===//
+// Slice Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeSlicePattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::SliceOp>()) { return true; }
+  return false;
+}
 
-  node->setAttr("quant_recipe", annotation_attr);
-
-  return true;
+bool LLMQuantRecipeSlicePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -422,23 +467,9 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
   // i_1 maybe a constant, we need to create quant recipe for it
   if (!i_1->getAttr("quant_recipe")) {
     if (i_1->getAttr("constant")) {
-      auto i_1_tensor = i_1->cast_<ir::tensor::TensorValue>()->tensor_;
-      switch (i_1_tensor.dtype()) {
-        case kUInt16:
-        case kUInt8:
-        case kInt16:
-        case kInt8:
-        case kFloat32:
-        case kFloat16:
-        case kBFloat16: {
-          i_1->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
-                                           ir::linalg::QuantizationSpecRaw::create(i_1_tensor.dtype())));
-          break;
-        }
-        default: {
-          NYI("Only support [int16, int8, bf16, f16, sf32] for now.");
-        }
-      }
+      i_1->setAttr("quant_recipe",
+                   cloneQuantizationSpecType(writer.getContext(),
+                                             i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()));
 
     } else {
       MLLM_WARN("LLMQuantRecipeEqualPattern Only support constant Value as second inputs right now. Pls send us a issue or PR "
@@ -446,8 +477,6 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
       return false;
     }
   }
-
-  MLLM_RETURN_FALSE_IF_NOT(i_1->getAttr("quant_recipe"));
 
   o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
 
@@ -738,7 +767,8 @@ bool LLMQuantRecipeLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
             ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, -1, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
 
         // output sym int16
-        auto out_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(-32768, 32767, kInt16, kFloat32, Tensor::nil());
+        auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32,
+                                                                                Tensor::nil(), Tensor::nil());
         linear_ir->outputs().front()->setAttr("quant_recipe",
                                               writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(out_quant_spec));
 
@@ -808,67 +838,56 @@ bool LLMQuantRecipeViewPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t
 bool LLMQuantRecipeEmbeddingPattern::isMatch(const mllm::ir::op_ptr_t& op) {
   // Pattern:
   //
-  // embedding(op) -> quantize(op)
+  // embedding(op)
   MLLM_RETURN_FALSE_IF_NOT(op->isa_<ir::linalg::EmbeddingOp>());
-  MLLM_RETURN_FALSE_IF_NOT(op->nextOp());
-  MLLM_RETURN_FALSE_IF_NOT(op->nextOp()->isa_<ir::linalg::CastTypeOp>());
 
   // Already marked.
   MLLM_RETURN_FALSE_IF(op->getAttr("quant_recipe"));
-  MLLM_RETURN_FALSE_IF(op->nextOp()->getAttr("quant_recipe"));
 
   return true;
 }
 
 bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
   auto embedding_op = node->cast_<ir::linalg::EmbeddingOp>();
-  auto quantize_op = embedding_op->nextOp()->cast_<ir::linalg::CastTypeOp>();
+  auto i_0 = *(node->inputs().begin());
+  auto o_0 = *(node->outputs().begin());
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
 
-  // Inputs to this Quantization node must be raw type.
-  {
-    auto i_type = quantize_op->inputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.dtype();
-    MLLM_RT_ASSERT(i_type == kFloat32 || i_type == kFloat16);
-    auto i_quant_spec = ir::linalg::QuantizationSpecRaw::create(i_type);
-    annotation_attr->annotation_.inputs.emplace_back(i_quant_spec);
-    quantize_op->inputs().front()->setAttr("quant_recipe",
-                                           writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(i_quant_spec));
+  if (!i_0->getAttr("quant_recipe")) {
+    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
+    i_0->setAttr("quant_recipe", i_0_spec);
+    annotation_attr->annotation_.inputs.emplace_back(
+        i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+  } else {
+    annotation_attr->annotation_.inputs.emplace_back(
+        i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
 
-  // Outputs to this Quantization node must be int8 or int16
-  {
-    auto o_type = quantize_op->outputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.dtype();
-    ir::linalg::QuantizationSpec::ptr_t o_quant_spec = nullptr;
-    switch (o_type) {
-      case kInt8PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(-128, 127, kInt8, kFloat32, Tensor::nil());
-        break;
-      }
-      case kUInt8PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(0, 255, kUInt8, kFloat32, Tensor::nil());
-        break;
-      }
-      case kInt16PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(-32768, 32767, kInt16, kFloat32, Tensor::nil());
-        break;
-      }
-      case kUInt16PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(0, 65535, kUInt16, kFloat32, Tensor::nil());
-        break;
-      }
-      default: {
-        NYI("Only support [uint16, int16, uint8, int8], [sym] for now.");
-      }
-    }
-
-    annotation_attr->annotation_.outputs.emplace_back(o_quant_spec);
-    quantize_op->outputs().front()->setAttr("quant_recipe",
-                                            writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(o_quant_spec));
+  if (!o_0->getAttr("quant_recipe")) {
+    auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
+    o_0->setAttr("quant_recipe", o_0_spec);
+    annotation_attr->annotation_.outputs.emplace_back(o_0_spec->spec_);
+  } else {
+    annotation_attr->annotation_.outputs.emplace_back(
+        o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
+
+  // Weights
+  auto weight_name = embedding_op->getAOp()->getName() + ".weight";
+  auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+  auto weight_tensor = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+
+  // Embedding weight quantization method same as outputs, but not share, just same type
+  auto weight_spec_attr = genSimpleQuantizationSpecAttr(writer.getContext(), weight_tensor);
+  weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
+  annotation_attr->annotation_.weights.insert({"weight", weight_spec_attr->spec_});
 
   // Attach to quantize node
-  node->nextOp()->setAttr("quant_recipe", annotation_attr);
+  node->setAttr("quant_recipe", annotation_attr);
 
   return true;
 }
@@ -941,6 +960,9 @@ bool LLMQuantRecipeQwen3AttentionPattern::rewrite(ir::IRWriter& writer, const ir
 LLMQuantRecipePass::LLMQuantRecipePass() {
   auto config = AOTCompileContext::getInstance().getConfig();
   // Register all patterns
+  addPattern(LLMQuantRecipeNegPattern::create(), "neg", 0);
+  addPattern(LLMQuantRecipeSlicePattern::create(), "slice", 0);
+  addPattern(LLMQuantRecipeSigmoidPattern::create(), "sigmoid", 0);
   addPattern(LLMQuantRecipeReduceMinPattern::create(), "reduce_min", 0);
   addPattern(LLMQuantRecipeRoPEPattern::create(), "rope", 0);
   addPattern(LLMQuantRecipeCastTypePattern::create(), "cast_type", 0);
@@ -958,9 +980,6 @@ LLMQuantRecipePass::LLMQuantRecipePass() {
   addPattern(LLMQuantRecipeLinearPattern::create(), "linear", 0);
   addPattern(LLMQuantRecipeEmbeddingPattern::create(), "embedding", 0);
   addPattern(LLMQuantRecipeViewPattern::create(), "view", 0);
-  if (config["quant_recipe"]["builtin_llm_pass"]["model"] == "qwen3") {
-    addPattern(LLMQuantRecipeQwen3AttentionPattern::create(), "qwen3_attention", 100);
-  }
 }
 
 uint8_t LLMQuantRecipePass::run(const ir::node_ptr_t& op) {

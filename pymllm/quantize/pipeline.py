@@ -20,9 +20,15 @@ def build_cast2fp32_pipeline() -> QuantizeSolver:
     return ret
 
 
+def build_raw_pipeline() -> QuantizeSolver:
+    ret = QuantizeSolver()
+    return ret
+
+
 BUILTIN_QUANTIZE_PIPELINE: Dict = {
     "w4a32_kai_pipeline": build_w4a32_kai_pipeline,
     "cast2fp32_pipeline": build_cast2fp32_pipeline,
+    "_raw": build_raw_pipeline,
 }
 BUILTIN_QUANTIZE_PASS: Dict = {
     "w4a32_kai": W4A32KAIQuantizePass,
