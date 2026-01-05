@@ -857,6 +857,8 @@ bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_
   if (!i_0->getAttr("quant_recipe")) {
     auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
     i_0->setAttr("quant_recipe", i_0_spec);
+    annotation_attr->annotation_.inputs.emplace_back(
+        i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   } else {
     annotation_attr->annotation_.inputs.emplace_back(
         i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
