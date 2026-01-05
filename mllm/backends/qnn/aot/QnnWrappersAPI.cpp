@@ -2,169 +2,34 @@
 // Licensed under the MIT License.
 #include <memory>
 
-#include <QNN/QnnTypes.h>
+#include <QnnTypes.h>
 
-#include <QNN/QnnGraph.h>
-#include <QNN/QnnContext.h>
-#include <QNN/HTP/QnnHtpDevice.h>
-#include <QNN/HTP/QnnHtpCommon.h>
-#include <QNN/HTP/QnnHtpContext.h>
+#include <QnnContext.h>
+#include <HTP/QnnHtpDevice.h>
+#include <HTP/QnnHtpCommon.h>
+#include <HTP/QnnHtpContext.h>
 
-#include "mllm/utils/Common.hpp"
+#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
-#include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
+#include "mllm/backends/qnn/QNNUtils.hpp"
+#include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn::aot {
 
-void __mllmLoggerCallback4QnnLogger(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp) {
-  const char* level_str = "";
-  switch (level) {
-    case QNN_LOG_LEVEL_ERROR: level_str = "[ERROR]  "; break;
-    case QNN_LOG_LEVEL_WARN: level_str = "[WARN]   "; break;
-    case QNN_LOG_LEVEL_INFO: level_str = "[INFO]   "; break;
-    case QNN_LOG_LEVEL_DEBUG: level_str = "[DEBUG]  "; break;
-    case QNN_LOG_LEVEL_VERBOSE: level_str = "[VERBOSE]"; break;
-    case QNN_LOG_LEVEL_MAX: level_str = "[UNKNOWN]"; break;
-  }
-
-  double ms = (double)times_tamp / 1000000.0;
-
-  {
-    fprintf(stdout, "QnnLogger(%8.1fms, %ld) %s: ", ms, times_tamp, level_str);
-    vfprintf(stdout, fmt, argp);
-  }
-}
-
-size_t QnnAOTDataTypeSize(Qnn_DataType_t dtype) {
-  switch (dtype) {
-    case QNN_DATATYPE_INT_8:
-    case QNN_DATATYPE_UINT_8:
-    case QNN_DATATYPE_BOOL_8:
-    case QNN_DATATYPE_SFIXED_POINT_8:
-    case QNN_DATATYPE_UFIXED_POINT_8: return 1;
-
-    case QNN_DATATYPE_INT_16:
-    case QNN_DATATYPE_UINT_16:
-    case QNN_DATATYPE_FLOAT_16:
-    case QNN_DATATYPE_SFIXED_POINT_16:
-    case QNN_DATATYPE_UFIXED_POINT_16: return 2;
-
-    case QNN_DATATYPE_INT_32:
-    case QNN_DATATYPE_UINT_32:
-    case QNN_DATATYPE_FLOAT_32:
-    case QNN_DATATYPE_SFIXED_POINT_32:
-    case QNN_DATATYPE_UFIXED_POINT_32: return 4;
-
-    case QNN_DATATYPE_INT_64:
-    case QNN_DATATYPE_UINT_64: return 8;
-
-    default:
-      MLLM_ERROR("QnnAOTDataTypeSize: unsupported Qnn_DataType_t {}", static_cast<int>(dtype));
-      MLLM_RT_ASSERT(false);
-      return 0;
-  }
-}
-
-QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, bool value) {
-  name_ = name;
-  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnn_param_.name = name_.c_str();
-  qnn_param_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
-  qnn_param_.scalarParam.bool8Value = static_cast<uint8_t>(value);
-}
-
-QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, uint32_t value) {
-  name_ = name;
-  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnn_param_.name = name_.c_str();
-  qnn_param_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
-  qnn_param_.scalarParam.uint32Value = value;
-}
-
-QnnAOTParamScalar::QnnAOTParamScalar(const std::string& name, float value) {
-  name_ = name;
-  qnn_param_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnn_param_.name = name_.c_str();
-  qnn_param_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
-  qnn_param_.scalarParam.floatValue = value;
-}
-
-Qnn_Param_t* QnnAOTParamScalar::getQnnParam() { return &(qnn_param_); }
-
-QnnAOTParamTensor::QnnAOTParamTensor(const std::string& param_name, const std::string& tensor_name, Qnn_DataType_t data_type,
-                                     const std::vector<uint32_t>& dimensions) {
-  param_name_ = param_name;
-  tensor_name_ = tensor_name;
-  dimensions_ = dimensions;
-  // Fix parameters.
-  qnn_param_.paramType = QNN_PARAMTYPE_TENSOR;
-  qnn_param_.tensorParam.version = QNN_TENSOR_VERSION_2;
-  qnn_param_.tensorParam.v2 = QNN_TENSOR_V2_INIT;
-  qnn_param_.tensorParam.v2.type = QNN_TENSOR_TYPE_STATIC;
-  qnn_param_.tensorParam.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER;
-  qnn_param_.tensorParam.v2.quantizeParams = Qnn_QuantizeParams_t{
-      QNN_DEFINITION_UNDEFINED, QNN_QUANTIZATION_ENCODING_UNDEFINED, {.scaleOffsetEncoding = {.scale = 0.0f, .offset = 0}}};
-  qnn_param_.tensorParam.v2.memType = QNN_TENSORMEMTYPE_RAW;
-  // Custom parameters.
-  qnn_param_.name = param_name_.c_str();
-  qnn_param_.tensorParam.v2.name = tensor_name_.c_str();
-  qnn_param_.tensorParam.v2.dataType = data_type;
-  qnn_param_.tensorParam.v2.rank = dimensions_.size();
-  qnn_param_.tensorParam.v2.dimensions = dimensions_.data();
-  qnn_param_.tensorParam.v2.clientBuf = {.data = nullptr, .dataSize = 0};
-}
-
-QnnAOTParamTensor::~QnnAOTParamTensor() {
-  auto data = QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data;
-  MLLM_RT_ASSERT(data != nullptr);
-  if (data) { free(data); }
-}
-
-void* QnnAOTParamTensor::alloc() {
-  uint32_t data_size = QnnAOTDataTypeSize(QNN_TENSOR_GET_DATA_TYPE(qnn_param_.tensorParam));
-  for (int i = 0; i < QNN_TENSOR_GET_RANK(qnn_param_.tensorParam); i++) {
-    data_size *= qnn_param_.tensorParam.v2.dimensions[i];
-  }
-  Qnn_ClientBuffer_t clientBuffer = {.data = malloc(data_size), .dataSize = data_size};
-  QNN_TENSOR_SET_CLIENT_BUF(qnn_param_.tensorParam, clientBuffer);
-  MLLM_RT_ASSERT(QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data != nullptr);
-  return QNN_TENSOR_GET_CLIENT_BUF(qnn_param_.tensorParam).data;
-}
-
-Qnn_Param_t* QnnAOTParamTensor::getQnnParam() { return &qnn_param_; }
-
-Qnn_Tensor_t* QnnAOTParamTensor::getQnnTensor() { return &qnn_param_.tensorParam; }
-
 QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
-  name_ = v->name();
-  mllm_tensor_ = v->tensor_;
-  quant_spec_ = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
-  for (auto s : v->tensor_.shape()) { shape_.emplace_back(s); }
+  auto type = parseQnnTensorTypeFromIR(v);
+  auto name = v->name();
+  auto quant = parseQnnQuantizeParamFromIR(v);
 
-  qnn_tensor_.version = QNN_TENSOR_VERSION_2;
-  qnn_tensor_.v2 = QNN_TENSOR_V2_INIT;
-  qnn_tensor_.v2.id = v->tensor_.uuid();
-  qnn_tensor_.v2.name = name_.c_str();
-  qnn_tensor_.v2.type = parseQnnTensorTypeFromIR(v);
-  qnn_tensor_.v2.dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER;
-  qnn_tensor_.v2.dataType = parseQnnDataTypeFromIR(v);
-  qnn_tensor_.v2.quantizeParams = parseQnnQuantizeParamFromIR(v);
-  qnn_tensor_.v2.rank = (uint32_t)v->tensor_.rank();
-  qnn_tensor_.v2.dimensions = shape_.data();
-  qnn_tensor_.v2.isDynamicDimensions = nullptr;
-  qnn_tensor_.v2.sparseParams = QNN_SPARSE_PARAMS_INIT;
-  qnn_tensor_.v2.isProduced = 0u;
-
-  if (force_static_weight) {
-    qnn_tensor_.v2.memType = QNN_TENSORMEMTYPE_RAW;
-    qnn_tensor_.v2.clientBuf = {
-        .data = (void*)mllm_tensor_.ptr<char>(),
-        .dataSize = (uint32_t)mllm_tensor_.bytes(),
-    };
+  if (force_static_weight || type == QNN_TENSOR_TYPE_STATIC) {
+    tensor_wrapper_ = mllm::qnn::QNNTensorWrapper::createStaticTensor(name, v->tensor_, quant);
+  } else {
+    tensor_wrapper_ = mllm::qnn::QNNTensorWrapper::create(name, type, v->tensor_, quant);
   }
 }
 
@@ -232,95 +97,7 @@ Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::Te
 }
 
 Qnn_DataType_t QnnAOTNodeTensor::parseQnnDataTypeFromIR(const ir::tensor::TensorValue::ptr_t& v) {
-  Qnn_DataType_t ret = QNN_DATATYPE_UNDEFINED;
-  switch (v->tensor_.dtype()) {
-    case kInt8: {
-      ret = QNN_DATATYPE_INT_8;
-      break;
-    }
-    case kInt16: {
-      ret = QNN_DATATYPE_INT_16;
-      break;
-    }
-    case kInt32: {
-      ret = QNN_DATATYPE_INT_32;
-      break;
-    }
-    case kInt64: {
-      ret = QNN_DATATYPE_INT_64;
-      break;
-    }
-    case kUInt8: {
-      ret = QNN_DATATYPE_UINT_8;
-      break;
-    }
-    case kUInt16: {
-      ret = QNN_DATATYPE_UINT_16;
-      break;
-    }
-    case kUInt32: {
-      ret = QNN_DATATYPE_UINT_32;
-      break;
-    }
-    case kUInt64: {
-      ret = QNN_DATATYPE_UINT_64;
-      break;
-    }
-    case kFloat16: {
-      ret = QNN_DATATYPE_FLOAT_16;
-      break;
-    }
-    case kFloat32: {
-      ret = QNN_DATATYPE_FLOAT_32;
-      break;
-    }
-    case kBFloat16: {
-      ret = QNN_DATATYPE_BFLOAT_16;
-      break;
-    }
-    // FIXME: Maybe error here.
-    case kInt4: {
-      ret = QNN_DATATYPE_SFIXED_POINT_4;
-      break;
-    }
-    case kUInt4: {
-      ret = QNN_DATATYPE_UFIXED_POINT_4;
-      break;
-    }
-    case kInt8PerTensorSym:
-    case kInt8PerTensorAsy:
-    case kInt8PerChannelAsy:
-    case kInt8PerChannelSym: {
-      ret = QNN_DATATYPE_SFIXED_POINT_8;
-      break;
-    }
-    case kUInt8PerTensorSym:
-    case kUInt8PerTensorAsy:
-    case kUInt8PerChannelAsy:
-    case kUInt8PerChannelSym: {
-      ret = QNN_DATATYPE_UFIXED_POINT_8;
-      break;
-    }
-    case kInt16PerTensorSym:
-    case kInt16PerTensorAsy:
-    case kInt16PerChannelSym:
-    case kInt16PerChannelAsy: {
-      ret = QNN_DATATYPE_SFIXED_POINT_16;
-      break;
-    }
-    case kUInt16PerTensorSym:
-    case kUInt16PerTensorAsy:
-    case kUInt16PerChannelSym:
-    case kUInt16PerChannelAsy: {
-      ret = QNN_DATATYPE_UFIXED_POINT_16;
-      break;
-    }
-    default: {
-      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't parse datatype: {}", nameOfType(v->tensor_.dtype()));
-      ret = QNN_DATATYPE_UNDEFINED;
-    }
-  }
-  return ret;
+  return mllm::qnn::mllmDataTypeToQnnDataType(v->tensor_.dtype());
 }
 
 std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v) { return v->name(); }
@@ -347,22 +124,15 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
 
       // Prepare data
       auto num_scale_offsets = (uint32_t)v->tensor_.size(cfg->ch_axis);
-      Qnn_ScaleOffset_t* scale_array = (Qnn_ScaleOffset_t*)malloc(sizeof(Qnn_ScaleOffset_t) * num_scale_offsets);
+      std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale.size(0));
       MLLM_RT_ASSERT_EQ(cfg->scale.dtype(), kFloat32);
       for (int i = 0; i < num_scale_offsets; ++i) {
-        scale_array[i].scale = cfg->scale.at<float>({i});
-        scale_array[i].offset = 0;
+        scale_offsets[i].scale = cfg->scale.at<float>({i});
+        scale_offsets[i].offset = 0;
       }
-      unreachable_handle_.emplace_back(scale_array);
 
-      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
-      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET;
-      ret.axisScaleOffsetEncoding = Qnn_AxisScaleOffset_t{
-          .axis = cfg->ch_axis,
-          .numScaleOffsets = num_scale_offsets,
-          .scaleOffset = scale_array,
-      };
+      tensor_wrapper_->setScaleOffsetQuantization(scale_offsets, cfg->ch_axis);
       break;
     }
     case ir::linalg::QuantizationSpecType::kSymPerBlock:
@@ -376,27 +146,24 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
 
       // Prepare data
       auto num_scale_offsets = (uint32_t)v->tensor_.size(cfg->ch_axis);
-      Qnn_ScaleOffset_t* scale_array = (Qnn_ScaleOffset_t*)malloc(sizeof(Qnn_ScaleOffset_t) * num_scale_offsets);
+      std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(0));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
       for (int i = 0; i < num_scale_offsets; ++i) {
-        scale_array[i].scale = cfg->scale_level_1_fp.at<float>({i});
-        scale_array[i].offset = 0;
+        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i});
+        scale_offsets[i].offset = 0;
       }
-      unreachable_handle_.emplace_back(scale_array);
 
-      auto block_scale_array = (Qnn_BlockwiseExpansion_t*)malloc(sizeof(Qnn_BlockwiseExpansion_t));
-      unreachable_handle_.emplace_back(block_scale_array);
-      block_scale_array[0].axis = cfg->ch_axis;
-      block_scale_array[0].scaleOffsets = scale_array;
-      block_scale_array[0].numBlocksPerAxis = v->tensor_.size(cfg->ch_axis) / cfg->block_size;
-      block_scale_array[0].blockScaleBitwidth = 12;  // 12 bits for 4 to 16 expansion
-      block_scale_array[0].blockScaleStorageType = QNN_BLOCKWISE_EXPANSION_BITWIDTH_SCALE_STORAGE_8;
-      block_scale_array[0].blocksScale8 = cfg->scale_level_0_int.ptr<mllm_uint8_t>();
+      Qnn_BlockwiseExpansion_t blockwise_expansion;
+      blockwise_expansion.axis = cfg->ch_axis;
+      blockwise_expansion.axis = cfg->ch_axis;
+      blockwise_expansion.scaleOffsets = nullptr;  // Will be set by setBlockwiseQuantization
+      blockwise_expansion.numBlocksPerAxis = v->tensor_.size(cfg->ch_axis) / cfg->block_size;
+      blockwise_expansion.blockScaleBitwidth = 12;  // 12 bits for 4 to 16 expansion
+      blockwise_expansion.blockScaleStorageType = QNN_BLOCKWISE_EXPANSION_BITWIDTH_SCALE_STORAGE_8;
+      blockwise_expansion.blocksScale8 = cfg->scale_level_0_int.ptr<mllm_uint8_t>();
 
-      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
-      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION;
-      ret.blockwiseExpansion = block_scale_array;
+      tensor_wrapper_->setBlockwiseQuantization(blockwise_expansion, scale_offsets);
       break;
     }
     default: {
@@ -428,22 +195,26 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceOutput(const QnnAOTNodeTe
   return shared_from_this();
 }
 
-QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamScalar(const std::vector<QnnAOTParamScalar::ptr_t>& params) {
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamScalar(
+    const std::vector<std::shared_ptr<mllm::qnn::QNNParamScalarWrapper>>& params) {
   param_scalar.insert(param_scalar.end(), params.begin(), params.end());
   return shared_from_this();
 }
 
-QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamScalar(const QnnAOTParamScalar::ptr_t& param) {
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamScalar(
+    const std::shared_ptr<mllm::qnn::QNNParamScalarWrapper>& param) {
   param_scalar.push_back(param);
   return shared_from_this();
 }
 
-QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamTensor(const std::vector<QnnAOTParamTensor::ptr_t>& params) {
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::addParamTensor(
+    const std::vector<std::shared_ptr<mllm::qnn::QNNParamTensorWrapper>>& params) {
   param_tensor.insert(param_tensor.end(), params.begin(), params.end());
   return shared_from_this();
 }
 
-QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamTensor(const QnnAOTParamTensor::ptr_t& param) {
+QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::emplaceParamTensor(
+    const std::shared_ptr<mllm::qnn::QNNParamTensorWrapper>& param) {
   param_tensor.push_back(param);
   return shared_from_this();
 }
@@ -465,77 +236,33 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string
   return shared_from_this();
 }
 
-QnnAOTGraph::QnnAOTGraph(const std::string& g_name, const std::shared_ptr<QnnDeviceAndContext>& context)
-    : graph_name_(g_name), qnn_context_(context) {
-  belongs_context_name_ = context->name_;
-
-  auto env = AOTCompileContext::getInstance().getEnv();
-  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
-
-  auto ok = qnn_interface.graphCreate(context->qnn_ctx_handle_, g_name.c_str(), nullptr /*graph_config*/, &qnn_graph_handle_);
-  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
+QnnAOTGraph::QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle_t backendHandle,
+                         Qnn_ContextHandle_t contextHandle, const std::string& graphName) {
+  qnn_model_ = std::make_shared<mllm::qnn::QNNModel>(qnnInterface, backendHandle);
+  qnn_model_->initialize(contextHandle, graphName.c_str(), false);
 }
 
 void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
-  auto env = AOTCompileContext::getInstance().getEnv();
-  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
+  std::vector<std::string> inputNames;
+  for (auto& in : qnn_op->inputs) inputNames.push_back(in->getWrapper()->getName());
 
-  Qnn_OpConfig_t qnn_op_config = QNN_OPCONFIG_INIT;
-  qnn_op_config.version = QNN_OPCONFIG_VERSION_1;
-  qnn_op_config.v1 = QNN_OPCONFIG_V1_INIT;
-  qnn_op_config.v1.name = qnn_op->name_.c_str();
-  qnn_op_config.v1.packageName = qnn_op->package_name_.c_str();
-  qnn_op_config.v1.typeName = qnn_op->op_name_.c_str();
+  std::vector<std::string> outputNames;
+  for (auto& out : qnn_op->outputs) outputNames.push_back(out->getWrapper()->getName());
 
-  // Params
-  uint32_t param_counter = 0;
-  size_t total_param_size = qnn_op->param_scalar.size() + qnn_op->param_tensor.size();
-  Qnn_Param_t* qnn_param_array = (Qnn_Param_t*)malloc(total_param_size * sizeof(Qnn_Param_t));
-  qnn_op->unreachable_handle_.emplace_back(qnn_param_array);
-  {
-    // Tensor Param
-    for (const auto& p : qnn_op->param_tensor) {
-      auto ok = qnn_interface.tensorCreateGraphTensor(qnn_graph_handle_, p->getQnnTensor());
-      MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
-      qnn_param_array[param_counter++] = *p->getQnnParam();
-    }
-    for (const auto& p : qnn_op->param_scalar) { qnn_param_array[param_counter++] = *p->getQnnParam(); }
-  }
+  for (auto& in : qnn_op->inputs) qnn_model_->addTensorWrapper(in->getWrapper());
+  for (auto& out : qnn_op->outputs) qnn_model_->addTensorWrapper(out->getWrapper());
 
-  // Inputs
-  Qnn_Tensor_t* qnn_inputs_array = (Qnn_Tensor_t*)malloc(qnn_op->inputs.size() * sizeof(Qnn_Tensor_t));
-  qnn_op->unreachable_handle_.emplace_back(qnn_inputs_array);
-  for (int i = 0; i < qnn_op->inputs.size(); ++i) { qnn_inputs_array[i] = *qnn_op->inputs[i]->getQnnTensor(); }
-
-  // Outputs
-  Qnn_Tensor_t* qnn_outputs_array = (Qnn_Tensor_t*)malloc(qnn_op->outputs.size() * sizeof(Qnn_Tensor_t));
-  qnn_op->unreachable_handle_.emplace_back(qnn_outputs_array);
-  for (int i = 0; i < qnn_op->outputs.size(); ++i) { qnn_outputs_array[i] = *qnn_op->outputs[i]->getQnnTensor(); }
-
-  qnn_op_config.v1.params = qnn_param_array;
-  qnn_op_config.v1.numOfParams = total_param_size;
-  qnn_op_config.v1.inputTensors = qnn_inputs_array;
-  qnn_op_config.v1.numOfInputs = qnn_op->inputs.size();
-  qnn_op_config.v1.outputTensors = qnn_outputs_array;
-  qnn_op_config.v1.numOfOutputs = qnn_op->outputs.size();
-
-  auto ok = qnn_interface.backendValidateOpConfig(env->getContext(belongs_context_name_)->bk_handle_, qnn_op_config);
-  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
-  ok = qnn_interface.graphAddNode(qnn_graph_handle_, qnn_op_config);
-  MLLM_RT_ASSERT_EQ(ok, QNN_SUCCESS);
+  qnn_model_->addNode(QNN_OPCONFIG_VERSION_1, qnn_op->name_, qnn_op->package_name_, qnn_op->op_name_, qnn_op->param_tensor,
+                      qnn_op->param_scalar, inputNames, outputNames);
 
   op_node_.insert({qnn_op->getName(), qnn_op});
 }
 
 bool QnnAOTGraph::compile() {
   if (is_compiled_) { return true; }
-
-  auto env = AOTCompileContext::getInstance().getEnv();
-  auto qnn_interface = env->getFuncSymbol().qnn_interface_;
-  qnn_interface.graphFinalize(qnn_graph_handle_, env->getContext(belongs_context_name_)->profile_bk_handle_, nullptr);
-
+  bool ret = qnn_model_->finalizeGraph(nullptr, nullptr) == mllm::qnn::MODEL_NO_ERROR;
   is_compiled_ = true;
-  return true;
+  return ret;
 }
 
 const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_{
@@ -687,7 +414,7 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
 
   // 1. create logger and register callback.
   // clang-format off
-  MLLM_RT_ASSERT_EQ(qnn_htp_func_symbols_.qnn_interface_.logCreate(__mllmLoggerCallback4QnnLogger,QNN_LOG_LEVEL_VERBOSE, &context->log_), QNN_SUCCESS)
+  MLLM_RT_ASSERT_EQ(qnn_htp_func_symbols_.qnn_interface_.logCreate(__mllmQnnLoggerCallback,QNN_LOG_LEVEL_VERBOSE, &context->log_), QNN_SUCCESS)
   MLLM_RT_ASSERT_EQ(QNN_BACKEND_NO_ERROR, qnn_htp_func_symbols_.qnn_interface_.backendCreate(context->log_, (const QnnBackend_Config_t**)context->bk_cfg_, &context->bk_handle_))
   // clang-format on
 
@@ -819,11 +546,16 @@ std::vector<QnnContext_CustomConfig_t> QnnAOTEnv::createContextCustomConfig(bool
 }
 
 QnnAOTGraph::ptr_t QnnAOTEnv::captureAOTGraph(const std::string& qnn_context_name, const std::string& g_name) {
-  MLLM_RT_ASSERT(contexts_.count(qnn_context_name) == 1);
-  auto ret = QnnAOTGraph::create(g_name, contexts_[qnn_context_name]);
-  ret->belongs_context_name_ = qnn_context_name;
-  contexts_[qnn_context_name]->graphs_.insert({g_name, ret});
-  return ret;
+  if (contexts_.find(qnn_context_name) == contexts_.end()) {
+    MLLM_ERROR("Context {} not found", qnn_context_name);
+    return nullptr;
+  }
+  auto& ctx = contexts_[qnn_context_name];
+  if (ctx->graphs_.find(g_name) == ctx->graphs_.end()) {
+    ctx->graphs_[g_name] =
+        std::make_shared<QnnAOTGraph>(qnn_htp_func_symbols_.qnn_interface_, ctx->bk_handle_, ctx->qnn_ctx_handle_, g_name);
+  }
+  return ctx->graphs_[g_name];
 }
 
 void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std::string& graph_name,
