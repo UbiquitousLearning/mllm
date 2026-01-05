@@ -180,6 +180,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kRadixAttnRelax: return "RadixAttnRelax";
     case OpTypes::kEqual: return "Equal";
     case OpTypes::kWhere: return "Where";
+    case OpTypes::kSigmoid: return "Sigmoid";
     case OpTypes::kDynamicOp_Start: return "DynamicOp_Start";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";

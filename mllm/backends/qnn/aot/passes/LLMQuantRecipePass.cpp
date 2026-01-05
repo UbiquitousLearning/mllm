@@ -389,7 +389,7 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
 
   // FIXME: This dtype is hardcoded. We should make it right.
   auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
-      ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));
+      ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));
   weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
 
   // Get self anno
@@ -767,7 +767,7 @@ bool LLMQuantRecipeLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
             ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, -1, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
 
         // output sym int16
-        auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536, kUInt16, kFloat32, kInt32,
+        auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32,
                                                                                 Tensor::nil(), Tensor::nil());
         linear_ir->outputs().front()->setAttr("quant_recipe",
                                               writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(out_quant_spec));
@@ -867,7 +867,7 @@ bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_
     o_0->setAttr("quant_recipe", o_0_spec);
     annotation_attr->annotation_.outputs.emplace_back(o_0_spec->spec_);
   } else {
-    annotation_attr->annotation_.inputs.emplace_back(
+    annotation_attr->annotation_.outputs.emplace_back(
         o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
 

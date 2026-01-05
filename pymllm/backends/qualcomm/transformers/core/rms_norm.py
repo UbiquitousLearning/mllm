@@ -120,4 +120,4 @@ class QRMSNorm(nn.Module):
         self.weight_fake_quant.disable_fakequant()
 
     def extra_repr(self):
-        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
+        return f"{tuple(self.weight.shape)}, eps={self.eps}"
