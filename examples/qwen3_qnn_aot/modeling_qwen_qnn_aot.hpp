@@ -41,8 +41,8 @@ Tensor QDQ(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
     case kUInt16PerTensorAsy: {
       auto scale = m->getTopParameterFile()->pull(scale_name);
       auto zp = m->getTopParameterFile()->pull(zp_name);
-      in.attach("scale", scale.impl());
-      in.attach("zero_point", zp.impl());
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", zp.impl(), true);
       break;
     }
     // For Constant!
@@ -51,8 +51,8 @@ Tensor QDQ(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
       MLLM_RT_ASSERT_EQ(in.size(-1), 1);
       auto scale = m->getTopParameterFile()->pull(scale_name);
       auto zp = m->getTopParameterFile()->pull(zp_name);
-      in.attach("scale", scale.impl());
-      in.attach("zero_point", zp.impl());
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", zp.impl(), true);
       break;
     }
     default: {
@@ -76,8 +76,8 @@ Tensor QDQ_KV(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) 
 
       // Is 128! not 127!
       auto new_zp = Tensor::constant(128, kInt32).setName(zp_name).setMemType(kParamsNormal);
-      in.attach("scale", scale.impl());
-      in.attach("zero_point", new_zp.impl());
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", new_zp.impl(), true);
       break;
     }
     default: {
@@ -372,7 +372,6 @@ class Qwen3Text final : public nn::Module {
 
     auto position_ids = inputs[1];
     auto causal_mask = inputs[2];
-    position_ids = position_ids.squeeze(0);
     auto llm_embedding_sin = rope_sin_()[{{0}, position_ids, {kAll}}];
     auto llm_embedding_cos = rope_cos_()[{{0}, position_ids, {kAll}}];
 
@@ -459,13 +458,13 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
 
       // For decode phase, increment the last position
       if (seq_len == 1) {
-        auto last_pos = *position_ids.offsettedPtr<int32_t>({0, position_ids.shape()[1] - 1});
-        position_ids = Tensor::empty({batch_size, 1}, kInt32, kCPU).alloc();
-        *position_ids.offsettedPtr<int32_t>({0, 0}) = last_pos + 1;
+        auto last_pos = *position_ids.offsettedPtr<int32_t>({position_ids.shape()[1] - 1});
+        position_ids = Tensor::empty({1}, kInt32, kCPU).alloc();
+        *position_ids.offsettedPtr<int32_t>({0}) = last_pos + 1;
       }
     } else {
       // Generate position_ids for prefill phase
-      position_ids = Tensor::empty({batch_size, seq_len}, kInt32, kCPU).alloc();
+      position_ids = Tensor::empty({seq_len}, kInt32, kCPU).alloc();
       auto position_ids_ptr = position_ids.ptr<int32_t>();
       for (int s = 0; s < seq_len; ++s) { position_ids_ptr[s] = s; }
     }

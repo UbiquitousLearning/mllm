@@ -32,12 +32,12 @@ namespace mllm {
 
 void Tensor::operator delete(void* ptr) noexcept {
   ((Tensor*)ptr)->impl_.reset();
-  for (auto& [a, _] : ((Tensor*)ptr)->impl_->attachedViews()) { ((Tensor*)ptr)->impl_->attachedViews()[a].reset(); }
+  for (auto& [a, _] : ((Tensor*)ptr)->impl_->attachedViews()) { ((Tensor*)ptr)->impl_->attachedViews()[a].second.reset(); }
 }
 
 void Tensor::delete_() noexcept {
   this->impl_.reset();
-  for (auto& [a, _] : this->impl_->attachedViews()) { this->impl_->attachedViews()[a].reset(); }
+  for (auto& [a, _] : this->impl_->attachedViews()) { this->impl_->attachedViews()[a].second.reset(); }
 }
 
 /**
@@ -100,13 +100,13 @@ Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const
   MLLM_RT_ASSERT_EQ(impl_->attachedViews().count(extra_tensor_name), 0);
   auto storage = TensorStorage::create(shape, dtype, device);
   auto impl = TensorViewImpl::create(shape, storage);
-  impl_->attachedViews().insert({extra_tensor_name, impl});
+  impl_->attachedViews().insert({extra_tensor_name, {true, impl}});
   return *this;
 }
 
 Tensor Tensor::getExtraTensorViewInTensor(const std::string& extra_tensor_name) {
   MLLM_RT_ASSERT_EQ(impl_->attachedViews().count(extra_tensor_name), 1);
-  return Tensor(impl_->attachedViews().at(extra_tensor_name));
+  return Tensor(impl_->attachedViews().at(extra_tensor_name).second);
 }
 
 Tensor Tensor::zeros(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
@@ -521,14 +521,19 @@ size_t Tensor::hash() const {
   std::vector<uint32_t> heap_buf;
 
   auto* buf = stack_buf;
-  size_t count = 1 + impl_->attachedViews().size();
+  size_t count = 1;
+  for (const auto& [_, view] : impl_->attachedViews()) {
+    if (!view.first) { count++; }
+  }
   if (count > kStackCap) {
     heap_buf.resize(count);
     buf = heap_buf.data();
   }
   buf[0] = uuid();
   size_t idx = 1;
-  for (const auto& [_, view] : impl_->attachedViews()) { buf[idx++] = view ? view->uuid() : 0u; }
+  for (const auto& [_, view] : impl_->attachedViews()) {
+    if (!view.first) { buf[idx++] = view.second ? view.second->uuid() : 0u; }
+  }
   return XXH64(buf, count * sizeof(uint32_t), 0);
 }
 

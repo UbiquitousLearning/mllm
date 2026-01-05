@@ -24,8 +24,8 @@ std::vector<std::shared_ptr<ir::Pass>> createQnnAOTLoweringPipeline(QnnAOTEnv* e
     ret.emplace_back(createMergeLLMHeadIntoMainGraphPass());
     ret.emplace_back(createLLMQuantRecipePass());
     ret.emplace_back(createPTQPass());
-    // ret.emplace_back(createSplitLLMGraphPass());
-    // ret.emplace_back(createMarkTensorIOPass());
+    ret.emplace_back(createSplitLLMGraphPass());
+    ret.emplace_back(createMarkTensorIOPass());
     // ret.emplace_back(createLLM2QnnLoweringPass());
   } else {
     MLLM_WARN("This pass currently only supports LLM applications. Please ensure your config contains 'quant_recipe.llm_recipe "
