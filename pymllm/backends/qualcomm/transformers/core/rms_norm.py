@@ -12,6 +12,7 @@ class QRMSNorm(nn.Module):
     ):
         super().__init__()
         self.eps = eps
+        self.quant_bits = quant_bits
         if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
 
@@ -20,12 +21,12 @@ class QRMSNorm(nn.Module):
         # Quantization configuration for Weight
         self.weight_fake_quant = FakeQuantize(
             observer=MinMaxObserver.with_args(
-                qscheme=torch.per_tensor_symmetric, dtype=torch.qint32
+                qscheme=torch.per_tensor_affine, dtype=torch.qint32
             ),
-            quant_min=-(2 ** (quant_bits - 1)),
-            quant_max=2 ** (quant_bits - 1) - 1,
+            quant_min=0,
+            quant_max=2 ** (quant_bits) - 1,
             dtype=torch.qint32,
-            qscheme=torch.per_tensor_symmetric,
+            qscheme=torch.per_tensor_affine,
         )
 
     def forward(self, x):
@@ -41,6 +42,61 @@ class QRMSNorm(nn.Module):
         w_q = self.weight_fake_quant(self.weight)
 
         return (x_normed * w_q).to(input_dtype)
+
+    @torch.no_grad()
+    def convert_to_deploy(self):
+        """
+        In-place replacement of self.weight:
+        Float Parameter -> Int Buffer
+        """
+        # 1. Ensure quantization parameters are ready
+        if self.weight_fake_quant.scale is None:
+            self.freeze_weight()
+
+        scale = self.weight_fake_quant.scale
+        zero_point = self.weight_fake_quant.zero_point
+        quant_min = self.weight_fake_quant.quant_min
+        quant_max = self.weight_fake_quant.quant_max
+
+        # 2. Calculate integer values
+        # w_int = round(w / s + zp)
+        w_int = torch.round(self.weight / scale + zero_point).clamp(
+            quant_min, quant_max
+        )
+
+        # 3. Set target integer type
+        if self.quant_bits <= 8:
+            target_dtype = torch.int8
+        elif self.quant_bits <= 16:
+            target_dtype = torch.int16
+        else:
+            target_dtype = torch.int32
+
+        w_int = w_int.to(target_dtype)
+
+        # === Key steps: Replacement operations ===
+
+        # A. Delete original Parameter 'weight'
+        # Must delete first, otherwise cannot register buffer with same name
+        del self.weight
+
+        # B. Register Buffer with same name 'weight'
+        # This makes state_dict['weight'] become Int Tensor
+        self.register_buffer("weight", w_int)
+
+        # C. Register Scale (usually needed by engine)
+        self.register_buffer("scale", scale)
+        self.register_buffer("zero_point", zero_point)
+
+        # D. Clean up unnecessary modules
+        if hasattr(self, "weight_fake_quant"):
+            del self.weight_fake_quant
+
+        class_name = self.__class__.__name__
+        instance_class_name = type(self).__name__
+        print(
+            f"Class: {class_name}, Instance: {instance_class_name}, Deploy Mode Activated. 'weight' is now {self.weight.dtype} buffer. zp is {zero_point}"
+        )
 
     @torch.no_grad()
     def freeze_weight(self):

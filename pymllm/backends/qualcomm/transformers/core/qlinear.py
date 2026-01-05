@@ -17,7 +17,9 @@ class QLinear(nn.Module):
 
         self.act_quant = None
         self.weight_quant = None
+        self.deploy_mode = False
 
+    @torch.no_grad()
     def freeze_weight(self):
         """PTQ Core: Observe current weights, calculate and fix Scale/ZP"""
         if self.weight_quant is not None:
@@ -66,11 +68,48 @@ class QLinearW8A16_PerChannelSym(QLinear):
         )
 
     def forward(self, x):
+        assert self.deploy_mode is False
         # Activation quantization logic (add act_quant here if needed)
         x_q = x
         # Apply fake quantization: use fixed scale if frozen, otherwise update in real-time
         w_q = self.weight_quant(self.weight)
         return F.linear(x_q, w_q, self.bias)
+
+    @torch.no_grad()
+    def convert_to_deploy(self):
+        if self.deploy_mode:
+            return
+
+        # 1. Ensure Observer is frozen
+        if self.weight_quant.scale is None:
+            self.freeze_weight()
+
+        scale = self.weight_quant.scale
+        zero_point = self.weight_quant.zero_point
+
+        # 2. Use PyTorch native API for Per-Channel quantization
+        # This handles per-channel complexity and returns quantized tensor
+        w_q_obj = torch.quantize_per_channel(
+            self.weight.float(), scale, zero_point, axis=0, dtype=torch.qint8
+        )
+
+        # 3. Extract pure integer data
+        w_int = w_q_obj.int_repr()
+
+        # 4. Replace Parameter with Buffer
+        del self.weight
+        # Register buffer named 'weight' to maintain name consistency
+        self.register_buffer("weight", w_int)
+        self.register_buffer("scale", scale)
+        self.register_buffer("zero_point", zero_point)
+
+        # Remove fake quant module to reduce model size
+        del self.weight_quant
+
+        self.deploy_mode = True
+        print(
+            f"[{self.__class__.__name__}] Converted to deploy. Weight shape: {self.weight.shape}, dtype: {self.weight.dtype}"
+        )
 
 
 # --- 2. LPBQ (Double Quantization) Scheme ---
@@ -150,3 +189,19 @@ class QLinearLPBQ(QLinear):
         # Must use quantized weights w_q for computation
         w_q = self.weight_quant(self.weight)
         return F.linear(x, w_q, self.bias)
+
+    @torch.no_grad()
+    def convert_to_deploy(self):
+        if self.deploy_mode:
+            return
+
+        del self.weight
+        self.register_buffer("weight", self.weight_quant.weight_q)
+        self.register_buffer("scale1", self.weight_quant.scale_1_uint4)
+        self.register_buffer("scale2", self.weight_quant.scale_2_fp32)
+        del self.weight_quant
+
+        self.deploy_mode = True
+        print(
+            f"[{self.__class__.__name__}] Converted to deploy. Original float weight removed."
+        )

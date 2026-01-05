@@ -88,63 +88,29 @@ Tensor QDQ_KV(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) 
   return in;
 }
 
+Tensor QDQ_ROPE(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
+  auto scale_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.scale";
+  auto zp_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.zero_point";
+
+  (void)in.__unsafeSetDType(kUInt16PerTensorAsy);
+
+  switch (in.dtype()) {
+    case kUInt16PerTensorAsy: {
+      auto scale = m->getTopParameterFile()->pull(scale_name);
+      auto zp = m->getTopParameterFile()->pull(zp_name);
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", zp.impl(), true);
+      break;
+    }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't Process dtype={}", nameOfType(in.dtype()));
+    }
+  }
+
+  return in;
+}
+
 }  // namespace ptq
-
-inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
-  auto inv_freq = Tensor::empty({output_dim / 2}, kFloat32, kCPU).alloc();
-  auto inv_freq_ptr = inv_freq.ptr<float>();
-  for (int i = 0; i < output_dim / 2; i++) { inv_freq_ptr[i] = 1.0 / std::pow(rope_theta, 2.0 * i / output_dim); }
-  return inv_freq;
-}
-
-inline auto makeRotaryPosEmbedding(Tensor& position_ids, const Tensor& inv_freq,
-                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
-  auto batch_size = position_ids.shape()[0];
-  auto seq_len = position_ids.shape()[1];
-  auto inv_freq_len = inv_freq.shape()[0];
-  auto dim = inv_freq_len * 2;
-
-  // Create freqs tensor: position_ids @ inv_freq
-  auto freqs = Tensor::empty({batch_size, seq_len, inv_freq_len}, kFloat32, kCPU).alloc();
-  auto freqs_ptr = freqs.ptr<float>();
-  auto position_ids_ptr = position_ids.ptr<int64_t>();
-  auto inv_freq_ptr = inv_freq.ptr<float>();
-
-  // Compute freqs = position_ids[:, :, None] @ inv_freq[None, :]
-  for (int b = 0; b < batch_size; ++b) {
-    for (int s = 0; s < seq_len; ++s) {
-      auto pos = position_ids_ptr[b * seq_len + s];
-      for (int d = 0; d < inv_freq_len; ++d) {
-        freqs_ptr[b * seq_len * inv_freq_len + s * inv_freq_len + d] = static_cast<float>(pos) * inv_freq_ptr[d];
-      }
-    }
-  }
-
-  // Create sin and cos tensors with shape [batch_size, seq_len, dim]
-  auto sin_emb = Tensor::empty({batch_size, seq_len, dim}, kFloat32, kCPU).alloc();
-  auto cos_emb = Tensor::empty({batch_size, seq_len, dim}, kFloat32, kCPU).alloc();
-  auto sin_ptr = sin_emb.ptr<float>();
-  auto cos_ptr = cos_emb.ptr<float>();
-
-  // Compute sin and cos embeddings: emb = [freqs, freqs]
-  for (int b = 0; b < batch_size; ++b) {
-    for (int s = 0; s < seq_len; ++s) {
-      for (int d = 0; d < inv_freq_len; ++d) {
-        auto freq = freqs_ptr[b * seq_len * inv_freq_len + s * inv_freq_len + d];
-        auto sin_val = std::sin(freq) * attention_scaling;
-        auto cos_val = std::cos(freq) * attention_scaling;
-
-        // Store the same values in both halves: [freqs, freqs]
-        sin_ptr[b * seq_len * dim + s * dim + d] = sin_val;
-        sin_ptr[b * seq_len * dim + s * dim + d + inv_freq_len] = sin_val;
-        cos_ptr[b * seq_len * dim + s * dim + d] = cos_val;
-        cos_ptr[b * seq_len * dim + s * dim + d + inv_freq_len] = cos_val;
-      }
-    }
-  }
-
-  return {sin_emb, cos_emb};
-}
 
 class Qwen3MLP final : public nn::Module {
   nn::Linear gate_proj_;
@@ -357,8 +323,8 @@ class Qwen3Text final : public nn::Module {
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
-    rope_sin_ = reg<nn::Param>("rope_sin", "rope_sin");
-    rope_cos_ = reg<nn::Param>("rope_cos", "rope_cos");
+    rope_sin_ = reg<nn::Param>("mllm_max_sin_embedding", "model.mllm_max_sin_embedding");
+    rope_cos_ = reg<nn::Param>("mllm_max_cos_embedding", "model.mllm_max_cos_embedding");
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -372,8 +338,8 @@ class Qwen3Text final : public nn::Module {
 
     auto position_ids = inputs[1];
     auto causal_mask = inputs[2];
-    auto llm_embedding_sin = rope_sin_()[{{0}, position_ids, {kAll}}];
-    auto llm_embedding_cos = rope_cos_()[{{0}, position_ids, {kAll}}];
+    auto llm_embedding_sin = ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq")[{{0}, position_ids, {kAll}}];
+    auto llm_embedding_cos = ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq")[{{0}, position_ids, {kAll}}];
 
     std::vector<Tensor> keys;
     std::vector<Tensor> values;
@@ -477,7 +443,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
 
     sequence = llm(llm_inputs)[0];
     sequence = lm_head_(ptq::QDQ(this, sequence, "lm_head_input_qdq"));
-    ptq::QDQ(this, sequence, "lm_head_output_qdq");
+    sequence = ptq::QDQ(this, sequence, "lm_head_output_qdq");
     ir::lowlevel::traceComment("    ╔═════╗   ");
     ir::lowlevel::traceComment("   ║  o o  ║  ");
     ir::lowlevel::traceComment("   ║   ▽   ║  ");

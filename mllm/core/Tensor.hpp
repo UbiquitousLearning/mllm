@@ -468,6 +468,14 @@ class Tensor {
   [[nodiscard]] DataTypes dtype() const;
 
   /**
+   * @brief Unsafe set One Datatype
+   *
+   * @param dt
+   * @return Tensor
+   */
+  [[nodiscard]] Tensor __unsafeSetDType(DataTypes dt) const;
+
+  /**
    * @brief Gets device location.
    * @return Current device type.
    */
@@ -701,6 +709,8 @@ class Tensor {
   [[nodiscard]] std::unordered_map<std::string, std::pair<bool, TensorViewImpl::ptr_t>>& attachedViews() {
     return impl_->attachedViews();
   }
+
+  bool hasAttachedView(const std::string& name) { return impl_->attachedViews().count(name) == 1; }
 
   void attach(const std::string& name, const TensorViewImpl::ptr_t& view, bool exclude_from_hash = false) {
     impl_->attachedViews()[name] = {exclude_from_hash, view};

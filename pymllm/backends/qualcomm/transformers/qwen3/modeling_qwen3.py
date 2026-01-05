@@ -473,6 +473,28 @@ class Qwen3Model(Qwen3PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    @torch.no_grad()
+    def convert_rope_for_deploy(self):
+        sin_scale = self.sin_embedding_input_qdq.fake_quant.scale
+        sin_zero_point = self.sin_embedding_input_qdq.fake_quant.zero_point
+        sin_quant_min = self.sin_embedding_input_qdq.fake_quant.quant_min
+        sin_quant_max = self.sin_embedding_input_qdq.fake_quant.quant_max
+
+        cos_scale = self.cos_embedding_input_qdq.fake_quant.scale
+        cos_zero_point = self.cos_embedding_input_qdq.fake_quant.zero_point
+        cos_quant_min = self.cos_embedding_input_qdq.fake_quant.quant_min
+        cos_quant_max = self.cos_embedding_input_qdq.fake_quant.quant_max
+
+        sin_int = torch.round(
+            self.mllm_max_sin_embedding / sin_scale + sin_zero_point
+        ).clamp(sin_quant_min, sin_quant_max)
+        self.mllm_max_sin_embedding = sin_int.to(torch.uint16)
+
+        cos_int = torch.round(
+            self.mllm_max_cos_embedding / cos_scale + cos_zero_point
+        ).clamp(cos_quant_min, cos_quant_max)
+        self.mllm_max_cos_embedding = cos_int.to(torch.uint16)
+
     @check_model_inputs()
     @auto_docstring
     def forward(

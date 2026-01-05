@@ -264,6 +264,8 @@ void LinalgIRQuantizatonSpecAttr::dump(IRPrinter& p) {
     }
     ss << ", ";
     ss << "uuid=" << q->uuid;
+    ss << ", ";
+    ss << "solved=" << q->solved;
     ss << ")";
     return ss.str();
   };

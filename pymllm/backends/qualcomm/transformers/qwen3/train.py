@@ -40,9 +40,14 @@ def main():
     m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
     # m.compile()
     m.infer(args.infer_text)
+
+    # !!!
+    # Things below is for deploy. We will turn all fp32 weights and some buffers(rope) to quantized dtype.
+    # !!!
     m.model.lm_head.weight = torch.nn.Parameter(
         m.model.model.embed_tokens.weight.clone()
     )
+    m.convert()
 
     os.makedirs(args.output_dir, exist_ok=True)
     model_save_path = os.path.join(args.output_dir, "model.safetensors")

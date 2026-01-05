@@ -387,8 +387,9 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
   auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
 
-  auto weight_spec_attr = cloneQuantizationSpecType(
-      writer.getContext(), node->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>());
+  // FIXME: This dtype is hardcoded. We should make it right.
+  auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
+      ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));
   weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
 
   // Get self anno
@@ -421,26 +422,15 @@ bool LLMQuantRecipeIndexPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 
 bool LLMQuantRecipeIndexPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
   auto index_ir = node->cast_<ir::linalg::IndexOp>();
-  auto i_0 = *(node->inputs().begin());   // Index what
-  auto o_0 = *(node->outputs().begin());  // Output
+  auto i_0 = *(node->inputs().begin());  // Index what
 
   if (!i_0->getAttr("quant_recipe")) {
     auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
     i_0->setAttr("quant_recipe", i_0_spec);
   }
 
-  auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
-  o_0->setAttr("quant_recipe", o_0_spec);
-
-  auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
-  annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
-  annotation_attr->annotation_.outputs.emplace_back(
-      o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
-
-  node->setAttr("quant_recipe", annotation_attr);
-
-  return true;
+  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
+                                                                      node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -848,85 +838,54 @@ bool LLMQuantRecipeViewPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t
 bool LLMQuantRecipeEmbeddingPattern::isMatch(const mllm::ir::op_ptr_t& op) {
   // Pattern:
   //
-  // embedding(op) -> quantize(op)
+  // embedding(op)
   MLLM_RETURN_FALSE_IF_NOT(op->isa_<ir::linalg::EmbeddingOp>());
-  MLLM_RETURN_FALSE_IF_NOT(op->nextOp());
-  MLLM_RETURN_FALSE_IF_NOT(op->nextOp()->isa_<ir::linalg::CastTypeOp>());
 
   // Already marked.
   MLLM_RETURN_FALSE_IF(op->getAttr("quant_recipe"));
-  MLLM_RETURN_FALSE_IF(op->nextOp()->getAttr("quant_recipe"));
 
   return true;
 }
 
 bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
   auto embedding_op = node->cast_<ir::linalg::EmbeddingOp>();
-  auto quantize_op = embedding_op->nextOp()->cast_<ir::linalg::CastTypeOp>();
+  auto i_0 = *(node->inputs().begin());
+  auto o_0 = *(node->outputs().begin());
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
 
-  // Inputs to this Quantization node must be raw type.
-  {
-    auto i_type = quantize_op->inputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.dtype();
-    MLLM_RT_ASSERT(i_type == kFloat32 || i_type == kFloat16);
-    auto i_quant_spec = ir::linalg::QuantizationSpecRaw::create(i_type);
-    annotation_attr->annotation_.inputs.emplace_back(i_quant_spec);
-    quantize_op->inputs().front()->setAttr("quant_recipe",
-                                           writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(i_quant_spec));
+  if (!i_0->getAttr("quant_recipe")) {
+    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
+    i_0->setAttr("quant_recipe", i_0_spec);
+  } else {
+    annotation_attr->annotation_.inputs.emplace_back(
+        i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
 
-  // Outputs to this Quantization node must be int8 or int16
-  {
-    auto o_type = quantize_op->outputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.dtype();
-    ir::linalg::QuantizationSpec::ptr_t o_quant_spec = nullptr;
-    switch (o_type) {
-      case kInt8PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(-128, 127, kInt8, kFloat32, Tensor::nil());
-        break;
-      }
-      case kUInt8PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(0, 255, kUInt8, kFloat32, Tensor::nil());
-        break;
-      }
-      case kInt16PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(-32768, 32767, kInt16, kFloat32, Tensor::nil());
-        break;
-      }
-      case kUInt16PerTensorSym: {
-        o_quant_spec = ir::linalg::QuantizationSpecSymPerTensor::create(0, 65535, kUInt16, kFloat32, Tensor::nil());
-        break;
-      }
-      case kUInt16PerTensorAsy: {
-        o_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65535, kUInt16, kFloat32, kInt32, Tensor::nil(),
-                                                                         Tensor::nil());
-        break;
-      }
-      default: {
-        NYI("Only support [uint16, int16, uint8, int8], [sym] for now.");
-      }
-    }
-
-    // Weights
-    auto weight_name = embedding_op->getAOp()->getName() + ".weight";
-    auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
-    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
-    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
-    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
-    auto weight_tensor = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
-
-    annotation_attr->annotation_.outputs.emplace_back(o_quant_spec);
-    quantize_op->outputs().front()->setAttr("quant_recipe",
-                                            writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(o_quant_spec));
-
-    // Embedding weight quantization method same as outputs, but not share, just same type
-    auto weight_spec_attr = genSimpleQuantizationSpecAttr(writer.getContext(), weight_tensor);
-    weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
-    annotation_attr->annotation_.weights.insert({"weight", weight_spec_attr->spec_});
+  if (!o_0->getAttr("quant_recipe")) {
+    auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
+    o_0->setAttr("quant_recipe", o_0_spec);
+    annotation_attr->annotation_.outputs.emplace_back(o_0_spec->spec_);
+  } else {
+    annotation_attr->annotation_.inputs.emplace_back(
+        o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
+
+  // Weights
+  auto weight_name = embedding_op->getAOp()->getName() + ".weight";
+  auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+  MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+  auto weight_tensor = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+
+  // Embedding weight quantization method same as outputs, but not share, just same type
+  auto weight_spec_attr = genSimpleQuantizationSpecAttr(writer.getContext(), weight_tensor);
+  weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
+  annotation_attr->annotation_.weights.insert({"weight", weight_spec_attr->spec_});
 
   // Attach to quantize node
-  node->nextOp()->setAttr("quant_recipe", annotation_attr);
+  node->setAttr("quant_recipe", annotation_attr);
 
   return true;
 }

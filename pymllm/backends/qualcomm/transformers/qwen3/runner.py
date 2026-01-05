@@ -31,6 +31,15 @@ def enable_qdq_observer(m):
         m.enable_observer()
 
 
+def convert_weight(m):
+    if (
+        isinstance(m, QLinearLPBQ)
+        or isinstance(m, QLinearW8A16_PerChannelSym)
+        or isinstance(m, QRMSNorm)
+    ):
+        m.convert_to_deploy()
+
+
 class Qwen3Quantizer:
     def __init__(self, model_path: str, mllm_qualcomm_max_length=2048):
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -167,3 +176,7 @@ class Qwen3Quantizer:
         # 4. Close Observer, freeze calibrated quantization parameters
         self.freeze_activation()
         print("\nCalibration completed, activation quantization parameters frozen.")
+
+    def convert(self):
+        self.model.apply(convert_weight)
+        self.model.model.convert_rope_for_deploy()

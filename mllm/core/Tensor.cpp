@@ -105,7 +105,9 @@ Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const
 }
 
 Tensor Tensor::getExtraTensorViewInTensor(const std::string& extra_tensor_name) {
-  MLLM_RT_ASSERT_EQ(impl_->attachedViews().count(extra_tensor_name), 1);
+  if (impl_->attachedViews().count(extra_tensor_name) != 1) {
+    MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't find {}", extra_tensor_name);
+  }
   return Tensor(impl_->attachedViews().at(extra_tensor_name).second);
 }
 
@@ -502,6 +504,11 @@ Tensor& Tensor::setMemType(TensorMemTypes mem_type) {
 }
 
 DataTypes Tensor::dtype() const { return impl()->dtype(); }
+
+Tensor Tensor::__unsafeSetDType(DataTypes dt) const {
+  impl_->storage()->dtype_ = dt;
+  return *this;
+}
 
 DeviceTypes Tensor::device() const { return impl()->device(); }
 
