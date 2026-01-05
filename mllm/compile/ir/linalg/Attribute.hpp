@@ -60,6 +60,7 @@ struct QuantizationSpec {
   using ptr_t = std::shared_ptr<QuantizationSpec>;
   QuantizationSpecType type;
   uint64_t uuid;
+  bool solved = false;
 };
 
 struct QuantizationSpecRaw : public QuantizationSpec {

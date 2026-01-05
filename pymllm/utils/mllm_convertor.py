@@ -66,6 +66,24 @@ def main():
             cast_left_2_fp32=True,
             verbose=args.verbose,
         )
+    elif args.cfg_path is None and args.pipeline is None and args.format == "v2":
+        cfg = None
+        pipeline: QuantizeSolver = BUILTIN_QUANTIZE_PIPELINE["_raw"]()
+        old_param_size = len(params)
+        new_param_size = pipeline.stream_quantize_params_size(cfg, params)
+        print(f"Params Num: Before: {old_param_size}, After: {new_param_size}")
+        pipeline.stream_quantize(
+            cfg,
+            params,
+            writer=ModelFileV2(
+                args.output_path,
+                args.model_name,
+                "Streaming",
+                max_params_descriptor_buffer_num=new_param_size,
+            ),
+            cast_left_2_fp32=False,
+            verbose=args.verbose,
+        )
     elif (
         args.cfg_path is not None and args.pipeline is not None and args.format == "v2"
     ):

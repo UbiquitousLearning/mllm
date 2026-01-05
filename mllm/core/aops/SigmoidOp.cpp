@@ -28,13 +28,10 @@ void SigmoidOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   if (options_.isInplace()) {
     outputs.emplace_back(inputs[0]);
   } else {
-    const auto& i = inputs[0];
-    outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
+    outputs.emplace_back(Tensor::empty(inputs[0].shape(), inputs[0].dtype(), inputs[0].device()));
   }
 }
 
-void SigmoidOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  if (!options_.isInplace()) { BaseOp::setup(inputs, outputs); }
-}
+void SigmoidOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
 
 }  // namespace mllm::aops

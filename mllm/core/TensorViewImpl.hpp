@@ -89,12 +89,17 @@ class TensorViewImpl : public std::enable_shared_from_this<TensorViewImpl> {
 
   inline void dropStorage() { storage_ = nullptr; }
 
+  inline std::unordered_map<std::string, std::pair<bool, TensorViewImpl::ptr_t>>& attachedViews() { return attached_views_; }
+
  private:
   int32_t shape_len_ = 0;
   int32_t storage_offset_ = 0;
   int32_t shape_[MLLM_TENSOR_SHAPE_MAX_LEN];
   int32_t stride_[MLLM_TENSOR_SHAPE_MAX_LEN];
   std::shared_ptr<TensorStorage> storage_ = nullptr;
+
+  // std::pair<bool, TensorViewImpl::ptr_t>'s bool for judge if this tensor should be considered in hashing
+  std::unordered_map<std::string, std::pair<bool, TensorViewImpl::ptr_t>> attached_views_;
 };
 
 }  // namespace mllm

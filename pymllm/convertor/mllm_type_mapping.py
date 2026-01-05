@@ -91,6 +91,7 @@ if MLLM_FIND_TORCH_AVAILABLE:
             torch.qint8: 16,  # kInt8
             torch.quint8: 129,  # kUInt8
             torch.qint32: 18,  # kInt32
+            torch.uint16: 130,  # kUInt16
         }
     )
 

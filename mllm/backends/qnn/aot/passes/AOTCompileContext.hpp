@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
+#include "mllm/core/ParameterFile.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -29,12 +30,17 @@ class AOTCompileContext {
 
   nlohmann::json& getConfig();
 
+  void setParamFile(const ParameterFile::ptr_t& params);
+
+  ParameterFile::ptr_t getParamFile();
+
  private:
   // Private constructor
   AOTCompileContext() = default;
 
   QnnAOTEnv* env_ = nullptr;
   nlohmann::json config_;
+  ParameterFile::ptr_t params_;
 };
 
 }  // namespace mllm::qnn::aot
