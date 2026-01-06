@@ -54,6 +54,7 @@ LINALG_AOPS_DECL(OpTypes::kSoftmax, SoftmaxOp);
 LINALG_AOPS_DECL(OpTypes::kTranspose, TransposeOp);
 LINALG_AOPS_DECL(OpTypes::kRMSNorm, RMSNormOp);
 LINALG_AOPS_DECL(OpTypes::kSiLU, SiLUOp);
+LINALG_AOPS_DECL(OpTypes::kSigmoid, SigmoidOp);
 
 LINALG_AOPS_DECL(OpTypes::kCastType, CastTypeOp);
 
@@ -116,7 +117,6 @@ LINALG_AOPS_DECL(OpTypes::kArgsort, ArgsortOp);
 
 LINALG_AOPS_DECL(OpTypes::kEqual, EqualOp);
 LINALG_AOPS_DECL(OpTypes::kWhere, WhereOp);
-LINALG_AOPS_DECL(OpTypes::kSigmoid, SigmoidOp);
 
 // Customized Ops
 LINALG_AOPS_DECL(OpTypes::kFlashAttention2WithSinkAndSwa, FlashAttention2SwaSinkOp);

@@ -13,10 +13,21 @@ class QnnAOTAddPattern : public QnnAOTBasePattern {
  public:
   bool isMatch(const mllm::ir::op_ptr_t& op) override;
 
-  bool compile(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
 
   static inline std::pair<OpTypes, std::shared_ptr<QnnAOTAddPattern>> create() {
     return {OpTypes::kAdd, std::make_shared<QnnAOTAddPattern>()};
+  }
+};
+
+class QnnAOTMulPattern : public QnnAOTBasePattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
+
+  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTMulPattern>> create() {
+    return {OpTypes::kMul, std::make_shared<QnnAOTMulPattern>()};
   }
 };
 

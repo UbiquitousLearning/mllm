@@ -9,14 +9,14 @@
 
 namespace mllm::qnn::aot {
 
-class QnnAOTIndexPattern : public QnnAOTBasePattern {
+class QnnAOTViewPattern : public QnnAOTBasePattern {
  public:
   bool isMatch(const mllm::ir::op_ptr_t& op) override;
 
   bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
 
-  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTIndexPattern>> create() {
-    return {OpTypes::kIndex, std::make_shared<QnnAOTIndexPattern>()};
+  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTViewPattern>> create() {
+    return {OpTypes::kView, std::make_shared<QnnAOTViewPattern>()};
   }
 };
 
