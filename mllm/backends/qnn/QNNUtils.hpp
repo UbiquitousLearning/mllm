@@ -254,15 +254,39 @@ class QNNParamScalarWrapper {
   template<typename T>
   static std::shared_ptr<QNNParamScalarWrapper> create(const std::string& name, T value) {
     return std::make_shared<QNNParamScalarWrapper>(name, value);
-  };
-  QNNParamScalarWrapper(const std::string& name, bool value);
-  QNNParamScalarWrapper(const std::string& name, uint32_t value);
-  QNNParamScalarWrapper(const std::string& name, float value);
+  }
+
+  template<typename T>
+  QNNParamScalarWrapper(const std::string& name, T value);
+
   Qnn_Param_t* getNativeParam();
 
  private:
+  template<typename>
+  struct always_false : std::false_type {};
+
   std::string name_;
   Qnn_Param_t qnnParam_{};
 };
+
+template<typename T>
+QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, T value) : name_(name) {
+  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnnParam_.name = name_.c_str();
+
+  if constexpr (std::is_same_v<T, bool>) {
+    qnnParam_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
+    qnnParam_.scalarParam.bool8Value = static_cast<uint8_t>(value);
+  } else if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, int32_t>) {
+    qnnParam_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
+    qnnParam_.scalarParam.uint32Value = static_cast<uint32_t>(value);
+  } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+    qnnParam_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
+    qnnParam_.scalarParam.floatValue = static_cast<float>(value);
+  } else {
+    static_assert(always_false<T>::value,
+                  "QNNParamScalarWrapper: not support type. Only support bool, uint32_t, int32_t, float, double");
+  }
+}
 
 }  // namespace mllm::qnn
