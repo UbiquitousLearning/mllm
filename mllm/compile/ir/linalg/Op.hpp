@@ -28,6 +28,7 @@ class ISTFTOp;
 class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
+class SigmoidOp;
 class CausalMaskOp;
 class CastTypeOp;
 class X2XOp;
@@ -186,6 +187,7 @@ LINALG_AOPS_DEFINE(SoftmaxOp, SOFTMAXOP);
 LINALG_AOPS_DEFINE(TransposeOp, TRANSPOSEOP);
 LINALG_AOPS_DEFINE(RMSNormOp, RMSNORMOP);
 LINALG_AOPS_DEFINE(SiLUOp, SILUOP);
+LINALG_AOPS_DEFINE(SigmoidOp, SIGMOIDOP);
 
 LINALG_AOPS_DEFINE(CastTypeOp, CASTTYPEOP);
 
@@ -252,7 +254,6 @@ LINALG_AOPS_DEFINE(WhereOp, WHEREOP);
 LINALG_AOPS_DEFINE(FlashAttention2SwaSinkOp, FLASHATTENTION2SWASINKOP);
 LINALG_AOPS_DEFINE(RadixAttnRelaxOp, RADIXATTNRELAXOP);
 LINALG_AOPS_DEFINE(RadixAttnSwaSinkOp, RADIXATTNSWASINKOP);
-LINALG_AOPS_DEFINE(SigmoidOp, SIGMOIDOP);
 
 /**
  * @brief CustomizedOp: A generic operation type for implementing backend-specific operations

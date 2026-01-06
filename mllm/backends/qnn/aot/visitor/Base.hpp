@@ -16,9 +16,7 @@ class QnnAOTBasePattern : public ir::Pattern {
 
   bool isMatch(const mllm::ir::op_ptr_t& op) override { return false; }
 
-  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override { return compile(writer, node); }
-
-  virtual bool compile(ir::IRWriter& writer, const ir::op_ptr_t& op) = 0;
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override { return false; }
 };
 
 class QnnAOTQuantRecipeBasePattern : public ir::Pattern {
