@@ -66,11 +66,11 @@ class QRMSNorm(nn.Module):
 
         # 3. Set target integer type
         if self.quant_bits <= 8:
-            target_dtype = torch.int8
+            target_dtype = torch.uint8
         elif self.quant_bits <= 16:
-            target_dtype = torch.int16
+            target_dtype = torch.uint16
         else:
-            target_dtype = torch.int32
+            target_dtype = torch.uint32
 
         w_int = w_int.to(target_dtype)
 
