@@ -5,6 +5,7 @@
 #include "mllm/core/aops/ConcatOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FlashAttention2Op.hpp"
+#include "mllm/core/aops/GatherOp.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/Scatter2ShardsOp.hpp"
@@ -209,6 +210,11 @@ mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v) 
 mllm::Tensor sigmoid(const Tensor& x) {
   auto& ctx = mllm::Context::instance();
   return ctx.buildOpAndSubmitTask(OpTypes::kSigmoid, aops::SigmoidOpOptions{}, {x})[0];
+}
+
+mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices) {
+  auto& ctx = mllm::Context::instance();
+  return ctx.buildOpAndSubmitTask(OpTypes::kGather, aops::GatherOpOptions{.dim = dim}, {x, indices})[0];
 }
 
 }  // namespace mllm::nn::functional
