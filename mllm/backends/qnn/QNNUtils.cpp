@@ -5,6 +5,7 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
@@ -303,11 +304,11 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
   Qnn_DataType_t ret = QNN_DATATYPE_UNDEFINED;
   switch (dtype) {
     case kInt8: {
-      ret = QNN_DATATYPE_INT_8;
+      ret = QNN_DATATYPE_SFIXED_POINT_8;
       break;
     }
     case kInt16: {
-      ret = QNN_DATATYPE_INT_16;
+      ret = QNN_DATATYPE_UFIXED_POINT_16;
       break;
     }
     case kInt32: {
@@ -319,11 +320,11 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kUInt8: {
-      ret = QNN_DATATYPE_UINT_8;
+      ret = QNN_DATATYPE_UFIXED_POINT_8;
       break;
     }
     case kUInt16: {
-      ret = QNN_DATATYPE_UINT_16;
+      ret = QNN_DATATYPE_UFIXED_POINT_16;
       break;
     }
     case kUInt32: {
@@ -449,7 +450,8 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   // in this case, the tensor may be a placeholder(input/output except for graph IO)
   // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
   MLLM_RT_ASSERT(!name.empty());
-  if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+  // in AOT case, the tensor is all on CPU (TODO: handle this)
+  // if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
 
   Qnn_DataType_t dataType = mllmDataTypeToQnnDataType(tensor.dtype());
 
@@ -466,11 +468,6 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
 std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std::string& name, const Tensor& tensor,
                                                                        Qnn_QuantizeParams_t quantize) {
   MLLM_RT_ASSERT(!name.empty() && tensor.rank() > 0 && !tensor.isNil());
-
-  // mllm currently support float16/float32/sfixed8(int8) as static tensor (weight) data type
-  // uint8 and int32 is caused by QNNLinear which uses Conv2d
-  MLLM_RT_ASSERT(tensor.dtype() == kFloat16 || tensor.dtype() == kFloat32 || tensor.dtype() == kInt8 || tensor.dtype() == kUInt8
-                 || tensor.dtype() == kInt32);
 
   std::shared_ptr<QNNTensorWrapper> tensorWrapper = QNNTensorWrapper::create(name, QNN_TENSOR_TYPE_STATIC, tensor, quantize);
 
@@ -597,6 +594,14 @@ QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, bool value
   qnnParam_.scalarParam.bool8Value = static_cast<uint8_t>(value);
 }
 
+QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, int32_t value) {
+  name_ = name;
+  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
+  qnnParam_.name = name_.c_str();
+  qnnParam_.scalarParam.dataType = QNN_DATATYPE_INT_32;
+  qnnParam_.scalarParam.int32Value = value;
+}
+
 QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, uint32_t value) {
   name_ = name;
   qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
@@ -640,6 +645,76 @@ void propagateQuantScale(const Tensor& input, Tensor& output) {
     auto t = input;  // shadow copy for get scale
     setQuantScale(output, getQuantScale(t));
   }
+}
+
+void __printQnnTensor(const Qnn_Tensor_t* tensor) {
+  if (tensor == nullptr) {
+    MLLM_ERROR("Tensor is null");
+    return;
+  }
+  if (tensor->version != QNN_TENSOR_VERSION_2) {
+    MLLM_ERROR("Only Qnn_TensorV2_t is supported");
+    return;
+  }
+
+  const Qnn_TensorV2_t& t = tensor->v2;
+
+  std::string tensor_type = "";
+
+  switch (t.type) {
+    case QNN_TENSOR_TYPE_APP_READ: tensor_type = "APP_READ"; break;
+    case QNN_TENSOR_TYPE_APP_WRITE: tensor_type = "APP_WRITE"; break;
+    case QNN_TENSOR_TYPE_NATIVE: tensor_type = "APP_NATIVE"; break;
+    case QNN_TENSOR_TYPE_STATIC: tensor_type = "STATIC"; break;
+    default: tensor_type = "UNKNOWN";
+  }
+
+  std::string dtype_str;
+  switch (t.dataType) {
+    case QNN_DATATYPE_INT_8: dtype_str = "INT_8"; break;
+    case QNN_DATATYPE_INT_16: dtype_str = "INT_16"; break;
+    case QNN_DATATYPE_INT_32: dtype_str = "INT_32"; break;
+    case QNN_DATATYPE_INT_64: dtype_str = "INT_64"; break;
+    case QNN_DATATYPE_UINT_8: dtype_str = "UINT_8"; break;
+    case QNN_DATATYPE_UINT_16: dtype_str = "UINT_16"; break;
+    case QNN_DATATYPE_UINT_32: dtype_str = "UINT_32"; break;
+    case QNN_DATATYPE_UINT_64: dtype_str = "UINT_64"; break;
+    case QNN_DATATYPE_FLOAT_16: dtype_str = "FLOAT_16"; break;
+    case QNN_DATATYPE_FLOAT_32: dtype_str = "FLOAT_32"; break;
+    case QNN_DATATYPE_FLOAT_64: dtype_str = "FLOAT_64"; break;
+    case QNN_DATATYPE_SFIXED_POINT_4: dtype_str = "SFIXED_POINT_4"; break;
+    case QNN_DATATYPE_SFIXED_POINT_8: dtype_str = "SFIXED_POINT_8"; break;
+    case QNN_DATATYPE_SFIXED_POINT_16: dtype_str = "SFIXED_POINT_16"; break;
+    case QNN_DATATYPE_SFIXED_POINT_32: dtype_str = "SFIXED_POINT_32"; break;
+    case QNN_DATATYPE_UFIXED_POINT_4: dtype_str = "UFIXED_POINT_4"; break;
+    case QNN_DATATYPE_UFIXED_POINT_8: dtype_str = "UFIXED_POINT_8"; break;
+    case QNN_DATATYPE_UFIXED_POINT_16: dtype_str = "UFIXED_POINT_16"; break;
+    case QNN_DATATYPE_UFIXED_POINT_32: dtype_str = "UFIXED_POINT_32"; break;
+    case QNN_DATATYPE_BOOL_8: dtype_str = "BOOL_8"; break;
+    case QNN_DATATYPE_STRING: dtype_str = "STRING"; break;
+    default: dtype_str = "UNKNOWN"; break;
+  }
+
+  std::string shape_str = "[";
+  for (uint32_t i = 0; i < t.rank; ++i) {
+    shape_str += std::to_string(t.dimensions[i]);
+    if (i < t.rank - 1) shape_str += ", ";
+  }
+  shape_str += "]";
+
+  std::string quant_str = "None";
+  if (t.quantizeParams.encodingDefinition == QNN_DEFINITION_DEFINED) {
+    if (t.quantizeParams.quantizationEncoding == QNN_QUANTIZATION_ENCODING_SCALE_OFFSET) {
+      quant_str = "Scale: " + std::to_string(t.quantizeParams.scaleOffsetEncoding.scale)
+                  + ", Offset: " + std::to_string(t.quantizeParams.scaleOffsetEncoding.offset);
+    } else if (t.quantizeParams.quantizationEncoding == QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET) {
+      quant_str = "Axis Scale Offset (Axis: " + std::to_string(t.quantizeParams.axisScaleOffsetEncoding.axis) + ")";
+    } else if (t.quantizeParams.quantizationEncoding == QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION) {
+      quant_str = "Blockwise Expansion";
+    }
+  }
+
+  MLLM_INFO("Tensor: {}, Type:{}, Shape: {}, Dtype: {}, Quant: {}", t.name, tensor_type, shape_str, dtype_str, quant_str);
 }
 
 }  // namespace mllm::qnn

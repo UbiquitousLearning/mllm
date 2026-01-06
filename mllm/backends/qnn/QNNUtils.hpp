@@ -6,7 +6,6 @@
 #include "QnnTypes.h"
 #include "mllm/core/Tensor.hpp"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -88,6 +87,8 @@ bool deepCopyQnnTensorInfo(Qnn_Tensor_t* dst, const Qnn_Tensor_t* src);
 bool freeQnnTensor(Qnn_Tensor_t& tensor);
 
 bool freeQnnTensors(Qnn_Tensor_t*& tensors, uint32_t numTensors);
+
+void __printQnnTensor(const Qnn_Tensor_t* tensor);  // for debug use
 
 inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint64_t times_tamp, va_list argp) {
   const char* level_str = "";
@@ -256,6 +257,7 @@ class QNNParamScalarWrapper {
     return std::make_shared<QNNParamScalarWrapper>(name, value);
   };
   QNNParamScalarWrapper(const std::string& name, bool value);
+  QNNParamScalarWrapper(const std::string& name, int32_t value);
   QNNParamScalarWrapper(const std::string& name, uint32_t value);
   QNNParamScalarWrapper(const std::string& name, float value);
   Qnn_Param_t* getNativeParam();
