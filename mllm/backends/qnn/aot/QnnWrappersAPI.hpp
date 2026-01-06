@@ -61,6 +61,9 @@ class QnnAOTNodeTensor : public std::enable_shared_from_this<QnnAOTNodeTensor> {
 
   Qnn_QuantizeParams_t parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v);
 
+  // intend for per-channel and LPBQ quantization
+  void setupComplexTensorQuantization(const ir::tensor::TensorValue::ptr_t& v);
+
   std::shared_ptr<mllm::qnn::QNNTensorWrapper> tensor_wrapper_;
 };
 

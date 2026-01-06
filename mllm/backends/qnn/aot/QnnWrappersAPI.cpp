@@ -31,6 +31,7 @@ QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool
   } else {
     tensor_wrapper_ = mllm::qnn::QNNTensorWrapper::create(name, type, v->tensor_, quant);
   }
+  setupComplexTensorQuantization(v);  // per-channel and LPBQ cases
 }
 
 Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::TensorValue::ptr_t& v) {
@@ -90,7 +91,7 @@ Qnn_TensorType_t QnnAOTNodeTensor::parseQnnTensorTypeFromIR(const ir::tensor::Te
 
   // Check Attribute. The Attribute priority is higher than tensor type
   if (v->getAttr("qnn_graph_outputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ; }
-  if (v->getAttr("qnn_graph_inputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE; }
+  if (v->getAttr("qnn_graph_inputs")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_APP_WRITE; }
   if (v->getAttr("constant")) { ret_qnn_tensor_type = QNN_TENSOR_TYPE_STATIC; }
 
   return ret_qnn_tensor_type;
@@ -109,7 +110,16 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
   auto quant_spec = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
 
   switch (quant_spec->type) {
-    case ir::linalg::QuantizationSpecType::kRaw: {
+    case ir::linalg::QuantizationSpecType::kRaw:
+    case ir::linalg::QuantizationSpecType::kSymPerChannel:
+    case ir::linalg::QuantizationSpecType::kLPBQ: {
+      break;
+    }
+    case ir::linalg::QuantizationSpecType::kAsymPerTensor: {
+      auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(quant_spec);
+      ret.encodingDefinition = QNN_DEFINITION_DEFINED;
+      ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = cfg->zero_point.item<int32_t>()};
       break;
     }
     case ir::linalg::QuantizationSpecType::kSymPerTensor: {
@@ -119,6 +129,19 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
       break;
     }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle kNone type");
+    }
+  }
+
+  return ret;
+}
+
+void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorValue::ptr_t& v) {
+  MLLM_RT_ASSERT(v->getAttr("quant_recipe"));
+  auto quant_spec = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
+
+  switch (quant_spec->type) {
     case ir::linalg::QuantizationSpecType::kSymPerChannel: {
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerChannel>(quant_spec);
 
@@ -135,12 +158,6 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       tensor_wrapper_->setScaleOffsetQuantization(scale_offsets, cfg->ch_axis);
       break;
     }
-    case ir::linalg::QuantizationSpecType::kSymPerBlock:
-    case ir::linalg::QuantizationSpecType::kAsymPerTensor:
-    case ir::linalg::QuantizationSpecType::kAsymPerChannel:
-    case ir::linalg::QuantizationSpecType::kAsymPerBlock: {
-      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle [kSymPerBlock, kAsymPerTensor, kAsymPerChannel, kAsymPerBlock] type");
-    }
     case ir::linalg::QuantizationSpecType::kLPBQ: {
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(quant_spec);
 
@@ -156,7 +173,6 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
 
       Qnn_BlockwiseExpansion_t blockwise_expansion;
       blockwise_expansion.axis = cfg->ch_axis;
-      blockwise_expansion.axis = cfg->ch_axis;
       blockwise_expansion.scaleOffsets = nullptr;  // Will be set by setBlockwiseQuantization
       blockwise_expansion.numBlocksPerAxis = v->tensor_.size(cfg->ch_axis) / cfg->block_size;
       blockwise_expansion.blockScaleBitwidth = 12;  // 12 bits for 4 to 16 expansion
@@ -166,12 +182,8 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       tensor_wrapper_->setBlockwiseQuantization(blockwise_expansion, scale_offsets);
       break;
     }
-    default: {
-      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't handle kNone type");
-    }
+    default: break;
   }
-
-  return ret;
 }
 
 // QnnAOTNodeOperation implementations
