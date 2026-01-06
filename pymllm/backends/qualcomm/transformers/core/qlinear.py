@@ -196,7 +196,10 @@ class QLinearLPBQ(QLinear):
             return
 
         del self.weight
-        self.register_buffer("weight", self.weight_quant.weight_q)
+        self.register_buffer(
+            "weight",
+            self.weight_quant.weight_q.reshape(self.weight_quant.weight_q.shape[0], -1),
+        )
         self.register_buffer("scale1", self.weight_quant.scale_1_uint4)
         self.register_buffer("scale2", self.weight_quant.scale_2_fp32)
         del self.weight_quant
