@@ -710,7 +710,8 @@ void __printQnnTensor(const Qnn_Tensor_t* tensor) {
     } else if (t.quantizeParams.quantizationEncoding == QNN_QUANTIZATION_ENCODING_AXIS_SCALE_OFFSET) {
       quant_str = "Axis Scale Offset (Axis: " + std::to_string(t.quantizeParams.axisScaleOffsetEncoding.axis) + ")";
     } else if (t.quantizeParams.quantizationEncoding == QNN_QUANTIZATION_ENCODING_BLOCKWISE_EXPANSION) {
-      quant_str = "Blockwise Expansion";
+      quant_str = "Blockwise Expansion (axis:" + std::to_string(t.quantizeParams.blockwiseExpansion->axis)
+                  + ", blockSize:" + std::to_string(t.quantizeParams.blockwiseExpansion->numBlocksPerAxis) + ")";
     }
   }
 
