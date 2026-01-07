@@ -278,9 +278,12 @@ QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, T value) :
   if constexpr (std::is_same_v<T, bool>) {
     qnnParam_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
     qnnParam_.scalarParam.bool8Value = static_cast<uint8_t>(value);
-  } else if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, int32_t>) {
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
     qnnParam_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
     qnnParam_.scalarParam.uint32Value = static_cast<uint32_t>(value);
+  } else if constexpr (std::is_same_v<T, int32_t>) {
+    qnnParam_.scalarParam.dataType = QNN_DATATYPE_INT_32;
+    qnnParam_.scalarParam.int32Value = static_cast<int32_t>(value);
   } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
     qnnParam_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
     qnnParam_.scalarParam.floatValue = static_cast<float>(value);
