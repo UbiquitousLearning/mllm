@@ -336,10 +336,14 @@ class Qwen3Text final : public nn::Module {
     // Quantization
     x = x.to(kUInt16PerTensorAsy);
 
-    auto position_ids = inputs[1];
+    const auto& position_ids = inputs[1];
     auto causal_mask = inputs[2];
-    auto llm_embedding_sin = ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq")[{{0}, position_ids, {kAll}}];
-    auto llm_embedding_cos = ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq")[{{0}, position_ids, {kAll}}];
+
+    auto llm_embedding_sin =
+        nn::functional::gather(ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq"), 1, position_ids);
+
+    auto llm_embedding_cos =
+        nn::functional::gather(ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq"), 1, position_ids);
 
     std::vector<Tensor> keys;
     std::vector<Tensor> values;

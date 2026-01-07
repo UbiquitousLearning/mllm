@@ -297,6 +297,20 @@ class LLMQuantRecipeEmbeddingPattern : public ir::Pattern {
 };
 
 //===----------------------------------------------------------------------===//
+// Gather Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeGatherPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeGatherPattern> create() {
+    return std::make_shared<LLMQuantRecipeGatherPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // Qwen3 Attention Pattern
 //===----------------------------------------------------------------------===//
 class LLMQuantRecipeQwen3AttentionPattern : public ir::Pattern {

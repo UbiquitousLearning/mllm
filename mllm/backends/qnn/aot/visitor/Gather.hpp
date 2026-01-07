@@ -9,14 +9,14 @@
 
 namespace mllm::qnn::aot {
 
-class QnnAOTRMSNormPattern : public QnnAOTBasePattern {
+class QnnAOTGatherPattern : public QnnAOTBasePattern {
  public:
   bool isMatch(const mllm::ir::op_ptr_t& op) override;
 
   bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
 
-  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTRMSNormPattern>> create() {
-    return {OpTypes::kRMSNorm, std::make_shared<QnnAOTRMSNormPattern>()};
+  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTGatherPattern>> create() {
+    return {OpTypes::kGather, std::make_shared<QnnAOTGatherPattern>()};
   }
 };
 

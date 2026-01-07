@@ -434,6 +434,36 @@ bool LLMQuantRecipeIndexPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
 }
 
 //===----------------------------------------------------------------------===//
+// Gather Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeGatherPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::GatherOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeGatherPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  auto gather_ir = node->cast_<ir::linalg::GatherOp>();
+  auto i_0 = *(node->inputs().begin());
+
+  if (!i_0->getAttr("quant_recipe")) {
+    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
+    i_0->setAttr("quant_recipe", i_0_spec);
+  }
+
+  auto annotation_attr = writer.getContext()->create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
+  auto op = node->cast_<ir::linalg::LinalgIROp>();
+
+  // Share
+  auto quant_spec = op->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+  annotation_attr->annotation_.inputs.emplace_back(quant_spec->spec_);
+  annotation_attr->annotation_.outputs.emplace_back(quant_spec->spec_);
+  op->outputs().front()->setAttr("quant_recipe", quant_spec);
+  op->setAttr("quant_recipe", annotation_attr);
+
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
 // Slice Pattern
 //===----------------------------------------------------------------------===//
 bool LLMQuantRecipeSlicePattern::isMatch(const mllm::ir::op_ptr_t& op) {
@@ -764,7 +794,7 @@ bool LLMQuantRecipeLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
 
       if (precision == "w4a16") {
         weight_quant_spec =
-            ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, -1, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
+            ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, 0, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
 
         // output sym int16
         auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32,
@@ -980,6 +1010,7 @@ LLMQuantRecipePass::LLMQuantRecipePass() {
   addPattern(LLMQuantRecipeLinearPattern::create(), "linear", 0);
   addPattern(LLMQuantRecipeEmbeddingPattern::create(), "embedding", 0);
   addPattern(LLMQuantRecipeViewPattern::create(), "view", 0);
+  addPattern(LLMQuantRecipeGatherPattern::create(), "gather", 0);
 }
 
 uint8_t LLMQuantRecipePass::run(const ir::node_ptr_t& op) {

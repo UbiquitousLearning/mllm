@@ -14,14 +14,18 @@
 
 #include "mllm/backends/qnn/aot/visitor/Elewise.hpp"
 #include "mllm/backends/qnn/aot/visitor/Embedding.hpp"
+#include "mllm/backends/qnn/aot/visitor/Gather.hpp"
 #include "mllm/backends/qnn/aot/visitor/CastType.hpp"
 #include "mllm/backends/qnn/aot/visitor/View.hpp"
 #include "mllm/backends/qnn/aot/visitor/Index.hpp"
+#include "mllm/backends/qnn/aot/visitor/RMSNorm.hpp"
+#include "mllm/backends/qnn/aot/visitor/Linear.hpp"
 
 namespace mllm::qnn::aot {
 
 LLM2QnnLoweringPass::LLM2QnnLoweringPass() {
-  registerPatterns<QnnAOTEmbeddingPattern, QnnAOTCastTypePattern, QnnAOTAddPattern, QnnAOTViewPattern, QnnAOTIndexPattern>();
+  registerPatterns<QnnAOTEmbeddingPattern, QnnAOTCastTypePattern, QnnAOTAddPattern, QnnAOTViewPattern, QnnAOTIndexPattern,
+                   QnnAOTGatherPattern, QnnAOTRMSNormPattern, QnnAOTLinearPattern>();
 }
 
 uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {

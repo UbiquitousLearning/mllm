@@ -162,4 +162,6 @@ mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v);
 
 mllm::Tensor sigmoid(const Tensor& x);
 
+mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices);
+
 }  // namespace mllm::nn::functional
