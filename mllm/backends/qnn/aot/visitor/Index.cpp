@@ -87,11 +87,10 @@ bool QnnAOTIndexPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) {
   qnn_op_node->setPackageName("qti.aisw");
 
   qnn_op_node->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, input))
-      ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, indices_tv, true))
+      ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, indices_tv))
       ->emplaceOutput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, output))
+      ->emplaceParamScalar(QNNParamScalarWrapper::create("axis", (int32_t)axis))
       ->setName(base_op->getName());
-
-  qnn_op_node->emplaceParamScalar(QNNParamScalarWrapper::create("axis", (int32_t)axis));
 
   env->captureAOTNodeOp(qnn_context_name, qnn_graph_name, qnn_op_node);
 
