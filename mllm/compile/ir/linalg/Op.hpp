@@ -81,7 +81,6 @@ class RadixAttnSwaSinkOp;
 class EqualOp;
 class WhereOp;
 class SigmoidOp;
-class GatherOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
