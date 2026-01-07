@@ -586,38 +586,6 @@ void* QNNParamTensorWrapper::alloc() {
   return QNN_TENSOR_GET_CLIENT_BUF(qnnParam_.tensorParam).data;
 }
 
-QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, bool value) {
-  name_ = name;
-  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnnParam_.name = name_.c_str();
-  qnnParam_.scalarParam.dataType = QNN_DATATYPE_BOOL_8;
-  qnnParam_.scalarParam.bool8Value = static_cast<uint8_t>(value);
-}
-
-QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, int32_t value) {
-  name_ = name;
-  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnnParam_.name = name_.c_str();
-  qnnParam_.scalarParam.dataType = QNN_DATATYPE_INT_32;
-  qnnParam_.scalarParam.int32Value = value;
-}
-
-QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, uint32_t value) {
-  name_ = name;
-  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnnParam_.name = name_.c_str();
-  qnnParam_.scalarParam.dataType = QNN_DATATYPE_UINT_32;
-  qnnParam_.scalarParam.uint32Value = value;
-}
-
-QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, float value) {
-  name_ = name;
-  qnnParam_.paramType = QNN_PARAMTYPE_SCALAR;
-  qnnParam_.name = name_.c_str();
-  qnnParam_.scalarParam.dataType = QNN_DATATYPE_FLOAT_32;
-  qnnParam_.scalarParam.floatValue = value;
-}
-
 Qnn_Param_t* QNNParamScalarWrapper::getNativeParam() { return &(qnnParam_); }
 
 // --------------- QNN Graph Output Helper ---------------

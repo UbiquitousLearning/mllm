@@ -10,6 +10,7 @@ from . import quantize
 from . import nn
 from . import compile
 from . import service
+from . import backends
 from .ffi import (
     float32,
     float16,
