@@ -1,9 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
@@ -54,9 +53,6 @@ bool QnnAOTLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
 
   weight_val->tensor_ = weight_val->tensor_.to(kUInt8);
 
-  weight_val->tensor_ = weight_val->tensor_.view(
-      {weight_val->tensor_.shape()[0], weight_val->tensor_.shape()[1] * weight_val->tensor_.shape()[2]});
-
   qnn_op_node->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, input))
       ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, weight_val, true));
 
@@ -74,7 +70,7 @@ bool QnnAOTLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
       ->setName(base_op->getName());
 
   // Add params: keep_dims
-  qnn_op_node->emplaceParamScalar(QNNParamScalarWrapper::create("keep_dims", true));
+  qnn_op_node->emplaceParamScalar(QNNParamScalarWrapper::create("keep_dims", false));
 
   // Register this op node into one graph.
   env->captureAOTNodeOp(qnn_context_name, qnn_graph_name, qnn_op_node);

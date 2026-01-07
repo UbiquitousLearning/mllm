@@ -24,6 +24,13 @@ ir::BoolAttr::ptr_t createTrueBoolAttr(const ir::IRContext::ptr_t& ctx) {
 void recursiveVisitGraph(const ir::IRContext::ptr_t& ctx, const ir::graph::GraphIROp::ptr_t& graph) {
   if (!graph->getAttr("using_qnn")) { graph->setAttr("using_qnn", details::createTrueBoolAttr(ctx)); }
   auto writer = ir::IRWriter(ctx, graph->getTopRegion());
+
+  writer.walk<ir::linalg::LinalgIROp>(
+      [&](ir::IRWriter& /*writer*/, const ir::linalg::LinalgIROp::ptr_t& ooo) -> ir::IRWriter::WalkResult {
+        if (!ooo->getAttr("using_qnn")) { ooo->setAttr("using_qnn", details::createTrueBoolAttr(ctx)); }
+        return ir::IRWriter::WalkResult::WALK_CONTINUE;
+      });
+
   writer.walk<ir::graph::CallGraphOp>(
       [&](ir::IRWriter& /*writer*/, const ir::graph::CallGraphOp::ptr_t& call_g) -> ir::IRWriter::WalkResult {
         auto g_name = call_g->getSymbolAttr()->str();

@@ -97,19 +97,19 @@ inline void __mllmQnnLoggerCallback(const char* fmt, QnnLog_Level_t level, uint6
 
   switch (level) {
     case QNN_LOG_LEVEL_ERROR:
-      level_str = "[ERROR]";
+      level_str = "[ ERROR ]";
       color_start = "\033[91m";  // Light red
       break;
     case QNN_LOG_LEVEL_WARN:
-      level_str = "[WARN]";
+      level_str = "[  WARN ]";
       color_start = "\033[93m";  // Light yellow
       break;
     case QNN_LOG_LEVEL_INFO:
-      level_str = "[INFO]";
+      level_str = "[  INFO ]";
       color_start = "\033[96m";  // Light cyan
       break;
     case QNN_LOG_LEVEL_DEBUG:
-      level_str = "[DEBUG]";
+      level_str = "[ DEBUG ]";
       color_start = "\033[95m";  // Light magenta
       break;
     case QNN_LOG_LEVEL_VERBOSE:
