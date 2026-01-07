@@ -161,7 +161,7 @@ ModelError_t QNNModel::addTensorWrapper(const std::shared_ptr<QNNTensorWrapper>&
 
   // Verify tensor being added is not a duplicate
   if (tensorWrapperMap_.find(tensorName) != tensorWrapperMap_.end()) {
-    MLLM_ERROR("QNNModel::addTensorWrapper() tensor {} already exists.", tensorName);
+    MLLM_INFO("QNNModel::addTensorWrapper() tensor {} already exists.", tensorName);
     return MODEL_TENSOR_ERROR;
   }
 
@@ -290,9 +290,9 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version, const std::string&
   if (doNodeValidations_) {
     auto validationStatus = qnnInterface_.backendValidateOpConfig(backendHandle_, opDefinition);
     if (validationStatus == QNN_BACKEND_ERROR_NOT_SUPPORTED) {
-      MLLM_ERROR("QNNModel::addNode() validation API not supported.");
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "QNNModel::addNode() validation API not supported.");
     } else if (validationStatus != QNN_SUCCESS) {
-      MLLM_ERROR("QNNModel::addNode() validating node {} failed.", storedStrings.name);
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "QNNModel::addNode() validating node {} failed.", storedStrings.name);
       freeMultiPtr(nodeParams, inputs, outputs);
       return MODEL_GRAPH_ERROR;
     }
