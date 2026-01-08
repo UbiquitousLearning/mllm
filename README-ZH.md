@@ -34,10 +34,10 @@ mllm
 <table width="100%">
   <tr>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/33581025-3368-4b38-98e8-6a2628b32408" controls="controls" style="max-width: 100%;"></video>
+      <img src="./assets/qwen3-chat.gif" controls="controls" style="max-width: 100%;"></img>
     </td>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/edcfb568-4415-41fc-91b0-136a4b9a20e2" controls="controls" style="max-width: 100%;"></video>
+      <img src="./assets/deepseek-ocr.gif" controls="controls" style="max-width: 100%;"></img>
     </td>
   </tr>
 </table>
