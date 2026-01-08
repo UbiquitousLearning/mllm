@@ -18,8 +18,8 @@ namespace mllm::models::qwen3 {
 Tensor rotateHalf(Tensor x) {  // NOLINT
   // X is [x, x, x, D]
   auto D = x.size(-1);
-  auto x1 = x[{kAll, kAll, kAll, {kAll, D / 2}}];
-  auto x2 = x[{kAll, kAll, kAll, {D / 2, kAll}}];
+  auto x1 = x.slice({kAll, kAll, kAll, {kAll, D / 2}}, /*ssa=*/true);
+  auto x2 = x.slice({kAll, kAll, kAll, {D / 2, kAll}}, /*ssa=*/true);
   return nn::functional::concat({-x2, x1}, -1);
 }
 
@@ -202,9 +202,9 @@ class Qwen3Attention final : public nn::Module {
     auto value_states = v_proj_(hidden_states);
 
     // [B, H, S, D]
-    query_states = query_states.view({1, -1, num_attention_heads_, head_dim_}).transpose(1, 2);
-    key_states = key_states.view({1, -1, num_key_value_heads_, head_dim_}).transpose(1, 2);
-    value_states = value_states.view({1, -1, num_key_value_heads_, head_dim_}).transpose(1, 2);
+    query_states = query_states.view({1, -1, num_attention_heads_, head_dim_}, /*ssa=*/true).transpose(1, 2);
+    key_states = key_states.view({1, -1, num_key_value_heads_, head_dim_}, /*ssa=*/true).transpose(1, 2);
+    value_states = value_states.view({1, -1, num_key_value_heads_, head_dim_}, /*ssa=*/true).transpose(1, 2);
 
     // [B, H, S, D]
     query_states = rms_norm_q_(ptq::QDQ(this, query_states, "q_norm_input_qdq"));
@@ -259,7 +259,7 @@ class Qwen3Attention final : public nn::Module {
     attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min.addConstant(minus_value));
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");
-    y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_});
+    y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_}, /*ssa=*/true);
     y = o_proj_(y);
 
     return {y, key_states, value_states};
@@ -339,11 +339,10 @@ class Qwen3Text final : public nn::Module {
     const auto& position_ids = inputs[1];
     auto causal_mask = inputs[2];
 
-    auto llm_embedding_sin =
-        nn::functional::gather(ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq"), 1, position_ids);
-
-    auto llm_embedding_cos =
-        nn::functional::gather(ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq"), 1, position_ids);
+    // clang-format off
+    auto llm_embedding_sin = nn::functional::gather(ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq"), 1, position_ids);
+    auto llm_embedding_cos = nn::functional::gather(ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq"), 1, position_ids);
+    // clang-format on
 
     std::vector<Tensor> keys;
     std::vector<Tensor> values;

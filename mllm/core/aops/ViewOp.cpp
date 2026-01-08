@@ -92,7 +92,12 @@ void ViewOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
     MLLM_ASSERT_EXIT(is_contiguous, "ViewOp::reshape is only supported for contiguous tensors in this implementation");
   }
 
-  outputs.emplace_back(TensorViewImpl::create(orig_storage_offset, actual_shape, new_stride, orig_storage));
+  if (!options_.enable_ssa) {
+    outputs.emplace_back(TensorViewImpl::create(orig_storage_offset, actual_shape, new_stride, orig_storage));
+  } else {
+    Tensor _t{TensorViewImpl::create(orig_storage_offset, actual_shape, new_stride, orig_storage)};
+    outputs.emplace_back(Tensor::emptyLike(_t));
+  }
 }
 
 void ViewOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {

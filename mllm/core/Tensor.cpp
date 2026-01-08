@@ -50,8 +50,14 @@ Tensor Tensor::operator[](const SliceIndices& slice_index) const {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
                                                   aops::SliceOpOptions{
                                                       .indices_ = slice_index,
+                                                      .enable_ssa = false,
                                                   },
                                                   {*this})[0];
+}
+
+Tensor Tensor::slice(const SliceIndices& slice_index, bool enable_ssa) const {
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kSlice, aops::SliceOpOptions{.indices_ = slice_index, .enable_ssa = enable_ssa}, {*this})[0];
 }
 
 Tensor Tensor::operator[](const ComplexIndexingList& complex_indexing) const {
@@ -562,8 +568,9 @@ Tensor Tensor::reshape(const Tensor::shape_t& shape) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReshape, aops::ReshapeOpOptions{.shape = shape}, {*this})[0];
 }
 
-Tensor Tensor::view(const Tensor::shape_t& indicies) {
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kView, aops::ViewOpOptions{.to_shape = indicies}, {*this})[0];
+Tensor Tensor::view(const Tensor::shape_t& indicies, bool enable_ssa) {
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kView, aops::ViewOpOptions{.to_shape = indicies, .enable_ssa = enable_ssa}, {*this})[0];
 }
 
 Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
@@ -573,14 +580,14 @@ Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
                                                   aops::RepeatOpOptions{.dim = dim, .repeat_times = multiplier}, {*this})[0];
 }
 
-Tensor Tensor::unsqueeze(int32_t dim) {
+Tensor Tensor::unsqueeze(int32_t dim, bool enable_ssa) {
   if (dim < 0) { dim = static_cast<int32_t>(rank()) + dim + 1; }
   auto this_shape = shape();
   this_shape.insert(this_shape.begin() + dim, 1);
-  return view(this_shape);
+  return view(this_shape, enable_ssa);
 }
 
-Tensor Tensor::squeeze(int32_t dim) {
+Tensor Tensor::squeeze(int32_t dim, bool enable_ssa) {
   auto this_shape = shape();
   if (dim == 0x7fffffff) {
     // Remove all dimensions of size 1
@@ -590,7 +597,7 @@ Tensor Tensor::squeeze(int32_t dim) {
     }
     // If no dimensions were removed, return original tensor view
     if (new_shape.empty() && !this_shape.empty()) { new_shape.push_back(1); }
-    return view(new_shape);
+    return view(new_shape, enable_ssa);
   } else {
     // Handle negative indices
     if (dim < 0) { dim += static_cast<int32_t>(this_shape.size()); }
@@ -607,7 +614,7 @@ Tensor Tensor::squeeze(int32_t dim) {
       for (int i = 0; i < static_cast<int>(this_shape.size()); ++i) {
         if (i != dim) { new_shape.push_back(this_shape[i]); }
       }
-      return view(new_shape);
+      return view(new_shape, enable_ssa);
     }
 
     // If specified dimension does not have size 1, return original tensor
@@ -615,7 +622,7 @@ Tensor Tensor::squeeze(int32_t dim) {
   }
 }
 
-Tensor Tensor::flatten(int32_t dim) {
+Tensor Tensor::flatten(int32_t dim, bool enable_ssa) {
   const auto old_shape = shape();
   const int32_t ndim = static_cast<int32_t>(old_shape.size());
 
@@ -625,7 +632,7 @@ Tensor Tensor::flatten(int32_t dim) {
     return view({total});
   }
 
-  if (ndim == 0) return view({1});
+  if (ndim == 0) return view({1}, enable_ssa);
 
   if (dim < 0) dim += ndim;
   if (dim < 0 || dim >= ndim) throw std::out_of_range("flatten dim out of range");
@@ -639,7 +646,7 @@ Tensor Tensor::flatten(int32_t dim) {
   for (int32_t i = dim; i < ndim; ++i) flatten_size *= old_shape[i];
   new_shape.push_back(flatten_size);
 
-  return view(new_shape);
+  return view(new_shape, enable_ssa);
 }
 
 Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }

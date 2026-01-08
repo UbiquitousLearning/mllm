@@ -4,6 +4,7 @@
 .cache/
 .tmp/
 compile_commands.json
+.claude/
 
 # MLLM Team Specific
 tasks/mllmteam*

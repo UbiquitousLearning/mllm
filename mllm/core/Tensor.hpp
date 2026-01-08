@@ -151,6 +151,8 @@ class Tensor {
    */
   Tensor operator[](const SliceIndices& slice_index) const;
 
+  [[nodiscard]] Tensor slice(const SliceIndices& slice_index, bool enable_ssa = false) const;
+
   /**
    * @brief Creates a deep copy of the tensor. Inputs can be vector and tensor.
    *
@@ -558,7 +560,7 @@ class Tensor {
    * @return New tensor view.
    * @warning This function is in an early age.
    */
-  Tensor view(const shape_t& indicies);
+  Tensor view(const shape_t& indicies, bool enable_ssa = false);
 
   /**
    * @brief Repeats tensor along a dimension.
@@ -575,7 +577,7 @@ class Tensor {
    * @param dim
    * @return Tensor
    */
-  Tensor unsqueeze(int32_t dim);
+  Tensor unsqueeze(int32_t dim, bool enable_ssa = false);
 
   /**
    * @brief
@@ -583,7 +585,7 @@ class Tensor {
    * @param dim
    * @return Tensor
    */
-  Tensor squeeze(int32_t dim = 0x7fffffff);
+  Tensor squeeze(int32_t dim = 0x7fffffff, bool enable_ssa = false);
 
   /**
    * @brief
@@ -591,7 +593,7 @@ class Tensor {
    * @param dim
    * @return Tensor
    */
-  Tensor flatten(int32_t dim = 0x7fffffff);
+  Tensor flatten(int32_t dim = 0x7fffffff, bool enable_ssa = false);
 
   /**
    * @brief clone a tensor
