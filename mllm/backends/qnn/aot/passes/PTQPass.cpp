@@ -148,6 +148,49 @@ void _recursiveSolveNormalImpl(const ir::Val::ptr_t& v) {
       auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(f_spec->spec_);
       this_spec->scale = scale;
       this_spec->zero_point = zero_point;
+      auto min_v = this_spec->quant_min;
+      auto max_v = this_spec->quant_max;
+
+      // Check if this tensor is constant tensor. Then we need to quantize it.
+      double constant_v = 0;
+      DataTypes constant_dtype = kFloat32;
+      if (tv->getAttr("constant")) {
+        auto constant_ir = tv->getAttr("constant");
+        if (constant_ir->isa_<ir::VectorFP32Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
+          MLLM_RT_ASSERT_EQ(ci->data().size(), 1);
+          constant_v = ci->data()[0];
+          constant_dtype = kFloat32;
+        } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
+          MLLM_RT_ASSERT_EQ(ci->data().size(), 1);
+          constant_v = ci->data()[0];
+          constant_dtype = kInt16;
+        } else {
+          NYI("Not implement constant attribute type");
+        }
+
+        // Calculate constant scale after PTQ
+        MLLM_RT_ASSERT_EQ(scale.numel(), 1);
+        MLLM_RT_ASSERT_EQ(zero_point.numel(), 1);
+        auto scale_fp = scale.item<mllm_fp32_t>();
+        auto zero_point_int32 = zero_point.item<mllm_int32_t>();
+        auto quant_value = std::round(constant_v / scale_fp) + zero_point_int32;
+        auto clamped_value =
+            std::clamp(static_cast<int32_t>(quant_value), static_cast<int32_t>(min_v), static_cast<int32_t>(max_v));
+        auto ptq_constant_v = static_cast<mllm_int32_t>(clamped_value);
+
+        if (constant_ir->isa_<ir::VectorFP32Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
+          ci->data()[0] = ptq_constant_v;
+          tv->tensor_.at<mllm_fp32_t>({0}) = ptq_constant_v;
+        } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
+          ci->data()[0] = ptq_constant_v;
+          tv->tensor_.at<mllm_int16_t>({0}) = ptq_constant_v;
+        }
+      }
+
       this_spec->solved = true;
       break;
     }
@@ -156,6 +199,47 @@ void _recursiveSolveNormalImpl(const ir::Val::ptr_t& v) {
       auto scale = tv->tensor_.getExtraTensorViewInTensor("scale");
       auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(f_spec->spec_);
       this_spec->scale = scale;
+      auto min_v = this_spec->quant_min;
+      auto max_v = this_spec->quant_max;
+
+      // Check if this tensor is constant tensor. Then we need to quantize it.
+      double constant_v = 0;
+      DataTypes constant_dtype = kFloat32;
+      if (tv->getAttr("constant")) {
+        auto constant_ir = tv->getAttr("constant");
+        if (constant_ir->isa_<ir::VectorFP32Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
+          MLLM_RT_ASSERT_EQ(ci->data().size(), 1);
+          constant_v = ci->data()[0];
+          constant_dtype = kFloat32;
+        } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
+          MLLM_RT_ASSERT_EQ(ci->data().size(), 1);
+          constant_v = ci->data()[0];
+          constant_dtype = kInt16;
+        } else {
+          NYI("Not implement constant attribute type");
+        }
+
+        // Calculate constant scale after PTQ
+        MLLM_RT_ASSERT_EQ(scale.numel(), 1);
+        auto scale_fp = scale.item<mllm_fp32_t>();
+        auto quant_value = std::round(constant_v / scale_fp);
+        auto clamped_value =
+            std::clamp(static_cast<int32_t>(quant_value), static_cast<int32_t>(min_v), static_cast<int32_t>(max_v));
+        auto ptq_constant_v = static_cast<mllm_int32_t>(clamped_value);
+
+        if (constant_ir->isa_<ir::VectorFP32Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
+          ci->data()[0] = ptq_constant_v;
+          tv->tensor_.at<mllm_fp32_t>({0}) = ptq_constant_v;
+        } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
+          auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
+          ci->data()[0] = ptq_constant_v;
+          tv->tensor_.at<mllm_int16_t>({0}) = ptq_constant_v;
+        }
+      }
+
       this_spec->solved = true;
       break;
     }
