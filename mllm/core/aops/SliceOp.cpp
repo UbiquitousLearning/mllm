@@ -65,8 +65,13 @@ void SliceOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& ou
     new_shape.push_back(num_elements);
   }
 
-  auto new_impl = TensorViewImpl::create(new_storage_offset, new_shape, new_stride, old_storage);
-  outputs.emplace_back(new_impl);
+  if (!options_.enable_ssa) {
+    auto new_impl = TensorViewImpl::create(new_storage_offset, new_shape, new_stride, old_storage);
+    outputs.emplace_back(new_impl);
+  } else {
+    Tensor _t{TensorViewImpl::create(new_storage_offset, new_shape, new_stride, old_storage)};
+    outputs.emplace_back(Tensor::emptyLike(_t));
+  }
 }
 
 void SliceOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }

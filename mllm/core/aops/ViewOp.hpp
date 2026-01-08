@@ -10,6 +10,7 @@ namespace mllm::aops {
 
 struct ViewOpOptions : public BaseOpOptions<ViewOpOptions> {
   std::vector<int32_t> to_shape;
+  bool enable_ssa = false;  // Only for mllm-c compiler to use.
 };
 
 class ViewOp : public BaseOp {

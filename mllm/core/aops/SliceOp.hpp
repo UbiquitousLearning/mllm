@@ -11,6 +11,7 @@ namespace mllm::aops {
 
 struct SliceOpOptions : public BaseOpOptions<SliceOpOptions> {
   SliceIndices indices_;
+  bool enable_ssa = false;  // Only for mllm-c compiler to use.
 };
 
 class SliceOp : public BaseOp {
