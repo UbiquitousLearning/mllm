@@ -239,7 +239,7 @@ pip install -r requirements-mini.txt
 python task.py tasks/build_osx_apple_silicon_accelerate.yaml
 ```
 
-### Use Docker
+### 使用 Docker
 
 MLLM 团队提供了 Dockerfile，帮助你快速入门，并推荐使用 Docker 镜像。在 `./docker/` 文件夹中，我们提供了 arm（交叉编译到 arm，主机为 x86）和 qnn（交叉编译到 arm，主机为 x86）镜像。ARM 和 QNN 镜像均支持 X86 后端的编译。
 
@@ -255,7 +255,7 @@ docker run -it --cap-add=SYS_ADMIN --network=host --cap-add=SYS_PTRACE --shm-siz
 1. Dockerfile.arm 包含 NDK 下载。使用此镜像即表示你同意 NDK 的附加条款。
 2. QNN SDK 含有专有许可条款。我们不会将其打包在 Dockerfile.qnn 中，请手动配置 QNN SDK。
 
-关于如何使用 Dockerfile 的详细说明，请参阅 [Easy Setup with Docker and DevContainer for MLLM](docker/README.md)
+关于如何使用 Dockerfile 的详细说明，请参阅 [使用 Docker 和 DevContainer 轻松设置 MLLM](docker/README.md)
 
 ### 构建 C++ SDK
 
@@ -264,7 +264,7 @@ docker run -it --cap-add=SYS_ADMIN --network=host --cap-add=SYS_PTRACE --shm-siz
 ```shell
 pip install -r requirements.txt
 python task.py tasks/build_sdk_<platform>.yaml
-# Example for macOS on Apple Silicon:
+# 例如在 Apple Silicon 的 macOS 上：
 python task.py tasks/build_sdk_osx_apple_silicon.yaml
 ```
 
@@ -276,16 +276,16 @@ python task.py tasks/build_sdk_osx_apple_silicon.yaml
 cmake_minimum_required(VERSION 3.21)
 project(fancy_algorithm VERSION 1.0.0 LANGUAGES CXX C ASM)
 
-# Set C++20 standard and enable compile commands export
+# 设置 C++20 标准并启用编译命令导出
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Find mllm library
+# 查找 mllm 库
 find_package(mllm REQUIRED)
 
 add_executable(fancy_algorithm main.cpp)
 
-# Link against Mllm runtime and CPU backend targets
+# 链接 Mllm 运行时和 CPU 后端目标
 target_link_libraries(fancy_algorithm PRIVATE mllm::MllmRT mllm::MllmCPUBackend)
 ```
 
@@ -339,22 +339,22 @@ mllm-convertor --input_path <your_model> --output_path <your_output_model> --cfg
 参数:
 
 ```text
--i, --input: Model file path
--iv, --input_version: Model file version (v1 or v2), default is v1
--n, --name: Specific parameter name, only display information for that parameter
--h, --help: Show help information
+-i, --input: 模型文件路径
+-iv, --input_version: 模型文件版本 (v1 或 v2), 默认为 v1
+-n, --name: 特定参数名称，仅显示该参数的信息
+-h, --help: 显示帮助信息
 ```
 
 示例:
 
 ```bash
-# View all parameter information in the model file
+# 查看模型文件中的所有参数信息
 ./mllm-params-inspector -i /path/to/model.mllm
 
-# View specific parameter information
+# 查看特定参数信息
 ./mllm-params-inspector -i /path/to/model.mllm -n transformer.h.0.attn.c_attn.weight
 
-# View v2 version model file
+# 查看 v2 版本模型文件
 ./mllm-params-inspector -i /path/to/model.mllm -iv v2
 ```
 
@@ -374,19 +374,19 @@ mllm 在 ARM CPU 上复用了许多来自 [ggml](https://github.com/ggerganov/gg
 同时，它还利用了 [stb](https://github.com/nothings/stb) 和 [wenet](https://github.com/wenet-e2e/wenet) 进行图像和音频的预处理。
 mllm 也受益于以下项目：[llama.cpp](https://github.com/ggerganov/llama.cpp) 和 [MNN](https://github.com/alibaba/MNN)。
 
-## License
+## 许可证
 
-### Overall Project License
+### 整体项目许可证
 
-This project is licensed under the terms of the MIT License. Please see the [LICENSE](./LICENSE) file in the root directory for the full text of the MIT License.
+本项目根据 MIT 许可证的条款进行许可。完整的 MIT 许可证文本请参阅根目录下的 [LICENSE](./LICENSE) 文件。
 
-### Apache 2.0 Licensed Components
+### Apache 2.0 许可组件
 
-Certain component([wenet](https://github.com/wenet-e2e/wenet)) of this project is licensed under the Apache License 2.0.
-These component is clearly identified in their respective subdirectories along with a copy of the Apache License 2.0.
-For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE](./third_party/wenet_audio/LICENSE) file located in the relevant subdirectories.
+本项目的某些组件（[wenet](https://github.com/wenet-e2e/wenet)）根据 Apache License 2.0 进行许可。
+这些组件在其各自的子目录中已明确标识，并附有 Apache License 2.0 的副本。
+Apache License 2.0 的完整文本请参阅相关子目录中的 [LICENSE-APACHE](./third_party/wenet_audio/LICENSE) 文件。
 
-## Citation
+## 引用
 
 ```bibtex
 @article{xu2025fast,
@@ -404,7 +404,7 @@ For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE
 }
 ```
 
-## Star History
+## Star 历史
 
 <a href="https://www.star-history.com/#UbiquitousLearning/mllm&Date">
  <picture>
