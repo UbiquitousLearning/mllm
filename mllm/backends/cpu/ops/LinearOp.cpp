@@ -368,6 +368,11 @@ void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
         auto S0 = o_shape[2];
         auto S1 = o_shape[3];
         o_shape = std::vector<int32_t>{B * H, S0, S1};
+      } else if (o_shape.size() == 3) {
+        auto B = o_shape[0];
+        auto H = o_shape[1];
+        auto S0 = o_shape[2];
+        o_shape = std::vector<int32_t>{B * H, S0};
       }
       o_dtype = kUInt16PerTensorAsy;
       break;

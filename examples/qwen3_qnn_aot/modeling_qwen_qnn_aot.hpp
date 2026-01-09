@@ -117,6 +117,8 @@ class Qwen3MLP final : public nn::Module {
   nn::Linear up_proj_;
   nn::Linear down_proj_;
   nn::SiLU silu_;
+  int hidden_size_;
+  int intermediate_size_;
 
  public:
   Qwen3MLP() = default;
@@ -125,19 +127,21 @@ class Qwen3MLP final : public nn::Module {
     silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
     down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
+    hidden_size_ = cfg.hidden_size;
+    intermediate_size_ = cfg.intermediate_size;
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     x = ptq::QDQ(this, x, "up_proj_input_qdq");
-    auto up_result = ptq::QDQ(this, up_proj_(x), "up_proj_output_qdq");
-    auto gate_result = ptq::QDQ(this, gate_proj_(x), "gate_proj_output_qdq");
+    auto up_result = ptq::QDQ(this, up_proj_(x), "up_proj_output_qdq").view({1, -1, intermediate_size_});
+    auto gate_result = ptq::QDQ(this, gate_proj_(x), "gate_proj_output_qdq").view({1, -1, intermediate_size_});
 
     // SiLU
     gate_result = ptq::QDQ(this, (gate_result * ptq::QDQ(this, nn::functional::sigmoid(gate_result), "sigmoid_output_qdq")),
                            "act_output_qdq");
 
-    auto o = ptq::QDQ(this, gate_result * up_result, "down_proj_input_qdq");
+    auto o = ptq::QDQ(this, gate_result * up_result, "down_proj_input_qdq").view({1, -1, hidden_size_});
     o = down_proj_(o);
 
     return {o};
