@@ -360,6 +360,7 @@ void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
     }
     case aops::LinearImplTypes::kQNN_LPBQ_w4a16o16_G32:
     case aops::LinearImplTypes::kQNN_LPBQ_w4a16o16_G64: {
+      if (o_shape[0] == 1) { o_shape.erase(o_shape.begin()); }
       o_dtype = kUInt16PerTensorAsy;
       break;
     }
