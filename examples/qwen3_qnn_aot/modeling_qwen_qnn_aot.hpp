@@ -134,15 +134,15 @@ class Qwen3MLP final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     x = ptq::QDQ(this, x, "up_proj_input_qdq");
-    auto up_result = ptq::QDQ(this, up_proj_(x), "up_proj_output_qdq").view({1, -1, intermediate_size_});
-    auto gate_result = ptq::QDQ(this, gate_proj_(x), "gate_proj_output_qdq").view({1, -1, intermediate_size_});
+    auto up_result = ptq::QDQ(this, up_proj_(x), "up_proj_output_qdq").view({1, -1, intermediate_size_}, true);
+    auto gate_result = ptq::QDQ(this, gate_proj_(x), "gate_proj_output_qdq").view({1, -1, intermediate_size_}, true);
 
     // SiLU
     gate_result = ptq::QDQ(this, (gate_result * ptq::QDQ(this, nn::functional::sigmoid(gate_result), "sigmoid_output_qdq")),
                            "act_output_qdq");
 
-    auto o = ptq::QDQ(this, gate_result * up_result, "down_proj_input_qdq").view({1, -1, hidden_size_});
-    o = down_proj_(o);
+    auto o = ptq::QDQ(this, gate_result * up_result, "down_proj_input_qdq");
+    o = down_proj_(o).view({1, -1, hidden_size_}, true);
 
     return {o};
   }
@@ -177,10 +177,10 @@ class Qwen3Attention final : public nn::Module {
     scale_ = (1.f / sqrtf((float)head_dim_));
 
     // clang-format off
-    q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias);
-    k_proj_ = reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias);
-    v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias);
-    o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, cfg.attention_bias);
+    q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    k_proj_ = reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
+    o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, cfg.attention_bias, cfg.linear_impl_type);
     // clang-format on
 
     rms_norm_q_ = reg<nn::RMSNorm>("q_norm", cfg.rms_norm_eps);
@@ -264,7 +264,7 @@ class Qwen3Attention final : public nn::Module {
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");
     y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_}, /*ssa=*/true);
-    y = o_proj_(y);
+    y = o_proj_(y).view({1, -1, hidden_size_}, true);
 
     return {y, key_states, value_states};
   }
