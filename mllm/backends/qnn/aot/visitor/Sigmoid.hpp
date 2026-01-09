@@ -9,14 +9,14 @@
 
 namespace mllm::qnn::aot {
 
-class QnnAOTSlicePattern : public QnnAOTBasePattern {
+class QnnAOTSigmoidPattern : public QnnAOTBasePattern {
  public:
   bool isMatch(const mllm::ir::op_ptr_t& op) override;
 
   bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) override;
 
-  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTSlicePattern>> create() {
-    return {OpTypes::kSlice, std::make_shared<QnnAOTSlicePattern>()};
+  static inline std::pair<OpTypes, std::shared_ptr<QnnAOTSigmoidPattern>> create() {
+    return {OpTypes::kSigmoid, std::make_shared<QnnAOTSigmoidPattern>()};
   }
 };
 
