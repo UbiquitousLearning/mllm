@@ -196,7 +196,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 
-        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)constant_v});
+        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
       }
@@ -255,8 +255,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 
-        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)constant_v});
-        _attr->data().emplace_back(constant_v);
+        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
       }
