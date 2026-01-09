@@ -92,6 +92,8 @@ class Node : public std::enable_shared_from_this<Node> {
 
   attr_ptr_t getAttr(const std::string& str);
 
+  void removeAttr(const std::string& str);
+
   size_t attrNum();
 
   template<typename T>

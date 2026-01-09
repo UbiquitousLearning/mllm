@@ -1,4 +1,4 @@
-// Auto generated: 2026-01-04 13:13:09
+// Auto generated: 2026-01-09 07:46:43
 // do not modify this file
 #pragma once
 
@@ -149,6 +149,7 @@ enum NodeKind : uint32_t {
   RK_Attr_BuiltinIRAttr_BoolAttr,
   RK_Attr_BuiltinIRAttr_VectorFP32Attr,
   RK_Attr_BuiltinIRAttr_VectorInt16Attr,
+  RK_Attr_BuiltinIRAttr_VectorUInt16Attr,
   RK_Attr_BuiltinIRAttr_Last,
   RK_Attr_ControlFlowIRAttr,
   RK_Attr_ProgramIRAttr,
