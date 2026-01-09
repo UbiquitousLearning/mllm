@@ -175,7 +175,7 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       blockwise_expansion.axis = cfg->ch_axis;
       blockwise_expansion.scaleOffsets = nullptr;  // Will be set by setBlockwiseQuantization
       blockwise_expansion.numBlocksPerAxis = v->tensor_.size(1) / cfg->block_size;
-      blockwise_expansion.blockScaleBitwidth = 12;  // 12 bits for 4 to 16 expansion
+      blockwise_expansion.blockScaleBitwidth = 4;
       blockwise_expansion.blockScaleStorageType = QNN_BLOCKWISE_EXPANSION_BITWIDTH_SCALE_STORAGE_8;
       blockwise_expansion.blocksScale8 = cfg->scale_level_0_int.ptr<mllm_uint8_t>();
 

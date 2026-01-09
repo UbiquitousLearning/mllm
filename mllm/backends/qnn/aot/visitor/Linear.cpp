@@ -51,8 +51,6 @@ bool QnnAOTLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
   auto qnn_op_node = QnnAOTNodeOperation::create("FullyConnected");
   qnn_op_node->setPackageName("qti.aisw");
 
-  weight_val->tensor_ = weight_val->tensor_.to(kUInt8);
-
   qnn_op_node->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, input))
       ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, weight_val, true));
 
