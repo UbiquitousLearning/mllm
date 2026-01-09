@@ -54,6 +54,11 @@ attr_ptr_t Node::getAttr(const std::string& str) {
   return it != attrs_.end() ? it->second : nullptr;
 }
 
+void Node::removeAttr(const std::string& str) {
+  MLLM_RT_ASSERT_EQ(attrs_.count(str), 1);
+  attrs_.erase(attrs_.find(str));
+}
+
 size_t Node::attrNum() { return attrs_.size(); }
 
 Region::Region(const op_ptr_t& belongs_to) : belongs_to_(belongs_to) {}

@@ -132,7 +132,7 @@ void recursiveSolveWeights(const std::shared_ptr<ir::IRContext>& ir_ctx, const i
   });
 }
 
-void _recursiveSolveNormalImpl(const ir::Val::ptr_t& v) {
+void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::ptr_t& v) {
   MLLM_RT_ASSERT(v->isa_<ir::tensor::TensorValue>());
   auto tv = v->cast_<ir::tensor::TensorValue>();
   MLLM_RT_ASSERT(tv->getAttr("quant_recipe"));
@@ -183,12 +183,22 @@ void _recursiveSolveNormalImpl(const ir::Val::ptr_t& v) {
         if (constant_ir->isa_<ir::VectorFP32Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
           ci->data()[0] = ptq_constant_v;
-          tv->tensor_.at<mllm_fp32_t>({0}) = ptq_constant_v;
+
+          // FIXME: We hard code uint16 here.
+          tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
           ci->data()[0] = ptq_constant_v;
-          tv->tensor_.at<mllm_int16_t>({0}) = ptq_constant_v;
+
+          // FIXME: We hard code uint16 here.
+          tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
+
+        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
+        tv->removeAttr("constant");
+        tv->setAttr("constant", _attr);
       }
 
       this_spec->solved = true;
@@ -232,12 +242,22 @@ void _recursiveSolveNormalImpl(const ir::Val::ptr_t& v) {
         if (constant_ir->isa_<ir::VectorFP32Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorFP32Attr>();
           ci->data()[0] = ptq_constant_v;
-          tv->tensor_.at<mllm_fp32_t>({0}) = ptq_constant_v;
+
+          // FIXME: We hard code uint16 here.
+          tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
           ci->data()[0] = ptq_constant_v;
-          tv->tensor_.at<mllm_int16_t>({0}) = ptq_constant_v;
+
+          // FIXME: We hard code uint16 here.
+          tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
+
+        auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
+        tv->removeAttr("constant");
+        tv->setAttr("constant", _attr);
       }
 
       this_spec->solved = true;
@@ -264,8 +284,8 @@ void recursiveSolveNormal(const std::shared_ptr<ir::IRContext>& ir_ctx, const ir
       auto inputs = op->inputs();
       auto outputs = op->outputs();
 
-      for (auto iii : inputs) { _recursiveSolveNormalImpl(iii->cast_<ir::Val>()); }
-      for (auto ooo : outputs) { _recursiveSolveNormalImpl(ooo->cast_<ir::Val>()); }
+      for (auto iii : inputs) { _recursiveSolveNormalImpl(ir_ctx, iii->cast_<ir::Val>()); }
+      for (auto ooo : outputs) { _recursiveSolveNormalImpl(ir_ctx, ooo->cast_<ir::Val>()); }
     }
 
     if (op->isa_<ir::graph::CallGraphOp>()) {
