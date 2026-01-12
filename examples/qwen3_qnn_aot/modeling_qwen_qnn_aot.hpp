@@ -329,12 +329,14 @@ class Qwen3Text final : public nn::Module {
   nn::Param rope_sin_;
   nn::Param rope_cos_;
   int32_t num_hidden_layers_;
+  int32_t hidden_size_;
 
  public:
   Qwen3Text() = default;
 
   Qwen3Text(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
     num_hidden_layers_ = cfg.num_hidden_layers;
+    hidden_size_ = cfg.hidden_size;
     decode_blocks_ = reg<nn::ModuleList<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
@@ -372,6 +374,7 @@ class Qwen3Text final : public nn::Module {
     }
 
     x = norm_(ptq::QDQ(this, x, "norm_input_qdq"));
+    x = x.view({1, 1, -1, hidden_size_}, true);
 
     auto ret = std::vector<Tensor>{x};
     for (const auto& item : keys) { ret.push_back(item); }
@@ -461,7 +464,6 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     llm_inputs.insert(llm_inputs.end(), kv_caches.begin(), kv_caches.end());
 
     sequence = llm(llm_inputs)[0];
-    sequence = sequence.view({1, 1, -1, cfg.hidden_size}, true);
     sequence = lm_head_(ptq::QDQ(this, sequence, "lm_head_input_qdq"));
     sequence = ptq::QDQ(this, sequence, "lm_head_output_qdq");
     ir::lowlevel::traceComment("    ╔═════╗   ");
