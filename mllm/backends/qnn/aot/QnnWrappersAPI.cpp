@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 #include <memory>
+#include <fstream>
 
 #include <QnnTypes.h>
 
@@ -478,7 +479,37 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
 }
 
 void QnnAOTEnv::saveContext(const std::string& name, const std::string& path) {
-  // TODO
+  if (contexts_.find(name) == contexts_.end()) {
+    MLLM_ERROR("QnnAOTEnv::saveContext Context {} not found", name);
+    return;
+  }
+  auto context = contexts_[name];
+
+  uint64_t binarySize = 0;
+  uint64_t writtenSize = 0;
+
+  auto status = qnn_htp_func_symbols_.qnn_interface_.contextGetBinarySize(context->qnn_ctx_handle_, &binarySize);
+  MLLM_RT_ASSERT_EQ(status, QNN_SUCCESS);
+
+  std::vector<uint8_t> binaryBuffer(binarySize);
+
+  status = qnn_htp_func_symbols_.qnn_interface_.contextGetBinary(
+      context->qnn_ctx_handle_, reinterpret_cast<void*>(binaryBuffer.data()), binarySize, &writtenSize);
+  MLLM_RT_ASSERT_EQ(status, QNN_SUCCESS);
+
+  if (binarySize < writtenSize) {
+    MLLM_ERROR("QNN context binary size mismatch: expected {} bytes, but wrote {} bytes.", binarySize, writtenSize);
+  }
+
+  std::ofstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    MLLM_ERROR("Failed to open file {} for writing QNN context.", path);
+    return;
+  }
+  file.write(reinterpret_cast<char*>(binaryBuffer.data()), writtenSize);
+  file.close();
+
+  MLLM_INFO("QNN context {} saved to {} written {}", name, path, writtenSize);
 }
 
 void QnnAOTEnv::destroyContext(const std::string& name) {
