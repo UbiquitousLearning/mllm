@@ -12,6 +12,7 @@
 #include "mllm/compile/passes/Pass.hpp"
 #include "mllm/utils/Common.hpp"
 
+#include "mllm/backends/qnn/aot/visitor/Conv2D.hpp"
 #include "mllm/backends/qnn/aot/visitor/Elewise.hpp"
 #include "mllm/backends/qnn/aot/visitor/Embedding.hpp"
 #include "mllm/backends/qnn/aot/visitor/Gather.hpp"
@@ -38,7 +39,7 @@ LLM2QnnLoweringPass::LLM2QnnLoweringPass() {
                    QnnAOTViewPattern, QnnAOTIndexPattern, QnnAOTGatherPattern, QnnAOTRMSNormPattern, QnnAOTLinearPattern,
                    QnnAOTTransposePattern, QnnAOTSlicePattern, QnnAOTConcatPattern, QnnAOTRepeatPattern, QnnAOTMatMulPattern,
                    QnnAOTReduceMaxPattern, QnnAOTReduceMinPattern, QnnAOTReduceMeanPattern, QnnAOTReduceSumPattern,
-                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern>();
+                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern, QnnAOTConv2DPattern>();
 }
 
 uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {

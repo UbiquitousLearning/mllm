@@ -256,6 +256,101 @@ ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
 //===----------------------------------------------------------------------===//
 // Sigmoid Pattern
 //===----------------------------------------------------------------------===//
+bool LLMQuantRecipeConv2DPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::Conv2DOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeConv2DPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  auto conv2d_ir = node->cast_<ir::linalg::Conv2DOp>();
+
+  auto config = AOTCompileContext::getInstance().getConfig()["quant_recipe"]["builtin_llm_pass"]["linear"];
+  auto use_config = config["fallback"];
+
+  // Get this op name
+  auto op_name = conv2d_ir->getAOp()->getName();
+
+  // config's key is regex pattern list. try to fit each config. If no matched config, use default fallback config
+  // Config e.g.:
+  // "fallback": {
+  //    "method": "LPBQ",
+  //    "sym": true,
+  //    "precision": "w4a16",
+  //    "block_size": 32
+  // },
+  // "regex pattern": {
+  //    "method": "LPBQ",
+  //    "sym": true,
+  //    "precision": "w4a16",
+  //    "block_size": 64
+  // },
+  for (auto it = config.begin(); it != config.end(); ++it) {
+    const std::string& key = it.key();
+    if (key == "fallback") { continue; }
+    try {
+      std::regex pattern(key);
+      if (std::regex_match(op_name, pattern)) {
+        use_config = it.value();
+        break;  // Found a match, stop searching
+      }
+    } catch (const std::regex_error& e) {
+      // If the key is not a valid regex, skip it
+      continue;
+    }
+  }
+
+  // Apply configuration
+  // Suppose the first input has quant_recipe
+  MLLM_RETURN_FALSE_IF_NOT(conv2d_ir->inputs().front()->getAttr("quant_recipe"));
+  {
+    auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
+    auto input_spec = conv2d_ir->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+    annotation_attr->annotation_.inputs.emplace_back(input_spec->spec_);
+
+    if (use_config["method"] == "LPBQ") {
+      // Unpack
+      std::string precision = use_config["precision"];
+      bool sym = use_config["sym"];
+      int block_size = use_config["block_size"];
+      MLLM_RETURN_FALSE_IF_NOT(sym);
+
+      ir::linalg::QuantizationSpecLPBQ::ptr_t weight_quant_spec = nullptr;
+
+      if (precision == "w4a16") {
+        weight_quant_spec =
+            ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, 0, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
+
+        // output sym int16
+        auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32,
+                                                                                Tensor::nil(), Tensor::nil());
+        conv2d_ir->outputs().front()->setAttr("quant_recipe",
+                                              writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(out_quant_spec));
+
+        annotation_attr->annotation_.outputs.emplace_back(out_quant_spec);
+        annotation_attr->annotation_.weights.insert({"weight", weight_quant_spec});
+      }
+
+      auto weight_name = conv2d_ir->getAOp()->getName() + ".weight";
+      auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
+      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
+      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+      auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+      t->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(weight_quant_spec));
+    } else {
+      std::string s = use_config["method"];
+      MLLM_WARN("Currently not support method: {}", s);
+    }
+
+    conv2d_ir->setAttr("quant_recipe", annotation_attr);
+  }
+
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// Sigmoid Pattern
+//===----------------------------------------------------------------------===//
 bool LLMQuantRecipeSigmoidPattern::isMatch(const mllm::ir::op_ptr_t& op) {
   if (op->isa_<ir::linalg::SigmoidOp>()) { return true; }
   return false;
@@ -991,6 +1086,7 @@ LLMQuantRecipePass::LLMQuantRecipePass() {
   auto config = AOTCompileContext::getInstance().getConfig();
   // Register all patterns
   addPattern(LLMQuantRecipeNegPattern::create(), "neg", 0);
+  addPattern(LLMQuantRecipeConv2DPattern::create(), "conv2d", 0);
   addPattern(LLMQuantRecipeSlicePattern::create(), "slice", 0);
   addPattern(LLMQuantRecipeSigmoidPattern::create(), "sigmoid", 0);
   addPattern(LLMQuantRecipeReduceMinPattern::create(), "reduce_min", 0);

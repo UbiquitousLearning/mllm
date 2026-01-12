@@ -1,18 +1,19 @@
+#include <cstdint>
+#include <memory>
+#include <dlfcn.h>
+#include <cstring>
+
 #include "QNNUtils.hpp"
 #include "QnnTypes.h"
+
 #include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
-#include "mllm/mllm.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
-#include <cstdint>
-#include <memory>
-#include <dlfcn.h>
-#include <cstring>
 
 namespace mllm::qnn {
 
