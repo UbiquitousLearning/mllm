@@ -10,6 +10,10 @@ namespace mllm::aops {
 
 enum class Conv2DOpImplType {
   kDefault = 0,
+
+  // LPBQ
+  kQNN_LPBQ_w4a16o16_G32,
+  kQNN_LPBQ_w4a16o16_G64,
 };
 
 struct Conv2DOpOptions : public BaseOpOptions<Conv2DOpOptions> {

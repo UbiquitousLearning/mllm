@@ -33,6 +33,20 @@ ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t cloneQuantizationSpecType(
     const ir::IRContext::ptr_t& ctx, const ir::linalg::LinalgIRQuantizatonSpecAttr::ptr_t& from);
 
 //===----------------------------------------------------------------------===//
+// Conv2D Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeConv2DPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeConv2DPattern> create() {
+    return std::make_shared<LLMQuantRecipeConv2DPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // Sigmoid Pattern
 //===----------------------------------------------------------------------===//
 class LLMQuantRecipeSigmoidPattern : public ir::Pattern {

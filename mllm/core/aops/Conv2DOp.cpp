@@ -66,15 +66,23 @@ void Conv2DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   // Input must be 4D: [batch, channels, height, width]
   if (ishape.size() != 4) {
-    MLLM_ERROR_EXIT(ExitCode::kCoreError, "Conv2DOp expects 4D input, got {} D", ishape.size());
+    MLLM_ERROR_EXIT(ExitCode::kCoreError, "Conv2DOp expects 4D input, got {}D", ishape.size());
     outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
     return;
   }
 
-  const int batch = ishape[0];
-  const int in_channels = ishape[1];  // channel axis
-  const int in_height = ishape[2];    // height axis
-  const int in_width = ishape[3];     // width axis
+  int batch = ishape[0];
+  int in_channels = ishape[1];  // channel axis
+  int in_height = ishape[2];    // height axis
+  int in_width = ishape[3];     // width axis
+
+  // CHECK if in Qualcomm DSP shape. Inputs is [N, H, W, C], Filter Weight is [N, H, In, Out]
+  if (options_.impl_type == Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32
+      || options_.impl_type == Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G64) {
+    in_channels = ishape[3];
+    in_height = ishape[1];
+    in_width = ishape[2];
+  }
 
   MLLM_RT_ASSERT_EQ(in_channels, options_.in_channels);
 
@@ -102,6 +110,11 @@ void Conv2DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   // Output shape: [batch, out_channels, h_out, w_out]
   auto new_shape = std::vector<int32_t>{batch, out_channels, h_out, w_out};
+
+  if (options_.impl_type == Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32
+      || options_.impl_type == Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G64) {
+    new_shape = std::vector<int32_t>{batch, h_out, w_out, out_channels};
+  }
 
   outputs.emplace_back(Tensor::empty(new_shape, i.dtype(), i.device()));
 }
