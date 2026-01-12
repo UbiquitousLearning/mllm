@@ -1,10 +1,13 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/aops/RMSNormOp.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/visitor/RMSNorm.hpp"
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
@@ -40,6 +43,16 @@ bool QnnAOTRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op)
   auto weight =
       writer.getContext()->lookupSymbolTable(a->getName() + ".weight")->outputs().front()->cast_<ir::tensor::TensorValue>();
 
+  // fake bias, nn module seems to be inconsistent with document (AMAZING!)
+  auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), weight->tensor_.dtype());
+  auto bias_node = ir::tensor::TensorValue::build(writer.getContext().get(), bias_tensor);
+  bias_node->tensor_.setName(a->getName() + "_runtime_bias");
+
+  // fake bias quant recipe
+  auto quant_spec = mllm::ir::linalg::QuantizationSpecSymPerTensor::create(0, 0, kInt32, kFloat32, Tensor::ones({1}));
+  auto quant_attr = mllm::ir::linalg::LinalgIRQuantizatonSpecAttr::build(writer.getContext().get(), quant_spec);
+  bias_node->setAttr("quant_recipe", quant_attr);
+
   // Start to attach
   auto i_0 = op->inputs().front()->cast_<ir::tensor::TensorValue>();
   auto o_0 = op->outputs().front()->cast_<ir::tensor::TensorValue>();
@@ -56,6 +69,7 @@ bool QnnAOTRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op)
 
   qnn_op_node->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, i_0))
       ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, weight, true))
+      ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, bias_node, true))
       ->emplaceOutput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, o_0))
       ->setName(rms_op->getAOp()->getName());
 
