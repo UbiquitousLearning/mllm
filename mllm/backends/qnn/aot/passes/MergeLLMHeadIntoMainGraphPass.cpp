@@ -37,10 +37,10 @@ uint8_t MergeLLMHeadIntoMainGraphPass::run(const ir::node_ptr_t& op) {
 
   // Find the LLM head linear op in the main graph
   // The requirement says: "lm_head" is a linear linalg op in TopModule
-  ir::linalg::LinearOp::ptr_t llm_head_op = nullptr;
+  ir::linalg::LinalgIROp::ptr_t llm_head_op = nullptr;
 
-  writer.walk<ir::linalg::LinearOp>(
-      [&](ir::IRWriter& /*writer*/, const ir::linalg::LinearOp::ptr_t& linear_op) -> ir::IRWriter::WalkResult {
+  writer.walk<ir::linalg::LinalgIROp>(
+      [&](ir::IRWriter& /*writer*/, const ir::linalg::LinalgIROp::ptr_t& linear_op) -> ir::IRWriter::WalkResult {
         auto name = linear_op->getAOp()->getName();
         if (name == "lm_head" || name == "lm_head_out") { llm_head_op = linear_op; }
         return ir::IRWriter::WalkResult::WALK_CONTINUE;
