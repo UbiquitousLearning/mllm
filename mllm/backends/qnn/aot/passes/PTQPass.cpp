@@ -122,6 +122,10 @@ void recursiveSolveWeights(const std::shared_ptr<ir::IRContext>& ir_ctx, const i
   auto wow = ir::IRWriter(ir_ctx, call_op->getTopRegion());
   wow.walk<ir::Op>([&](ir::IRWriter& w, const ir::Op::ptr_t& op) -> ir::IRWriter::WalkResult {
     if (op->isa_<ir::linalg::LinearOp>()) { solveLinearWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>()); }
+    if (op->isa_<ir::linalg::Conv2DOp>()) {
+      // Conv2D's Check same with Linear
+      solveLinearWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>());
+    }
     if (op->isa_<ir::linalg::RMSNormOp>()) { solveRMSNormWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>()); }
     if (op->isa_<ir::linalg::EmbeddingOp>()) { solveEmbeddingWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>()); }
     if (op->isa_<ir::graph::CallGraphOp>()) {

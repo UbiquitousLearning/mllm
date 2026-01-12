@@ -112,10 +112,17 @@ Tensor QDQ_ROPE(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch
 
 }  // namespace ptq
 
+using vi32 = std::vector<int32_t>;
+#define CONV2D_PROPERTY vi32{1, 1}, vi32{1, 1}, vi32{0, 0}, vi32{1, 1}, false, aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32
+
+// Using Conv2D to replace Linear.
+// Conv2D Filter Weight is [1, 1, In, Out]
+// Conv2D Activation is [N, H=1, W=Seq, In]
+
 class Qwen3MLP final : public nn::Module {
-  nn::Linear gate_proj_;
-  nn::Linear up_proj_;
-  nn::Linear down_proj_;
+  nn::Conv2D gate_proj_;
+  nn::Conv2D up_proj_;
+  nn::Conv2D down_proj_;
   nn::SiLU silu_;
   int hidden_size_;
   int intermediate_size_;
@@ -123,10 +130,10 @@ class Qwen3MLP final : public nn::Module {
  public:
   Qwen3MLP() = default;
   Qwen3MLP(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
-    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
+    gate_proj_ = reg<nn::Conv2D>("gate_proj", cfg.hidden_size, cfg.intermediate_size, CONV2D_PROPERTY);
     silu_ = reg<nn::SiLU>("act");
-    up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
-    down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
+    up_proj_ = reg<nn::Conv2D>("up_proj", cfg.hidden_size, cfg.intermediate_size, CONV2D_PROPERTY);
+    down_proj_ = reg<nn::Conv2D>("down_proj", cfg.intermediate_size, cfg.hidden_size, CONV2D_PROPERTY);
     hidden_size_ = cfg.hidden_size;
     intermediate_size_ = cfg.intermediate_size;
   }
@@ -134,6 +141,8 @@ class Qwen3MLP final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     x = ptq::QDQ(this, x, "up_proj_input_qdq");
+    x = x.view({1, 1, -1, hidden_size_}, true);
+
     auto up_result = ptq::QDQ(this, up_proj_(x), "up_proj_output_qdq").view({1, -1, intermediate_size_}, true);
     auto gate_result = ptq::QDQ(this, gate_proj_(x), "gate_proj_output_qdq").view({1, -1, intermediate_size_}, true);
 
@@ -142,6 +151,7 @@ class Qwen3MLP final : public nn::Module {
                            "act_output_qdq");
 
     auto o = ptq::QDQ(this, gate_result * up_result, "down_proj_input_qdq");
+    o = o.view({1, 1, -1, intermediate_size_}, true);
     o = down_proj_(o).view({1, -1, hidden_size_}, true);
 
     return {o};
@@ -149,10 +159,10 @@ class Qwen3MLP final : public nn::Module {
 };
 
 class Qwen3Attention final : public nn::Module {
-  nn::Linear q_proj_;
-  nn::Linear k_proj_;
-  nn::Linear v_proj_;
-  nn::Linear o_proj_;
+  nn::Conv2D q_proj_;
+  nn::Conv2D k_proj_;
+  nn::Conv2D v_proj_;
+  nn::Conv2D o_proj_;
   nn::RMSNorm rms_norm_q_;
   nn::RMSNorm rms_norm_k_;
   nn::CausalMask mask_;
@@ -177,10 +187,10 @@ class Qwen3Attention final : public nn::Module {
     scale_ = (1.f / sqrtf((float)head_dim_));
 
     // clang-format off
-    q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    k_proj_ = reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, cfg.attention_bias, cfg.linear_impl_type);
-    o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, cfg.attention_bias, cfg.linear_impl_type);
+    q_proj_ = reg<nn::Conv2D>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, CONV2D_PROPERTY);
+    k_proj_ = reg<nn::Conv2D>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, CONV2D_PROPERTY);
+    v_proj_ = reg<nn::Conv2D>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, CONV2D_PROPERTY);
+    o_proj_ = reg<nn::Conv2D>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, CONV2D_PROPERTY);
     // clang-format on
 
     rms_norm_q_ = reg<nn::RMSNorm>("q_norm", cfg.rms_norm_eps);
@@ -198,7 +208,9 @@ class Qwen3Attention final : public nn::Module {
     auto past_key = inputs[4];
     auto past_value = inputs[5];
 
+    // [B, S, D]
     hidden_states = ptq::QDQ(this, hidden_states, "q_proj_input_qdq");
+    hidden_states = hidden_states.view({1, 1, -1, hidden_size_}, true);
 
     // [B, S, H * D]
     auto query_states = q_proj_(hidden_states);
@@ -263,7 +275,7 @@ class Qwen3Attention final : public nn::Module {
     attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min.addConstant(minus_value));
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");
-    y = y.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_}, /*ssa=*/true);
+    y = y.transpose(1, 2).view({1, 1, -1, num_attention_heads_ * head_dim_}, /*ssa=*/true);
     y = o_proj_(y).view({1, -1, hidden_size_}, true);
 
     return {y, key_states, value_states};
@@ -381,7 +393,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     if (cfg.tie_word_embeddings) {
       // NOTE:
       // model.lm_head.weight is quantization weights of model.embed_tokens.weight
-      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+      lm_head_ = reg<nn::Conv2D>("lm_head", cfg.hidden_size, cfg.vocab_size, CONV2D_PROPERTY);
     }
   }
 
@@ -449,6 +461,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     llm_inputs.insert(llm_inputs.end(), kv_caches.begin(), kv_caches.end());
 
     sequence = llm(llm_inputs)[0];
+    sequence = sequence.view({1, 1, -1, cfg.hidden_size}, true);
     sequence = lm_head_(ptq::QDQ(this, sequence, "lm_head_input_qdq"));
     sequence = ptq::QDQ(this, sequence, "lm_head_output_qdq");
     ir::lowlevel::traceComment("    ╔═════╗   ");
@@ -467,7 +480,7 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
  private:
   const Qwen3Config& cfg;
   Qwen3Text llm;
-  nn::Linear lm_head_;
+  nn::Conv2D lm_head_;
   bool tie_word_embeddings_;
 };
 

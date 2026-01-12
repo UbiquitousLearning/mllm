@@ -160,22 +160,24 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       break;
     }
     case ir::linalg::QuantizationSpecType::kLPBQ: {
+      // This LPBQ Type is for Conv2D Only !!! Linear has diff layout cmp with conv2d
+
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(quant_spec);
 
       // Prepare data
-      auto num_scale_offsets = (uint32_t)v->tensor_.size(cfg->ch_axis);
+      auto num_scale_offsets = (uint32_t)v->tensor_.size(-1);
       std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
-      MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(0));
+      MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(-1));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
       for (int i = 0; i < num_scale_offsets; ++i) {
-        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i, 0, 0});
+        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({0, 0, 0, i});
         scale_offsets[i].offset = 0;
       }
 
       Qnn_BlockwiseExpansion_t blockwise_expansion;
-      blockwise_expansion.axis = cfg->ch_axis;
+      blockwise_expansion.axis = v->tensor_.rank() - 1;
       blockwise_expansion.scaleOffsets = nullptr;  // Will be set by setBlockwiseQuantization
-      blockwise_expansion.numBlocksPerAxis = v->tensor_.size(1) / cfg->block_size;
+      blockwise_expansion.numBlocksPerAxis = v->tensor_.size(-2) / cfg->block_size;
       blockwise_expansion.blockScaleBitwidth = 4;  // 4 bits for uint4 scale
       blockwise_expansion.blockScaleStorageType = QNN_BLOCKWISE_EXPANSION_BITWIDTH_SCALE_STORAGE_8;
       blockwise_expansion.blocksScale8 = cfg->scale_level_0_int.ptr<mllm_uint8_t>();

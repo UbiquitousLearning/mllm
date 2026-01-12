@@ -111,6 +111,51 @@ class QLinearW8A16_PerChannelSym(QLinear):
             f"[{self.__class__.__name__}] Converted to deploy. Weight shape: {self.weight.shape}, dtype: {self.weight.dtype}"
         )
 
+    @torch.no_grad()
+    def convert_to_conv2d_deploy_hwio(self):
+        """
+        Convert to deploy format with HWIO layout [1, 1, In, Out].
+        This format is commonly used by convolution-based inference engines.
+        """
+        if self.deploy_mode:
+            return
+        if self.weight_quant.scale is None:
+            self.freeze_weight()
+
+        scale = self.weight_quant.scale  # Shape: [Out]
+        zero_point = self.weight_quant.zero_point  # Shape: [Out]
+
+        # Step 1: Quantize in [Out, In] layout to ensure precision correctness
+        w_q_obj = torch.quantize_per_channel(
+            self.weight.float(), scale, zero_point, axis=0, dtype=torch.qint8
+        )
+        w_int = w_q_obj.int_repr()  # Shape: [Out, In]
+
+        # Step 2: Critical step - Transpose and Reshape
+        # [Out, In] -> Transpose -> [In, Out]
+        w_transposed = w_int.t().contiguous()
+
+        # [In, Out] -> [1, 1, In, Out] (HWIO)
+        w_hwio = w_transposed.view(1, 1, self.in_features, self.out_features)
+
+        # Step 3: Process Scale/ZP
+        # Scale corresponds to Channel_Out, now at dimension 3 (index 3)
+        # Reshape to [1, 1, 1, Out] for broadcasting
+        scale_hwio = scale.view(1, 1, 1, self.out_features)
+        zp_hwio = zero_point.view(1, 1, 1, self.out_features)
+
+        # Step 4: Register buffers
+        del self.weight
+        self.register_buffer("weight", w_hwio)
+        self.register_buffer("scale", scale_hwio)
+        self.register_buffer("zero_point", zp_hwio)
+        del self.weight_quant
+
+        self.deploy_mode = True
+        print(
+            f"[{self.__class__.__name__}] Converted to HWIO. Weight: {self.weight.shape}"
+        )
+
 
 # --- 2. LPBQ (Double Quantization) Scheme ---
 class DoubleQuantizer(nn.Module):
@@ -207,4 +252,62 @@ class QLinearLPBQ(QLinear):
         self.deploy_mode = True
         print(
             f"[{self.__class__.__name__}] Converted to deploy. Original float weight removed."
+        )
+
+    @torch.no_grad()
+    def convert_to_conv2d_deploy_hwio(self):
+        """
+        Convert to deploy format with HWIO layout [1, 1, In, Out].
+        This format is commonly used by convolution-based inference engines.
+        """
+        if self.deploy_mode:
+            return
+        if not self.weight_quant.is_frozen:
+            self.freeze_weight()
+
+        # Step 1: Extract quantized weights in block format
+        # Shape: [Out, Blocks, BlockSize]
+        w_q_blocks = self.weight_quant.weight_q
+
+        # Step 2: Flatten and remove padding
+        w_q_flat = w_q_blocks.view(self.out_features, -1)  # Shape: [Out, In_Padded]
+        if w_q_flat.shape[1] > self.in_features:
+            w_q_flat = w_q_flat[:, : self.in_features]
+
+        # Step 3: Critical step - Transpose weights
+        # [Out, In] -> [In, Out]
+        w_transposed = w_q_flat.t().contiguous()
+
+        # Step 4: Reshape to HWIO [1, 1, In, Out]
+        w_hwio = w_transposed.view(1, 1, self.in_features, self.out_features)
+
+        # Step 5: Process LPBQ Scales
+        # Scale2 (Per-Channel): Original [Out, 1, 1]
+        # Target: [1, 1, 1, Out]
+        s2 = self.weight_quant.scale_2_fp32
+        s2_hwio = s2.flatten().view(1, 1, 1, self.out_features)
+
+        # Scale1 (Per-Block): Original [Out, n_blocks, 1]
+        # n_blocks corresponds to Input Channel blocking
+        # When weights are transposed, scale layout needs to match engine read order
+        # Assuming engine reads (1, 1, In, Out), Scale1 maintains block correspondence
+        # Transpose to [1, 1, n_blocks, Out] to logically match HWIO order
+        s1 = self.weight_quant.scale_1_uint4  # Shape: [Out, Blocks, 1]
+        s1_permuted = (
+            s1.view(self.out_features, -1).t().contiguous()
+        )  # [Out, Blocks] -> [Blocks, Out]
+        s1_hwio = s1_permuted.view(1, 1, -1, self.out_features)  # Shape: [1, 1, Blocks, Out]
+
+        del self.weight
+        self.register_buffer("weight", w_hwio)
+        self.register_buffer("scale1", s1_hwio)
+        self.register_buffer("scale2", s2_hwio)
+        del self.weight_quant
+
+        self.deploy_mode = True
+        print(
+            f"[{self.__class__.__name__}] Converted to HWIO.\n"
+            f"   Weight: {self.weight.shape}\n"
+            f"   Scale1: {self.scale1.shape} (Blocks, Out)\n"
+            f"   Scale2: {self.scale2.shape} (1, Out)"
         )

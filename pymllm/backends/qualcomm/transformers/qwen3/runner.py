@@ -32,11 +32,9 @@ def enable_qdq_observer(m):
 
 
 def convert_weight(m):
-    if (
-        isinstance(m, QLinearLPBQ)
-        or isinstance(m, QLinearW8A16_PerChannelSym)
-        or isinstance(m, QRMSNorm)
-    ):
+    if isinstance(m, QLinearLPBQ) or isinstance(m, QLinearW8A16_PerChannelSym):
+        m.convert_to_conv2d_deploy_hwio()
+    if isinstance(m, QRMSNorm):
         m.convert_to_deploy()
 
 
@@ -47,6 +45,7 @@ class Qwen3Quantizer:
             model_path,
             attn_implementation="eager",
         )
+        self.model.cuda()
         self.mllm_qualcomm_max_length = mllm_qualcomm_max_length
         self.model.mllm_qualcomm_max_length = mllm_qualcomm_max_length
 
