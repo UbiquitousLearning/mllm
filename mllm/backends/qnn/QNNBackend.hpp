@@ -50,8 +50,8 @@ class QNNRuntime {
   }
 
   bool createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t** contextConfig = nullptr);
-  bool retrieveContext(Qnn_ContextHandle_t& context, std::vector<std::shared_ptr<QNNModel>>& qnnModels,
-                       QnnContext_Config_t** contextConfig = nullptr);
+  bool retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
+                       std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig = nullptr);
 
  private:
   QNN_INTERFACE_VER_TYPE qnnInterface;
@@ -86,6 +86,9 @@ class QNNRuntime {
 class QNNBackend final : public Backend {
  public:
   QNNBackend();
+
+  bool loadContext(const std::string& contextPath);
+  bool createContext();
 
   bool isWeightOnDevice() override { return false; }
 
