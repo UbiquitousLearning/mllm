@@ -29,7 +29,7 @@ func main() {
 		log.Fatal("FATAL: InitializeContext failed!")
 	}
 	mllm.SetLogLevel(2)
-	if !mllm.StartService(4) {
+	if !mllm.StartService(1) {
 		log.Fatal("FATAL: StartService failed!")
 	}
 	defer mllm.StopService()
