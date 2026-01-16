@@ -55,24 +55,6 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
     MLLM_INFO("QNN backend supports early termination");
   }
 
-  bool contextStatus = false;
-  // check if the qnn_context.bin file exists
-  if (!std::filesystem::exists("qnn_context.bin")) {
-    contextStatus = runtime_->createContext(context_, nullptr);
-  } else {
-    contextStatus = runtime_->retrieveContext(context_, qnnModels_, nullptr);
-
-    // fill qnnModelIndexMap_ info according to qnnModels_
-    for (size_t i = 0; i < qnnModels_.size(); i++) {
-      auto graphName = qnnModels_[i]->getQnnGraphName();
-      qnnModelIndexMap_.insert(std::make_pair(graphName, i));
-    }
-  }
-  if (!contextStatus) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
-
-  // init QNN Allocator
-  static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
-
   // set performance parameters for better performance on HTP
   perf_ = QNNPerf::create(&runtime_->qnnInterface);
   perf_->setPowerConfigBurst();
@@ -348,10 +330,10 @@ bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t
   return true;
 }
 
-bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<std::shared_ptr<QNNModel>>& qnnModels,
-                                 QnnContext_Config_t** contextConfig) {
+bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
+                                 std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig) {
   // Read the binary from qnn_context.bin and get the size in byte
-  std::ifstream file(QNN_Context_File, std::ios::binary | std::ios::ate);
+  std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
   std::streamsize size = file.tellg();
   file.seekg(0, std::ios::beg);
 
@@ -433,6 +415,25 @@ bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t& context, std::vector<std::
   free(tmpGraphsInfo);
 
   MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels", graphNum);
+  return true;
+}
+
+bool QNNBackend::createContext() {
+  if (!runtime_->createContext(context_, nullptr)) { return false; }
+  // init QNN Allocator
+  static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
+  return true;
+}
+
+bool QNNBackend::loadContext(const std::string& contextPath) {
+  if (!runtime_->retrieveContext(contextPath, context_, qnnModels_, nullptr)) { return false; }
+  // fill qnnModelIndexMap_ info according to qnnModels_
+  for (size_t i = 0; i < qnnModels_.size(); i++) {
+    auto graphName = qnnModels_[i]->getQnnGraphName();
+    qnnModelIndexMap_.insert(std::make_pair(graphName, i));
+  }
+  // init QNN Allocator
+  static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
   return true;
 }
 
@@ -535,8 +536,6 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     return;
   }
 
-  // Prepare QNN input tensors by copying data from runtime inputs to graph input wrappers
-  // This handles the case where input tensor sizes may differ between prefill and decode phases
   std::vector<Qnn_Tensor_t> qnn_inputs;
   std::vector<Qnn_Tensor_t> qnn_outputs;
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
@@ -550,52 +549,8 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
-    if (wrapper_tensor.isNil()) {
-      MLLM_ERROR("Graph input wrapper {} for graph '{}' has no backing tensor", i, graphName);
-      return;
-    }
-
-    // Check for size mismatches (can occur in decode phase where inputs may be smaller)
-    size_t dst_bytes = wrapper_tensor.bytes();
-    size_t src_bytes = runtime_input.bytes();
-    if (dst_bytes != src_bytes) {
-      MLLM_WARN("Graph '{}' input tensor {} byte-size mismatch: wrapper={} bytes, runtime input={} bytes. Copying "
-                "min(dst, src), but this may truncate data.",
-                graphName, i, dst_bytes, src_bytes);
-    }
-
-    if (dst_bytes > 0) {
-      void* dst_ptr = wrapper_tensor.ptr<void>();
-      if (!dst_ptr) {
-        wrapper_tensor.alloc();
-        dst_ptr = wrapper_tensor.ptr<void>();
-      }
-
-      const void* src_ptr = runtime_input.ptr<void>();
-      size_t bytes_to_copy = std::min(dst_bytes, src_bytes);
-      if (!src_ptr) {
-        MLLM_ERROR("Runtime input tensor {} for graph '{}' has null data pointer", i, graphName);
-        return;
-      }
-      if (dst_ptr && src_ptr && dst_ptr != src_ptr) {
-        // Copy source data to destination buffer
-        // This ensures that the graph input wrapper has the correct data for execution
-        if (bytes_to_copy > 0) { std::memcpy(dst_ptr, src_ptr, bytes_to_copy); }
-
-        // If source is smaller than destination, zero out the remaining bytes
-        // This is important for decode phase where input tensors may be smaller than prefill
-        // For example, decode phase may use [1, 1] input while wrapper expects [1, 128]
-        // Note: In current implementation with full [1, 128] tensor, this should not trigger
-        // but it's kept as a safety measure for future optimizations
-        if (src_bytes < dst_bytes) {
-          size_t remaining_bytes = dst_bytes - src_bytes;
-          std::memset(static_cast<char*>(dst_ptr) + bytes_to_copy, 0, remaining_bytes);
-          // Only log if zero-padding actually occurs (unexpected case)
-          MLLM_WARN("[QNN graphExecute] Graph '{}' input tensor {}: zero-padded {} bytes (src={} bytes, dst={} bytes)",
-                    graphName, i, remaining_bytes, src_bytes, dst_bytes);
-        }
-      }
-    }
+    // input wrapper is empty, set wrapper's dataContainer(mllm::Tensor)
+    if (!wrapper->isAlloc()) { wrapper->__setDataContainer(runtime_input); }
 
     // Allocate and register the wrapper tensor with QNN allocator
     // QNNAllocator will handle registered memory descriptor when needed
@@ -617,74 +572,18 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
 
   if (ProfilingLevel::OFF != profilingLevel_) { extractBackendProfilingInfo(runtime_->profileHandle); }
 
-  // Debug: Print last output shape from QNN actual return order (before reordering)
-  // Uncomment below for debugging output order issues
-  // if (!qnn_output_tensors.empty()) {
-  //   const auto& last_output = qnn_output_tensors.back();
-  //   const auto& output_wrappers = model->getGraphOutputTensorWrappers();
-  //   const auto& last_wrapper = output_wrappers.back();
-  //   MLLM_INFO("[QNN Actual Return Order] Last output tensor '{}' shape: {}",
-  //             last_wrapper->getName(), last_output.shape());
-  // }
-
   // Reorder outputs according to MLLM expected order
   const auto& expectedOrder = model->getExpectedOutputOrder();
 
   // Resize outputs to match QNN output count first
   outputs.resize(qnn_output_tensors.size());  // Ensure outputs has enough space for all QNN outputs
   if (!expectedOrder.empty() && expectedOrder.size() == qnn_output_tensors.size()) {
-    // Debug: Log output order information
-    // Uncomment below for debugging output order issues
-    // MLLM_INFO("QNNBackend::graphExecute: Checking output order for graph '{}'", graphName);
-    // MLLM_INFO("  MLLM Expected Output Order ({} outputs):", expectedOrder.size());
-    // for (size_t i = 0; i < expectedOrder.size(); i++) {
-    //   MLLM_INFO("    [{}] {}", i, expectedOrder[i]);
-    // }
-    // MLLM_INFO("  QNN Output Order ({} outputs):", model->getGraphOutputTensorWrappers().size());
-    // for (size_t i = 0; i < model->getGraphOutputTensorWrappers().size(); i++) {
-    //   auto wrapper = model->getGraphOutputTensorWrappers()[i];
-    //   MLLM_INFO("    [{}] {}", i, wrapper->getName());
-    // }
-
-    // Check if reordering is needed
-    // bool needs_reordering = false;
-    // std::vector<std::pair<size_t, int>> mismatches;
-    // for (size_t i = 0; i < expectedOrder.size(); i++) {
-    //   const std::string& expected_name = expectedOrder[i];
-    //   int qnn_index = model->getQnnOutputIndex(expected_name);
-    //   if (qnn_index >= 0 && qnn_index < static_cast<int>(qnn_output_tensors.size())) {
-    //     if (static_cast<int>(i) != qnn_index) {
-    //       needs_reordering = true;
-    //       mismatches.emplace_back(i, qnn_index);
-    //     }
-    //   }
-    // }
-
-    // Debug: Verification messages
-    // Uncomment below for debugging output order issues
-    // if (needs_reordering) {
-    //   MLLM_INFO("  [VERIFICATION] QNN output order DIFFERS from MLLM expected order - REORDERING REQUIRED");
-    //   for (const auto& [mllm_idx, qnn_idx] : mismatches) {
-    //     MLLM_INFO("    Mismatch: MLLM[{}] expects '{}' but it's at QNN[{}]",
-    //               mllm_idx, expectedOrder[mllm_idx], qnn_idx);
-    //   }
-    // } else {
-    //   MLLM_INFO("  [VERIFICATION] QNN output order MATCHES MLLM expected order - no reordering needed");
-    // }
-
     // Reorder outputs according to expected order
     for (size_t i = 0; i < expectedOrder.size(); i++) {
       const std::string& expected_name = expectedOrder[i];
       int qnn_index = model->getQnnOutputIndex(expected_name);
       if (qnn_index >= 0 && qnn_index < static_cast<int>(qnn_output_tensors.size())) {
         outputs[i] = qnn_output_tensors[qnn_index];
-        // Debug: Mapping information
-        // Uncomment below for debugging output order issues
-        // if (static_cast<int>(i) != qnn_index) {
-        //   MLLM_INFO("  Mapping: MLLM[{}] = QNN[{}] (tensor: {}) [REORDERED]", i, qnn_index, expected_name);
-        // } else {
-        //   MLLM_INFO("  Mapping: MLLM[{}] = QNN[{}] (tensor: {}) [SAME]", i, qnn_index, expected_name);
-        // }
       } else {
         MLLM_ERROR("QNNBackend::graphExecute: Failed to find QNN output index for tensor '{}' in graph '{}'", expected_name,
                    graphName);

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include <memory>
+#include <filesystem>
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
@@ -13,12 +14,17 @@
 namespace mllm {
 
 // export initQnnBackend function to initialize QNN backend
-void initQnnBackend() {
+void initQnnBackend(const std::string& context_path) {
   MLLM_RT_ASSERT(isQnnAvailable());
   auto& ctx = Context::instance();
 
   // 1. Register backend
   auto backend = std::make_shared<qnn::QNNBackend>();
+  if (std::filesystem::exists(context_path)) {
+    if (!backend->loadContext(context_path)) { MLLM_ERROR_EXIT(1, "Failed to load QNN context from {}", context_path); }
+  } else {
+    if (!backend->createContext()) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
+  }
   ctx.registerBackend(backend);
 
   // 2. Initialize memory manager

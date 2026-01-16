@@ -205,6 +205,13 @@ class QNNTensorWrapper {
   Tensor& getDataContainer() { return dataContainer_; }
   const std::vector<uint32_t>* getDimension() { return &dimensions_; }
 
+  bool isAlloc() { return isAlloc_; }
+  void __setDataContainer(const Tensor& tensor) {
+    MLLM_RT_ASSERT(dataContainer_.isNil())
+    dataContainer_ = tensor;
+    if (!tensor.isNil()) { isAlloc_ = true; }
+  }
+
   // Helper to set complex quantization params and manage memory
   void setScaleOffsetQuantization(const std::vector<Qnn_ScaleOffset_t>& scaleOffsets, int32_t axis);
   void setBlockwiseQuantization(const Qnn_BlockwiseExpansion_t& blockwise, const std::vector<Qnn_ScaleOffset_t>& scaleOffsets);
