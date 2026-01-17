@@ -372,14 +372,6 @@ class Qwen3DecoderLayer(GradientCheckpointingLayer):
             **kwargs,
         )
 
-        if self.layer_dix == 2:
-            print("1", hidden_states.min(), hidden_states.max())
-            print(
-                "2",
-                self.add_0_lhs_input_qdq(hidden_states).min(),
-                self.add_0_lhs_input_qdq(hidden_states).max(),
-            )
-
         hidden_states = self.add_0_output_qdq(
             residual + self.add_0_lhs_input_qdq(hidden_states)
         )
@@ -388,6 +380,8 @@ class Qwen3DecoderLayer(GradientCheckpointingLayer):
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states = self.mlp(hidden_states)
+        # if self.layer_dix == 2:
+        #     print(hidden_states.min(), hidden_states.max())
         hidden_states = residual + self.add_1_lhs_input_qdq(hidden_states)
         return hidden_states
 
