@@ -44,6 +44,7 @@ class Qwen3Quantizer:
         self.model = Qwen3ForCausalLM.from_pretrained(
             model_path,
             attn_implementation="eager",
+            dtype=torch.bfloat16,
         )
         self.model.cuda()
         self.mllm_qualcomm_max_length = mllm_qualcomm_max_length

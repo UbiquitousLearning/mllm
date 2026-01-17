@@ -44,6 +44,7 @@ def main():
     # !!!
     # Things below is for deploy. We will turn all fp32 weights and some buffers(rope) to quantized dtype.
     # !!!
+    # This line maybe error. we need use quantized weight!!! not embed_tokens.weight!!!
     m.model.lm_head.weight = torch.nn.Parameter(
         m.model.model.embed_tokens.weight.clone()
     )
