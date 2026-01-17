@@ -242,7 +242,7 @@ class Qwen3Attention final : public nn::Module {
                           "k_rope_add_0_output_qdq");
 
     // De-quantization and quantization again
-    key_states = key_states.to(kFloat16);
+    key_states = key_states.to(kFloat32);
     key_states = key_states.to(kUInt8PerTensorSym);
     key_states = ptq::QDQ_KV(this, key_states, "k_cast_to_int8_qdq");
 
@@ -251,7 +251,7 @@ class Qwen3Attention final : public nn::Module {
 
     // Handle KV Cache
     value_states = ptq::QDQ(this, value_states, "v_cast_to_int16_qdq");
-    value_states = value_states.to(kFloat16);
+    value_states = value_states.to(kFloat32);
     value_states = value_states.to(kUInt8PerTensorSym);
     value_states = ptq::QDQ_KV(this, value_states, "v_cast_to_int8_qdq");
 

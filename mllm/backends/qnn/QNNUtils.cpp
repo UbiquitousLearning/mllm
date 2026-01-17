@@ -483,10 +483,7 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std
 }
 
 void QNNTensorWrapper::alloc() {
-  if (isAlloc_) {
-    MLLM_WARN("Tensor {} has already been allocated.", name_);
-    return;
-  }
+  if (isAlloc_) { MLLM_WARN("Tensor {} has already been allocated.", name_); }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
 
   // if storage is not allocated, allocate it

@@ -17,6 +17,6 @@ if(MLLM_TRACY_ENABLE)
   add_subdirectory(tracy_example)
 endif()
 
-if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen3_qnn_aot)
 endif()
