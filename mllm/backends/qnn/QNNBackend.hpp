@@ -89,6 +89,7 @@ class QNNBackend final : public Backend {
 
   bool loadContext(const std::string& contextPath);
   bool createContext();
+  void saveContext(const std::string& contextPath = "qnn_context.bin");
 
   bool isWeightOnDevice() override { return false; }
 
