@@ -5,6 +5,7 @@
 #include "mllm/backends/qnn/aot_rt/KVCacheManager.hpp"
 #include "mllm/backends/qnn/aot_rt/PromptProcessor.hpp"
 #include "mllm/backends/qnn/aot_rt/TokenGenerator.hpp"
+#include "mllm/backends/qnn/aot_rt/QnnAOTConfig.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include <string>
 #include <memory>
@@ -13,16 +14,7 @@
 
 namespace mllm::qnn::aot {
 
-struct RunnerConfig {
-  std::string model_path;
-  float temperature = 0.8f;
-  int num_layers = 28;
-  int num_heads = 12;
-  int head_dim = 128;
-  int vocab_size = 151936;
-  int context_len = 4096;
-  int ar_len = 128;  // Chunk size for prefill
-};
+using RunnerConfig = QnnAOTConfig;
 
 class Runner {
  public:

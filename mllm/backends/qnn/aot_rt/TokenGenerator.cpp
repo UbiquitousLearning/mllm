@@ -7,10 +7,10 @@ namespace mllm::qnn::aot {
 
 template<typename T>
 TokenGenerator<T>::TokenGenerator(mllm::preprocessor::AutoTokenizer* tokenizer, KVCacheManager<T>* kv_manager,
-                                  std::unique_ptr<std::unordered_set<uint64_t>>&& eos_ids, Config config)
-    : tokenizer_(tokenizer), kv_manager_(kv_manager), eos_ids_(std::move(eos_ids)), config_(std::move(config)) {
+                                  std::unique_ptr<std::unordered_set<uint64_t>>&& eos_ids, QnnAOTConfig config)
+    : tokenizer_(tokenizer), kv_manager_(kv_manager), eos_ids_(std::move(eos_ids)), config_(config) {
   std::string graph_name = "model.0.s1";
-  module_ = std::make_unique<QnnAOTModule>(config_.model_path, graph_name);
+  module_ = std::make_unique<QnnAOTModule>(graph_name);
   module_->to(kQNN);
 }
 
@@ -19,38 +19,34 @@ void TokenGenerator<T>::init_io() {
   input_tensors_.reserve(4 + 2 * config_.num_layers);
 
   // 1. Input IDs
-  auto input_ids = Tensor::empty({1, 1, 1, 1}, kInt64, kQNN).alloc();
+  auto input_ids = Tensor::empty({1, 1}, kInt32, kQNN).alloc();
   input_ids.setName("input_ids");
   input_tensors_.push_back(input_ids);
 
-  // // 2. Sliding Window Attention Mask
-  // auto sliding_window_mask = Tensor::empty({1, 1, 1, config_.context_len}, kUInt16, kQNN).alloc();
-  // sliding_window_mask.setName("sliding_window_attention_mask");
-  // input_tensors_.push_back(sliding_window_mask);
+  // 2. Position IDs
+  auto pos_ids = Tensor::empty({1}, kInt32, kQNN).alloc();
+  pos_ids.setName("position_ids");
+  input_tensors_.push_back(pos_ids);
 
   // 3. Attention Mask
   auto attn_mask = Tensor::empty({1, 1, 1, config_.context_len}, kUInt16, kQNN).alloc();
   attn_mask.setName("attention_mask");
   input_tensors_.push_back(attn_mask);
 
-  // 4. Position IDs
-  auto pos_ids = Tensor::empty({1, 1, 1, 1}, kInt32, kQNN).alloc();
-  pos_ids.setName("position_ids");
-  input_tensors_.push_back(pos_ids);
-
-  // 5. KV Caches
+  // 4. KV Caches
   const auto& k_caches = kv_manager_->getKCache();
   const auto& v_caches = kv_manager_->getVCache();
   for (int l = 0; l < config_.num_layers; ++l) {
     // K
-    auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.context_len, config_.head_dim}, config_.kv_dtype, kQNN);
+    auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.head_dim, config_.context_len}, config_.kv_dtype, kQNN);
     k_tensor.impl()->storage()->ptr_ = k_caches[l].buffer;
     k_tensor.impl()->storage()->mem_type_ = kManual;
     k_tensor.setName("past_key_" + std::to_string(l));
     input_tensors_.push_back(k_tensor);
 
     // V
-    auto v_tensor = Tensor::empty({1, (int)config_.num_heads, config_.context_len, config_.head_dim}, config_.kv_dtype, kQNN);
+    auto v_tensor =
+        Tensor::empty({1, (int)config_.num_heads, config_.context_len - 1, config_.head_dim}, config_.kv_dtype, kQNN);
     v_tensor.impl()->storage()->ptr_ = v_caches[l].buffer;
     v_tensor.impl()->storage()->mem_type_ = kManual;
     v_tensor.setName("past_value_" + std::to_string(l));
@@ -65,17 +61,18 @@ void TokenGenerator<T>::init_io() {
   logits.setName("logits");
   output_tensors_.push_back(logits);
 
-  // 2. KV Caches
+  // 2. KV Caches, should be consistant with modeling file, or it will cause error
   for (int l = 0; l < config_.num_layers; ++l) {
     // K Output
-    auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.context_len, config_.head_dim}, config_.kv_dtype, kQNN);
+    auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.head_dim, 1}, config_.kv_dtype, kQNN);
     k_tensor.impl()->storage()->ptr_ = k_caches[l].output_buffer;
     k_tensor.impl()->storage()->mem_type_ = kManual;
     k_tensor.setName("present_key_" + std::to_string(l));
     output_tensors_.push_back(k_tensor);
-
+  }
+  for (int l = 0; l < config_.num_layers; ++l) {
     // V Output
-    auto v_tensor = Tensor::empty({1, (int)config_.num_heads, config_.context_len, config_.head_dim}, config_.kv_dtype, kQNN);
+    auto v_tensor = Tensor::empty({1, (int)config_.num_heads, 1, config_.head_dim}, config_.kv_dtype, kQNN);
     v_tensor.impl()->storage()->ptr_ = v_caches[l].output_buffer;
     v_tensor.impl()->storage()->mem_type_ = kManual;
     v_tensor.setName("present_value_" + std::to_string(l));
@@ -95,12 +92,8 @@ void TokenGenerator<T>::prepare_io(uint64_t cur_token, int64_t start_pos) {
   input_ids_ptr[0] = (int32_t)cur_token;
 
   // 2. Position IDs
-  int32_t* pos_ids_ptr = input_tensors_[3].ptr<int32_t>();
+  int32_t* pos_ids_ptr = input_tensors_[1].ptr<int32_t>();
   pos_ids_ptr[0] = (int32_t)start_pos;
-
-  // 3. Attention Mask
-  // Update attention mask for the current position
-  kv_manager_->updateAttentionMask(input_tensors_[2].ptr<uint16_t>(), 1, start_pos, 1, config_.sliding_window);
 }
 
 template<typename T>
@@ -120,17 +113,19 @@ int64_t TokenGenerator<T>::generate(std::vector<uint64_t>& tokens, int64_t start
 
     prepare_io(next_token, current_pos);
 
-    output_tensors_ = module_->forward(input_tensors_, {});
+    // Run forward
+    auto module_input = input_tensors_;
+    output_tensors_ = (*module_)(module_input);
 
     // Update KV Cache
     int32_t n_update = 1;
     kv_manager_->updateCache(1, current_pos, n_update, {});
 
     // Get logits
-    auto logits_tensor = output_tensors_[0];
+    auto logits = output_tensors_[0].to(kCPU).squeeze(0);
 
     // Sample
-    auto cur_token = module_->sampleGreedy(logits_tensor);
+    auto cur_token = module_->sampleGreedy(logits);
 
     next_token = cur_token;
     tokens.push_back(next_token);
