@@ -272,7 +272,8 @@ class Qwen3Attention final : public nn::Module {
     auto attn_min = ptq::QDQ(this, attn.min(-1, true), "reduce_min_output_qdq");
     auto minus_value = Tensor::constant(-20, kFloat32);
     minus_value = ptq::QDQ(this, minus_value, "neg_20_qdq");
-    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_min.addConstant(minus_value));
+    auto attn_vv = ptq::QDQ(this, attn_min.addConstant(minus_value), "minus_0_output_qdq");
+    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_vv);
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");
     y = y.transpose(1, 2).view({1, 1, -1, num_attention_heads_ * head_dim_}, /*ssa=*/true);
