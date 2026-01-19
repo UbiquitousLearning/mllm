@@ -2,7 +2,10 @@ import torch
 from tqdm import tqdm
 from modelscope.msdatasets import MsDataset
 from transformers import AutoTokenizer
-from pymllm.backends.qualcomm.transformers.core.qdq import ActivationQDQ
+from pymllm.backends.qualcomm.transformers.core.qdq import (
+    ActivationQDQ,
+    FixedActivationQDQ,
+)
 from pymllm.backends.qualcomm.transformers.core.rms_norm import QRMSNorm
 from pymllm.backends.qualcomm.transformers.core.qlinear import (
     QLinearLPBQ,
@@ -29,6 +32,16 @@ def disable_qdq_observer(m):
 def enable_qdq_observer(m):
     if isinstance(m, ActivationQDQ):
         m.enable_observer()
+
+
+def enable_fake_quant(m):
+    if isinstance(m, ActivationQDQ) or isinstance(m, FixedActivationQDQ):
+        m.enable_fakequant()
+
+
+def disable_fake_quant(m):
+    if isinstance(m, ActivationQDQ) or isinstance(m, FixedActivationQDQ):
+        m.disable_fakequant()
 
 
 def convert_weight(m):
@@ -60,6 +73,12 @@ class Qwen3Quantizer:
 
     def enable_activation_update(self):
         self.model.apply(enable_qdq_observer)
+
+    def enable_fake_quant(self):
+        self.model.apply(enable_fake_quant)
+
+    def disable_fake_quant(self):
+        self.model.apply(disable_fake_quant)
 
     def compile(self):
         print("Compile Start.")

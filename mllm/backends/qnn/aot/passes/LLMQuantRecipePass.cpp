@@ -369,8 +369,7 @@ bool LLMQuantRecipeNegPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeNegPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
-                                                                      node->cast_<ir::linalg::LinalgIROp>());
+  return noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
 }
 
 //===----------------------------------------------------------------------===//
@@ -651,8 +650,15 @@ bool LLMQuantRecipeConcatPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
     return false;
   }
 
-  MLLM_RETURN_FALSE_IF_NOT(i_0->getAttr("quant_recipe"));
-  MLLM_RETURN_FALSE_IF_NOT(i_1->getAttr("quant_recipe"));
+  // Create quant_recipe if not present
+  if (!i_0->getAttr("quant_recipe")) {
+    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
+    i_0->setAttr("quant_recipe", i_0_spec);
+  }
+  if (!i_1->getAttr("quant_recipe")) {
+    auto i_1_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_1->cast_<ir::tensor::TensorValue>());
+    i_1->setAttr("quant_recipe", i_1_spec);
+  }
 
   o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
 
@@ -795,7 +801,8 @@ bool LLMQuantRecipeWherePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
   MLLM_RETURN_FALSE_IF_NOT(i_1->getAttr("quant_recipe"));
   MLLM_RETURN_FALSE_IF_NOT(i_2->getAttr("quant_recipe"));
 
-  o_0->setAttr("quant_recipe", i_2->getAttr("quant_recipe"));
+  auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
+  o_0->setAttr("quant_recipe", o_0_spec);
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
