@@ -332,6 +332,13 @@ install(
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin)
 
+install(
+  TARGETS flatbuffers
+  EXPORT MllmTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)
+
 if(MLLM_BUILD_SDK_C_BINDING)
   install(
     TARGETS MllmSdkC
