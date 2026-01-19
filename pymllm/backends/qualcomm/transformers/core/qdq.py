@@ -78,11 +78,11 @@ class ActivationQDQ(nn.Module):
 
     def enable_fakequant(self):
         """Enable simulation of quantization error."""
-        self.fake_quant.enable_fakequant()
+        self.fake_quant.enable_fake_quant()
 
     def disable_fakequant(self):
         """Disable quantization simulation (act as identity)."""
-        self.fake_quant.disable_fakequant()
+        self.fake_quant.disable_fake_quant()
 
     def extra_repr(self):
         mode = "Symmetric" if "symmetric" in str(self.qscheme) else "Asymmetric"
@@ -158,11 +158,11 @@ class FixedActivationQDQ(nn.Module):
 
     def enable_fakequant(self):
         """Enable simulation of quantization error."""
-        self.fake_quant.enable_fakequant()
+        self.fake_quant.enable_fake_quant()
 
     def disable_fakequant(self):
         """Disable quantization simulation (act as identity)."""
-        self.fake_quant.disable_fakequant()
+        self.fake_quant.disable_fake_quant()
 
     @property
     def scale(self):
