@@ -296,7 +296,9 @@ class QLinearLPBQ(QLinear):
         s1_permuted = (
             s1.view(self.out_features, -1).t().contiguous()
         )  # [Out, Blocks] -> [Blocks, Out]
-        s1_hwio = s1_permuted.view(1, 1, -1, self.out_features)  # Shape: [1, 1, Blocks, Out]
+        s1_hwio = s1_permuted.view(
+            1, 1, -1, self.out_features
+        )  # Shape: [1, 1, Blocks, Out]
 
         del self.weight
         self.register_buffer("weight", w_hwio)

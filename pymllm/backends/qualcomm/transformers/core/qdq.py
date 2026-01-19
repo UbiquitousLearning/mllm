@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.ao.quantization import (
     FakeQuantize,
-    MovingAverageMinMaxObserver,
+    MinMaxObserver,
 )
 from torch.ao.quantization.observer import FixedQParamsObserver
 
@@ -48,7 +48,7 @@ class ActivationQDQ(nn.Module):
         # MovingAverageMinMaxObserver calculates scale and zero_point based on observed tensors.
         # Passing quant_min/max to the observer ensures consistency.
         self.fake_quant = FakeQuantize(
-            observer=MovingAverageMinMaxObserver.with_args(
+            observer=MinMaxObserver.with_args(
                 dtype=self.dtype,
                 qscheme=self.qscheme,
                 quant_min=self.quant_min,

@@ -300,6 +300,45 @@ void recursiveSolveNormal(const std::shared_ptr<ir::IRContext>& ir_ctx, const ir
   });
 }
 
+void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const ir::graph::SubGraphOp::ptr_t& call_op) {
+  auto wow = ir::IRWriter(ir_ctx, call_op->getTopRegion());
+  wow.walk<ir::Op>([&](ir::IRWriter& w, const ir::Op::ptr_t& op) -> ir::IRWriter::WalkResult {
+    if (op->isa_<ir::linalg::LinalgIROp>()) {
+      auto linalg_op = op->cast_<ir::linalg::LinalgIROp>();
+      std::string op_name = linalg_op->getAOp()->getName();
+
+      auto inputs = op->inputs();
+      auto outputs = op->outputs();
+
+      for (auto iii : inputs) {
+        if (!iii->isa_<ir::tensor::TensorValue>()) continue;
+        auto tv = iii->cast_<ir::tensor::TensorValue>();
+        if (!tv->getAttr("quant_recipe")) continue;
+        auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+        if (!f_spec->spec_->solved) {
+          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, used by Op: '{}'", tv->name(), op_name);
+        }
+      }
+
+      for (auto ooo : outputs) {
+        if (!ooo->isa_<ir::tensor::TensorValue>()) continue;
+        auto tv = ooo->cast_<ir::tensor::TensorValue>();
+        if (!tv->getAttr("quant_recipe")) continue;
+        auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+        if (!f_spec->spec_->solved) {
+          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, produced by Op: '{}'", tv->name(), op_name);
+        }
+      }
+    }
+
+    if (op->isa_<ir::graph::CallGraphOp>()) {
+      auto ns = op->cast_<ir::graph::CallGraphOp>()->getSymbolAttr()->str();
+      recursiveCheckUnsolved(w.getContext(), w.getContext()->lookupSymbolTable(ns)->cast_<ir::graph::SubGraphOp>());
+    }
+    return ir::IRWriter::WALK_CONTINUE;
+  });
+}
+
 }  // namespace
 
 uint8_t PTQPass::run(const ir::node_ptr_t& op) {
@@ -329,6 +368,11 @@ uint8_t PTQPass::run(const ir::node_ptr_t& op) {
   recursiveSolveNormal(writer.getContext(),
                        getCtx()->lookupSymbolTable(call_main_graph_op->getSymbolAttr()->str())->cast_<ir::graph::SubGraphOp>(),
                        pf);
+
+  // Check for unsolved tensorValues and warn
+  recursiveCheckUnsolved(
+      writer.getContext(),
+      getCtx()->lookupSymbolTable(call_main_graph_op->getSymbolAttr()->str())->cast_<ir::graph::SubGraphOp>());
 
   return ir::PASS_RET_SUCCESS;
 }
