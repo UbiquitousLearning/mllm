@@ -54,6 +54,7 @@ from pymllm.backends.qualcomm.transformers.core.qdq import (
     ActivationQDQ,
     FixedActivationQDQ,
 )
+from pymllm.backends.qualcomm.transformers.core.observer import ConcatObserver
 
 
 class Qwen3MLP(nn.Module):
@@ -100,11 +101,13 @@ class Qwen3MLP(nn.Module):
         return o
 
 
-def rotate_half(x):
+def rotate_half(
+    x, x_observer, x2_neg_fake_quant: ActivationQDQ, concat_observer: ConcatObserver
+):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
     x2 = x[..., x.shape[-1] // 2 :]
-    return torch.cat((-x2, x1), dim=-1)
+    return concat_observer(torch.cat((x2_neg_fake_quant(-x2), x1), dim=-1))
 
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
@@ -214,6 +217,39 @@ class Qwen3Attention(nn.Module):
         self.k_rope_mul_1_output_qdq = ActivationQDQ(bits=16)
         self.k_rope_add_0_output_qdq = ActivationQDQ(bits=16)
 
+        self.q_rope_concat_observer = ConcatObserver(
+            dtype=torch.int32,
+            qscheme=torch.per_tensor_affine,
+            reduce_range=False,
+            quant_min=0,
+            quant_max=2**16 - 1,
+            eps=0.0001 / 65535,
+            is_dynamic=False,
+        )
+        self.q_rope_neg_half_qdq = ActivationQDQ(bits=16)
+        self.k_rope_concat_observer = ConcatObserver(
+            dtype=torch.int32,
+            qscheme=torch.per_tensor_affine,
+            reduce_range=False,
+            quant_min=0,
+            quant_max=2**16 - 1,
+            eps=0.0001 / 65535,
+            is_dynamic=False,
+        )
+        self.k_rope_neg_half_qdq = ActivationQDQ(bits=16)
+        self.k_rope_concat_observer.add_observer(
+            self.k_norm_output_qdq.fake_quant.activation_post_process
+        )
+        self.k_rope_concat_observer.add_observer(
+            self.k_rope_neg_half_qdq.fake_quant.activation_post_process
+        )
+        self.q_rope_concat_observer.add_observer(
+            self.q_norm_output_qdq.fake_quant.activation_post_process
+        )
+        self.q_rope_concat_observer.add_observer(
+            self.q_rope_neg_half_qdq.fake_quant.activation_post_process
+        )
+
         # In qnn, is uint8 sym.
         self.k_cast_to_int8_qdq = ActivationQDQ(
             bits=8, qscheme=torch.per_tensor_symmetric
@@ -231,6 +267,7 @@ class Qwen3Attention(nn.Module):
         self.minus_0_output_qdq = ActivationQDQ(bits=16)
         self.softmax_output_qdq = ActivationQDQ(bits=16)
         self.attn_value_matmul_output_qdq = ActivationQDQ(bits=16)
+        self.where_attn_qdq = ActivationQDQ(bits=16)
 
     @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
@@ -263,11 +300,27 @@ class Qwen3Attention(nn.Module):
         sin = sin.unsqueeze(1)
         query_states = self.q_rope_add_0_output_qdq(
             self.q_rope_mul_0_output_qdq(query_states * cos)
-            + self.q_rope_mul_1_output_qdq(rotate_half(query_states) * sin)
+            + self.q_rope_mul_1_output_qdq(
+                rotate_half(
+                    query_states,
+                    self.q_norm_output_qdq.fake_quant.activation_post_process,
+                    self.q_rope_neg_half_qdq,
+                    self.q_rope_concat_observer,
+                )
+                * sin
+            )
         )
         key_states = self.k_rope_add_0_output_qdq(
             self.k_rope_mul_0_output_qdq(key_states * cos)
-            + self.k_rope_mul_1_output_qdq(rotate_half(key_states) * sin)
+            + self.k_rope_mul_1_output_qdq(
+                rotate_half(
+                    key_states,
+                    self.k_norm_output_qdq.fake_quant.activation_post_process,
+                    self.k_rope_neg_half_qdq,
+                    self.k_rope_concat_observer,
+                )
+                * sin
+            )
         )
 
         key_states = self.k_cast_to_int8_qdq(key_states)
@@ -303,7 +356,9 @@ class Qwen3Attention(nn.Module):
                 * (-20)
             )
         )
-        attn_weights = torch.where(attention_mask == 0, attn_weights, attn_vv)
+        attn_weights = self.where_attn_qdq(
+            torch.where(attention_mask == 0, attn_weights, attn_vv)
+        )
 
         attn_weights = self.softmax_output_qdq(
             nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(

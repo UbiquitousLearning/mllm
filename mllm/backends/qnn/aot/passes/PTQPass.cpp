@@ -339,6 +339,94 @@ void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const 
   });
 }
 
+void recursiveCheckConcatInputs(const std::shared_ptr<ir::IRContext>& ir_ctx, const ir::graph::SubGraphOp::ptr_t& call_op) {
+  auto wow = ir::IRWriter(ir_ctx, call_op->getTopRegion());
+  wow.walk<ir::Op>([&](ir::IRWriter& w, const ir::Op::ptr_t& op) -> ir::IRWriter::WalkResult {
+    if (op->isa_<ir::linalg::ConcatOp>()) {
+      auto concat_op = op->cast_<ir::linalg::ConcatOp>();
+      std::string op_name = concat_op->getAOp()->getName();
+
+      auto inputs = op->inputs();
+      if (inputs.empty()) { return ir::IRWriter::WALK_CONTINUE; }
+
+      // Get first input's scale and zero_point as reference
+      Tensor ref_scale;
+      Tensor ref_zero_point;
+      bool has_ref = false;
+      std::string ref_input_name;
+
+      for (auto iii : inputs) {
+        if (!iii->isa_<ir::tensor::TensorValue>()) continue;
+        auto tv = iii->cast_<ir::tensor::TensorValue>();
+        if (!tv->getAttr("quant_recipe")) continue;
+        auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
+
+        if (f_spec->spec_->type == ir::linalg::QuantizationSpecType::kAsymPerTensor) {
+          auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(f_spec->spec_);
+          if (!this_spec->solved) continue;
+
+          if (!has_ref) {
+            ref_scale = this_spec->scale;
+            ref_zero_point = this_spec->zero_point;
+            ref_input_name = tv->name();
+            has_ref = true;
+          } else {
+            // Check if scale and zero_point match
+            auto cur_scale = this_spec->scale;
+            auto cur_zero_point = this_spec->zero_point;
+
+            MLLM_RT_ASSERT_EQ(ref_scale.numel(), 1);
+            MLLM_RT_ASSERT_EQ(cur_scale.numel(), 1);
+            MLLM_RT_ASSERT_EQ(ref_zero_point.numel(), 1);
+            MLLM_RT_ASSERT_EQ(cur_zero_point.numel(), 1);
+
+            auto ref_scale_v = ref_scale.item<mllm_fp32_t>();
+            auto cur_scale_v = cur_scale.item<mllm_fp32_t>();
+            auto ref_zp_v = ref_zero_point.item<mllm_int32_t>();
+            auto cur_zp_v = cur_zero_point.item<mllm_int32_t>();
+
+            if (std::abs(ref_scale_v - cur_scale_v) > 1e-6 || ref_zp_v != cur_zp_v) {
+              MLLM_ERROR("PTQPass: ConcatOp '{}' has mismatched scale/zp between inputs. "
+                         "Input '{}': scale={}, zp={}; Input '{}': scale={}, zp={}",
+                         op_name, ref_input_name, ref_scale_v, ref_zp_v, tv->name(), cur_scale_v, cur_zp_v);
+            }
+          }
+        } else if (f_spec->spec_->type == ir::linalg::QuantizationSpecType::kSymPerTensor) {
+          auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(f_spec->spec_);
+          if (!this_spec->solved) continue;
+
+          if (!has_ref) {
+            ref_scale = this_spec->scale;
+            ref_input_name = tv->name();
+            has_ref = true;
+          } else {
+            // Check if scale matches
+            auto cur_scale = this_spec->scale;
+
+            MLLM_RT_ASSERT_EQ(ref_scale.numel(), 1);
+            MLLM_RT_ASSERT_EQ(cur_scale.numel(), 1);
+
+            auto ref_scale_v = ref_scale.item<mllm_fp32_t>();
+            auto cur_scale_v = cur_scale.item<mllm_fp32_t>();
+
+            if (std::abs(ref_scale_v - cur_scale_v) > 1e-6) {
+              MLLM_ERROR("PTQPass: ConcatOp '{}' has mismatched scale between inputs. "
+                         "Input '{}': scale={}; Input '{}': scale={}",
+                         op_name, ref_input_name, ref_scale_v, tv->name(), cur_scale_v);
+            }
+          }
+        }
+      }
+    }
+
+    if (op->isa_<ir::graph::CallGraphOp>()) {
+      auto ns = op->cast_<ir::graph::CallGraphOp>()->getSymbolAttr()->str();
+      recursiveCheckConcatInputs(w.getContext(), w.getContext()->lookupSymbolTable(ns)->cast_<ir::graph::SubGraphOp>());
+    }
+    return ir::IRWriter::WALK_CONTINUE;
+  });
+}
+
 }  // namespace
 
 uint8_t PTQPass::run(const ir::node_ptr_t& op) {
@@ -371,6 +459,11 @@ uint8_t PTQPass::run(const ir::node_ptr_t& op) {
 
   // Check for unsolved tensorValues and warn
   recursiveCheckUnsolved(
+      writer.getContext(),
+      getCtx()->lookupSymbolTable(call_main_graph_op->getSymbolAttr()->str())->cast_<ir::graph::SubGraphOp>());
+
+  // Check Concat inputs have consistent scale and zero_point
+  recursiveCheckConcatInputs(
       writer.getContext(),
       getCtx()->lookupSymbolTable(call_main_graph_op->getSymbolAttr()->str())->cast_<ir::graph::SubGraphOp>());
 

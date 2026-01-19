@@ -37,8 +37,11 @@ def main():
     args = parser.parse_args()
 
     m = Qwen3Quantizer(args.model_path, mllm_qualcomm_max_length=args.max_length)
+
+    # FIXME: Should disable or not.
+    m.disable_fake_quant()
     m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
-    # m.compile()
+    m.enable_fake_quant()
     m.infer(args.infer_text)
 
     # !!!
