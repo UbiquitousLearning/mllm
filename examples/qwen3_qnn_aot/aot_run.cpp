@@ -49,12 +49,8 @@ MLLM_MAIN({
     return 1;
   }
 
-  std::vector<uint64_t> prompt_tokens;
-  auto sequence = input_tensor["sequence"];
-  int64_t* ptr = sequence.ptr<int64_t>();
-  for (int i = 0; i < sequence.shape()[1]; ++i) { prompt_tokens.push_back((uint64_t)ptr[i]); }
-
-  runner.generate(prompt_tokens, config.context_len, [](const std::string& token) { std::cout << token << std::flush; });
+  runner.generate(input_tensor["sequence"], config.context_len,
+                  [](const std::string& token) { std::cout << token << std::flush; });
   std::cout << "\n";
 
   return 0;

@@ -92,14 +92,18 @@ void PromptProcessor<T>::prepare_io(const std::vector<int64_t>& prompt_tokens, i
   int64_t num_tokens = prompt_tokens.size();
   int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - prompt_pos);
 
-  // 1. Input IDs
   int32_t* input_ids_ptr = input_tensors_[0].ptr<int32_t>();
+  int32_t* pos_ids_ptr = input_tensors_[1].ptr<int32_t>();
   for (int i = 0; i < config_.ar_len; ++i) {
+    // 1. Input IDs
     if (i < chunk_size) {
       input_ids_ptr[i] = (int32_t)prompt_tokens[prompt_pos + i];
     } else {
       input_ids_ptr[i] = 0;  // Padding
     }
+
+    // 2. Position IDs
+    pos_ids_ptr[i] = start_pos + i;
   }
 }
 
@@ -115,6 +119,9 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
   std::vector<int32_t> attention_map(config_.ar_len);
   std::iota(attention_map.begin(), attention_map.end(), -1);
   kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, config_.ar_len, start_pos);
+  // init window attention mask with current position
+  kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, config_.ar_len, start_pos,
+                                 config_.sliding_window);
 
   module_->setOutputTensors(output_tensors_);
 
@@ -132,6 +139,8 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
     kv_manager_->updateCache(config_.ar_len, current_pos, n_update, {});
 
     kv_manager_->updateAttentionMask(input_tensors_[2].ptr<uint16_t>(), config_.ar_len, current_pos, n_update);
+    kv_manager_->updateAttentionMask(input_tensors_[2].ptr<uint16_t>(), config_.ar_len, current_pos, n_update,
+                                     config_.sliding_window);
 
     processed_tokens += chunk_size;
     current_pos += chunk_size;

@@ -22,8 +22,7 @@ class Runner {
   ~Runner() = default;
 
   bool load();
-  void generate(std::vector<uint64_t>& prompt_tokens, int32_t seq_len,
-                const std::function<void(const std::string&)>& token_callback);
+  void generate(const Tensor& prompt_tokens, int32_t seq_len, const std::function<void(const std::string&)>& token_callback);
 
  private:
   RunnerConfig config_;

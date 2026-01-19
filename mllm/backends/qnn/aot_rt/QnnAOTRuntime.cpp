@@ -4,8 +4,10 @@
 #include "mllm/backends/qnn/aot_rt/QnnAOTRuntime.hpp"
 #include <algorithm>
 #include <cstring>
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn::aot {
@@ -52,17 +54,18 @@ bool Runner::load() {
   return true;
 }
 
-void Runner::generate(std::vector<uint64_t>& prompt_tokens, int32_t seq_len,
+void Runner::generate(const Tensor& prompt_tokens, int32_t seq_len,
                       const std::function<void(const std::string&)>& token_callback) {
+  MLLM_RT_ASSERT(prompt_tokens.rank() == 2 && prompt_tokens.dtype() == kInt64);
+
   int64_t start_pos = 0;
 
   std::vector<int64_t> prompt_tokens_i64;
-  prompt_tokens_i64.reserve(prompt_tokens.size());
-  for (auto t : prompt_tokens) prompt_tokens_i64.push_back((int64_t)t);
+  prompt_tokens_i64.reserve(prompt_tokens.shape()[1]);
+  for (int i = 0; i < prompt_tokens.shape()[1]; i++) { prompt_tokens_i64.push_back(prompt_tokens.ptr<int64_t>()[i]); }
 
   int64_t next_token = prompt_processor_->prefill(prompt_tokens_i64, start_pos);
 
-  prompt_tokens.push_back((uint64_t)next_token);
   if (token_callback) {
     std::wstring wstr = tokenizer_->detokenize(next_token);
     std::string str = mllm::preprocessor::wideString2Utf8String(wstr);
