@@ -322,6 +322,8 @@ struct formatter<mllm::Tensor> {
         return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int32_t>(const_cast<std::vector<int32_t>&>(indices)));
       case mllm::kInt16:
         return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int16_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kUInt16:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_uint16_t>(const_cast<std::vector<int32_t>&>(indices)));
       case mllm::kInt8:
         return fmt::format_to(
             out, "{}",

@@ -257,6 +257,11 @@ QnnAOTGraph::QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle
   qnn_model_->initialize(contextHandle, graphName.c_str(), false);
 }
 
+void QnnAOTGraph::addTensor(const QnnAOTNodeTensor::ptr_t& tensor) {
+  qnn_model_->addTensorWrapper(tensor->getWrapper());
+  all_tensors_.insert({tensor->getWrapper()->getName(), tensor});
+}
+
 void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
   std::vector<std::string> inputNames;
   for (auto& in : qnn_op->inputs) inputNames.push_back(in->getWrapper()->getName());
@@ -622,23 +627,30 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
     __qnn_enable_static_weight = true;
   }
 
+  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
+  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
+  auto graph = contexts_[qnn_context_name]->graphs_[graph_name];
+
+  // If normal weight is cached, we return it directly
+  if (graph->all_tensors_.count(__qnn_tensor_name)) { return graph->all_tensors_[__qnn_tensor_name]; }
+
+  QnnAOTNodeTensor::ptr_t ret = nullptr;
+
   // If static weight is cached, we return it directly.
   if (__qnn_enable_static_weight) {
-    MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
     if (contexts_[qnn_context_name]->static_tensor_.count(__qnn_tensor_name)) {
-      return contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name];
+      ret = contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name];
     }
   }
 
-  // If normal weight is cached, we return it directly
-  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
-  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
-  if (contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.count(__qnn_tensor_name)) {
-    return contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_[__qnn_tensor_name];
+  // There has no Tensor in the cache.
+  if (ret == nullptr) {
+    ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+
+    if (__qnn_enable_static_weight) { contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name] = ret; }
   }
 
-  // There has no Tensor in the cache.
-  auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+  graph->addTensor(ret);
 
   return ret;
 }
