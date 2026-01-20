@@ -9,7 +9,7 @@
 namespace mllm::qnn::aot {
 
 template<typename T>
-KVCacheManager<T>::KVCacheManager(KVCacheConfig config) : config_(config) {
+KVCacheManager<T>::KVCacheManager(QnnAOTConfig config) : config_(config) {
   k_cache_.resize(config_.num_layers);
   v_cache_.resize(config_.num_layers);
 

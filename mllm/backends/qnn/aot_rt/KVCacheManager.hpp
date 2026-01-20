@@ -8,6 +8,7 @@
 #include <memory>
 #include "mllm/core/Storage.hpp"
 #include "mllm/backends/base/Allocator.hpp"
+#include "mllm/backends/qnn/aot_rt/QnnAOTConfig.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -19,19 +20,10 @@ struct KVCache {
   T* output_buffer;
 };
 
-struct KVCacheConfig {
-  int32_t context_len;
-  int64_t head_dim;
-  int32_t max_ar_len;
-  int32_t max_cache_len;
-  int64_t num_heads;
-  int64_t num_layers;
-};
-
 template<typename T>
 class KVCacheManager {
  public:
-  explicit KVCacheManager(KVCacheConfig config);
+  explicit KVCacheManager(QnnAOTConfig config);
   ~KVCacheManager() = default;
 
   void initCache(mllm::Allocator* allocator, int32_t ar_len);
@@ -59,7 +51,7 @@ class KVCacheManager {
   void updateKey(KVCache<T>& k_cache, int32_t n_past, int32_t n_update, const std::vector<bool>& selected);
   void updateValue(KVCache<T>& v_cache, int32_t n_past, int32_t n_update, const std::vector<bool>& selected);
 
-  KVCacheConfig config_;
+  QnnAOTConfig config_;
   size_t total_cache_size_;
   int32_t cur_ar_len_;
   std::vector<KVCache<T>> k_cache_;

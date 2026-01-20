@@ -11,7 +11,7 @@ namespace mllm::qnn::aot {
 
 class QnnAOTModule : public mllm::nn::Module, public models::ARGeneration {
  public:
-  QnnAOTModule(const std::string& model_path, const std::string& graph_name);
+  explicit QnnAOTModule(const std::string& graph_name);
 
   std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs, const std::vector<mllm::AnyValue>& args) override;
 
@@ -21,15 +21,13 @@ class QnnAOTModule : public mllm::nn::Module, public models::ARGeneration {
     return {};
   };
 
+  int64_t sampleGreedy(Tensor& logits);
+
   void setOutputTensors(const std::vector<Tensor>& output_tensors) { output_tensors_ = output_tensors; }
 
  private:
-  std::string model_path_;
   std::string graph_name_;
-
   std::vector<Tensor> output_tensors_;
-
-  std::string backend_path_;
 };
 
 }  // namespace mllm::qnn::aot
