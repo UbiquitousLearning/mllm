@@ -53,9 +53,25 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   refl::GlobalDef().def("mllm.cpu_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kCPU); });
   refl::GlobalDef().def("mllm.cuda_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kCUDA); });
   refl::GlobalDef().def("mllm.qnn_", []() -> mllm::ffi::Device { return mllm::ffi::Device(::mllm::DeviceTypes::kQNN); });
+  // Floating point types
   refl::GlobalDef().def("mllm.float32_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kFloat32); });
   refl::GlobalDef().def("mllm.float16_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kFloat16); });
   refl::GlobalDef().def("mllm.bfloat16_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kBFloat16); });
+
+  // Signed integer types
+  refl::GlobalDef().def("mllm.int8_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kInt8); });
+  refl::GlobalDef().def("mllm.int16_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kInt16); });
+  refl::GlobalDef().def("mllm.int32_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kInt32); });
+  refl::GlobalDef().def("mllm.int64_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kInt64); });
+
+  // Unsigned integer types
+  refl::GlobalDef().def("mllm.uint8_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kUInt8); });
+  refl::GlobalDef().def("mllm.uint16_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kUInt16); });
+  refl::GlobalDef().def("mllm.uint32_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kUInt32); });
+  refl::GlobalDef().def("mllm.uint64_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kUInt64); });
+
+  // Bool type
+  refl::GlobalDef().def("mllm.bool_", []() -> mllm::ffi::DType { return mllm::ffi::DType(::mllm::DataTypes::kUInt8); });
 }
 
 //===----------------------------------------------------------------------===//

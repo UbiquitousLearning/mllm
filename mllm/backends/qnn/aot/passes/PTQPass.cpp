@@ -387,8 +387,10 @@ void recursiveCheckConcatInputs(const std::shared_ptr<ir::IRContext>& ir_ctx, co
 
             if (std::abs(ref_scale_v - cur_scale_v) > 1e-6 || ref_zp_v != cur_zp_v) {
               MLLM_ERROR("PTQPass: ConcatOp '{}' has mismatched scale/zp between inputs. "
-                         "Input '{}': scale={}, zp={}; Input '{}': scale={}, zp={}",
-                         op_name, ref_input_name, ref_scale_v, ref_zp_v, tv->name(), cur_scale_v, cur_zp_v);
+                         "Input '{}': scale={}, zp={}, scale_name={}, zp_name={}; Input '{}': scale={}, zp={}, scale_name={}, "
+                         "zp_name={}",
+                         op_name, ref_input_name, ref_scale_v, ref_zp_v, ref_scale.name(), ref_zero_point.name(), tv->name(),
+                         cur_scale_v, cur_zp_v, cur_scale.name(), cur_zero_point.name());
             }
           }
         } else if (f_spec->spec_->type == ir::linalg::QuantizationSpecType::kSymPerTensor) {
