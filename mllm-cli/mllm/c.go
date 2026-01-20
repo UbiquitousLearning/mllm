@@ -7,7 +7,7 @@ package mllm
 #cgo CFLAGS: -std=c11
 #cgo LDFLAGS: -lMllmSdkC -lMllmRT -lMllmCPUBackend
 
-#include <mllm/mllm-c.h>
+#include "mllm/c_api/Runtime.h"
 #include <stdlib.h>
 
 static void* MllmCAny_get_v_custom_ptr(MllmCAny handle) {

@@ -8,7 +8,7 @@ This document describes the MLLM command-line interface (CLI) tool, which operat
 
 **Currently, the system officially supports the following models:**
 
-* **LLM**: ``mllmTeam/Qwen3-0.6B-w4a32kai``
+* **LLM**: ``mllmTeam/Qwen3-0.6B-w4a32kai,mllmTeam/Qwen3-4B-w4a8-i8mm-kai``
 * **OCR**: ``mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai``
 
 This guide covers three main areas:
@@ -136,168 +136,101 @@ Once configured, you can click the **Check** button to ensure the connection is 
 Build Configuration Guide
 -------------------------
 
-The Go build tasks (`build_android_mllm_server.yaml` and `build_android_mllm_client.yaml`) use hardcoded paths that are specific to the build server's environment. If you are setting up a new build environment, you **must** modify these paths before proceeding to compilation.
+Go build tasks (`build_android_mllm_server.yaml` and `build_android_mllm_client.yaml`) now use **dynamic paths** (via `$(pwd)`) to locate project files. This makes the scripts much more portable.
 
-Understanding the Build Scripts
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+However, there are still specific environment configurations you **must** check and modify to match your local build machine.
 
-The core of the cross-compilation logic for Go is within the `ShellCommandTask` of the `.yaml` build files. It sets several environment variables to configure `cgo` for cross-compiling to Android ARM64.
+Open `tasks/build_android_mllm_server.yaml` and check the following variables:
 
-* ``GOOS=android``, ``GOARCH=arm64``: Tells Go to build for Android ARM64.
-* ``CGO_ENABLED=1``: Enables ``cgo`` to allow Go to call C/C++ code.
-* ``CC`` and ``CXX``: Specifies the C and C++ compilers from the Android NDK, used to compile any C/C++ parts within the Go program.
-* ``CGO_CFLAGS``: Tells the C compiler where to find the MLLM C API header files (e.g., ``Runtime.h``).
-* ``CGO_LDFLAGS``: Tells the linker where to find the compiled MLLM shared libraries (``.so`` files) that the final executable needs to link against.
+1.  **``ANDROID_NDK_HOME`` (Critical)**
+    The script assumes the NDK is located at `/opt/ndk/android-ndk-r28b`.
+    * **Action:** Change this path to the actual location of the Android NDK on your machine.
 
-Modifying Hardcoded Paths
-~~~~~~~~~~~~~~~~~~~~~~~~~
+2.  **``GOPROXY`` (Network)**
+    The script uses `https://goproxy.cn` to accelerate downloads in China.
+    * **Action:** If you are outside of China, you may remove this line or change it to `https://proxy.golang.org`.
 
-The two most critical variables you will need to change are `CGO_CFLAGS` and `CGO_LDFLAGS`.
-
-**Example from `build_android_mllm_server.yaml`**:
-
-.. code-block:: yaml
-
-   # ...
-   export CGO_LDFLAGS="-L/root/zty_workspace/mllm_zty/build-android-arm64-v8a/bin"
-   export CGO_CFLAGS="-I/root/zty_workspace/mllm_zty"
-   # ...
-
-**How to Modify**:
-
-1.  **``CGO_CFLAGS="-I/path/to/your/project/root"``**
-    The `-I` flag specifies an include directory. This path should point to the root of the MLLM project directory on your build server, where the `mllm/c_api/` headers are located. In the example, this is `/root/zty_workspace/mllm_zty`. Change this to match your project's location.
-
-2.  **``CGO_LDFLAGS="-L/path/to/your/compiled/libs"``**
-    The `-L` flag specifies a library directory. This path must point to the directory where the C++ build (Step 1) placed the `.so` files. In the example, this is `/root/zty_workspace/mllm_zty/build-android-arm64-v8a/bin`. If your build output directory is different, you must update this path accordingly.
-
-By correctly updating these two paths in both `build_android_mllm_server.yaml` and `build_android_mllm_client.yaml`, you can adapt the build process to any server environment.
 
 Compilation and Deployment
 --------------------------
 
-This section provides the complete workflow for compiling all C++ and Go components, deploying them to an Android target, and running the system.
+This section outlines the workflow for compiling the C++ and Go components and deploying them directly to an Android device.
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-* A build environment, such as a server or Docker container, with the Android NDK and Go compiler installed, hereinafter referred to as the 'build server'.
-* An Android target device with `adb` access enabled.
-* `rsync` and `scp` for file synchronization between your development machine and the build server.
+* Android NDK and Go compiler installed and configured.
+* An Android device connected via `adb`.
 
 Step 1: Compile C++ Core Libraries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First, we compile the MLLM C++ core, which produces the essential shared libraries (`.so` files).
+Compile the MLLM C++ core to generate the required shared libraries (`.so` files).
 
-1.  **Sync Code to Build Server**:
-    Synchronize your local project directory with the build server.
+1.  **Configure Build Script**:
+    Ensure `tasks/build_android.yaml` is configured with your NDK path.
+
+2.  **Run Compilation**:
+    Execute the build task from the project root.
 
     .. code-block:: bash
 
-       # Replace <port>, <user>, and <build-server-ip> with your server details
-       rsync -avz --checksum -e 'ssh -p <port>' --exclude 'build' --exclude '.git' ./ <user>@<build-server-ip>:/your_workspace/your_programname/
-
-2.  **Run the Build Task**:
-    On the build server, execute the build task. This task uses `tasks/build_android.yaml` to configure and run CMake.
-
-    Before executing this step, you also need to ensure that the hardcoded directories in build_android.yaml have been modified to match your requirements. The modification method is the same as for the Go compilation file mentioned earlier.
-    
-    .. code-block:: bash
-
-       # These commands are run on your build server.
-       cd /your_workspace/your_programname/
        python task.py tasks/build_android.yaml
 
-3.  **Retrieve Compiled Libraries**:
-    After the build succeeds, copy the compiled shared libraries from the build server back to your local machine. These libraries are the C++ backend that the Go application will call.
-
-    .. code-block:: bash
-
-       # You run these commands on your local machine to copy the files from the build server.
-       # Navigate to your local build artifacts directory
-       cd /path/to/your/local_artifacts_dir/
-
-       # Copy the libraries
-       scp -P <port> <user>@<build-server-ip>:/your_workspace/your_programname/build-android-arm64-v8a/bin/libMllmRT.so .
-       scp -P <port> <user>@<build-server-ip>:/your_workspace/your_programname/build-android-arm64-v8a/bin/libMllmCPUBackend.so .
-       scp -P <port> <user>@<build-server-ip>:/your_workspace/your_programname/build-android-arm64-v8a/bin/libMllmSdkC.so .
+    **Output**: The compiled libraries (`libMllmRT.so`, `libMllmCPUBackend.so`, `libMllmSdkC.so`) will be located in `build-android-arm64-v8a/bin/`.
 
 Step 2: Compile the Go Server
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Next, cross-compile the Go server application for Android.
+Cross-compile the Go server application for Android.
 
-1.  **Sync Code**: Ensure your latest Go code is on the build server. This is only necessary if you've made changes to the Go server files (e.g., in the ``mllm-cli`` directory).
-
-2.  **Run the Build Task**:
-    On the build server, execute the server build task. Make sure you have correctly configured the hardcoded paths in this YAML file as described in the "Build Configuration Guide" section.
+1.  **Run Compilation**:
+    Execute the server build task.
 
     .. code-block:: bash
 
-       cd /your_workspace/your_programname/
        python task.py tasks/build_android_mllm_server.yaml
 
-3.  **Retrieve the Executable**:
-    Copy the compiled `mllm_web_server` binary from the build server back to your local machine.
+    **Output**: The executable `mllm_web_server` will be generated in `build-android-arm64-v8a/bin/`.
+
+Step 3: Compile the Go Client (Optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you need the command-line WebSocket client, compile it using the following task.
+
+1.  **Run Compilation**:
 
     .. code-block:: bash
 
-       # Navigate to your local build artifacts directory
-       cd /path/to/your/local_artifacts_dir/
-
-       # Copy the executable
-       scp -P <port> <user>@<build-server-ip>:/your_workspace/your_programname/build-android-arm64-v8a/bin/mllm_web_server .
-
-Step 3: Compile the Go Client
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you are using Chatbox or a similar client, you can skip this step.
-
-Similarly, compile the Go client application.
-
-1.  **Sync Code**: Ensure your latest Go client code is on the build server.
-
-2.  **Run the Build Task**:
-    On the build server, execute the client build task. This also requires the build YAML to be correctly configured.
-
-    .. code-block:: bash
-
-       cd /your_workspace/your_programname/
        python task.py tasks/build_android_mllm_client.yaml
 
-3.  **Retrieve the Executable**:
-    Copy the compiled `mllm_ws_client` binary from the build server to your local machine.
-
-    .. code-block:: bash
-
-       # Navigate to your local build artifacts directory
-       cd /path/to/your/local_artifacts_dir/
-
-       # Copy the executable
-       scp -P <port> <user>@<build-server-ip>:/your_workspace/your_programname/build-android-arm64-v8a/bin/mllm_ws_client .
+    **Output**: The executable `mllm_ws_client` will be generated in `build-android-arm64-v8a/bin/`.
 
 Step 4: Deploy to Target Device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Push all compiled artifacts (libraries and executables) to your target Android device.
+Push the compiled artifacts directly from the build output directory to your Android device using `adb`.
 
 .. code-block:: bash
 
-   # Connect to your device if you haven't already
-   adb connect <device-id-or-ip:port>
+   # 1. Connect to device (if not already connected via USB)
+   adb connect <device-ip:port>
 
-   # Push the shared libraries from your local artifacts directory
-   adb push libMllmRT.so /path/to/your/deployment_dir/
-   adb push libMllmCPUBackend.so /path/to/your/deployment_dir/
-   adb push libMllmSdkC.so /path/to/your/deployment_dir/
+   # 2. Push libraries and executables
+   # Navigate to the build output directory
+   cd build-android-arm64-v8a/bin/
 
-   # Push the server and client executables
-   adb push mllm_web_server /path/to/your/deployment_dir/
+   # Define your target directory on Android (e.g., /data/local/tmp/mllm/)
+   export ANDROID_DIR=/data/local/tmp/mllm/
 
-   # (Optional) Push the Go client if you compiled it in Step 3
-   adb push mllm_ws_client /path/to/your/deployment_dir/
+   # Push files
+   adb push libMllmRT.so $ANDROID_DIR
+   adb push libMllmCPUBackend.so $ANDROID_DIR
+   adb push libMllmSdkC.so $ANDROID_DIR
+   adb push mllm_web_server $ANDROID_DIR
 
+   # (Optional) Push client if compiled
+   # adb push mllm_ws_client $ANDROID_DIR
 Step 5: Running and Testing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
