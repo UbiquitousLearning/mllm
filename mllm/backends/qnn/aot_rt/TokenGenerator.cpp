@@ -36,15 +36,16 @@ void TokenGenerator<T>::init_io() {
   // 4. KV Caches
   const auto& k_caches = kv_manager_->getKCache();
   const auto& v_caches = kv_manager_->getVCache();
+  // K
   for (int l = 0; l < config_.num_layers; ++l) {
-    // K
     auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.head_dim, config_.context_len}, config_.kv_dtype, kQNN);
     k_tensor.impl()->storage()->ptr_ = k_caches[l].buffer;
     k_tensor.impl()->storage()->mem_type_ = kManual;
     k_tensor.setName("past_key_" + std::to_string(l));
     input_tensors_.push_back(k_tensor);
-
-    // V
+  }
+  // V
+  for (int l = 0; l < config_.num_layers; ++l) {
     auto v_tensor =
         Tensor::empty({1, (int)config_.num_heads, config_.context_len - 1, config_.head_dim}, config_.kv_dtype, kQNN);
     v_tensor.impl()->storage()->ptr_ = v_caches[l].buffer;
