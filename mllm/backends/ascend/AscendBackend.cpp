@@ -13,6 +13,8 @@ namespace mllm::ascend {
 
 AscendBackend::AscendBackend() : Backend(kAscend, createAscendAllocator()) {
   regOpFactory<AscendAddOpFactory>();
+  regOpFactory<AscendSubOpFactory>();
+  regOpFactory<AscendMulOpFactory>();
   regOpFactory<AscendX2XOpFactory>();
   auto& devices = AscendDeviceMetaInfo::instance().devices;
   for (const auto& device : devices) {
