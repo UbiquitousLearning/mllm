@@ -47,9 +47,12 @@ bool QnnAOTRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op)
   auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), weight->tensor_.dtype());
   auto bias_node = ir::tensor::TensorValue::build(writer.getContext().get(), bias_tensor);
   bias_node->tensor_.setName(a->getName() + "_runtime_bias");
+  bias_node->name() = a->getName() + "_runtime_bias";
 
   // fake bias quant recipe
-  auto quant_spec = mllm::ir::linalg::QuantizationSpecSymPerTensor::create(0, 0, kInt32, kFloat32, Tensor::ones({1}));
+  auto bias_scale = Tensor::ones({1});
+  bias_scale.at<float>({0}) = 1.0 / 32767;
+  auto quant_spec = mllm::ir::linalg::QuantizationSpecSymPerTensor::create(-32768, 32767, kInt16, kFloat32, bias_scale);
   auto quant_attr = mllm::ir::linalg::LinalgIRQuantizatonSpecAttr::build(writer.getContext().get(), quant_spec);
   bias_node->setAttr("quant_recipe", quant_attr);
 

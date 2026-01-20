@@ -24,6 +24,14 @@ MLLM_MODEL_FILE_V2_PARAMS_NAME_LENGTH = 256
 MLLM_MODEL_FILE_V2_TENSOR_SHAPE_LENGTH = 16
 
 
+def _torch_tensor_bytes(tensor: "torch.Tensor") -> bytes:
+    # Use uint8 view to preserve raw bytes for dtypes not supported by numpy.
+    t = tensor.detach().cpu().contiguous()
+    if t.dim() == 0:
+        t = t.reshape(1)
+    return t.view(torch.uint8).numpy().tobytes()
+
+
 class ModelFileV2Descriptor:
     SIZE = 532
 
@@ -132,7 +140,7 @@ class ModelFileV2:
         if MLLM_FIND_TORCH_AVAILABLE and isinstance(tensor_obj, torch.Tensor):
             # PyTorch tensor
             shape = list(tensor_obj.shape)
-            tensor_data = tensor_obj.detach().cpu().numpy().tobytes()
+            tensor_data = _torch_tensor_bytes(tensor_obj)
             true_dtype = MLLM_TYPE_MAPPING[tensor_obj.dtype]
         elif MLLM_FIND_NUMPY_AVAILABLE and isinstance(tensor_obj, np.ndarray):
             # Numpy array
@@ -203,7 +211,7 @@ class ModelFileV2:
             if MLLM_FIND_TORCH_AVAILABLE and isinstance(tensor, torch.Tensor):
                 # PyTorch tensor
                 shape = list(tensor.shape)
-                tensor_data = tensor.detach().cpu().numpy().tobytes()
+                tensor_data = _torch_tensor_bytes(tensor)
                 true_dtype = MLLM_TYPE_MAPPING[tensor.dtype]
             elif MLLM_FIND_NUMPY_AVAILABLE and isinstance(tensor, np.ndarray):
                 # Numpy array

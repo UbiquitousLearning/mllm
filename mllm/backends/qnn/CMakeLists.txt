@@ -44,3 +44,10 @@ get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INC
 message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories
 
 target_link_libraries(MllmQNNBackend PUBLIC MllmRT)
+
+install(
+  TARGETS MllmQNNBackend
+  EXPORT MllmTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)
