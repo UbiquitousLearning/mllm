@@ -48,6 +48,10 @@ class DType(tvm_ffi.Object):
         return tvm_ffi.get_global_func("mllm.DType.to_pod")(self)
 
 
+# =============================================================================
+# DType factory functions
+# =============================================================================
+# Floating point types
 def float32_() -> DType:
     return _ffi_api.float32_()
 
@@ -58,6 +62,45 @@ def float16_() -> DType:
 
 def bfloat16_() -> DType:
     return _ffi_api.bfloat16_()
+
+
+# Signed integer types
+def int8_() -> DType:
+    return _ffi_api.int8_()
+
+
+def int16_() -> DType:
+    return _ffi_api.int16_()
+
+
+def int32_() -> DType:
+    return _ffi_api.int32_()
+
+
+def int64_() -> DType:
+    return _ffi_api.int64_()
+
+
+# Unsigned integer types
+def uint8_() -> DType:
+    return _ffi_api.uint8_()
+
+
+def uint16_() -> DType:
+    return _ffi_api.uint16_()
+
+
+def uint32_() -> DType:
+    return _ffi_api.uint32_()
+
+
+def uint64_() -> DType:
+    return _ffi_api.uint64_()
+
+
+# Bool type (backed by uint8)
+def bool_() -> DType:
+    return _ffi_api.bool_()
 
 
 def cpu_() -> Device:
@@ -219,10 +262,32 @@ class Tensor(tvm_ffi.Object):
         return tvm_ffi.get_global_func("mllm.Tensor.is_contiguous")(self)
 
 
-# Global dtypes
+# =============================================================================
+# Global dtype instances
+# =============================================================================
+# Floating point types
 float32: DType = float32_()
 float16: DType = float16_()
 bfloat16: DType = bfloat16_()
+
+# Signed integer types
+int8: DType = int8_()
+int16: DType = int16_()
+int32: DType = int32_()
+int64: DType = int64_()
+
+# Unsigned integer types
+uint8: DType = uint8_()
+uint16: DType = uint16_()
+uint32: DType = uint32_()
+uint64: DType = uint64_()
+
+# Bool type (use 'boolean' to avoid shadowing Python's built-in 'bool')
+boolean: DType = bool_()
+
+# =============================================================================
+# Global device instances
+# =============================================================================
 cpu: Device = cpu_()
 cuda: Device = cuda_()
 qnn: Device = qnn_()
