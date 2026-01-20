@@ -2,6 +2,7 @@
 
 #include "mllm/backends/qnn/aot_rt/QnnAOTModule.hpp"
 #include "mllm/backends/qnn/aot_rt/KVCacheManager.hpp"
+#include "mllm/backends/qnn/aot_rt/QnnAOTConfig.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/core/Tensor.hpp"
 #include <string>
@@ -15,20 +16,8 @@ namespace mllm::qnn::aot {
 template<typename T>
 class TokenGenerator {
  public:
-  struct Config {
-    std::string model_path;
-    int32_t context_len;
-    int64_t num_heads;
-    int64_t num_layers;
-    int32_t vocab_size;
-    int32_t head_dim;
-    bool use_int64_token;
-    int sliding_window;
-    DataTypes kv_dtype = kUInt8;
-  };
-
   TokenGenerator(mllm::preprocessor::AutoTokenizer* tokenizer, KVCacheManager<T>* kv_manager,
-                 std::unique_ptr<std::unordered_set<uint64_t>>&& eos_ids, Config config);
+                 std::unique_ptr<std::unordered_set<uint64_t>>&& eos_ids, QnnAOTConfig config);
 
   virtual ~TokenGenerator() = default;
 
@@ -44,7 +33,7 @@ class TokenGenerator {
   std::unique_ptr<QnnAOTModule> module_;
   KVCacheManager<T>* kv_manager_;
   std::unique_ptr<std::unordered_set<uint64_t>> eos_ids_;
-  Config config_;
+  QnnAOTConfig config_;
 
   std::vector<mllm::Tensor> input_tensors_;
   std::vector<mllm::Tensor> output_tensors_;

@@ -120,6 +120,8 @@ class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
 
   void addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op);
 
+  void addTensor(const QnnAOTNodeTensor::ptr_t& tensor);
+
   bool compile();
 
   bool is_compiled_ = false;
