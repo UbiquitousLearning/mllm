@@ -29,15 +29,28 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
                QNNViewOpFactory, QNNRMSNormOpFactory, QNNTransposeOpFactory, QNNX2XOpFactory, QNNCastTypeOpFactory,
                QNNParamOpFactory, QNNSiLUOpFactory, QNNEmbeddingOpFactory>();
 
-  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_ERROR;  // default QNN log level
+  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_VERBOSE;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
   debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
 
-  loadQNNSymbol();
-  loadQNNSystemSymbol();
+  if (!loadQNNSymbol()) {
+    MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN symbols");
+  } else {
+    MLLM_INFO("QNN symbols loaded successfully");
+  }
+
+  if (!loadQNNSystemSymbol()) {
+    MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN System symbols");
+  } else {
+    MLLM_INFO("QNN System symbols loaded successfully");
+  }
 
   runtime_ = QNNRuntime::create(profilingLevel_, qnnLogLevel);
-  if (!runtime_) { MLLM_ERROR_EXIT(1, "Failed to create QNN Runtime"); }
+  if (!runtime_) {
+    MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to create QNN Runtime");
+  } else {
+    MLLM_INFO("QNN Runtime created successfully");
+  }
 
   // check QNN capability, detect QNN features for future use
   char* backendBuildId{nullptr};
@@ -59,6 +72,7 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   perf_ = QNNPerf::create(&runtime_->qnnInterface);
   perf_->setPowerConfigBurst();
   perf_->setRpcLatencyAndPolling();
+  MLLM_INFO("QNN Perf created successfully");
 }
 
 QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
@@ -204,11 +218,13 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   // Create Log
   Qnn_LogHandle_t logHandle = nullptr;
   {
-    QnnLog_Callback_t logCallback = &__mllmQnnLoggerCallback;
+    QnnLog_Callback_t logCallback = __mllmQnnLoggerCallback;
     if ((QNN_GET_ERROR_CODE(qnnInterface.logCreate(logCallback, qnnLogLevel, &logHandle)) != QNN_SUCCESS)
         || (logHandle == nullptr)) {
       MLLM_ERROR("Failed to initialize logging in the backend.");
       return nullptr;
+    } else {
+      MLLM_INFO("Logging initialized successfully");
     }
   }
 
@@ -220,6 +236,8 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
         || (backendHandle == nullptr)) {
       MLLM_ERROR("Failed to create the backend.");
       return nullptr;
+    } else {
+      MLLM_INFO("Backend created successfully");
     }
   }
 
@@ -227,16 +245,13 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   Qnn_DeviceHandle_t deviceHandle = nullptr;
   {
     // Check whether the device API is supported.
-    if (nullptr != qnnInterface.propertyHasCapability) {
-      auto qnnStatus = qnnInterface.propertyHasCapability(QNN_PROPERTY_GROUP_DEVICE);
-      if (QNN_PROPERTY_NOT_SUPPORTED == qnnStatus) {
-        MLLM_WARN("Device property is not supported");
+    if (nullptr != qnnInterface.deviceCreate) {
+      auto status = qnnInterface.deviceCreate(logHandle, nullptr, &deviceHandle);
+      if (QNN_SUCCESS != status) {
+        MLLM_ERROR("Failed to create device, error: {}", (int)status);
         return nullptr;
       }
-      if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnnStatus) {
-        MLLM_ERROR("Device property is not known to backend");
-        return nullptr;
-      }
+      MLLM_INFO("Device created successfully");
     }
   }
 
@@ -269,9 +284,7 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
       std::string target;
     };
 
-    std::vector<OpPackageInfo> opPackages = {
-        {.path = "libQnnLLaMAPackage_CPU.so", .interfaceProvider = "LLaMAPackageInterfaceProvider", .target = "CPU"},
-        {.path = "libQnnLLaMAPackage_HTP.so", .interfaceProvider = "LLaMAPackageInterfaceProvider", .target = "HTP"}};
+    std::vector<OpPackageInfo> opPackages = {};
 
     for (const auto& pkg : opPackages) {
       if (!qnnInterface.backendRegisterOpPackage) {
@@ -298,6 +311,8 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
         != QnnSystemInterface_getProviders((const QnnSystemInterface_t***)&systemInterfaceProviders, &numProviders)) {
       MLLM_ERROR("Failed to get system interface providers.");
       return nullptr;
+    } else {
+      MLLM_INFO("System interface providers found: {}", numProviders);
     }
     if (0 == numProviders) {
       MLLM_ERROR("Failed to get interface providers: 0 interface providers.");
@@ -305,11 +320,17 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
     }
     bool foundValidSystemInterface = false;
     for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
-      foundValidSystemInterface = true;
       if (QNN_SYSTEM_API_VERSION_MAJOR == systemInterfaceProviders[pIdx]->systemApiVersion.major
           && QNN_SYSTEM_API_VERSION_MINOR <= systemInterfaceProviders[pIdx]->systemApiVersion.minor) {
         qnnSystemInterface = systemInterfaceProviders[pIdx]->QNN_SYSTEM_INTERFACE_VER_NAME;
+        foundValidSystemInterface = true;
         break;
+      } else {
+        // Print system interface provider and self version
+        MLLM_WARN("System interface provider: {} version: {}", systemInterfaceProviders[pIdx]->systemApiVersion.major,
+                  systemInterfaceProviders[pIdx]->systemApiVersion.minor);
+        MLLM_WARN("Self version: {} {}", QNN_SYSTEM_API_VERSION_MAJOR, QNN_SYSTEM_API_VERSION_MINOR);
+        MLLM_WARN("Unable to find a valid system interface.");
       }
     }
     if (!foundValidSystemInterface) {
@@ -334,7 +355,14 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
                                  std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig) {
   // Read the binary from qnn_context.bin and get the size in byte
   std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
+  if (!file.is_open() || !file.good()) {
+    MLLM_ERROR("Could not open context binary file: {}", contextBinaryPath);
+    return false;
+  } else {
+    MLLM_INFO("Context binary file opened successfully: {}", contextBinaryPath);
+  }
   std::streamsize size = file.tellg();
+  MLLM_INFO("Context binary file size: {} MB", size / 1024 / 1024);
   file.seekg(0, std::ios::beg);
 
   auto binaryBuffer = std::make_unique<uint8_t[]>(size);
@@ -344,17 +372,27 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
 
   // inspect binary info
   QnnSystemContext_Handle_t sysCtxHandle{nullptr};
+  if (!qnnSystemInterface.systemContextCreate) {
+    MLLM_ERROR("systemContextCreate is nullptr.");
+    return false;
+  }
   if (QNN_SUCCESS != qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
     MLLM_ERROR("Could not create system handle.");
     return false;
+  } else {
+    MLLM_INFO("System context created successfully");
   }
+
   const QnnSystemContext_BinaryInfo_t* binaryInfo{nullptr};
   Qnn_ContextBinarySize_t binaryInfoSize{0};
+
   if (QNN_SUCCESS
       != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void*>(binaryBuffer.get()), size, &binaryInfo,
                                                        &binaryInfoSize)) {
     MLLM_ERROR("Failed to get context binary info");
     return false;
+  } else {
+    MLLM_INFO("Context binary info retrieved successfully");
   }
 
   // Extract graph metadata to create QNNModels instead of GraphInfo_t
@@ -365,13 +403,24 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
     MLLM_ERROR("Failed to copy metadata.");
     return false;
   }
-  qnnSystemInterface.systemContextFree(sysCtxHandle);
+  if (QNN_SUCCESS != qnnSystemInterface.systemContextFree(sysCtxHandle)) {
+    MLLM_ERROR("Could not free system context.");
+    return false;
+  } else {
+    MLLM_INFO("System context freed successfully");
+  }
   sysCtxHandle = nullptr;
 
   // Create context from binary
   Qnn_ContextBinarySize_t writtenSize = 0;
-  qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
-                                       binaryBuffer.get(), size, &context, profileHandle);
+  if (QNN_CONTEXT_NO_ERROR
+      != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
+                                              binaryBuffer.get(), size, &context, profileHandle)) {
+    MLLM_ERROR("Could not create context from binary. Mostly due to binary's qnn version mismatch with backend's qnn version.");
+    return false;
+  } else {
+    MLLM_INFO("Context created from binary successfully");
+  }
 
   // Create QNNModels for each graph and initialize from context
   qnnModels.clear();
