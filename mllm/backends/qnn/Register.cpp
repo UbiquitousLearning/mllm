@@ -21,9 +21,18 @@ void initQnnBackend(const std::string& context_path) {
   // 1. Register backend
   auto backend = std::make_shared<qnn::QNNBackend>();
   if (std::filesystem::exists(context_path)) {
-    if (!backend->loadContext(context_path)) { MLLM_ERROR_EXIT(1, "Failed to load QNN context from {}", context_path); }
+    MLLM_INFO("QNN context path exists: {}", context_path);
+    if (!backend->loadContext(context_path)) {
+      MLLM_ERROR_EXIT(1, "Failed to load QNN context from {}", context_path);
+    } else {
+      MLLM_INFO("QNN context loaded successfully from {}", context_path);
+    }
   } else {
-    if (!backend->createContext()) { MLLM_ERROR_EXIT(1, "Failed to create QNN context"); }
+    if (!backend->createContext()) {
+      MLLM_ERROR_EXIT(1, "Failed to create QNN context");
+    } else {
+      MLLM_INFO("QNN context created successfully");
+    }
   }
   ctx.registerBackend(backend);
 
@@ -33,6 +42,8 @@ void initQnnBackend(const std::string& context_path) {
                                              .really_large_tensor_threshold = 0,
                                              .using_buddy_mem_pool = false,
                                          });
+  MLLM_INFO("QNN memory manager registered");
+
   // 3. Initialize dispatcher manager
   ctx.dispatcherManager()->registerDispatcher(
       createQNNDispatcher(ctx.dispatcherManager()->getExecutor(), qnn::QNNDispatcherOptions()));

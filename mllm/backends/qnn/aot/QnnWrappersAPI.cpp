@@ -107,6 +107,7 @@ std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorV
 Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v) {
   Qnn_QuantizeParams_t ret = QNN_QUANTIZE_PARAMS_INIT;
 
+  MLLM_RT_ASSERT(v);
   MLLM_RT_ASSERT(v->getAttr("quant_recipe"));
   auto quant_spec = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
 
@@ -120,6 +121,9 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(quant_spec);
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+      if (!cfg->scale || !cfg->zero_point) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "AsymPerTensor quant recipe has no scale or zero point. tensor: {}", v->name());
+      }
       ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = cfg->zero_point.item<int32_t>()};
       break;
     }
@@ -127,6 +131,9 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(quant_spec);
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+      if (!cfg->scale) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "SymPerTensor quant recipe has no scale. tensor: {}", v->name());
+      }
       ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
       break;
     }
