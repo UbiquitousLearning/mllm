@@ -1,0 +1,38 @@
+{
+  "additional_special_tokens": [
+    "<|im_start|>",
+    "<|im_end|>",
+    "<|AUDIO|>",
+    "<|audio_bos|>",
+    "<|audio_eos|>",
+    "<|box_end|>",
+    "<|quad_start|>",
+    "<|quad_end|>",
+    "<|vision_bos|>",
+    "<|vision_eos|>",
+    "<|vision_pad|>",
+    "<|IMAGE|>",
+    "<|VIDEO|>"
+  ],
+  "eos_token": {
+    "content": "<|im_end|>",
+    "lstrip": false,
+    "normalized": false,
+    "rstrip": false,
+    "single_word": false
+  },
+  "pad_token": {
+    "content": "<|endoftext|>",
+    "lstrip": false,
+    "normalized": false,
+    "rstrip": false,
+    "single_word": false
+  },
+  "image_token": "<|IMAGE|>",
+  "audio_token": "<|AUDIO|>",
+  "video_token": "<|VIDEO|>",
+  "vision_bos_token": "<|vision_bos|>",
+  "vision_eos_token": "<|vision_eos|>",
+  "audio_bos_token": "<|audio_bos|>",
+  "audio_eos_token": "<|audio_eos|>"
+}
