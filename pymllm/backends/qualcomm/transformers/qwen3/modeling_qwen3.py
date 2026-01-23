@@ -695,6 +695,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
     def __init__(self, config):
         super().__init__(config)
+        self.config = config
         self.model = Qwen3Model(config)
         self.vocab_size = config.vocab_size
         self.lm_head = QLinearLPBQ(
@@ -707,6 +708,11 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
         # Initialize weights and apply final processing
         self.post_init()
+
+    @torch.no_grad()
+    def copy_lm_head_weight_from_embed_tokens(self):
+        if self.config.tie_word_embeddings:
+            self.lm_head.weight.copy_(self.model.embed_tokens.weight)
 
     @can_return_tuple
     @auto_docstring
