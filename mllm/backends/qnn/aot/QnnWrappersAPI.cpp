@@ -436,6 +436,12 @@ void QnnAOTEnv::_setup(const std::string& path) {
 }
 
 std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string& name, bool weights_sharing) {
+  // Check if context with this name already exists
+  if (contexts_.count(name) > 0) {
+    MLLM_WARN("Context '{}' already exists, reusing the existing context", name);
+    return contexts_[name];
+  }
+
   std::shared_ptr<QnnDeviceAndContext> context = std::make_shared<QnnDeviceAndContext>();
   context->name_ = name;
 

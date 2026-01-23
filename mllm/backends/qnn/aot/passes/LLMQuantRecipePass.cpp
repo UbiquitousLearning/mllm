@@ -986,6 +986,7 @@ bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
 
+  // i_0 logic stays the same
   if (!i_0->getAttr("quant_recipe")) {
     auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
     i_0->setAttr("quant_recipe", i_0_spec);
@@ -996,16 +997,7 @@ bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_
         i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
   }
 
-  if (!o_0->getAttr("quant_recipe")) {
-    auto o_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>());
-    o_0->setAttr("quant_recipe", o_0_spec);
-    annotation_attr->annotation_.outputs.emplace_back(o_0_spec->spec_);
-  } else {
-    annotation_attr->annotation_.outputs.emplace_back(
-        o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
-  }
-
-  // Weights
+  // Weights - must be uint16, force set to kUInt16PerTensorAsy
   auto weight_name = embedding_op->getAOp()->getName() + ".weight";
   auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
@@ -1013,10 +1005,20 @@ bool LLMQuantRecipeEmbeddingPattern::rewrite(ir::IRWriter& writer, const ir::op_
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
   auto weight_tensor = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
 
-  // Embedding weight quantization method same as outputs, but not share, just same type
-  auto weight_spec_attr = genSimpleQuantizationSpecAttr(writer.getContext(), weight_tensor);
+  // Embedding weight dtype must be uint16, force set to kUInt16PerTensorAsy
+  MLLM_RETURN_FALSE_IF_NOT(weight_tensor->tensor_.dtype() == kUInt16 || weight_tensor->tensor_.dtype() == kUInt16PerTensorAsy);
+  weight_tensor->tensor_ = weight_tensor->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
+
+  // Create weight spec with kUInt16PerTensorAsy (AsymPerTensor)
+  auto weight_spec =
+      ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65535, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil());
+  auto weight_spec_attr = writer.getContext()->create<ir::linalg::LinalgIRQuantizatonSpecAttr>(weight_spec);
   weight_reg_tensor_ir->outputs().front()->setAttr("quant_recipe", weight_spec_attr);
   annotation_attr->annotation_.weights.insert({"weight", weight_spec_attr->spec_});
+
+  // o_0's quant recipe shares with weight
+  o_0->setAttr("quant_recipe", weight_spec_attr);
+  annotation_attr->annotation_.outputs.emplace_back(weight_spec_attr->spec_);
 
   // Attach to quantize node
   node->setAttr("quant_recipe", annotation_attr);

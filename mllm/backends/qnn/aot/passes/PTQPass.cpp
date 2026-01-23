@@ -111,6 +111,22 @@ void solveEmbeddingWeight(const ir::IRContext::ptr_t& ctx, const ParameterFile::
       weight_spec->solved = true;
       break;
     }
+    case ir::linalg::QuantizationSpecType::kAsymPerTensor: {
+      auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(weight_spec);
+      auto scale = pf->pull(mllm_op->getName() + ".scale");
+      auto zero_point = pf->pull(mllm_op->getName() + ".zero_point");
+      this_spec->scale = scale;
+      this_spec->zero_point = zero_point;
+      checkTypeLimits<uint16_t>(pf->pull(mllm_op->getName() + ".weight"), this_spec->quant_min, this_spec->quant_max);
+      MLLM_RT_ASSERT(scale.dtype() == kFloat32);
+      MLLM_RT_ASSERT(scale.rank() == 1);
+      MLLM_RT_ASSERT(scale.item<float>() > 0);
+      MLLM_RT_ASSERT(zero_point.dtype() == kInt32);
+      MLLM_RT_ASSERT(zero_point.rank() == 1);
+      MLLM_RT_ASSERT(zero_point.item<int32_t>() >= 0);
+      weight_spec->solved = true;
+      break;
+    }
     default: {
       NYI("quant recipe type not support");
     }
@@ -203,6 +219,9 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
+
+        MLLM_INFO("Constant tensor '{}' quantized (AsymPerTensor): before={}, after={}", tv->name(), constant_v,
+                  ptq_constant_v);
       }
 
       this_spec->solved = true;
@@ -262,6 +281,8 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         auto _attr = ctx->create<ir::VectorUInt16Attr>(std::vector<uint16_t>{(uint16_t)ptq_constant_v});
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
+
+        MLLM_INFO("Constant tensor '{}' quantized (SymPerTensor): before={}, after={}", tv->name(), constant_v, ptq_constant_v);
       }
 
       this_spec->solved = true;
@@ -273,7 +294,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
       break;
     }
     default: {
-      NYI("quant recipe type not support on tensor: {}", v->name());
+      NYI("Quant recipe type not support on tensor: {}", v->name());
     }
   }
 }
