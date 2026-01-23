@@ -45,7 +45,7 @@ class QNNRuntime {
   ~QNNRuntime();
 
   static std::unique_ptr<QNNRuntime> create(ProfilingLevel profilingLevel = ProfilingLevel::OFF,
-                                            QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN) {
+                                            QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_VERBOSE) {
     return std::unique_ptr<QNNRuntime>(initRuntime(profilingLevel, qnnLogLevel));
   }
 

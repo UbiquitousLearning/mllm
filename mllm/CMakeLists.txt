@@ -58,7 +58,14 @@ endif()
 
 # FIXME: @oreomaker Need to remove comma features in slice!
 # Suppress comma-subscript warnings (deprecated C++ feature that will be removed in C++26)
-target_compile_options(MllmRT PUBLIC -Wno-comma-subscript)
+# This flag is only available in Clang 13+ and GCC 10+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  target_compile_options(MllmRT PUBLIC -Wno-comma-subscript)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
+    target_compile_options(MllmRT PUBLIC -Wno-comma-subscript)
+  endif()
+endif()
 
 # ONLY APPLE CAN DO !
 # Processing OpenMP
