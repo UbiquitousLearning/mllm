@@ -357,9 +357,6 @@ class Qwen3Text final : public nn::Module {
     // X is already embedded
     auto x = embedding_(inputs[0]);
 
-    // Quantization
-    x = x.to(kUInt16PerTensorAsy);
-
     const auto& position_ids = inputs[1];
     auto causal_mask = inputs[2];
 
