@@ -262,6 +262,7 @@ add_subdirectory(third_party/fmt)
 add_subdirectory(third_party/xxHash)
 set(FLATBUFFERS_BUILD_TESTS OFF)
 add_subdirectory(third_party/flatbuffers EXCLUDE_FROM_ALL)
+set_target_properties(flatbuffers PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(mllm)
 
 if(MLLM_ENABLE_TEST)
