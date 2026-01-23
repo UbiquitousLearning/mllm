@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <unordered_map>
 
@@ -9,6 +10,9 @@
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen2vl/image_preprocessor_qwen2vl.hpp"
+#include "mllm/models/qwen2_5omni/audio_preprocessor_qwen2_5omni.hpp"
+#include "mllm/utils/Common.hpp"
 
 namespace mllm::models::qwen2_5omni {
 
@@ -141,9 +145,52 @@ struct Qwen2_5OmniMessage {
   }
 };
 
+struct Qwen2_5OmniVisionMessage {
+  std::string prompt;
+  std::string img_file_path;
+  std::string system_prompt = "You are a helpful assistant.";
+
+  [[nodiscard]] std::string buildChatMessage() const {
+    std::string result;
+    if (!system_prompt.empty()) {
+      result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n";
+    }
+    result += "<|im_start|>user\n<|vision_bos|><|IMAGE|><|vision_eos|>" + prompt + "<|im_end|>\n";
+    result += "<|im_start|>assistant\n";
+    return result;
+  }
+};
+
+struct Qwen2_5OmniAudioMessage {
+  std::string prompt;
+  std::string audio_file_path;
+  std::string system_prompt = "You are a helpful assistant.";
+
+  [[nodiscard]] std::string buildChatMessage() const {
+    std::string result;
+    if (!system_prompt.empty()) {
+      result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n";
+    }
+    result += "<|im_start|>user\n<|audio_bos|><|AUDIO|><|audio_eos|>" + prompt + "<|im_end|>\n";
+    result += "<|im_start|>assistant\n";
+    return result;
+  }
+};
+
 class Qwen2_5OmniTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
-  explicit Qwen2_5OmniTokenizer(const std::string& file_path) {
+  explicit Qwen2_5OmniTokenizer(const std::string& file_path,
+                                int32_t spatial_merge_size = 2,
+                                int32_t min_pixels = 56 * 56,
+                                int32_t max_pixels = 1280 * 1280,
+                                int32_t audio_sample_rate = 16000,
+                                int32_t audio_n_mels = 128,
+                                int32_t audio_hop_length = 160,
+                                int32_t audio_chunk_length = 300)
+                                //interestingly, the answer went bad when setting max_pixels higher, eg. 3584*3584)
+      : image_preprocessor_(min_pixels, max_pixels),
+        audio_preprocessor_(audio_sample_rate, audio_n_mels, audio_hop_length, audio_chunk_length),
+        spatial_merge_size_(spatial_merge_size) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
@@ -243,10 +290,96 @@ class Qwen2_5OmniTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return {{"sequence", sequence}};
   }
 
+  ARGenerationOutputPast convertVisionMessage(const Qwen2_5OmniVisionMessage& message) {
+    auto applied_string = message.buildChatMessage();
+
+    auto [img, grid_thw] = image_preprocessor_(message.img_file_path);
+
+    auto sequence_str = tokenize(applied_string);
+    std::vector<int64_t> ids;
+    ids.reserve(sequence_str.size());
+    for (const auto& str : sequence_str) { ids.emplace_back(bpe_._lookup_vocab(str)); }
+
+    auto grid_t = grid_thw.ptr<int32_t>()[0];
+    auto grid_h = grid_thw.ptr<int32_t>()[1];
+    auto grid_w = grid_thw.ptr<int32_t>()[2];
+    int32_t img_token_nums = grid_t * grid_h * grid_w;
+    img_token_nums /= (spatial_merge_size_ * spatial_merge_size_);
+
+    auto image_token_id = bpe_._lookup_vocab(L"<|IMAGE|>");
+    {
+      auto it = std::find(ids.begin(), ids.end(), image_token_id);
+      if (it == ids.end()) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing <|IMAGE|> token in Qwen2.5-Omni prompt template.");
+      }
+      ids.insert(it + 1, img_token_nums - 1, image_token_id);
+    }
+
+    Tensor sequence = Tensor::empty({1, static_cast<int32_t>(ids.size())}, kInt64, kCPU)
+                          .setMemType(kNormal)
+                          .setName("qwen2_5omni-tokenizer-i0")
+                          .alloc();
+
+    auto ptr = sequence.ptr<int64_t>();
+    for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
+
+    return {
+        {"sequence", sequence},
+        {"img", img},
+        {"grid_thw", grid_thw},
+    };
+  }
+
+  ARGenerationOutputPast convertAudioMessage(const Qwen2_5OmniAudioMessage& message) {
+    auto applied_string = message.buildChatMessage();
+    auto sequence_str = tokenize(applied_string);
+
+    std::vector<int64_t> ids;
+    ids.reserve(sequence_str.size());
+    for (const auto& str : sequence_str) { ids.emplace_back(bpe_._lookup_vocab(str)); }
+
+    auto audio_result = audio_preprocessor_.processAudioFile(message.audio_file_path);
+    if (audio_result.input_features.isNil() || audio_result.feature_length <= 0) {
+      MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to extract audio features for Qwen2.5-Omni.");
+    }
+
+    int32_t audio_token_nums = audio_preprocessor_.calcAudioTokenLength(audio_result.feature_length);
+    if (audio_token_nums <= 0) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Invalid audio token length for Qwen2.5-Omni.");
+    }
+
+    auto audio_token_id = bpe_._lookup_vocab(L"<|AUDIO|>");
+    {
+      auto it = std::find(ids.begin(), ids.end(), audio_token_id);
+      if (it == ids.end()) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "Missing <|AUDIO|> token in Qwen2.5-Omni prompt template.");
+      }
+      ids.insert(it + 1, audio_token_nums - 1, audio_token_id);
+    }
+
+    Tensor sequence = Tensor::empty({1, static_cast<int32_t>(ids.size())}, kInt64, kCPU)
+                          .setMemType(kNormal)
+                          .setName("qwen2_5omni-tokenizer-i0")
+                          .alloc();
+
+    auto ptr = sequence.ptr<int64_t>();
+    for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
+
+    audio_result.input_features.setName("input_features");
+
+    return {
+        {"sequence", sequence},
+        {"input_features", audio_result.input_features},
+    };
+  }
+
  private:
   preprocessor::BPE bpe_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
+  mllm::models::qwen2vl::Qwen2VLImagePreprocessor image_preprocessor_;
+  Qwen2_5OmniAudioPreprocessor audio_preprocessor_;
+  int32_t spatial_merge_size_ = 2;
 };
 
 }  // namespace mllm::models::qwen2_5omni
