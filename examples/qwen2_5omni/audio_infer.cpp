@@ -51,12 +51,12 @@ MLLM_MAIN({
     fmt::print("Audio path (or 'exit/quit'): ");
     //std::getline(std::cin, audio_path);
     //if (audio_path == "exit" || audio_path == "quit") { return 0; }
-    audio_path = "/Users/kkkai/Desktop/mllm2-former/mllm/rsc/recognize.wav";
+    audio_path = "";
 
     fmt::print("Prompt text: ");
     //std::getline(std::cin, prompt_text);
     //if (prompt_text.empty()) { prompt_text = "Please describe the audio."; }
-    prompt_text = "复述这段音频";
+    prompt_text = "";
 
     try {
       fmt::print("Processing...\n");
