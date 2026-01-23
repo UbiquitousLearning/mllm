@@ -70,8 +70,10 @@ void EmbeddingOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
   std::vector<int32_t> o_shape{/*batch*/ shape[0], /*seq*/ shape[1],
                                /*feat dim*/ options_.hidden_size};
 
-  // FIXME: We should tell embedding output to use what kinds of data types. Currently it's hardcoded to float32.
-  outputs.emplace_back(Tensor::empty(o_shape, kFloat32, i.device()));
+  // Output dtype should match weight dtype (e.g., uint16 for AsymPerTensor quantization)
+  auto out_dtype = weight_.dtype();
+  if (weight_.dtype() == kUInt16) { out_dtype = kUInt16PerTensorAsy; }
+  outputs.emplace_back(Tensor::empty(o_shape, out_dtype, i.device()));
 }
 
 void EmbeddingOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
