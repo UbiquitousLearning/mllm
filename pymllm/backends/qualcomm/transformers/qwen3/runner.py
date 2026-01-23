@@ -11,6 +11,7 @@ from pymllm.backends.qualcomm.transformers.core.qlinear import (
     QLinearLPBQ,
     QLinearW8A16_PerChannelSym,
 )
+from pymllm.backends.qualcomm.transformers.core.embedding import QEmbedding
 from pymllm.backends.qualcomm.transformers.qwen3.modeling_qwen3 import Qwen3ForCausalLM
 
 
@@ -48,6 +49,8 @@ def convert_weight(m):
     if isinstance(m, QLinearLPBQ) or isinstance(m, QLinearW8A16_PerChannelSym):
         m.convert_to_conv2d_deploy_hwio()
     if isinstance(m, QRMSNorm):
+        m.convert_to_deploy()
+    if isinstance(m, QEmbedding):
         m.convert_to_deploy()
 
 
