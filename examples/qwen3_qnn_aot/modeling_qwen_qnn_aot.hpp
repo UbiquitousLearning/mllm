@@ -290,6 +290,7 @@ class Qwen3Attention final : public nn::Module {
 
 class Qwen3Decoder final : public nn::Module {
  public:
+  int layer_idx_;
   Qwen3Attention self_attn_;
   Qwen3MLP mlp_;
   nn::RMSNorm input_layer_norm_;
@@ -297,7 +298,8 @@ class Qwen3Decoder final : public nn::Module {
 
   Qwen3Decoder() = default;
 
-  Qwen3Decoder(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+  Qwen3Decoder(const std::string& name, const Qwen3Config& cfg, int layer_idx) : nn::Module(name) {
+    layer_idx_ = layer_idx;
     self_attn_ = reg<Qwen3Attention>("self_attn", cfg);
     mlp_ = reg<Qwen3MLP>("mlp", cfg);
     input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
@@ -312,7 +314,7 @@ class Qwen3Decoder final : public nn::Module {
     auto past_value = inputs[5];
 
     auto hidden_states = inputs[0];
-    hidden_states = ptq::QDQ(this, hidden_states, "input_layernorm_input_qdq");
+    if (layer_idx_ != 0) { hidden_states = ptq::QDQ(this, hidden_states, "input_layernorm_input_qdq"); }
     auto residual = hidden_states;
     hidden_states = input_layer_norm_(hidden_states);
     auto _ = self_attn_(hidden_states, llm_embedding_sin, llm_embedding_cos, causal_mask, past_key, past_value);
@@ -327,7 +329,7 @@ class Qwen3Decoder final : public nn::Module {
 };
 
 class Qwen3Text final : public nn::Module {
-  nn::ModuleList<Qwen3Decoder> decode_blocks_;
+  nn::ModuleListWithIdx<Qwen3Decoder> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Embedding embedding_;
   nn::Param rope_sin_;
@@ -341,7 +343,7 @@ class Qwen3Text final : public nn::Module {
   Qwen3Text(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
     num_hidden_layers_ = cfg.num_hidden_layers;
     hidden_size_ = cfg.hidden_size;
-    decode_blocks_ = reg<nn::ModuleList<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
+    decode_blocks_ = reg<nn::ModuleListWithIdx<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
