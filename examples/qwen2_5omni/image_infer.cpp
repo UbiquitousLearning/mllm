@@ -50,12 +50,12 @@ MLLM_MAIN({
     std::string prompt_text;
 
     fmt::print("Image path (or 'exit/quit'): ");
-    image_path = "../../../mllm2-former/mllm/rsc/pics.jpg";
+    image_path = "";
     //std::getline(std::cin, image_path);
     if (image_path == "exit" || image_path == "quit") { return 0; }
 
     fmt::print("Prompt text: ");
-    prompt_text = "描述图片中物体";
+    prompt_text = "";
     //std::getline(std::cin, prompt_text);
 
     try {
