@@ -54,6 +54,7 @@ from pymllm.backends.qualcomm.transformers.core.qdq import (
     ActivationQDQ,
     FixedActivationQDQ,
 )
+from pymllm.backends.qualcomm.transformers.core.embedding import QEmbedding
 from pymllm.backends.qualcomm.transformers.core.observer import ConcatObserver
 
 
@@ -393,7 +394,8 @@ class Qwen3DecoderLayer(GradientCheckpointingLayer):
         self.attention_type = config.layer_types[layer_idx]
 
         # QDQ
-        self.input_layernorm_input_qdq = ActivationQDQ(bits=16)
+        if self.layer_dix != 0:
+            self.input_layernorm_input_qdq = ActivationQDQ(bits=16)
         self.add_0_lhs_input_qdq = ActivationQDQ(bits=16)
         self.add_0_output_qdq = ActivationQDQ(bits=16)
         self.add_1_lhs_input_qdq = ActivationQDQ(bits=16)
@@ -412,7 +414,8 @@ class Qwen3DecoderLayer(GradientCheckpointingLayer):
         ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[TransformersKwargs],
     ) -> torch.Tensor:
-        hidden_states = self.input_layernorm_input_qdq(hidden_states)
+        if self.layer_dix != 0:
+            hidden_states = self.input_layernorm_input_qdq(hidden_states)
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         # Self Attention
@@ -513,9 +516,8 @@ class Qwen3Model(Qwen3PreTrainedModel):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
-
-        self.embed_tokens = nn.Embedding(
-            config.vocab_size, config.hidden_size, self.padding_idx
+        self.embed_tokens = QEmbedding(
+            config.vocab_size, config.hidden_size, self.padding_idx, quant_bits=16
         )
         self.layers = nn.ModuleList(
             [
