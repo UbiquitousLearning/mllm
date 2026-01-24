@@ -458,12 +458,12 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
       if (tmpGraphsInfo[i]->graphName) { free(tmpGraphsInfo[i]->graphName); }
       freeQnnTensors(tmpGraphsInfo[i]->inputTensors, tmpGraphsInfo[i]->numInputTensors);
       freeQnnTensors(tmpGraphsInfo[i]->outputTensors, tmpGraphsInfo[i]->numOutputTensors);
-      free(tmpGraphsInfo[i]);
     }
   }
-  free(tmpGraphsInfo);
+  if (graphNum > 0 && tmpGraphsInfo[0]) { free(tmpGraphsInfo[0]); }
+  if (tmpGraphsInfo) { free(tmpGraphsInfo); }
 
-  MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels", graphNum);
+  MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels(QnnGraphs)", graphNum);
   return true;
 }
 

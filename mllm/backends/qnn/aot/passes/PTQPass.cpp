@@ -337,7 +337,8 @@ void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const 
         if (!tv->getAttr("quant_recipe")) continue;
         auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
         if (!f_spec->spec_->solved) {
-          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, used by Op: '{}'", tv->name(), op_name);
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "PTQPass: TensorValue '{}' is not solved, used by Op: '{}'", tv->name(),
+                          op_name);
         }
       }
 
@@ -347,7 +348,8 @@ void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const 
         if (!tv->getAttr("quant_recipe")) continue;
         auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
         if (!f_spec->spec_->solved) {
-          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, produced by Op: '{}'", tv->name(), op_name);
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "PTQPass: TensorValue '{}' is not solved, produced by Op: '{}'", tv->name(),
+                          op_name);
         }
       }
     }

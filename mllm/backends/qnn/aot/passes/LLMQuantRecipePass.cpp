@@ -602,7 +602,8 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
     }
   }
 
-  o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
+  // Create a NEW quant_recipe for output (don't share with input) so that PTQ pass can solve it independently
+  o_0->setAttr("quant_recipe", genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>()));
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
