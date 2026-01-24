@@ -220,8 +220,8 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
 
-        MLLM_INFO("Constant tensor '{}' quantized (AsymPerTensor): before={}, after={}", tv->name(), constant_v,
-                  ptq_constant_v);
+        MLLM_INFO("Constant tensor '{}' quantized (AsymPerTensor): before={}, after={}. With scale={}, zero_point={}",
+                  tv->name(), constant_v, ptq_constant_v, scale.item<float>(), zero_point.item<int32_t>());
       }
 
       this_spec->solved = true;
@@ -282,7 +282,8 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
 
-        MLLM_INFO("Constant tensor '{}' quantized (SymPerTensor): before={}, after={}", tv->name(), constant_v, ptq_constant_v);
+        MLLM_INFO("Constant tensor '{}' quantized (SymPerTensor): before={}, after={}. With scale={}", tv->name(), constant_v,
+                  ptq_constant_v, scale.item<float>());
       }
 
       this_spec->solved = true;

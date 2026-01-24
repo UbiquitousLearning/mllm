@@ -9,6 +9,7 @@
 #include <HTP/QnnHtpDevice.h>
 #include <HTP/QnnHtpCommon.h>
 #include <HTP/QnnHtpContext.h>
+#include <HTP/QnnHtpGraph.h>
 
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/core/DataTypes.hpp"
@@ -261,7 +262,50 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string
 QnnAOTGraph::QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle_t backendHandle,
                          Qnn_ContextHandle_t contextHandle, const std::string& graphName) {
   qnn_model_ = std::make_shared<mllm::qnn::QNNModel>(qnnInterface, backendHandle);
-  qnn_model_->initialize(contextHandle, graphName.c_str(), false);
+
+  // Short Depth Conv On HMX Off
+  QnnHtpGraph_CustomConfig_t* p_custom_config = nullptr;
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_SHORT_DEPTH_CONV_ON_HMX_OFF;
+  p_custom_config->shortDepthConvOnHmxOff = true;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // Fold Relu Activation Into Conv Off
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_FOLD_RELU_ACTIVATION_INTO_CONV_OFF;
+  p_custom_config->foldReluActivationIntoConvOff = true;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // FIXME: If need or not
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_PRECISION;
+  p_custom_config->precision = QNN_PRECISION_FLOAT16;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // Optimization level
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+  p_custom_config->optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_FINALIZE_OPTIMIZATION_FLAG;
+  p_custom_config->optimizationOption.floatValue = 3;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // VTCM Size
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+  p_custom_config->vtcmSizeInMB = 8;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  qnn_graph_configs.resize(htp_graph_configs.size());
+  qnn_graph_configs.reserve(htp_graph_configs.size() + 1);
+  for (int i = 0; i < htp_graph_configs.size(); ++i) {
+    qnn_graph_configs[i].option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    qnn_graph_configs[i].customConfig = htp_graph_configs[i];
+    qnn_graph_config_pass_in_.push_back(&qnn_graph_configs[i]);
+  }
+
+  qnn_graph_config_pass_in_.push_back(nullptr);
+
+  qnn_model_->initialize(contextHandle, graphName.c_str(), false, 1, qnn_graph_config_pass_in_.data());
 }
 
 void QnnAOTGraph::addTensor(const QnnAOTNodeTensor::ptr_t& tensor) {

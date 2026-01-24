@@ -83,4 +83,6 @@ MLLM_MAIN({
   pm.run();
 
   mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
+
+  qnn_aot_env.saveContext("context.0", "qwen3-1.7B-lpbq.bin");
 });

@@ -309,7 +309,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kInt16: {
-      ret = QNN_DATATYPE_UFIXED_POINT_16;
+      ret = QNN_DATATYPE_SFIXED_POINT_16;
       break;
     }
     case kInt32: {
