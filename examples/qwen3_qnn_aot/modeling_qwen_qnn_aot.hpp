@@ -230,8 +230,8 @@ class Qwen3Attention final : public nn::Module {
     key_states = ptq::QDQ(this, key_states, "k_norm_output_qdq");
 
     // [B, H, S, D]
-    auto cos = llm_embedding_cos.unsqueeze(1);
-    auto sin = llm_embedding_sin.unsqueeze(1);
+    auto cos = llm_embedding_cos.unsqueeze(1, true);
+    auto sin = llm_embedding_sin.unsqueeze(1, true);
     query_states =
         ptq::QDQ(this,
                  ptq::QDQ(this, query_states * cos, "q_rope_mul_0_output_qdq")
