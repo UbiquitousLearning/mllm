@@ -96,6 +96,8 @@ enum class OpTypes : int32_t {
   kWhere = 74,
 
   kSigmoid = 75,
+  kTanh = 76,
+  kConvTranspose1D = 77,
 
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
@@ -181,6 +183,8 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kEqual: return "Equal";
     case OpTypes::kWhere: return "Where";
     case OpTypes::kSigmoid: return "Sigmoid";
+    case OpTypes::kTanh: return "Tanh";
+    case OpTypes::kConvTranspose1D: return "ConvTranspose1D";
     case OpTypes::kDynamicOp_Start: return "DynamicOp_Start";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";
