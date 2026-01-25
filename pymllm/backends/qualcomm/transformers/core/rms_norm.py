@@ -24,6 +24,8 @@ class QRMSNorm(nn.Module):
                 qscheme=torch.per_tensor_affine,
                 dtype=torch.qint32,
                 eps=0.0001 / 65535,
+                quant_min=0,
+                quant_max=2 ** (quant_bits) - 1,
             ),
             quant_min=0,
             quant_max=2 ** (quant_bits) - 1,

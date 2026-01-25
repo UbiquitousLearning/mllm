@@ -356,32 +356,34 @@ class Qwen3Text final : public nn::Module {
 
     // X is already embedded
     auto x = embedding_(inputs[0]);
+    x = decode_blocks_.list()[0].input_layer_norm_(x);
+    x = ptq::QDQ(this, x, "layers.0.self_attn.q_proj_input_qdq");
 
-    const auto& position_ids = inputs[1];
-    auto causal_mask = inputs[2];
+    // const auto& position_ids = inputs[1];
+    // auto causal_mask = inputs[2];
 
     // clang-format off
-    auto llm_embedding_sin = nn::functional::gather(ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq"), 1, position_ids);
-    auto llm_embedding_cos = nn::functional::gather(ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq"), 1, position_ids);
+    // auto llm_embedding_sin = nn::functional::gather(ptq::QDQ_ROPE(this, rope_sin_(), "sin_embedding_input_qdq"), 1, position_ids);
+    // auto llm_embedding_cos = nn::functional::gather(ptq::QDQ_ROPE(this, rope_cos_(), "cos_embedding_input_qdq"), 1, position_ids);
     // clang-format on
 
-    std::vector<Tensor> keys;
-    std::vector<Tensor> values;
-    for (auto [index, block] : enumerate(blocks)) {
-      auto pk = inputs[3 + index];
-      auto pv = inputs[3 + index + num_hidden_layers_];
-      auto _ = block(x, llm_embedding_sin, llm_embedding_cos, causal_mask, pk, pv);
-      x = _[0];
-      keys.push_back(_[1]);
-      values.push_back(_[2]);
-    }
+    // std::vector<Tensor> keys;
+    // std::vector<Tensor> values;
+    // for (auto [index, block] : enumerate(blocks)) {
+    //   auto pk = inputs[3 + index];
+    //   auto pv = inputs[3 + index + num_hidden_layers_];
+    //   auto _ = block(x, llm_embedding_sin, llm_embedding_cos, causal_mask, pk, pv);
+    //   x = _[0];
+    //   keys.push_back(_[1]);
+    //   values.push_back(_[2]);
+    // }
 
-    x = norm_(ptq::QDQ(this, x, "norm_input_qdq"));
-    x = x.view({1, 1, -1, hidden_size_}, true);
+    // x = norm_(ptq::QDQ(this, x, "norm_input_qdq"));
+    // x = x.view({1, 1, -1, hidden_size_}, true);
 
     auto ret = std::vector<Tensor>{x};
-    for (const auto& item : keys) { ret.push_back(item); }
-    for (const auto& item : values) { ret.push_back(item); }
+    // for (const auto& item : keys) { ret.push_back(item); }
+    // for (const auto& item : values) { ret.push_back(item); }
 
     return ret;
   }
@@ -463,12 +465,13 @@ class Qwen3ForCausalLM : public ARGeneration, public nn::Module {
     ir::lowlevel::traceStart();
 
     // Build inputs for llm: sequence, llm_embedding_sin, llm_embedding_cos, causal_mask, then all KV caches
-    std::vector<Tensor> llm_inputs = {sequence, position_ids, causal_mask};
-    llm_inputs.insert(llm_inputs.end(), kv_caches.begin(), kv_caches.end());
+    // std::vector<Tensor> llm_inputs = {sequence, position_ids, causal_mask};
+    std::vector<Tensor> llm_inputs = {sequence};
+    // llm_inputs.insert(llm_inputs.end(), kv_caches.begin(), kv_caches.end());
 
     sequence = llm(llm_inputs)[0];
-    sequence = lm_head_(ptq::QDQ(this, sequence, "lm_head_input_qdq"));
-    sequence = ptq::QDQ(this, sequence, "lm_head_output_qdq");
+    // sequence = lm_head_(ptq::QDQ(this, sequence, "lm_head_input_qdq"));
+    // sequence = ptq::QDQ(this, sequence, "lm_head_output_qdq");
     ir::lowlevel::traceComment("    ╔═════╗   ");
     ir::lowlevel::traceComment("   ║  o o  ║  ");
     ir::lowlevel::traceComment("   ║   ▽   ║  ");

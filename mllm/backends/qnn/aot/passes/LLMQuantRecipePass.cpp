@@ -481,6 +481,10 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
   auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
 
+  // RMSNorm weight dtype must be uint16, force set to kUInt16PerTensorAsy
+  MLLM_RETURN_FALSE_IF_NOT(t->tensor_.dtype() == kUInt16 || t->tensor_.dtype() == kUInt16PerTensorAsy);
+  t->tensor_ = t->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
+
   // FIXME: This dtype is hardcoded. We should make it right.
   auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
       ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));

@@ -125,7 +125,10 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       if (!cfg->scale || !cfg->zero_point) {
         MLLM_ERROR_EXIT(ExitCode::kCoreError, "AsymPerTensor quant recipe has no scale or zero point. tensor: {}", v->name());
       }
-      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = cfg->zero_point.item<int32_t>()};
+      ret.scaleOffsetEncoding =
+          Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = -cfg->zero_point.item<int32_t>()};
+      MLLM_INFO("Configuring AsymPerTensor quantization for tensor: {}, scale: {}, zero_point: {}", v->name(),
+                cfg->scale.item<float>(), cfg->zero_point.item<int32_t>());
       break;
     }
     case ir::linalg::QuantizationSpecType::kSymPerTensor: {
@@ -136,6 +139,7 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
         MLLM_ERROR_EXIT(ExitCode::kCoreError, "SymPerTensor quant recipe has no scale. tensor: {}", v->name());
       }
       ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
+      MLLM_INFO("Configuring SymPerTensor quantization for tensor: {}, scale: {}", v->name(), cfg->scale.item<float>());
       break;
     }
     default: {

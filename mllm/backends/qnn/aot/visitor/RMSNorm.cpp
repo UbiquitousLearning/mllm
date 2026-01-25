@@ -46,14 +46,17 @@ bool QnnAOTRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op)
       writer.getContext()->lookupSymbolTable(a->getName() + ".weight")->outputs().front()->cast_<ir::tensor::TensorValue>();
 
   // Fake bias, nn module seems to be inconsistent with document (AMAZING!)
-  auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), weight->tensor_.dtype());
+  auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), kUInt16);
+  bias_tensor = bias_tensor.__unsafeSetDType(kUInt16PerTensorAsy);
 
   MLLM_WARN("Making Fake bias for RMSNorm");
-  for (int i = 0; i < bias_tensor.numel(); ++i) { MLLM_RT_ASSERT_EQ(bias_tensor.ptr<mllm_uint16_t>()[i], 0); }
+  for (int i = 0; i < bias_tensor.numel(); ++i) {
+    MLLM_RT_ASSERT_EQ(bias_tensor.ptr<mllm_uint16_t>()[i], 0);
+    bias_tensor.ptr<mllm_uint16_t>()[i] = 0;
+  }
 
-  auto bias_node = ir::tensor::TensorValue::build(writer.getContext().get(), bias_tensor);
-  bias_node->tensor_.setName(a->getName() + "_runtime_bias");
-  bias_node->name() = a->getName() + "_runtime_bias";
+  bias_tensor.setName(a->getName() + "_runtime_bias");
+  auto bias_node = writer.getContext()->create<ir::tensor::TensorValue>(bias_tensor);
 
   // Fake bias quant recipe
   auto bias_scale = Tensor::ones({1}, kFloat32);

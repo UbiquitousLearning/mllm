@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/mllm.hpp"
 #include "mllm/backends/qnn/aot_rt/PromptProcessor.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/SlicePrimitives.hpp"
@@ -64,7 +65,8 @@ void PromptProcessor<T>::init_io() {
   output_tensors_.reserve(1 + 2 * config_.num_layers);
 
   // 1. Logits
-  auto logits = Tensor::empty({1, 1, config_.ar_len, config_.vocab_size}, kUInt16, kQNN).alloc();
+  // DBG:
+  auto logits = Tensor::empty({1, 1, config_.ar_len, 2048}, kUInt16, kQNN).alloc();
   logits.setName("logits");
   output_tensors_.push_back(logits);
 
@@ -123,16 +125,28 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
   kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, config_.ar_len, start_pos,
                                  config_.sliding_window);
 
-  module_->setOutputTensors(output_tensors_);
+  // DBG:
+  std::vector<Tensor> fake_output_tensors = {output_tensors_[0]};
+  // module_->setOutputTensors(output_tensors_);
+  module_->setOutputTensors(fake_output_tensors);
 
   while (processed_tokens < num_tokens) {
     int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - processed_tokens);
 
     prepare_io(prompt_tokens, processed_tokens, current_pos);
 
-    // Run forward
-    auto module_input = input_tensors_;
-    output_tensors_ = (*module_)(module_input);
+    std::vector<Tensor> fake_input_tensors;
+    fake_input_tensors.reserve(1);
+    fake_input_tensors.push_back(input_tensors_[0]);
+
+    // auto module_input = input_tensors_;
+    output_tensors_ = (*module_)(fake_input_tensors);
+
+    // DBG:
+    mllm::print(output_tensors_[0]);
+    mllm::print(output_tensors_[0].shape());
+    mllm::print(output_tensors_[0].stride());
+    exit(0);
 
     int32_t n_update = chunk_size;
 
