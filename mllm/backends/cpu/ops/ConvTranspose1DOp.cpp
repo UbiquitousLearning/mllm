@@ -35,6 +35,8 @@ void CPUConvTranspose1DOp::forward(const std::vector<Tensor>& inputs, std::vecto
   const int in_channels_per_group = in_channels / groups;
   const int out_channels_per_group = out_channels / groups;
 
+  MLLM_RT_ASSERT_EQ(input.dtype(), kFloat32);
+  MLLM_RT_ASSERT_EQ(output.dtype(), kFloat32);
   MLLM_RT_ASSERT(weight_.dtype() == kFloat32);
   const auto* weight_ptr = weight_.ptr<float>();
   const auto* input_ptr = input.ptr<float>();
