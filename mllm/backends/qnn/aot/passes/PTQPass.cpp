@@ -12,6 +12,7 @@
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
 #include "mllm/compile/ir/Node.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/utils/Common.hpp"
@@ -206,6 +207,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
@@ -213,6 +215,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 
@@ -268,6 +271,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
@@ -275,6 +279,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 

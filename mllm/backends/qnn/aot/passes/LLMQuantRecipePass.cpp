@@ -748,21 +748,18 @@ bool LLMQuantRecipeEqualPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
       auto i_1_tensor = i_1->cast_<ir::tensor::TensorValue>()->tensor_;
       switch (i_1_tensor.dtype()) {
         case kUInt16:
-        case kUInt8:
         case kInt16:
-        case kInt8:
-        case kFloat32:
-        case kFloat16:
-        case kBFloat16: {
-          i_1->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
-                                           ir::linalg::QuantizationSpecRaw::create(i_1_tensor.dtype())));
+        case kFloat32: {
+          // Force all i_1 to be uint16 per tensor asy
+          i_1->setAttr("quant_recipe",
+                       writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(ir::linalg::QuantizationSpecAsymPerTensor::create(
+                           0, 65535, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil())));
           break;
         }
         default: {
-          NYI("Only support [int16, int8, bf16, f16, f32] for now.");
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "Only support [int16, f32] for now.");
         }
       }
-
     } else {
       MLLM_WARN("LLMQuantRecipeEqualPattern Only support constant Value as second inputs right now. Pls send us a issue or PR "
                 "if you want to compare two normal tensor(rather than static-tensor).");

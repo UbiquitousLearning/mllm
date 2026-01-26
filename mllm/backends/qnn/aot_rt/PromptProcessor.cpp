@@ -125,28 +125,15 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
   kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, config_.ar_len, start_pos,
                                  config_.sliding_window);
 
-  // DBG:
-  std::vector<Tensor> fake_output_tensors = {output_tensors_[0]};
-  // module_->setOutputTensors(output_tensors_);
-  module_->setOutputTensors(fake_output_tensors);
+  module_->setOutputTensors(output_tensors_);
 
   while (processed_tokens < num_tokens) {
     int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - processed_tokens);
 
     prepare_io(prompt_tokens, processed_tokens, current_pos);
 
-    std::vector<Tensor> fake_input_tensors;
-    fake_input_tensors.reserve(1);
-    fake_input_tensors.push_back(input_tensors_[0]);
-
-    // auto module_input = input_tensors_;
-    output_tensors_ = (*module_)(fake_input_tensors);
-
-    // DBG:
-    mllm::print(output_tensors_[0]);
-    mllm::print(output_tensors_[0].shape());
-    mllm::print(output_tensors_[0].stride());
-    exit(0);
+    auto module_input = input_tensors_;
+    output_tensors_ = (*module_)(module_input);
 
     int32_t n_update = chunk_size;
 
