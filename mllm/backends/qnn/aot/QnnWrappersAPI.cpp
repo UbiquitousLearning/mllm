@@ -182,7 +182,7 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(-1));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
       for (int i = 0; i < num_scale_offsets; ++i) {
-        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({0, 0, 0, i});
+        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i});
         scale_offsets[i].offset = 0;
       }
 
