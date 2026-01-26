@@ -72,7 +72,7 @@ void Runner::generate(const Tensor& prompt_tokens, int32_t seq_len,
     token_callback(str);
   }
 
-  // int64_t cur_pos = prompt_tokens.size();
+  // int64_t cur_pos = prompt_tokens.size(-1);
 
   // token_generator_->generate(prompt_tokens, cur_pos, seq_len, token_callback, false);
 }
