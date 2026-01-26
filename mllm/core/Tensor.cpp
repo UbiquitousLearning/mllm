@@ -463,6 +463,13 @@ Tensor Tensor::equal(Tensor v) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kEqual, aops::EqualOpOptions{}, {*this, std::move(v)})[0];
 }
 
+Tensor Tensor::equalConstant(Tensor v) {
+  auto opts = aops::EqualOpOptions{};
+  opts.setInputsConstant(0, 0);
+  opts.setInputsConstant(1, 1);
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kEqual, opts, {*this, std::move(v)})[0];
+}
+
 Tensor Tensor::equal(float v) {
   auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
   if (device() != kCPU) {

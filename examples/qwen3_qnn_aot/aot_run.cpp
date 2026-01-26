@@ -43,6 +43,10 @@ MLLM_MAIN({
 
   auto input_tensor = tokenizer.convertMessage({.prompt = prompt_text});
 
+  // DBG:
+  mllm::print(input_tensor["sequence"].shape());
+  mllm::print(input_tensor["sequence"]);
+
   Runner runner(config, &tokenizer);
   if (!runner.load()) {
     std::cerr << "Failed to load model\n";

@@ -432,6 +432,12 @@ class Tensor {
   Tensor equal(Tensor v);
 
   /**
+   * @brief equal const value
+   * @return uint8 mask
+   */
+  Tensor equalConstant(Tensor v);
+
+  /**
    * @brief equal
    * @return uint8 mask
    */

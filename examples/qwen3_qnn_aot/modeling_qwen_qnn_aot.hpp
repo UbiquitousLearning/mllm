@@ -17,6 +17,25 @@ namespace mllm::models::qwen3 {
 
 namespace ptq {
 
+Tensor QDQ_CONSTANT(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
+  std::string scale_name = qdq_name_in_pytorch + ".scale";
+  std::string zp_name = qdq_name_in_pytorch + ".zero_point";
+  switch (in.dtype()) {
+    case kFloat32:
+    case kUInt16PerTensorAsy: {
+      auto scale = m->getTopParameterFile()->pull(scale_name);
+      auto zp = m->getTopParameterFile()->pull(zp_name);
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", zp.impl(), true);
+      break;
+    }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't Process dtype={}", nameOfType(in.dtype()));
+    }
+  }
+  return in;
+}
+
 Tensor QDQ(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
   std::string scale_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.scale";
   std::string zp_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.zero_point";
@@ -230,8 +249,8 @@ class Qwen3Attention final : public nn::Module {
     key_states = ptq::QDQ(this, key_states, "k_norm_output_qdq");
 
     // [B, H, S, D]
-    auto cos = llm_embedding_cos.unsqueeze(1);
-    auto sin = llm_embedding_sin.unsqueeze(1);
+    auto cos = llm_embedding_cos.unsqueeze(1, true);
+    auto sin = llm_embedding_sin.unsqueeze(1, true);
     query_states =
         ptq::QDQ(this,
                  ptq::QDQ(this, query_states * cos, "q_rope_mul_0_output_qdq")
@@ -275,7 +294,9 @@ class Qwen3Attention final : public nn::Module {
     auto minus_value = Tensor::constant(-20, kFloat32);
     minus_value = ptq::QDQ(this, minus_value, "neg_20_qdq");
     auto attn_vv = ptq::QDQ(this, attn_min.addConstant(minus_value), "minus_0_output_qdq");
-    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_vv);
+    auto zero_constant = Tensor::constant(0.f, kFloat32);
+    zero_constant = ptq::QDQ_CONSTANT(this, zero_constant, "constant_zero");
+    attn = nn::functional::where(causal_mask.equalConstant(zero_constant), attn, attn_vv);
     attn = ptq::QDQ(this, attn, "where_attn_qdq");
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");

@@ -12,6 +12,7 @@
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
 #include "mllm/compile/ir/Node.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/utils/Common.hpp"
@@ -206,6 +207,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
@@ -213,6 +215,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 
@@ -220,8 +223,8 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
 
-        MLLM_INFO("Constant tensor '{}' quantized (AsymPerTensor): before={}, after={}", tv->name(), constant_v,
-                  ptq_constant_v);
+        MLLM_INFO("Constant tensor '{}' quantized (AsymPerTensor): before={}, after={}. With scale={}, zero_point={}",
+                  tv->name(), constant_v, ptq_constant_v, scale.item<float>(), zero_point.item<int32_t>());
       }
 
       this_spec->solved = true;
@@ -268,6 +271,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         } else if (constant_ir->isa_<ir::VectorInt16Attr>()) {
           auto ci = constant_ir->cast_<ir::VectorInt16Attr>();
@@ -275,6 +279,7 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
 
           // FIXME: We hard code uint16 here.
           tv->tensor_ = Tensor::ones({1}, kUInt16, kCPU);
+          tv->tensor_ = tv->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
           tv->tensor_.at<mllm_uint16_t>({0}) = ptq_constant_v;
         }
 
@@ -282,7 +287,8 @@ void _recursiveSolveNormalImpl(const ir::IRContext::ptr_t& ctx, const ir::Val::p
         tv->removeAttr("constant");
         tv->setAttr("constant", _attr);
 
-        MLLM_INFO("Constant tensor '{}' quantized (SymPerTensor): before={}, after={}", tv->name(), constant_v, ptq_constant_v);
+        MLLM_INFO("Constant tensor '{}' quantized (SymPerTensor): before={}, after={}. With scale={}", tv->name(), constant_v,
+                  ptq_constant_v, scale.item<float>());
       }
 
       this_spec->solved = true;
@@ -337,7 +343,8 @@ void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const 
         if (!tv->getAttr("quant_recipe")) continue;
         auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
         if (!f_spec->spec_->solved) {
-          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, used by Op: '{}'", tv->name(), op_name);
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "PTQPass: TensorValue '{}' is not solved, used by Op: '{}'", tv->name(),
+                          op_name);
         }
       }
 
@@ -347,7 +354,8 @@ void recursiveCheckUnsolved(const std::shared_ptr<ir::IRContext>& ir_ctx, const 
         if (!tv->getAttr("quant_recipe")) continue;
         auto f_spec = tv->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
         if (!f_spec->spec_->solved) {
-          MLLM_WARN("PTQPass: TensorValue '{}' is not solved, produced by Op: '{}'", tv->name(), op_name);
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "PTQPass: TensorValue '{}' is not solved, produced by Op: '{}'", tv->name(),
+                          op_name);
         }
       }
     }

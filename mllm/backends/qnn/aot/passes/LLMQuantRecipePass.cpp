@@ -481,6 +481,10 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
   MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
   auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
 
+  // RMSNorm weight dtype must be uint16, force set to kUInt16PerTensorAsy
+  MLLM_RETURN_FALSE_IF_NOT(t->tensor_.dtype() == kUInt16 || t->tensor_.dtype() == kUInt16PerTensorAsy);
+  t->tensor_ = t->tensor_.__unsafeSetDType(kUInt16PerTensorAsy);
+
   // FIXME: This dtype is hardcoded. We should make it right.
   auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
       ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil()));
@@ -602,7 +606,8 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
     }
   }
 
-  o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
+  // Create a NEW quant_recipe for output (don't share with input) so that PTQ pass can solve it independently
+  o_0->setAttr("quant_recipe", genSimpleQuantizationSpecAttr(writer.getContext(), o_0->cast_<ir::tensor::TensorValue>()));
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
   annotation_attr->annotation_.inputs.emplace_back(
@@ -743,21 +748,18 @@ bool LLMQuantRecipeEqualPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_
       auto i_1_tensor = i_1->cast_<ir::tensor::TensorValue>()->tensor_;
       switch (i_1_tensor.dtype()) {
         case kUInt16:
-        case kUInt8:
         case kInt16:
-        case kInt8:
-        case kFloat32:
-        case kFloat16:
-        case kBFloat16: {
-          i_1->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
-                                           ir::linalg::QuantizationSpecRaw::create(i_1_tensor.dtype())));
+        case kFloat32: {
+          // Force all i_1 to be uint16 per tensor asy
+          i_1->setAttr("quant_recipe",
+                       writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(ir::linalg::QuantizationSpecAsymPerTensor::create(
+                           0, 65535, kUInt16, kFloat32, kInt32, Tensor::nil(), Tensor::nil())));
           break;
         }
         default: {
-          NYI("Only support [int16, int8, bf16, f16, f32] for now.");
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "Only support [int16, f32] for now.");
         }
       }
-
     } else {
       MLLM_WARN("LLMQuantRecipeEqualPattern Only support constant Value as second inputs right now. Pls send us a issue or PR "
                 "if you want to compare two normal tensor(rather than static-tensor).");

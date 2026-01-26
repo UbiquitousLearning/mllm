@@ -1,7 +1,7 @@
 {
     "target_machine": {
-        "htp_arch": "V79",
-        "htp_chipset": "SM8750",
+        "htp_arch": "V75",
+        "htp_chipset": "SM8650",
         "htp_try_best_performance": "HtpBurst",
         "htp_security_pd_session": "HtpSignedPd",
         "htp_vtcm_capability_in_mb": 8
@@ -20,9 +20,10 @@
             "model": "qwen3",
             "lm_head": {
                 "fallback": {
-                    "method": "per-channel",
+                    "method": "LPBQ",
                     "sym": true,
-                    "precision": "w8a16"
+                    "precision": "w4a16",
+                    "block_size": 32
                 }
             },
             "linear": {

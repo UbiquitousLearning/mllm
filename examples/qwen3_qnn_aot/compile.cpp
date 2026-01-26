@@ -37,6 +37,13 @@ MLLM_MAIN({
   auto model_cfg = mllm::models::qwen3::Qwen3Config(model_cfg_path.get());
   auto model = mllm::models::qwen3::Qwen3ForCausalLM(model_cfg);
   auto params = mllm::load(model_path.get(), mllm::ModelFileVersion::kV2);
+  // Add params for causal mask
+  {
+    params->push("causal_mask.scale", mllm::Tensor::constant(0.001 / 65536.f, mllm::kFloat32));
+    params->push("causal_mask.zero_point", mllm::Tensor::constant(65536, mllm::kInt8));
+    params->push("constant_zero.scale", mllm::Tensor::constant(0.001 / 65536.f, mllm::kFloat32));
+    params->push("constant_zero.zero_point", mllm::Tensor::constant(65536, mllm::kInt8));
+  }
   model.load(params);
 
   // Sequence: [B, N]
@@ -45,6 +52,14 @@ MLLM_MAIN({
   // causal_mask: [B, 1, N, CL]
   auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
   auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
+
+  // NOTE: force set causal mask to UInt16Asy
+  // NOTE: Attach scale and zero point to causal mask
+  {
+    causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
+    causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
+    causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
+  }
 
   // Create KV cache inputs for all layers
   std::unordered_map<std::string, mllm::Tensor> trace_inputs;
@@ -83,4 +98,6 @@ MLLM_MAIN({
   pm.run();
 
   mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
+
+  qnn_aot_env.saveContext("context.0", "qwen3-1.7B-lpbq.bin");
 });
