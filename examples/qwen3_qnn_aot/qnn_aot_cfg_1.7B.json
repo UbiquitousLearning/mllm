@@ -23,7 +23,7 @@
                     "method": "LPBQ",
                     "sym": true,
                     "precision": "w4a16",
-                    "block_size": 32
+                    "block_size": 16
                 }
             },
             "linear": {
@@ -31,7 +31,7 @@
                     "method": "LPBQ",
                     "sym": true,
                     "precision": "w4a16",
-                    "block_size": 32
+                    "block_size": 16
                 }
             },
             "kv_cache": {

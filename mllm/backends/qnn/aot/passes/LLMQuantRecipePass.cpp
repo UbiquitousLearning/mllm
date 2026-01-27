@@ -317,8 +317,9 @@ bool LLMQuantRecipeConv2DPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
       ir::linalg::QuantizationSpecLPBQ::ptr_t weight_quant_spec = nullptr;
 
       if (precision == "w4a16") {
+        // HWIO
         weight_quant_spec =
-            ir::linalg::QuantizationSpecLPBQ::create(-8, 7, block_size, 0, 4, kUInt4, kFloat32, Tensor::nil(), Tensor::nil());
+            ir::linalg::QuantizationSpecLPBQ::create(-7, 7, block_size, 3, 4, kInt4, kFloat32, Tensor::nil(), Tensor::nil());
 
         // output sym int16
         auto out_quant_spec = ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65536 - 1, kUInt16, kFloat32, kInt32,

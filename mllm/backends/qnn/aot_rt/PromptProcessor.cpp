@@ -65,8 +65,7 @@ void PromptProcessor<T>::init_io() {
   output_tensors_.reserve(1 + 2 * config_.num_layers);
 
   // 1. Logits
-  // DBG:
-  auto logits = Tensor::empty({1, 1, config_.ar_len, 2048}, kUInt16, kQNN).alloc();
+  auto logits = Tensor::empty({1, 1, config_.ar_len, config_.vocab_size}, kUInt16, kQNN).alloc();
   logits.setName("logits");
   output_tensors_.push_back(logits);
 
@@ -125,17 +124,14 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
   kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, config_.ar_len, start_pos,
                                  config_.sliding_window);
 
-  // DBG: fake output tensors
-  std::vector<Tensor> fake_output_tensors = {output_tensors_[0]};
-  module_->setOutputTensors(fake_output_tensors);
+  module_->setOutputTensors(output_tensors_);
 
   while (processed_tokens < num_tokens) {
     int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - processed_tokens);
 
     prepare_io(prompt_tokens, processed_tokens, current_pos);
 
-    // auto module_input = input_tensors_;
-    std::vector<Tensor> module_input = {input_tensors_[0]};
+    std::vector<Tensor> module_input = input_tensors_;
     output_tensors_ = (*module_)(module_input);
 
     int32_t n_update = chunk_size;
@@ -150,21 +146,11 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
     current_pos += chunk_size;
   }
 
-  // auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, (num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
+  auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, (num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
 
-  auto fp_logits = mllm::Tensor::zeros(output_tensors_[0].shape(), kFloat32, kCPU);
-  for (int i = 0; i < 32; i++) {
-    for (int j = 0; j < 2048; ++j) {
-      fp_logits.ptr<float>()[i * 2048 + j] = (output_tensors_[0].ptr<uint16_t>()[i * 2048 + j] - 21899) * 0.00029409534;
-    }
-  }
-  mllm::print(fp_logits);
-  exit(0);
+  auto cur_token = module_->sampleGreedy(logits);
 
-  // auto cur_token = module_->sampleGreedy(logits);
-
-  // return cur_token;
-  return 0;
+  return cur_token;
 }
 
 // Explicit instantiations

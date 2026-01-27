@@ -172,6 +172,7 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       break;
     }
     case ir::linalg::QuantizationSpecType::kLPBQ: {
+      MLLM_INFO("Solving LPBQ quantization for tensor: {}", v->tensor_.name());
       // This LPBQ Type is for Conv2D Only !!! Linear has diff layout cmp with conv2d
 
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(quant_spec);

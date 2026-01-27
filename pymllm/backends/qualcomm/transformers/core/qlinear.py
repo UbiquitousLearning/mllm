@@ -5,6 +5,10 @@ from torch.ao.quantization import FakeQuantize, PerChannelMinMaxObserver
 from pymllm.backends.qualcomm.transformers.core.observer import (
     PerBlockParamFakeQuantize,
 )
+from torchao.quantization.quant_primitives import (
+    _quantize_affine,
+    _get_reduction_params,
+)
 
 
 class QLinear(nn.Module):
@@ -172,9 +176,15 @@ class QLinearLPBQ(QLinear):
             quant_min=-7,
             quant_max=7,
             block_size=self.block_size,
-            eps=0.0001 / 255,
+            eps=0.0001 / 65535,
             ch_axis=0,
         )
+
+    def enable_fakequant(self):
+        self.weight_quant.enable_fake_quant()
+
+    def disable_fakequant(self):
+        self.weight_quant.disable_fake_quant()
 
     def forward(self, x):
         # Must use quantized weights w_q for computation
@@ -193,12 +203,16 @@ class QLinearLPBQ(QLinear):
 
         # Convert weight to int4 (represent as int8)
         assert self.weight.shape[-1] % self.block_size[1] == 0
-        weight_int4 = self.weight.reshape(self.out_features, -1, self.block_size[1])
-        weight_int4 = weight_int4 / linear_scale.unsqueeze(-1)
-        weight_int4 = weight_int4.reshape(self.out_features, -1)
-        weight_int4 = weight_int4.round()
-        assert weight_int4.min() >= -7 and weight_int4.max() <= 7
-        weight_int4 = weight_int4.clamp(min=-7, max=7).to(torch.int8)
+        assert linear_zero_point.sum() == 0
+        weight_int4 = _quantize_affine(
+            self.weight,
+            self.block_size,
+            linear_scale,
+            linear_zero_point,
+            torch.int32,
+            quant_min=-7,
+            quant_max=7,
+        ).to(torch.int8)
 
         # LPBQ Scale Quantization
         # Quantize fp32 scale to uint4 scale
@@ -218,15 +232,12 @@ class QLinearLPBQ(QLinear):
             ).to(quant_scales_dtype)
             quantized_scales.append(q_scales)
             level_2_scales.append(max_scale)
-        quantized_scales = torch.stack(
-            quantized_scales, dim=0
-        )  # [level 1, scale is uint4]
-        level_2_scales = torch.stack(level_2_scales, dim=0)  # [level 2, scale is fp32]
+        quantized_scales = torch.cat(quantized_scales)  # [level 1, scale is uint4]
+        level_2_scales = torch.cat(level_2_scales)  # [level 2, scale is fp32]
 
         # Reformat Linear weight layout(OI) to Conv2d layout(HWIO,H=1,W=1)
         weight_int4 = (
-            weight_int4.t()
-            .contiguous()
+            weight_int4.T.contiguous()
             .view(1, 1, self.in_features, self.out_features)
             .contiguous()
         )

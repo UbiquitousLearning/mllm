@@ -166,10 +166,22 @@ def enable_qdq_observer(m):
 def enable_fake_quant(m):
     if isinstance(m, ActivationQDQ) or isinstance(m, FixedActivationQDQ):
         m.enable_fakequant()
+    if isinstance(m, QLinearLPBQ):
+        m.enable_fakequant()
+    if isinstance(m, QRMSNorm):
+        m.enable_fakequant()
+    if isinstance(m, QEmbedding):
+        m.enable_fakequant()
 
 
 def disable_fake_quant(m):
     if isinstance(m, ActivationQDQ) or isinstance(m, FixedActivationQDQ):
+        m.disable_fakequant()
+    if isinstance(m, QLinearLPBQ):
+        m.disable_fakequant()
+    if isinstance(m, QRMSNorm):
+        m.disable_fakequant()
+    if isinstance(m, QEmbedding):
         m.disable_fakequant()
 
 
