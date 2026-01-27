@@ -2,6 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.ao.quantization import FakeQuantize, PerChannelMinMaxObserver
+from pymllm.backends.qualcomm.transformers.core.observer import (
+    PerBlockParamFakeQuantize,
+)
+from torchao.quantization.quant_primitives import (
+    _quantize_affine,
+    _get_reduction_params,
+)
 
 
 class QLinear(nn.Module):
@@ -25,15 +32,18 @@ class QLinear(nn.Module):
         if self.weight_quant is not None:
             # Compatible with official FakeQuantize module
             if (
-                isinstance(self.weight_quant, FakeQuantize)
+                isinstance(self.weight_quant, PerBlockParamFakeQuantize)
                 and self.weight_quant is not None
             ):
-                _ = self.weight_quant(self.weight)
+                self.weight_quant.enable_observer()
+                self.weight_quant.activation_post_process(self.weight)
+                s, zp = self.weight_quant.activation_post_process.calculate_qparams()
                 self.weight_quant.disable_observer()
-                s = self.weight_quant.scale
+                self.weight_quant.scale = s
+                self.weight_quant.zero_point = zp
                 print(
                     f"[{self.__class__.__name__}] Scale Shape: {list(s.shape)}, "
-                    f"scale[:3]: {s.flatten()[:3].tolist()}"
+                    f"scale[:3]: {s.flatten()[:3].tolist()}, zp: {zp.flatten()[:3].tolist()}"
                 )
             # Compatible with custom LPBQ logic
             elif hasattr(self.weight_quant, "freeze"):
@@ -157,78 +167,24 @@ class QLinearW8A16_PerChannelSym(QLinear):
         )
 
 
-# --- 2. LPBQ (Double Quantization) Scheme ---
-class DoubleQuantizer(nn.Module):
-    """
-    Handles LPBQ double normalization logic to work like FakeQuantize
-    """
-
-    def __init__(self, block_size=64):
-        super().__init__()
-        self.block_size = block_size
-        self.register_buffer("is_frozen", torch.tensor(False))
-        self.register_buffer("scale_2_fp32", None)
-        self.register_buffer("scale_1_uint4", None)
-        self.register_buffer("weight_q", None)
-        self.w_recon_cached = None  # Cache dequantized weights for acceleration
-
-    def freeze(self, w):
-        # Run complete double quantization and store in buffer
-        self.w_recon_cached = self.quantize_dequantize(w, save_buffers=True)
-        self.is_frozen = torch.tensor(True)
-
-    def quantize_dequantize(self, w, save_buffers=False):
-        out_channels, in_channels = w.shape
-        # 1. Padding handling
-        pad_len = (self.block_size - in_channels % self.block_size) % self.block_size
-        if pad_len > 0:
-            w = F.pad(w, (0, pad_len), "constant", 0)
-
-        w_reshaped = w.view(out_channels, -1, self.block_size)
-
-        # Level 1: FP32 Scale
-        s1 = w_reshaped.abs().amax(dim=-1, keepdim=True) / 7.0
-        s1 = s1.clamp(min=1e-8)
-
-        # Level 2: Quantize S1 to Uint4
-        s2 = s1.amax(dim=1, keepdim=True) / 15.0
-        s2 = s2.clamp(min=1e-8)
-        s1_q = (s1 / s2).round().clamp(0, 15)
-        s1_recon = s1_q * s2
-
-        # Level 3: Quantize Weight to Int4
-        w_q = (w_reshaped / s1_recon).round().clamp(-8, 7)
-        w_recon = w_q * s1_recon
-
-        if save_buffers:
-            self.scale_2_fp32 = s2.detach()
-            self.scale_1_uint4 = s1_q.detach().to(torch.uint8)
-            self.weight_q = w_q.detach().to(torch.int8)
-
-        # Restore shape
-        w_out = w_recon.view(out_channels, -1)
-        if pad_len > 0:
-            w_out = w_out[:, :-pad_len]
-        return w_out
-
-    def forward(self, w):
-        if self.is_frozen:
-            # If frozen, directly return cached reconstructed weights (or real-time dequantization from Buffer)
-            if self.w_recon_cached is None:
-                # Logic to reconstruct from weight_q + scale_1 + scale_2 can be written here
-                pass
-            return (
-                self.w_recon_cached
-                if self.w_recon_cached is not None
-                else self.quantize_dequantize(w)
-            )
-        return self.quantize_dequantize(w)
-
-
 class QLinearLPBQ(QLinear):
     def __init__(self, in_features, out_features, bias=True, block_size=64):
         super().__init__(in_features, out_features, bias)
-        self.weight_quant = DoubleQuantizer(block_size)
+        self.block_size = [1, block_size]
+        self.weight_quant = PerBlockParamFakeQuantize(
+            dtype=torch.int8,
+            quant_min=-7,
+            quant_max=7,
+            block_size=self.block_size,
+            eps=0.0001 / 65535,
+            ch_axis=0,
+        )
+
+    def enable_fakequant(self):
+        self.weight_quant.enable_fake_quant()
+
+    def disable_fakequant(self):
+        self.weight_quant.disable_fake_quant()
 
     def forward(self, x):
         # Must use quantized weights w_q for computation
@@ -236,80 +192,64 @@ class QLinearLPBQ(QLinear):
         return F.linear(x, w_q, self.bias)
 
     @torch.no_grad()
-    def convert_to_deploy(self):
-        if self.deploy_mode:
-            return
-
-        del self.weight
-        self.register_buffer(
-            "weight",
-            self.weight_quant.weight_q.reshape(self.weight_quant.weight_q.shape[0], -1),
-        )
-        self.register_buffer("scale1", self.weight_quant.scale_1_uint4)
-        self.register_buffer("scale2", self.weight_quant.scale_2_fp32)
-        del self.weight_quant
-
-        self.deploy_mode = True
-        print(
-            f"[{self.__class__.__name__}] Converted to deploy. Original float weight removed."
-        )
-
-    @torch.no_grad()
     def convert_to_conv2d_deploy_hwio(self):
-        """
-        Convert to deploy format with HWIO layout [1, 1, In, Out].
-        This format is commonly used by convolution-based inference engines.
-        """
-        if self.deploy_mode:
-            return
-        if not self.weight_quant.is_frozen:
-            self.freeze_weight()
+        linear_scale = self.weight_quant.scale
+        linear_zero_point = self.weight_quant.zero_point
+        print(
+            "Original Linear Scale[:3]: , zp[:3]: ",
+            linear_scale.flatten()[:3].tolist(),
+            linear_zero_point.flatten()[:3].tolist(),
+        )
 
-        # Step 1: Extract quantized weights in block format
-        # Shape: [Out, Blocks, BlockSize]
-        w_q_blocks = self.weight_quant.weight_q
+        # Convert weight to int4 (represent as int8)
+        assert self.weight.shape[-1] % self.block_size[1] == 0
+        assert linear_zero_point.sum() == 0
+        weight_int4 = _quantize_affine(
+            self.weight,
+            self.block_size,
+            linear_scale,
+            linear_zero_point,
+            torch.int32,
+            quant_min=-7,
+            quant_max=7,
+        ).to(torch.int8)
 
-        # Step 2: Flatten and remove padding
-        w_q_flat = w_q_blocks.view(self.out_features, -1)  # Shape: [Out, In_Padded]
-        if w_q_flat.shape[1] > self.in_features:
-            w_q_flat = w_q_flat[:, : self.in_features]
+        # LPBQ Scale Quantization
+        # Quantize fp32 scale to uint4 scale
+        bitwidth_of_scale = 4
+        num_channels = linear_scale.shape[0]  # [O, I / block_size[1]]
+        num_steps = 2**bitwidth_of_scale
+        quant_scales_dtype = torch.uint8
+        quantized_scales = []
+        level_2_scales = []
+        for ch in range(num_channels):
+            candidates = linear_scale[ch]
+            max_scale = candidates.reshape(1, -1).amax(dim=-1) / num_steps
+            q_scales = torch.clamp(
+                input=torch.round(input=candidates / max_scale),
+                min=1,
+                max=2**bitwidth_of_scale,
+            ).to(quant_scales_dtype)
+            quantized_scales.append(q_scales)
+            level_2_scales.append(max_scale)
+        quantized_scales = torch.cat(quantized_scales)  # [level 1, scale is uint4]
+        level_2_scales = torch.cat(level_2_scales)  # [level 2, scale is fp32]
 
-        # Step 3: Critical step - Transpose weights
-        # [Out, In] -> [In, Out]
-        w_transposed = w_q_flat.t().contiguous()
-
-        # Step 4: Reshape to HWIO [1, 1, In, Out]
-        w_hwio = w_transposed.view(1, 1, self.in_features, self.out_features)
-
-        # Step 5: Process LPBQ Scales
-        # Scale2 (Per-Channel): Original [Out, 1, 1]
-        # Target: [1, 1, 1, Out]
-        s2 = self.weight_quant.scale_2_fp32
-        s2_hwio = s2.flatten().view(1, 1, 1, self.out_features)
-
-        # Scale1 (Per-Block): Original [Out, n_blocks, 1]
-        # n_blocks corresponds to Input Channel blocking
-        # When weights are transposed, scale layout needs to match engine read order
-        # Assuming engine reads (1, 1, In, Out), Scale1 maintains block correspondence
-        # Transpose to [1, 1, n_blocks, Out] to logically match HWIO order
-        s1 = self.weight_quant.scale_1_uint4  # Shape: [Out, Blocks, 1]
-        s1_permuted = (
-            s1.view(self.out_features, -1).t().contiguous()
-        )  # [Out, Blocks] -> [Blocks, Out]
-        s1_hwio = s1_permuted.view(
-            1, 1, -1, self.out_features
-        )  # Shape: [1, 1, Blocks, Out]
+        # Reformat Linear weight layout(OI) to Conv2d layout(HWIO,H=1,W=1)
+        weight_int4 = (
+            weight_int4.T.contiguous()
+            .view(1, 1, self.in_features, self.out_features)
+            .contiguous()
+        )
 
         del self.weight
-        self.register_buffer("weight", w_hwio)
-        self.register_buffer("scale1", s1_hwio)
-        self.register_buffer("scale2", s2_hwio)
+        self.register_buffer("weight", weight_int4)
+        self.register_buffer("scale1", quantized_scales.flatten())
+        self.register_buffer("scale2", level_2_scales.flatten())
         del self.weight_quant
-
         self.deploy_mode = True
         print(
-            f"[{self.__class__.__name__}] Converted to HWIO.\n"
-            f"   Weight: {self.weight.shape}\n"
-            f"   Scale1: {self.scale1.shape} (Blocks, Out)\n"
-            f"   Scale2: {self.scale2.shape} (1, Out)"
+            f"[{self.__class__.__name__}] Converted to HWIO. Weight: {self.weight.shape}",
+            f"Scale1(uint4): {self.scale1.shape}",
+            f"Scale2(fp32): {self.scale2.shape}",
         )

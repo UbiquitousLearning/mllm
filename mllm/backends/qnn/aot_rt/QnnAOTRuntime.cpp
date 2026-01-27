@@ -1,9 +1,10 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/backends/qnn/aot_rt/QnnAOTRuntime.hpp"
 #include <algorithm>
 #include <cstring>
+
+#include "mllm/backends/qnn/aot_rt/QnnAOTRuntime.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"

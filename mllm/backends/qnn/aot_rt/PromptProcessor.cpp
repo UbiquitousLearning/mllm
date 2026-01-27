@@ -65,8 +65,7 @@ void PromptProcessor<T>::init_io() {
   output_tensors_.reserve(1 + 2 * config_.num_layers);
 
   // 1. Logits
-  // DBG:
-  auto logits = Tensor::empty({1, 1, config_.ar_len, 2048}, kUInt16, kQNN).alloc();
+  auto logits = Tensor::empty({1, 1, config_.ar_len, config_.vocab_size}, kUInt16, kQNN).alloc();
   logits.setName("logits");
   output_tensors_.push_back(logits);
 
@@ -132,7 +131,7 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
 
     prepare_io(prompt_tokens, processed_tokens, current_pos);
 
-    auto module_input = input_tensors_;
+    std::vector<Tensor> module_input = input_tensors_;
     output_tensors_ = (*module_)(module_input);
 
     int32_t n_update = chunk_size;
