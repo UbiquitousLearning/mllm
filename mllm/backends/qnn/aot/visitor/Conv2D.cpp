@@ -94,6 +94,16 @@ bool QnnAOTConv2DPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
     qnn_op_node->emplaceParamTensor(pad_amount_param);
   }
 
+  // Add params: dilation
+  {
+    auto dilation_param = QNNParamTensorWrapper::create("dilation", base_op->getName() + ".dilation", QNN_DATATYPE_UINT_32,
+                                                        std::vector<uint32_t>{2});
+    uint32_t* data = static_cast<uint32_t*>(dilation_param->alloc());
+    data[0] = 1;
+    data[1] = 1;
+    qnn_op_node->emplaceParamTensor(dilation_param);
+  }
+
   // Register this op node into one graph.
   env->captureAOTNodeOp(qnn_context_name, qnn_graph_name, qnn_op_node);
 
