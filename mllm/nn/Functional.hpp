@@ -20,6 +20,8 @@ namespace mllm::nn::functional {
 Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A = false, bool transpose_B = false,
               aops::MatMulOpType type = aops::MatMulOpType::kDefault);
 
+Tensor linear(const Tensor& x, const Tensor& weight, const Tensor& bias = Tensor());
+
 Tensor view(const Tensor& x, const std::vector<int32_t>& shape);
 
 std::vector<Tensor> split(const Tensor& x, int32_t split_size_or_sections, int32_t dim);
@@ -130,6 +132,8 @@ Tensor mean(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), 
 
 Tensor silu(const Tensor& x);
 Tensor silu_(const Tensor& x);
+
+Tensor rms_norm(const Tensor& x, const Tensor& weight, float epsilon = 1e-5f, bool add_unit_offset = false);
 
 void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim);
 

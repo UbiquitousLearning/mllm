@@ -217,6 +217,13 @@ void fillAtbTensorDesc(const Tensor& t, atb::TensorDesc& desc) {
   }
 }
 
+void fillAtbTensor(const Tensor& t, atb::Tensor& atb_tensor) {
+  fillAtbTensorDesc(t, atb_tensor.desc);
+  atb_tensor.deviceData = reinterpret_cast<uint8_t*>(t.ptr<void>());
+  // Use MLLM tensor's actual bytes as dataSize to match allocated memory
+  atb_tensor.dataSize = t.bytes();
+}
+
 AscendDeviceMetaInfo::AscendDeviceMetaInfo() {
 #ifndef ASCENDC_CPU_DEBUG
   // Initialize ACL to query devices
@@ -231,7 +238,6 @@ AscendDeviceMetaInfo::AscendDeviceMetaInfo() {
   ret = aclrtGetDeviceCount(&device_count);
   if (ret != ACL_SUCCESS) {
     MLLM_ERROR("Failed to get Ascend device count: {}", ret);
-    aclFinalize();
     return;
   }
 
@@ -265,9 +271,6 @@ AscendDeviceMetaInfo::AscendDeviceMetaInfo() {
 
     devices.push_back(info);
   }
-
-  // Finalize ACL after enumeration
-  aclFinalize();
 #else
   // In CPU debug mode, add a dummy device
   AscendDeviceInfo info;

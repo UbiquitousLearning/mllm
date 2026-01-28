@@ -1,7 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/backends/ascend/ops/AscendElewiseOps.hpp"
+#include "mllm/backends/ascend/ops/AscendMatMulOp.hpp"
 
 #include <acl/acl.h>
 #include <atb/atb_infer.h>
@@ -17,51 +17,49 @@
 
 namespace mllm::ascend {
 
-AscendAddOp::AscendAddOp(const aops::AddOpOptions& options) : aops::AddOp(options) {}
+AscendMatMulOp::AscendMatMulOp(const aops::MatMulOpOptions& options) : aops::MatMulOp(options) {}
 
-void AscendAddOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+void AscendMatMulOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   BaseOp::setup(inputs, outputs);
 }
 
-void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+void AscendMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   MLLM_RT_ASSERT_EQ(inputs.size(), 2);
   MLLM_RT_ASSERT_EQ(outputs.size(), 1);
 
-  const auto& x = inputs[0];
-  const auto& y = inputs[1];
-  auto& z = outputs[0];
+  const auto& A = inputs[0];  
+  const auto& B = inputs[1];  
+  auto& C = outputs[0];       
 
-  if (x.dtype() != y.dtype() || x.dtype() != z.dtype()) {
-    NYI("AscendAddOp currently requires x/y/z have same dtype");
-  }
-  if (x.numel() != y.numel() || x.numel() != z.numel()) {
-    NYI("AscendAddOp demo only supports no-broadcast case (numel equal)");
-  }
-
-  atb::infer::ElewiseParam addParam;
-  addParam.elewiseType = atb::infer::ElewiseParam::ELEWISE_ADD;
+  // Create LinearParam for ATB (used for MatMul)
+  atb::infer::LinearParam linearParam;
+  linearParam.transposeA = options_.transpose_a;
+  linearParam.transposeB = options_.transpose_b;
+  linearParam.hasBias = false;  
+  linearParam.outDataType = ACL_DT_UNDEFINED;
+  linearParam.enAccum = false;
+  linearParam.matmulType = atb::infer::LinearParam::MATMUL_UNDEFINED;
+  linearParam.quantMode = atb::infer::LinearParam::QUANT_UNDEFINED;
 
   atb::Operation* op = nullptr;
-  auto st = atb::CreateOperation(addParam, &op);
+  auto st = atb::CreateOperation(linearParam, &op);
   if (st != atb::NO_ERROR || op == nullptr) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB CreateOperation(ELEWISE_ADD) failed, status={}", static_cast<int>(st));
+    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB CreateOperation(MatMul) failed, status={}", static_cast<int>(st));
   }
 
   atb::Context* atb_ctx = getGlobalAtbContext();
 
-  atb::Tensor atb_x;
-  atb::Tensor atb_y;
-  atb::Tensor atb_z;
 
-  fillAtbTensor(x, atb_x);
-  fillAtbTensor(y, atb_y);
-  fillAtbTensor(z, atb_z);
+  atb::Tensor atb_A, atb_B, atb_C;
+  fillAtbTensor(A, atb_A);
+  fillAtbTensor(B, atb_B);
+  fillAtbTensor(C, atb_C);
 
   atb::SVector<atb::Tensor> inTensors;
   atb::SVector<atb::Tensor> outTensors;
-  inTensors.push_back(atb_x);
-  inTensors.push_back(atb_y);
-  outTensors.push_back(atb_z);
+  inTensors.push_back(atb_A);
+  inTensors.push_back(atb_B);
+  outTensors.push_back(atb_C);
 
   atb::VariantPack vp;
   vp.inTensors = inTensors;
@@ -70,7 +68,7 @@ void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   uint64_t workspaceSize = 0;
   st = op->Setup(vp, workspaceSize, atb_ctx);
   if (st != atb::NO_ERROR) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB AddOp Setup failed, status={}", static_cast<int>(st));
+    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB MatMulOp Setup failed, status={}", static_cast<int>(st));
   }
 
   void* workspace = nullptr;
@@ -80,15 +78,16 @@ void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mem_mgr.allocateBlock(static_cast<uint32_t>(workspaceSize), workspace_block_id);
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
+
   {
-    ASCEND_TIME_SCOPE("AscendAddOp::forward");
+    ASCEND_TIME_SCOPE("AscendMatMulOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
+
   if (st != atb::NO_ERROR) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB AddOp Execute failed, status={}", static_cast<int>(st));
+    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB MatMulOp Execute failed, status={}", static_cast<int>(st));
   }
 
-  
   syncGlobalAtbStream();
 
   if (workspace_block_id != -1) {
