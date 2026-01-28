@@ -39,7 +39,7 @@ MLLM_MAIN({
 
   auto input_tensor = tokenizer.convertMessage({.prompt = "hello"});
 
-  input_tensor["sequence"] = mllm::Tensor::arange(0, 256, 1, mllm::kInt64, mllm::kCPU).view({1, -1});
+  input_tensor["sequence"] = mllm::Tensor::arange(0, 800, 1, mllm::kInt64, mllm::kCPU).view({1, -1});
 
   // DBG:
   mllm::print(input_tensor["sequence"].shape());
@@ -51,7 +51,7 @@ MLLM_MAIN({
     return 1;
   }
 
-  runner.generate(input_tensor["sequence"], 128, [](const std::string& token) { std::cout << token << std::flush; }, true);
+  runner.generate(input_tensor["sequence"], 32, [](const std::string& token) { std::cout << token << std::flush; }, true);
   std::cout << "\n";
 
   return 0;

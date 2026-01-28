@@ -98,8 +98,8 @@ QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
               .powerMode = QNN_HTP_PERF_INFRASTRUCTURE_POWERMODE_PERFORMANCE_MODE,
               .setSleepLatency = 1,  // True to consider Latency parameter otherwise False
               .sleepLatency = 40,    // set dsp sleep latency ranges 10-65535 micro sec, refer hexagon sdk
-              .setSleepDisable = 1,  // True to consider sleep disable/enable parameter otherwise False
-              .sleepDisable = 1,     // True to disable sleep, False to re-enable sleep
+              .setSleepDisable = 0,  // True to consider sleep disable/enable parameter otherwise False
+              .sleepDisable = 0,     // True to disable sleep, False to re-enable sleep
               .setBusParams = 1,     // True to consider Bus parameter otherwise False
               .busVoltageCornerMin = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,
               .busVoltageCornerTarget = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER,

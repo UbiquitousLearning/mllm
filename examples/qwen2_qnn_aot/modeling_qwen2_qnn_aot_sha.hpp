@@ -18,7 +18,7 @@
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
 
-namespace mllm::models::qwen3::sha {
+namespace mllm::models::qwen2::sha {
 
 namespace ptq {
 
@@ -137,13 +137,13 @@ Tensor rotateHalf(Tensor x, nn::Module* m, const std::string& qdq_name_in_pytorc
 }
 
 using vi32 = std::vector<int32_t>;
-#define CONV2D_PROPERTY vi32{1, 1}, vi32{1, 1}, vi32{0, 0}, vi32{1, 1}, false, aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G16
+#define CONV2D_PROPERTY vi32{1, 1}, vi32{1, 1}, vi32{0, 0}, vi32{1, 1}, false, aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32
 
 // Using Conv2D to replace Linear.
 // Conv2D Filter Weight is [1, 1, In, Out]
 // Conv2D Activation is [N, H=1, W=Seq, In]
 
-class Qwen3MLP final : public nn::Module {
+class Qwen2MLP final : public nn::Module {
   nn::Conv2D gate_proj_;
   nn::Conv2D up_proj_;
   nn::Conv2D down_proj_;
@@ -152,8 +152,8 @@ class Qwen3MLP final : public nn::Module {
   int intermediate_size_;
 
  public:
-  Qwen3MLP() = default;
-  Qwen3MLP(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+  Qwen2MLP() = default;
+  Qwen2MLP(const std::string& name, const qwen3::Qwen3Config& cfg) : nn::Module(name) {
     gate_proj_ = reg<nn::Conv2D>("gate_proj", cfg.hidden_size, cfg.intermediate_size, CONV2D_PROPERTY);
     silu_ = reg<nn::SiLU>("act");
     up_proj_ = reg<nn::Conv2D>("up_proj", cfg.hidden_size, cfg.intermediate_size, CONV2D_PROPERTY);
@@ -195,8 +195,9 @@ class Qwen3MLP final : public nn::Module {
 // 2. Improves HTP runtime performance
 // 3. Enables better memory locality per head
 //
+// Note: Qwen2 does NOT have RMSNorm after Q/K projection (unlike Qwen3)
 
-class Qwen3AttentionSHA final : public nn::Module {
+class Qwen2AttentionSHA final : public nn::Module {
   // Per-head Q projections: num_attention_heads Conv2D(hidden_size, head_dim)
   std::vector<nn::Conv2D> q_projs_;
   // Per-head K projections: num_key_value_heads Conv2D(hidden_size, head_dim)
@@ -205,11 +206,6 @@ class Qwen3AttentionSHA final : public nn::Module {
   std::vector<nn::Conv2D> v_projs_;
   // Single O projection remains unchanged (concatenated heads -> hidden_size)
   nn::Conv2D o_proj_;
-
-  // Per-head RMSNorm for Q
-  std::vector<nn::RMSNorm> rms_norm_q_;
-  // Per-head RMSNorm for K (shared across GQA groups)
-  std::vector<nn::RMSNorm> rms_norm_k_;
 
   nn::CausalMask mask_;
   nn::Softmax softmax_;
@@ -222,9 +218,9 @@ class Qwen3AttentionSHA final : public nn::Module {
   float scale_;
 
  public:
-  Qwen3AttentionSHA() = default;
+  Qwen2AttentionSHA() = default;
 
-  Qwen3AttentionSHA(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+  Qwen2AttentionSHA(const std::string& name, const qwen3::Qwen3Config& cfg) : nn::Module(name) {
     hidden_size_ = cfg.hidden_size;
     num_attention_heads_ = cfg.num_attention_heads;
     num_key_value_heads_ = cfg.num_key_value_heads;
@@ -249,16 +245,6 @@ class Qwen3AttentionSHA final : public nn::Module {
 
     // O projection remains the same (combines all heads)
     o_proj_ = reg<nn::Conv2D>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, CONV2D_PROPERTY);
-
-    // Per-head Q RMSNorm
-    for (int h = 0; h < num_attention_heads_; ++h) {
-      rms_norm_q_.emplace_back(reg<nn::RMSNorm>("q_norm." + std::to_string(h), cfg.rms_norm_eps));
-    }
-
-    // Per-head K RMSNorm (for KV heads)
-    for (int h = 0; h < num_key_value_heads_; ++h) {
-      rms_norm_k_.emplace_back(reg<nn::RMSNorm>("k_norm." + std::to_string(h), cfg.rms_norm_eps));
-    }
 
     mask_ = reg<nn::CausalMask>("mask");
     softmax_ = reg<nn::Softmax>("softmax", -1);
@@ -307,19 +293,22 @@ class Qwen3AttentionSHA final : public nn::Module {
     }
 
     // ========================================================================
-    // Per-head RMSNorm and RoPE
+    // Reshape and Transpose for RoPE
     // ========================================================================
+    // Qwen2 does NOT have RMSNorm here (unlike Qwen3)
+    // Directly apply RoPE after reshaping to [B, H, S, D] format
+    // Each head tensor is [1, 1, S, head_dim], need to reshape to [1, 1, S, head_dim] for RoPE
+    // (The shape is already correct, but we need to ensure QDQ is applied)
 
     auto cos = llm_embedding_cos.unsqueeze(1, true);
     auto sin = llm_embedding_sin.unsqueeze(1, true);
 
-    // Apply RMSNorm and RoPE per Q head
+    // Apply QDQ and RoPE per Q head
+    // Each query_states_per_head[h] is [1, 1, S, head_dim]
     for (int h = 0; h < num_attention_heads_; ++h) {
       std::string h_str = std::to_string(h);
-      query_states_per_head[h] = rms_norm_q_[h](ptq::QDQ(this, query_states_per_head[h], "q_norm_input_qdq_h" + h_str));
-      query_states_per_head[h] = ptq::QDQ(this, query_states_per_head[h], "q_norm_output_qdq_h" + h_str);
-
-      // Apply RoPE
+      query_states_per_head[h] = ptq::QDQ(this, query_states_per_head[h], "q_proj_output_qdq_h" + h_str);
+      // Reshape to [1, 1, S, head_dim] for RoPE (already correct shape)
       query_states_per_head[h] =
           ptq::QDQ(this,
                    ptq::QDQ(this, query_states_per_head[h] * cos, "q_rope_mul_0_output_qdq_h" + h_str)
@@ -328,13 +317,12 @@ class Qwen3AttentionSHA final : public nn::Module {
                    "q_rope_add_0_output_qdq_h" + h_str);
     }
 
-    // Apply RMSNorm and RoPE per K head
+    // Apply QDQ and RoPE per K head
+    // Each key_states_per_head[h] is [1, 1, S, head_dim]
     for (int h = 0; h < num_key_value_heads_; ++h) {
       std::string h_str = std::to_string(h);
-      key_states_per_head[h] = rms_norm_k_[h](ptq::QDQ(this, key_states_per_head[h], "k_norm_input_qdq_h" + h_str));
-      key_states_per_head[h] = ptq::QDQ(this, key_states_per_head[h], "k_norm_output_qdq_h" + h_str);
-
-      // Apply RoPE
+      key_states_per_head[h] = ptq::QDQ(this, key_states_per_head[h], "k_proj_output_qdq_h" + h_str);
+      // Reshape to [1, 1, S, head_dim] for RoPE (already correct shape)
       key_states_per_head[h] =
           ptq::QDQ(this,
                    ptq::QDQ(this, key_states_per_head[h] * cos, "k_rope_mul_0_output_qdq_h" + h_str)
@@ -383,6 +371,7 @@ class Qwen3AttentionSHA final : public nn::Module {
     // Per-head Attention Computation
     // ========================================================================
     // Each Q head computes attention with its corresponding KV head (GQA support)
+    // For GQA, multiple Q heads share the same KV head
 
     std::vector<Tensor> attn_outputs;
 
@@ -439,20 +428,20 @@ class Qwen3AttentionSHA final : public nn::Module {
   int layer_idx_;
 };
 
-class Qwen3DecoderSHA final : public nn::Module {
+class Qwen2DecoderSHA final : public nn::Module {
  public:
   int layer_idx_;
-  Qwen3AttentionSHA self_attn_;
-  Qwen3MLP mlp_;
+  Qwen2AttentionSHA self_attn_;
+  Qwen2MLP mlp_;
   nn::RMSNorm input_layer_norm_;
   nn::RMSNorm post_attention_layer_norm_;
 
-  Qwen3DecoderSHA() = default;
+  Qwen2DecoderSHA() = default;
 
-  Qwen3DecoderSHA(const std::string& name, const Qwen3Config& cfg, int layer_idx) : nn::Module(name) {
+  Qwen2DecoderSHA(const std::string& name, const qwen3::Qwen3Config& cfg, int layer_idx) : nn::Module(name) {
     layer_idx_ = layer_idx;
-    self_attn_ = reg<Qwen3AttentionSHA>("self_attn", cfg);
-    mlp_ = reg<Qwen3MLP>("mlp", cfg);
+    self_attn_ = reg<Qwen2AttentionSHA>("self_attn", cfg);
+    mlp_ = reg<Qwen2MLP>("mlp", cfg);
     input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
     post_attention_layer_norm_ = reg<nn::RMSNorm>("post_attention_layernorm", cfg.rms_norm_eps);
   }
@@ -479,8 +468,8 @@ class Qwen3DecoderSHA final : public nn::Module {
   }
 };
 
-class Qwen3TextSHA final : public nn::Module {
-  nn::ModuleListWithIdx<Qwen3DecoderSHA> decode_blocks_;
+class Qwen2TextSHA final : public nn::Module {
+  nn::ModuleListWithIdx<Qwen2DecoderSHA> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Embedding embedding_;
   nn::Param rope_sin_;
@@ -489,12 +478,12 @@ class Qwen3TextSHA final : public nn::Module {
   int32_t hidden_size_;
 
  public:
-  Qwen3TextSHA() = default;
+  Qwen2TextSHA() = default;
 
-  Qwen3TextSHA(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+  Qwen2TextSHA(const std::string& name, const qwen3::Qwen3Config& cfg) : nn::Module(name) {
     num_hidden_layers_ = cfg.num_hidden_layers;
     hidden_size_ = cfg.hidden_size;
-    decode_blocks_ = reg<nn::ModuleListWithIdx<Qwen3DecoderSHA>>("layers", cfg.num_hidden_layers, cfg);
+    decode_blocks_ = reg<nn::ModuleListWithIdx<Qwen2DecoderSHA>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
@@ -538,14 +527,14 @@ class Qwen3TextSHA final : public nn::Module {
   }
 };
 
-class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
+class Qwen2ForCausalLM_SHA : public ARGeneration, public nn::Module {
  public:
-  explicit Qwen3ForCausalLM_SHA(const Qwen3Config& cfg) : cfg(cfg) {
+  explicit Qwen2ForCausalLM_SHA(const qwen3::Qwen3Config& cfg) : cfg(cfg) {
     eos_token_id_ = cfg.end_of_text_token_id;
     max_length_ = cfg.max_cache_length;
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
-    llm = reg<Qwen3TextSHA>("model", cfg);
+    llm = reg<Qwen2TextSHA>("model", cfg);
 
     if (cfg.tie_word_embeddings) {
       // NOTE:
@@ -569,9 +558,6 @@ class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
       if (input.count(past_key_name)) {
         kv_caches.push_back(input.at(past_key_name));
       } else {
-        // If KV cache doesn't exist, we need to handle this case
-        // For now, we'll create empty tensors or handle it appropriately
-        // This might need adjustment based on your initialization logic
         throw std::runtime_error("Missing KV cache for layer " + std::to_string(i));
       }
     }
@@ -582,9 +568,6 @@ class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
       if (input.count(past_value_name)) {
         kv_caches.push_back(input.at(past_value_name));
       } else {
-        // If KV cache doesn't exist, we need to handle this case
-        // For now, we'll create empty tensors or handle it appropriately
-        // This might need adjustment based on your initialization logic
         throw std::runtime_error("Missing KV cache for layer " + std::to_string(i));
       }
     }
@@ -634,8 +617,8 @@ class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override { return {}; }
 
  private:
-  const Qwen3Config& cfg;
-  Qwen3TextSHA llm;
+  const qwen3::Qwen3Config& cfg;
+  Qwen2TextSHA llm;
   nn::Conv2D lm_head_;
   bool tie_word_embeddings_;
 };
@@ -647,6 +630,8 @@ class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
 // These functions are used during the compile phase to slice the original
 // MHA weights into per-head SHA weights.
 //
+// Note: Qwen2 does NOT have q_norm and k_norm (RMSNorm), so we don't need
+// to slice those parameters.
 
 /**
  * @brief Prepares the parameter file by slicing MHA weights into SHA weights.
@@ -669,7 +654,7 @@ class Qwen3ForCausalLM_SHA : public ARGeneration, public nn::Module {
  * - q_proj.{h}.scale2: sliced scale for head h
  * - Similar for k_proj and v_proj
  */
-inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qwen3Config& cfg) {
+inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const qwen3::Qwen3Config& cfg) {
   int num_heads = cfg.num_attention_heads;
   int num_kv_heads = cfg.num_key_value_heads;
   int head_dim = cfg.head_dim;
@@ -743,82 +728,6 @@ inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qw
     // Process V projection: split into num_kv_heads parts
     sliceAndPushConv2DParams(layer_prefix + "v_proj", layer_prefix + "v_proj", num_kv_heads * head_dim, head_dim, num_kv_heads);
 
-    // Process Q norm params (per head)
-    // RMSNorm has: weight (needs slicing), scale (scalar, copy), zero_point (scalar, copy)
-    {
-      std::string orig_weight_name = layer_prefix + "q_norm.weight";
-      std::string orig_scale_name = layer_prefix + "q_norm.scale";
-      std::string orig_zp_name = layer_prefix + "q_norm.zero_point";
-
-      if (params->has(orig_weight_name)) {
-        auto orig_weight = params->pull(orig_weight_name);  // [num_heads * head_dim]
-
-        // scale and zp are scalars, just need to copy
-        Tensor orig_scale, orig_zp;
-        bool has_scale = params->has(orig_scale_name);
-        bool has_zp = params->has(orig_zp_name);
-        if (has_scale) orig_scale = params->pull(orig_scale_name);
-        if (has_zp) orig_zp = params->pull(orig_zp_name);
-
-        for (int h = 0; h < num_heads; ++h) {
-          std::string h_str = std::to_string(h);
-          // Weight: slice per head
-          std::string new_weight_name = layer_prefix + "q_norm." + h_str + ".weight";  // NOLINT
-          auto sliced = orig_weight.slice({{h * head_dim, (h + 1) * head_dim}}, false);
-          params->push(new_weight_name, sliced.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
-
-          // Scale: copy (scalar)
-          if (has_scale) {
-            std::string new_scale_name = layer_prefix + "q_norm." + h_str + ".scale";  // NOLINT
-            params->push(new_scale_name, orig_scale.contiguous().setMemType(kParamsNormal).setName(new_scale_name));
-          }
-
-          // Zero point: copy (scalar)
-          if (has_zp) {
-            std::string new_zp_name = layer_prefix + "q_norm." + h_str + ".zero_point";  // NOLINT
-            params->push(new_zp_name, orig_zp.contiguous().setMemType(kParamsNormal).setName(new_zp_name));
-          }
-        }
-      }
-    }
-
-    // Process K norm params (per KV head)
-    {
-      std::string orig_weight_name = layer_prefix + "k_norm.weight";
-      std::string orig_scale_name = layer_prefix + "k_norm.scale";
-      std::string orig_zp_name = layer_prefix + "k_norm.zero_point";
-
-      if (params->has(orig_weight_name)) {
-        auto orig_weight = params->pull(orig_weight_name);
-
-        Tensor orig_scale, orig_zp;
-        bool has_scale = params->has(orig_scale_name);
-        bool has_zp = params->has(orig_zp_name);
-        if (has_scale) orig_scale = params->pull(orig_scale_name);
-        if (has_zp) orig_zp = params->pull(orig_zp_name);
-
-        for (int h = 0; h < num_kv_heads; ++h) {
-          std::string h_str = std::to_string(h);
-          // Weight: slice per head
-          std::string new_weight_name = layer_prefix + "k_norm." + h_str + ".weight";  // NOLINT
-          auto sliced = orig_weight.slice({{h * head_dim, (h + 1) * head_dim}}, false);
-          params->push(new_weight_name, sliced.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
-
-          // Scale: copy (scalar)
-          if (has_scale) {
-            std::string new_scale_name = layer_prefix + "k_norm." + h_str + ".scale";  // NOLINT
-            params->push(new_scale_name, orig_scale.contiguous().setMemType(kParamsNormal).setName(new_scale_name));
-          }
-
-          // Zero point: copy (scalar)
-          if (has_zp) {
-            std::string new_zp_name = layer_prefix + "k_norm." + h_str + ".zero_point";  // NOLINT
-            params->push(new_zp_name, orig_zp.contiguous().setMemType(kParamsNormal).setName(new_zp_name));
-          }
-        }
-      }
-    }
-
     // ========================================================================
     // Duplicate QDQ parameters for each head
     // ========================================================================
@@ -845,16 +754,14 @@ inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qw
     };
 
     // Copy QDQ params for Q-related nodes (per Q head)
-    copyQDQParams("q_norm_input_qdq", "q_norm_input_qdq_h", num_heads);
-    copyQDQParams("q_norm_output_qdq", "q_norm_output_qdq_h", num_heads);
+    copyQDQParams("q_proj_output_qdq", "q_proj_output_qdq_h", num_heads);
     copyQDQParams("q_rope_mul_0_output_qdq", "q_rope_mul_0_output_qdq_h", num_heads);
     copyQDQParams("q_rope_mul_1_output_qdq", "q_rope_mul_1_output_qdq_h", num_heads);
     copyQDQParams("q_rope_neg_half_qdq", "q_rope_neg_half_qdq_h", num_heads);
     copyQDQParams("q_rope_add_0_output_qdq", "q_rope_add_0_output_qdq_h", num_heads);
 
     // Copy QDQ params for K-related nodes (per KV head)
-    copyQDQParams("k_norm_input_qdq", "k_norm_input_qdq_h", num_kv_heads);
-    copyQDQParams("k_norm_output_qdq", "k_norm_output_qdq_h", num_kv_heads);
+    copyQDQParams("k_proj_output_qdq", "k_proj_output_qdq_h", num_kv_heads);
     copyQDQParams("k_rope_mul_0_output_qdq", "k_rope_mul_0_output_qdq_h", num_kv_heads);
     copyQDQParams("k_rope_mul_1_output_qdq", "k_rope_mul_1_output_qdq_h", num_kv_heads);
     copyQDQParams("k_rope_neg_half_qdq", "k_rope_neg_half_qdq_h", num_kv_heads);
@@ -878,4 +785,4 @@ inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qw
   }
 }
 
-}  // namespace mllm::models::qwen3::sha
+}  // namespace mllm::models::qwen2::sha

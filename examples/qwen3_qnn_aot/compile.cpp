@@ -20,8 +20,8 @@ MLLM_MAIN({
 
   Argparse::parse(argc, argv);
 
-  constexpr int N = 32;
-  constexpr int CL = 1024;
+  int N = 32;
+  int CL = 1024;
 
   if (help.isSet()) {
     Argparse::printHelp();
@@ -46,31 +46,38 @@ MLLM_MAIN({
   }
   model.load(params);
 
-  // Sequence: [B, N]
-  // past_key_i: [B, H, D, CL-N] for each layer i
-  // past_value_i: [B, H, CL-N, D] for each layer i
-  // causal_mask: [B, 1, N, CL]
-  auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
-  auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
+  // Create Qnn AOT Model
+  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
+                                               mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
 
-  // NOTE: force set causal mask to UInt16Asy
-  // NOTE: Attach scale and zero point to causal mask
+  // Model length 32.
+
   {
-    causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
-    causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
-    causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
-  }
+    // Sequence: [B, N]
+    // past_key_i: [B, H, D, CL-N] for each layer i
+    // past_value_i: [B, H, CL-N, D] for each layer i
+    // causal_mask: [B, 1, N, CL]
+    auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
+    auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
 
-  // Create KV cache inputs for all layers
-  std::unordered_map<std::string, mllm::Tensor> trace_inputs;
-  trace_inputs["sequence"] = sequence;
-  trace_inputs["causal_mask"] = causal_mask;
+    // NOTE: force set causal mask to UInt16Asy
+    // NOTE: Attach scale and zero point to causal mask
+    {
+      causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
+      causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
+      causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
+    }
 
-  for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
-    auto past_key_name = "past_key_" + std::to_string(i);
-    auto past_value_name = "past_value_" + std::to_string(i);
+    // Create KV cache inputs for all layers
+    std::unordered_map<std::string, mllm::Tensor> trace_inputs;
+    trace_inputs["sequence"] = sequence;
+    trace_inputs["causal_mask"] = causal_mask;
 
-    // clang-format off
+    for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
+      auto past_key_name = "past_key_" + std::to_string(i);
+      auto past_value_name = "past_value_" + std::to_string(i);
+
+      // clang-format off
     trace_inputs[past_key_name] = mllm::Tensor::empty({
         1,
         model_cfg.num_key_value_heads,
@@ -84,20 +91,70 @@ MLLM_MAIN({
 
     trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
     trace_inputs[past_value_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
-    // clang-format on
+      // clang-format on
+    }
+
+    auto ir = model.trace(trace_inputs, {});
+
+    mllm::ir::PassManager pm(ir["model"]);
+    pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
+    pm.run();
+
+    mllm::redirect("qwen3_qnn_aot_32.mir", [&]() { mllm::print(ir["model"]); });
   }
 
-  auto ir = model.trace(trace_inputs, {});
+  // Model length 1.
+  {
+    N = 1;
 
-  // Create Qnn AOT Model
-  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
-                                               mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
+    // Sequence: [B, N]
+    // past_key_i: [B, H, D, CL-N] for each layer i
+    // past_value_i: [B, H, CL-N, D] for each layer i
+    // causal_mask: [B, 1, N, CL]
+    auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
+    auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
 
-  mllm::ir::PassManager pm(ir["model"]);
-  pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
-  pm.run();
+    // NOTE: force set causal mask to UInt16Asy
+    // NOTE: Attach scale and zero point to causal mask
+    {
+      causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
+      causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
+      causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
+    }
 
-  mllm::redirect("qwen3_qnn_aot.mir", [&]() { mllm::print(ir["model"]); });
+    // Create KV cache inputs for all layers
+    std::unordered_map<std::string, mllm::Tensor> trace_inputs;
+    trace_inputs["sequence"] = sequence;
+    trace_inputs["causal_mask"] = causal_mask;
+    for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
+      auto past_key_name = "past_key_" + std::to_string(i);
+      auto past_value_name = "past_value_" + std::to_string(i);
+
+      // clang-format off
+    trace_inputs[past_key_name] = mllm::Tensor::empty({
+        1,
+        model_cfg.num_key_value_heads,
+        model_cfg.head_dim,
+        CL - N,
+    }, mllm::kUInt8PerTensorSym);
+    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
+    
+    trace_inputs[past_key_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.scale").impl(), true);
+    trace_inputs[past_key_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
+
+    trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
+    trace_inputs[past_value_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
+      // clang-format on
+    }
+
+    auto ir = model.trace(trace_inputs, {});
+
+    mllm::ir::PassManager pm(ir["model"]);
+    pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
+    pm.run();
+
+    mllm::redirect("qwen3_qnn_aot_1.mir", [&]() { mllm::print(ir["model"]); });
+  }
 
   qnn_aot_env.saveContext("context.0", "qwen3-1.7B-lpbq.bin");
 });
