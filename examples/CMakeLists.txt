@@ -19,4 +19,5 @@ endif()
 
 if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen3_qnn_aot)
+  add_subdirectory(qwen2_qnn_aot)
 endif()

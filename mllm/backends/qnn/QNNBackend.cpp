@@ -29,7 +29,7 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
                QNNViewOpFactory, QNNRMSNormOpFactory, QNNTransposeOpFactory, QNNX2XOpFactory, QNNCastTypeOpFactory,
                QNNParamOpFactory, QNNSiLUOpFactory, QNNEmbeddingOpFactory>();
 
-  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_VERBOSE;  // default QNN log level
+  QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_ERROR;  // default QNN log level
   profilingLevel_ = ProfilingLevel::OFF;
   debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
 

@@ -25,7 +25,7 @@ class TokenGenerator {
 
   virtual const std::vector<float>& get_all_logits();
 
-  virtual int64_t generate(std::vector<uint64_t>& tokens, int64_t start_pos, int32_t seq_len,
+  virtual int64_t generate(std::vector<int64_t>& tokens, int64_t start_pos, int32_t seq_len,
                            const std::function<void(const std::string&)>& token_callback, bool dump_logits);
 
  protected:

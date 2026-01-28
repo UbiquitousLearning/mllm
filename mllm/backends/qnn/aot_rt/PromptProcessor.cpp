@@ -126,6 +126,8 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
 
   module_->setOutputTensors(output_tensors_);
 
+  MLLM_INFO("num_tokens: {}", num_tokens);
+
   while (processed_tokens < num_tokens) {
     int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - processed_tokens);
 
