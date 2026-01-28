@@ -54,6 +54,40 @@ void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   const auto& x = inputs[0];
   auto& y = outputs[0];
 
+  // Validate that input tensors are FP16
+  if (x.dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendLinearOp: Input tensor must be FP16, but got dtype={}",
+                    static_cast<int>(x.dtype()));
+  }
+  if (weight_ptr->dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendLinearOp: Weight tensor must be FP16, but got dtype={}",
+                    static_cast<int>(weight_ptr->dtype()));
+  }
+  if (bias_ptr != nullptr && bias_ptr->dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendLinearOp: Bias tensor must be FP16, but got dtype={}",
+                    static_cast<int>(bias_ptr->dtype()));
+  }
+
+  // Validate bias dimensions: ATB Linear requires bias to be 2D [1, out_channels]
+  if (bias_ptr != nullptr) {
+    const auto& bias_shape = bias_ptr->shape();
+    if (bias_shape.size() == 1) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "AscendLinearOp: Bias tensor must be 2D [1, out_channels], but got 1D shape with size={}. "
+                      "Please reshape the bias tensor before passing to AscendLinearOp.",
+                      bias_shape[0]);
+    }
+    if (bias_shape.size() != 2 || bias_shape[0] != 1) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "AscendLinearOp: Bias tensor must be 2D with shape [1, out_channels], but got shape=[{}, {}]",
+                      bias_shape.size() >= 1 ? bias_shape[0] : 0,
+                      bias_shape.size() >= 2 ? bias_shape[1] : 0);
+    }
+  }
+
 
   atb::infer::LinearParam linearParam;
   linearParam.transposeA = false;

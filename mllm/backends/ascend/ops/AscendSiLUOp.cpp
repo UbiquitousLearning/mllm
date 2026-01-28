@@ -30,6 +30,18 @@ void AscendSiLUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   const auto& x = inputs[0];
   auto& y = outputs[0];
 
+  // Validate that input tensors are FP16
+  if (x.dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendSiLUOp: Input tensor must be FP16, but got dtype={}",
+                    static_cast<int>(x.dtype()));
+  }
+  if (y.dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendSiLUOp: Output tensor must be FP16, but got dtype={}",
+                    static_cast<int>(y.dtype()));
+  }
+
   if (x.dtype() != y.dtype()) {
     NYI("AscendSiLUOp currently requires x/y have same dtype");
   }

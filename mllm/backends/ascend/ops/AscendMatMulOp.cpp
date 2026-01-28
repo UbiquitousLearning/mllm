@@ -27,15 +27,15 @@ void AscendMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   MLLM_RT_ASSERT_EQ(inputs.size(), 2);
   MLLM_RT_ASSERT_EQ(outputs.size(), 1);
 
-  const auto& A = inputs[0];  
-  const auto& B = inputs[1];  
-  auto& C = outputs[0];       
+  const auto& A = inputs[0];
+  const auto& B = inputs[1];
+  auto& C = outputs[0];
 
   // Create LinearParam for ATB (used for MatMul)
   atb::infer::LinearParam linearParam;
   linearParam.transposeA = options_.transpose_a;
   linearParam.transposeB = options_.transpose_b;
-  linearParam.hasBias = false;  
+  linearParam.hasBias = false;
   linearParam.outDataType = ACL_DT_UNDEFINED;
   linearParam.enAccum = false;
   linearParam.matmulType = atb::infer::LinearParam::MATMUL_UNDEFINED;

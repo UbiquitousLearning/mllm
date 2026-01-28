@@ -24,6 +24,10 @@ class AscendRMSNormKernelTest : public KernelTest {
       int norm_size = std::get<1>(test_case);
       float epsilon = std::get<2>(test_case);
 
+      // Validate that norm_size matches the last dimension of input_shape
+      assert(norm_size == static_cast<int>(input_shape.back()) &&
+             "norm_size must equal the last dimension of input_shape");
+
       // 1. Construct random FP16 inputs on CPU
       Tensor x_cpu = Tensor::random(input_shape, -2, 2, kFloat16, kCPU);
 

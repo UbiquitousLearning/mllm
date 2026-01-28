@@ -207,6 +207,13 @@ void syncGlobalAtbStream() {
 }
 
 void fillAtbTensorDesc(const Tensor& t, atb::TensorDesc& desc) {
+  // Validate that the tensor is FP16
+  if (t.dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "fillAtbTensorDesc: Tensor must be FP16, but got dtype={}",
+                    static_cast<int>(t.dtype()));
+  }
+
   desc.dtype = ACL_FLOAT16; // Currently hardcoded as per demo, can be expanded later
   desc.format = ACL_FORMAT_ND;
 
