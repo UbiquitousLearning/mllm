@@ -47,7 +47,7 @@ void solveLinearWeight(const ir::IRContext::ptr_t& ctx, const ParameterFile::ptr
       auto weight = pf->pull(mllm_op->getName() + ".weight");
 
       // FIXME weight maybe error, Check qnn eats int8 or uint8. Here weight using int8 to store int4.
-      checkTypeLimits<int8_t>(weight, -8, 7);   // Int4
+      checkTypeLimits<int8_t>(weight, 0, 15);   // Int4
       checkTypeLimits<uint8_t>(scale1, 0, 16);  // UInt4
 
       this_spec->scale_level_0_int = scale1;
