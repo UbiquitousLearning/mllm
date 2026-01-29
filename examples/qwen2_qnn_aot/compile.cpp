@@ -8,7 +8,7 @@
 #include <mllm/backends/qnn/aot/passes/AOTPipeline.hpp>
 #include <mllm/backends/qnn/aot/QnnTargetMachineParser.hpp>
 
-#include "modeling_qwen_qnn_aot.hpp"
+#include "modeling_qwen2_qnn_aot.hpp"
 
 using mllm::Argparse;
 
@@ -35,7 +35,7 @@ MLLM_MAIN({
   }
 
   auto model_cfg = mllm::models::qwen3::Qwen3Config(model_cfg_path.get());
-  auto model = mllm::models::qwen3::Qwen3ForCausalLM(model_cfg);
+  auto model = mllm::models::qwen2::Qwen2ForCausalLM(model_cfg);
   auto params = mllm::load(model_path.get(), mllm::ModelFileVersion::kV2);
   // Add params for causal mask
   {
@@ -72,7 +72,6 @@ MLLM_MAIN({
     std::unordered_map<std::string, mllm::Tensor> trace_inputs;
     trace_inputs["sequence"] = sequence;
     trace_inputs["causal_mask"] = causal_mask;
-
     for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
       auto past_key_name = "past_key_" + std::to_string(i);
       auto past_value_name = "past_value_" + std::to_string(i);
@@ -100,7 +99,7 @@ MLLM_MAIN({
     pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
     pm.run();
 
-    mllm::redirect("qwen3_qnn_aot_32.mir", [&]() { mllm::print(ir["model"]); });
+    mllm::redirect("qwen2_qnn_aot_32.mir", [&]() { mllm::print(ir["model"]); });
   }
 
   // Model length 1.
@@ -153,8 +152,8 @@ MLLM_MAIN({
     pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
     pm.run();
 
-    mllm::redirect("qwen3_qnn_aot_1.mir", [&]() { mllm::print(ir["model"]); });
+    mllm::redirect("qwen2_qnn_aot_1.mir", [&]() { mllm::print(ir["model"]); });
   }
 
-  qnn_aot_env.saveContext("context.0", "qwen3-1.7B-lpbq.bin");
+  qnn_aot_env.saveContext("context.0", "qwen2-lpbq.bin");
 });

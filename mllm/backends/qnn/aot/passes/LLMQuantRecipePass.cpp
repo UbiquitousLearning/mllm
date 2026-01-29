@@ -645,34 +645,37 @@ bool LLMQuantRecipeConcatPattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeConcatPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
-  // Current support concat two Tensor. Inherent first tensor's Quant Spec.
+  // Support concat with multiple inputs. Inherit first tensor's Quant Spec.
   auto concat_ir = node->cast_<ir::linalg::ConcatOp>();
-  auto i_0 = *(node->inputs().begin());             // t1
-  auto i_1 = *(std::next(node->inputs().begin()));  // t2
-  auto o_0 = *(node->outputs().begin());            // to1
+  auto o_0 = *(node->outputs().begin());  // to1
 
-  if (concat_ir->inputs().size() != 2) {
-    MLLM_WARN("Current support concat two Tensor. Inherent first tensor's setting.");
+  if (concat_ir->inputs().empty()) {
+    MLLM_WARN("Concat op has no inputs.");
     return false;
   }
 
-  // Create quant_recipe if not present
-  if (!i_0->getAttr("quant_recipe")) {
-    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
-    i_0->setAttr("quant_recipe", i_0_spec);
-  }
-  if (!i_1->getAttr("quant_recipe")) {
-    auto i_1_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_1->cast_<ir::tensor::TensorValue>());
-    i_1->setAttr("quant_recipe", i_1_spec);
+  auto i_0 = *(node->inputs().begin());  // First input
+
+  // Create quant_recipe for all inputs if not present
+  for (auto input : node->inputs()) {
+    if (!input->getAttr("quant_recipe")) {
+      auto input_spec = genSimpleQuantizationSpecAttr(writer.getContext(), input->cast_<ir::tensor::TensorValue>());
+      input->setAttr("quant_recipe", input_spec);
+    }
   }
 
+  // Output inherits first tensor's quant_recipe
   o_0->setAttr("quant_recipe", i_0->getAttr("quant_recipe"));
 
   auto annotation_attr = writer.create<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
-  annotation_attr->annotation_.inputs.emplace_back(
-      i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
-  annotation_attr->annotation_.inputs.emplace_back(
-      i_1->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+
+  // Add quant_recipe for all inputs
+  for (auto input : node->inputs()) {
+    annotation_attr->annotation_.inputs.emplace_back(
+        input->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
+  }
+
+  // Add quant_recipe for output
   annotation_attr->annotation_.outputs.emplace_back(
       o_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_);
 

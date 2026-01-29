@@ -182,6 +182,9 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(-1));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.rank(), 1);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.rank(), 1);
       for (int i = 0; i < num_scale_offsets; ++i) {
         scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i});
         scale_offsets[i].offset = 0;
@@ -270,10 +273,11 @@ QnnAOTGraph::QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle
 
   // Short Depth Conv On HMX Off
   QnnHtpGraph_CustomConfig_t* p_custom_config = nullptr;
-  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
-  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_SHORT_DEPTH_CONV_ON_HMX_OFF;
-  p_custom_config->shortDepthConvOnHmxOff = true;
-  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+  // FIXME: @chenghuaWang The code below will make llm inference slow!!!
+  // p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  // p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_SHORT_DEPTH_CONV_ON_HMX_OFF;
+  // p_custom_config->shortDepthConvOnHmxOff = true;
+  // htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
 
   // Fold Relu Activation Into Conv Off
   p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));

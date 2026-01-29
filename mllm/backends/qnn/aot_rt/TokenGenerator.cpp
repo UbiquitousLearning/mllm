@@ -98,10 +98,10 @@ void TokenGenerator<T>::prepare_io(uint64_t cur_token, int64_t start_pos) {
 }
 
 template<typename T>
-int64_t TokenGenerator<T>::generate(std::vector<uint64_t>& tokens, int64_t start_pos, int32_t seq_len,
+int64_t TokenGenerator<T>::generate(std::vector<int64_t>& tokens, int64_t start_pos, int32_t seq_len,
                                     const std::function<void(const std::string&)>& token_callback, bool dump_logits) {
   int64_t current_pos = start_pos;
-  uint64_t next_token = tokens.back();
+  int64_t next_token = tokens.back();
   int64_t generated_count = 0;
 
   // Ensure KV cache is arranged for decode (1 token)
