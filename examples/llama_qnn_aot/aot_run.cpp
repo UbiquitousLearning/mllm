@@ -4,6 +4,7 @@
 #include <string>
 #include "mllm/backends/qnn/aot_rt/QnnAOTRuntime.hpp"
 #include "configuration_llama3.hpp"
+#include "mllm/models/llama/tokenization_tiny_llama.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 
 using mllm::Argparse;
@@ -40,9 +41,12 @@ MLLM_MAIN({
   // Note: Using Qwen3 tokenizer as a placeholder.
   // For production use, you should implement a Llama3Tokenizer or use
   // the appropriate tokenizer for your model.
-  auto tokenizer = mllm::models::qwen3::Qwen3Tokenizer(tokenizer_path.get());
+  auto tokenizer = mllm::models::llama::TinyLlamaTokenizer(tokenizer_path.get());
 
-  auto input_tensor = tokenizer.convertMessage({.prompt = "hello"});
+  auto input_tensor = tokenizer.convertMessage({{
+      .role = "user",
+      .content = "hello",
+  }});
 
   input_tensor["sequence"] = mllm::Tensor::arange(0, seq_len.get(), 1, mllm::kInt64, mllm::kCPU).view({1, -1});
 
