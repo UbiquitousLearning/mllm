@@ -242,6 +242,13 @@ class QLinearLPBQ(QLinear):
             .contiguous()
         )
 
+        # Packing for Qnn to use
+        # Qnn's packing will not do x & 0x0F, so we need to do it here.
+        mask = torch.full(
+            weight_int4.size(), 0x0F, dtype=torch.int8, device=weight_int4.device
+        )
+        weight_int4 = torch.bitwise_and(mask, weight_int4)
+
         del self.weight
         self.register_buffer("weight", weight_int4)
         self.register_buffer("scale1", quantized_scales.flatten())

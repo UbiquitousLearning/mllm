@@ -182,6 +182,9 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(-1));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.rank(), 1);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.rank(), 1);
       for (int i = 0; i < num_scale_offsets; ++i) {
         scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i});
         scale_offsets[i].offset = 0;
