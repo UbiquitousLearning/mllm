@@ -1,0 +1,6 @@
+{
+    "target_device": "SM8750",
+    "soc_model": "59",
+    "htp_arch": "79",
+    "vtcm_mb": 8
+}

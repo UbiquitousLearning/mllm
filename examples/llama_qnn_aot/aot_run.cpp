@@ -3,7 +3,7 @@
 #include <mllm/mllm.hpp>
 #include <string>
 #include "mllm/backends/qnn/aot_rt/QnnAOTRuntime.hpp"
-#include "mllm/models/qwen3/configuration_qwen3.hpp"
+#include "configuration_llama3.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 
 using mllm::Argparse;
@@ -11,7 +11,7 @@ using namespace mllm::qnn::aot;  // NOLINT
 
 MLLM_MAIN({
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
-  auto& model_path = Argparse::add<std::string>("-m|--model").help("Model path").def("qwen2_qnn.mllm");
+  auto& model_path = Argparse::add<std::string>("-m|--model").help("Model path").def("llama_qnn.mllm");
   auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer").help("Tokenizer path").def("tokenizer.json");
   auto& config_path = Argparse::add<std::string>("-c|--config").help("Config path").required(true);
   auto& ar_len = Argparse::add<int>("--ar_len").help("Autoregressive length (chunk size)").def(128);
@@ -27,16 +27,19 @@ MLLM_MAIN({
 
   mllm::initQnnBackend(model_path.get());
 
-  auto qwen2_cfg = mllm::models::qwen3::Qwen3Config(config_path.get());
+  auto llama_cfg = mllm::models::llama3::Llama3Config(config_path.get());
 
   RunnerConfig config;
-  config.num_layers = qwen2_cfg.num_hidden_layers;
-  config.num_heads = qwen2_cfg.num_attention_heads;
-  config.head_dim = qwen2_cfg.head_dim;
-  config.vocab_size = qwen2_cfg.vocab_size;
+  config.num_layers = llama_cfg.num_hidden_layers;
+  config.num_heads = llama_cfg.num_attention_heads;
+  config.head_dim = llama_cfg.head_dim;
+  config.vocab_size = llama_cfg.vocab_size;
   config.context_len = 1024;
   config.ar_len = ar_len.get();
 
+  // Note: Using Qwen3 tokenizer as a placeholder.
+  // For production use, you should implement a Llama3Tokenizer or use
+  // the appropriate tokenizer for your model.
   auto tokenizer = mllm::models::qwen3::Qwen3Tokenizer(tokenizer_path.get());
 
   auto input_tensor = tokenizer.convertMessage({.prompt = "hello"});
