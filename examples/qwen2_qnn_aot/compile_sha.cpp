@@ -66,9 +66,9 @@ MLLM_MAIN({
   // Add params for causal mask
   {
     params->push("causal_mask.scale", mllm::Tensor::constant(0.001 / 65535.f, mllm::kFloat32));
-    params->push("causal_mask.zero_point", mllm::Tensor::constant(65535, mllm::kInt8));
+    params->push("causal_mask.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
     params->push("constant_zero.scale", mllm::Tensor::constant(0.001 / 65535.f, mllm::kFloat32));
-    params->push("constant_zero.zero_point", mllm::Tensor::constant(65535, mllm::kInt8));
+    params->push("constant_zero.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
   }
   model.load(params);
 
