@@ -111,7 +111,7 @@ namespace mllm::cpu {
 static float table_f32_f16[1 << 16];
 static bool table_f32_f16_init = false;
 
-inline static float lookup_fp16_to_fp32(mllm_fp16_t f) {
+inline static float lookup_fp16_to_fp32(uint16_t f) {
   if (!table_f32_f16_init) {
     uint16_t ii;
     for (int i = 0; i < (1 << 16); ++i) {
