@@ -49,7 +49,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #if defined(MLLM_USE_BLAS)
     mt = aops::MatMulOpType::kBLAS;
 #else
-    if (!transpose_a && transpose_b && M >= 4) {
+    if (!transpose_a && transpose_b) {
       // TODO kGGUF still buggy !!!
       mt = aops::MatMulOpType::kGGUF;
     } else
@@ -110,6 +110,18 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
                                            transpose_a, transpose_b, thread_count);
         }
       }
+// #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+//       if (lhs.dtype() == kFloat32 && rhs.dtype() == kFloat32 && o.dtype() == kFloat32) {
+//         if (batch_count == 1) {
+//           x86::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+//                                        transpose_a, transpose_b);
+//         } else {
+//           x86::mllm_blas_batch_matmul_fp32(batch_count, M, K, N, o.stride()[o.shape().size() - 3],
+//                                               lhs.stride()[lhs_shape.size() - 3], rhs.stride()[rhs_shape.size() - 3], 0,
+//                                               o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+//                                               transpose_a, transpose_b);
+//         }
+//       }  
 #else
       NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
 #endif
