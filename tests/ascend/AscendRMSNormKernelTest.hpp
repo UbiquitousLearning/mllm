@@ -71,7 +71,7 @@ class AscendRMSNormKernelTest : public KernelTest {
       auto weight_ascend = weight_cpu.to(kAscend);
 
       // Use functional API - one line to execute the operator
-      auto y_ascend = nn::functional::rms_norm(x_ascend, weight_ascend, epsilon);
+      auto y_ascend = nn::functional::rmsNorm(x_ascend, weight_ascend, epsilon);
 
       // 4. Move result back to CPU and compare with reference using allClose
       auto y_cpu = y_ascend.to(kCPU);

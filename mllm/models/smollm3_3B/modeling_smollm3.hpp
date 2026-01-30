@@ -157,7 +157,7 @@ class Smollm3Attention final : public nn::Module {
     auto [key_states_result, value_states_result] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
     key_states = std::move(key_states_result);
     value_states = std::move(value_states_result);
-
+    
     Tensor attn;
     if (key_states.dtype() == kFloat32) {
       attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));

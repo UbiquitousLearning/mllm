@@ -59,9 +59,6 @@ option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
 option(MLLM_TRACY_ENABLE "Enable Tracy. A more advanced profiler" OFF)
 
-# NPU AOT things
-option(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE "Enable Qualcomm NPU AOT on X86 devices" OFF)
-
 # Platform Hints
 option(MLLM_ANDROID_BURST_PERFORMANCE_HINTS "If MLLM need use APerformanceHintManager to tell android we need best performance" OFF)
 

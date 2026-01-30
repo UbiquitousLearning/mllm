@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 from .. import ffi
-from ._layers import _Layer
 
 
 class Module:

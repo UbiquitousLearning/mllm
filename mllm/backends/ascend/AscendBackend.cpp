@@ -13,17 +13,13 @@
 #include "mllm/backends/ascend/ops/AscendRMSNormOp.hpp"
 #include "mllm/backends/ascend/ops/AscendViewOp.hpp"
 #include "mllm/backends/ascend/ops/AscendMatMulOp.hpp"
+#include "mllm/backends/ascend/ops/AscendSoftmaxOp.hpp"
 
 namespace mllm::ascend {
 
 AscendBackend::AscendBackend() : Backend(kAscend, createAscendAllocator()) {
-  regOpFactory<AscendAddOpFactory>();
-  regOpFactory<AscendX2XOpFactory>();
-  regOpFactory<AscendSiLUOpFactory>();
-  regOpFactory<AscendLinearOpFactory>();
-  regOpFactory<AscendRMSNormOpFactory>();
-  regOpFactory<AscendViewOpFactory>();
-  regOpFactory<AscendMatMulOpFactory>();
+  regOpFactory<AscendAddOpFactory,AscendSubOpFactory,AscendMulOpFactory,AscendX2XOpFactory,AscendSiLUOpFactory,
+              AscendLinearOpFactory,AscendRMSNormOpFactory,AscendViewOpFactory,AscendMatMulOpFactory,AscendSoftmaxOpFactory>();
   auto& devices = AscendDeviceMetaInfo::instance().devices;
   for (const auto& device : devices) {
     const auto bytes_to_mb = [](size_t bytes) { return bytes / (1024.0 * 1024.0); };

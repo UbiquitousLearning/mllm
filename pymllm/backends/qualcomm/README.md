@@ -1,1 +1,0 @@
-# Qualcomm Qnn AOT API

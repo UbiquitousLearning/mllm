@@ -138,7 +138,7 @@ Tensor silu_(const Tensor& x) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSiLU, opt, {x})[0];
 }
 
-Tensor rms_norm(const Tensor& x, const Tensor& weight, float epsilon, bool add_unit_offset) {
+Tensor rmsNorm(const Tensor& x, const Tensor& weight, float epsilon, bool add_unit_offset) {
   return Context::instance().buildOpAndSubmitTask(
       OpTypes::kRMSNorm, aops::RMSNormOpOptions{.epsilon = epsilon, .add_unit_offset = add_unit_offset}, {x, weight})[0];
 }

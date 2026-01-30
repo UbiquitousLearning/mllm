@@ -5,7 +5,7 @@ import tvm_ffi
 from .. import ffi
 
 
-class _Layer:
+class Linear:
     def __init__(self):
         self.device: ffi.Device = ffi.cpu_()
         self.this_layer_name: str = None
