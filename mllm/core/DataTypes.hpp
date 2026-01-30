@@ -34,6 +34,7 @@ using mllm_uint16_t = uint16_t;
 using mllm_int8_t = int8_t;
 using mllm_uint8_t = uint8_t;
 using mllm_byte_t = mllm_uint8_t;
+using mllm_bool_t = mllm_uint8_t;
 
 using mllm_complex_fp32_t = std::complex<mllm_fp32_t>;
 using mllm_complex_fp64_t = std::complex<mllm_fp64_t>;
@@ -416,6 +417,9 @@ enum DataTypes : int32_t {
   kUInt16PerTensorAsy = 154,
   kUInt16PerChannelAsy = 155,
 
+  // Bool type, stored as uint8 (0 = false, non-zero = true)
+  kBool = 156,
+
   // complex dtypes for STFT and other ops
   kComplexFloat32 = 201,
   kComplexFloat64 = 202,
@@ -678,6 +682,7 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kFloat32, mllm_fp32_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kFloat16, mllm_fp16_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt8, mllm_int8_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt8, mllm_uint8_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kBool, mllm_uint8_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt16, mllm_int16_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kUInt16, mllm_uint16_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kInt32, mllm_int32_t);
@@ -767,6 +772,7 @@ std::string nameOfType(DataTypes dtype);
 #define MLLM_TYPE_UINT16 ::mllm::DataTypes::kUInt16
 #define MLLM_TYPE_UINT32 ::mllm::DataTypes::kUInt32
 #define MLLM_TYPE_BYTE ::mllm::DataTypes::kByte
+#define MLLM_TYPE_BOOL ::mllm::DataTypes::kBool
 #define MLLM_TYPE_MXFP4 ::mllm::DataTypes::kMXFP4
 #define MLLM_TYPE_I4 ::mllm::DataTypes::kInt4
 #define MLLM_TYPE_U4 ::mllm::DataTypes::kUInt4
