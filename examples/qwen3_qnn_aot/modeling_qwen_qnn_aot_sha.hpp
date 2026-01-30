@@ -764,8 +764,7 @@ inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qw
           std::string h_str = std::to_string(h);
           // Weight: slice per head
           std::string new_weight_name = layer_prefix + "q_norm." + h_str + ".weight";  // NOLINT
-          auto sliced = orig_weight.slice({{h * head_dim, (h + 1) * head_dim}}, false);
-          params->push(new_weight_name, sliced.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
+          params->push(new_weight_name, orig_weight.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
 
           // Scale: copy (scalar)
           if (has_scale) {
@@ -801,8 +800,7 @@ inline void prepareParametersForSHA(const ParameterFile::ptr_t& params, const Qw
           std::string h_str = std::to_string(h);
           // Weight: slice per head
           std::string new_weight_name = layer_prefix + "k_norm." + h_str + ".weight";  // NOLINT
-          auto sliced = orig_weight.slice({{h * head_dim, (h + 1) * head_dim}}, false);
-          params->push(new_weight_name, sliced.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
+          params->push(new_weight_name, orig_weight.contiguous().setMemType(kParamsNormal).setName(new_weight_name));
 
           // Scale: copy (scalar)
           if (has_scale) {

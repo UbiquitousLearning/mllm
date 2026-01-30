@@ -29,7 +29,7 @@ MLLM_MAIN({
 
   RunnerConfig config;
   config.num_layers = qwen3_cfg.num_hidden_layers;
-  config.num_heads = qwen3_cfg.num_attention_heads;
+  config.num_heads = qwen3_cfg.num_key_value_heads;
   config.head_dim = qwen3_cfg.head_dim;
   config.vocab_size = qwen3_cfg.vocab_size;
   config.context_len = 1024;
