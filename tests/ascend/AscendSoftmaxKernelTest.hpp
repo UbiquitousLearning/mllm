@@ -38,13 +38,6 @@ class AscendSoftmaxKernelTest : public KernelTest {
             pos_axis = ndim + pos_axis;
           }
 
-          // Calculate strides
-          std::vector<size_t> strides(ndim);
-          strides[ndim - 1] = 1;
-          for (int i = ndim - 2; i >= 0; --i) {
-            strides[i] = strides[i + 1] * shape[i + 1];
-          }
-
           size_t outer_size = 1;
           for (int i = 0; i < pos_axis; ++i) {
             outer_size *= shape[i];
@@ -60,18 +53,13 @@ class AscendSoftmaxKernelTest : public KernelTest {
           // Compute softmax for each slice along the axis
           for (size_t outer = 0; outer < outer_size; ++outer) {
             for (size_t inner = 0; inner < inner_size; ++inner) {
+              auto idx_at = [&](size_t i) -> size_t {
+                return (outer * axis_size + i) * inner_size + inner;
+              };
               // Find max value for numerical stability
               float max_val = -std::numeric_limits<float>::infinity();
               for (size_t i = 0; i < axis_size; ++i) {
-                size_t idx = outer * strides[pos_axis > 0 ? pos_axis - 1 : 0] * shape[pos_axis] +
-                             i * (pos_axis < ndim - 1 ? strides[pos_axis] : 1) + inner;
-                if (pos_axis == 0) {
-                  idx = i * strides[0] + inner;
-                } else if (pos_axis == ndim - 1) {
-                  idx = outer * axis_size + i;
-                } else {
-                  idx = outer * strides[pos_axis - 1] * shape[pos_axis] + i * strides[pos_axis] + inner;
-                }
+                size_t idx = idx_at(i);
                 float val = MLLM_FP16_TO_FP32(x_ptr[idx]);
                 max_val = std::max(max_val, val);
               }
@@ -80,15 +68,7 @@ class AscendSoftmaxKernelTest : public KernelTest {
               float sum_exp = 0.0f;
               std::vector<float> exp_vals(axis_size);
               for (size_t i = 0; i < axis_size; ++i) {
-                size_t idx = outer * strides[pos_axis > 0 ? pos_axis - 1 : 0] * shape[pos_axis] +
-                             i * (pos_axis < ndim - 1 ? strides[pos_axis] : 1) + inner;
-                if (pos_axis == 0) {
-                  idx = i * strides[0] + inner;
-                } else if (pos_axis == ndim - 1) {
-                  idx = outer * axis_size + i;
-                } else {
-                  idx = outer * strides[pos_axis - 1] * shape[pos_axis] + i * strides[pos_axis] + inner;
-                }
+                size_t idx = idx_at(i);
                 float val = MLLM_FP16_TO_FP32(x_ptr[idx]);
                 exp_vals[i] = std::exp(val - max_val);
                 sum_exp += exp_vals[i];
@@ -96,15 +76,7 @@ class AscendSoftmaxKernelTest : public KernelTest {
 
               // Compute softmax and store result
               for (size_t i = 0; i < axis_size; ++i) {
-                size_t idx = outer * strides[pos_axis > 0 ? pos_axis - 1 : 0] * shape[pos_axis] +
-                             i * (pos_axis < ndim - 1 ? strides[pos_axis] : 1) + inner;
-                if (pos_axis == 0) {
-                  idx = i * strides[0] + inner;
-                } else if (pos_axis == ndim - 1) {
-                  idx = outer * axis_size + i;
-                } else {
-                  idx = outer * strides[pos_axis - 1] * shape[pos_axis] + i * strides[pos_axis] + inner;
-                }
+                size_t idx = idx_at(i);
                 float result = exp_vals[i] / sum_exp;
                 r_ptr[idx] = MLLM_FP32_TO_FP16(result);
               }

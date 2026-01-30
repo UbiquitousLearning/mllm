@@ -225,6 +225,7 @@ class AscendAttentionKernelTest : public KernelTest {
       // Causal mask: mask[i, j] = 0 if j <= i, else -inf (large negative value)
       Tensor mask_cpu;
       if (use_mask) {
+        MLLM_RT_ASSERT(S_kv >= S_q);
         mask_cpu = Tensor::zeros({1, 1, S_q, S_kv}, kFloat16, kCPU);
         auto* mask_ptr = mask_cpu.ptr<mllm_fp16_t>();
 

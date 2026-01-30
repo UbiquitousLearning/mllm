@@ -54,14 +54,18 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
 
   // Convert axis to positive index if negative
   int axis = options_.axis;
+  const int rank = static_cast<int>(x.rank());
   if (axis < 0) {
-    axis = static_cast<int>(x.rank()) + axis;
+    axis = rank + axis;
+  }
+  if (axis < 0 || axis >= rank) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendSoftmaxOp: axis {} out of range for rank {}",
+                    axis, rank);
   }
 
-  // ATB expects axes as SVector<int64_t>
   softmaxParam.axes.push_back(static_cast<int64_t>(axis));
 
-  // Create ATB operation
   atb::Operation* op = nullptr;
   auto st = atb::CreateOperation(softmaxParam, &op);
   if (st != atb::NO_ERROR || op == nullptr) {
@@ -70,17 +74,14 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
                     static_cast<int>(st));
   }
 
-  // Get global ATB context
   atb::Context* atb_ctx = getGlobalAtbContext();
 
-  // Prepare ATB tensors
   atb::Tensor atb_x;
   atb::Tensor atb_y;
 
   fillAtbTensor(x, atb_x);
   fillAtbTensor(y, atb_y);
 
-  // Setup input/output tensors
   atb::SVector<atb::Tensor> inTensors;
   atb::SVector<atb::Tensor> outTensors;
   inTensors.push_back(atb_x);
@@ -90,7 +91,6 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
   vp.inTensors = inTensors;
   vp.outTensors = outTensors;
 
-  // Setup operation (calculate required workspace size)
   uint64_t workspaceSize = 0;
   st = op->Setup(vp, workspaceSize, atb_ctx);
   if (st != atb::NO_ERROR) {
@@ -99,7 +99,6 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
                     static_cast<int>(st));
   }
 
-  // Allocate workspace if needed
   void* workspace = nullptr;
   int workspace_block_id = -1;
   if (workspaceSize > 0) {
@@ -108,7 +107,6 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
 
-  // Execute operation
   {
     ASCEND_TIME_SCOPE("AscendSoftmaxOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
@@ -119,16 +117,13 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
                     static_cast<int>(st));
   }
 
-  // Synchronize stream
   syncGlobalAtbStream();
 
-  // Free workspace
   if (workspace_block_id != -1) {
     auto& mem_mgr = getAscendMemoryManager();
     mem_mgr.freeBlock(workspace_block_id);
   }
 
-  // Destroy operation
   atb::DestroyOperation(op);
 }
 

@@ -21,8 +21,9 @@ AscendLinearOp::AscendLinearOp(const aops::LinearOpOptions& options) : aops::Lin
 
 void AscendLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   if (options().isRedirect()) {
+    MLLM_RT_ASSERT(inputs.size() >= 1);
     const auto& input = inputs[0];
-    const auto& weight = inputs[1];
+    const auto& weight = inputs.size() >= 2 ? inputs[1] : this->weight();
     auto out_shape = input.shape();
     out_shape[out_shape.size() - 1] = weight.shape()[0];  // out_channels
     outputs.emplace_back(Tensor::empty(out_shape, input.dtype(), input.device()));
@@ -37,6 +38,7 @@ void AscendLinearOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor
 
 void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   MLLM_RT_ASSERT(inputs.size() >= 1 && inputs.size() <= 3);
+  MLLM_RT_ASSERT_EQ(outputs.size(), 1);
 
   const Tensor* weight_ptr = nullptr;
   const Tensor* bias_ptr = nullptr;

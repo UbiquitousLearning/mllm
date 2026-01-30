@@ -25,7 +25,7 @@ void AscendRMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tenso
 }
 
 void AscendRMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  //MLLM_RT_ASSERT(inputs.size() == 1 || inputs.size() == 2, "AscendRMSNormOp expects 1 or 2 inputs");
+  MLLM_RT_ASSERT(inputs.size() == 1 || inputs.size() == 2);
   MLLM_RT_ASSERT_EQ(outputs.size(), 1);
 
   const auto& x = inputs[0];
