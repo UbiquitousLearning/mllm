@@ -385,6 +385,10 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       ret = QNN_DATATYPE_UFIXED_POINT_16;
       break;
     }
+    case kBool: {
+      ret = QNN_DATATYPE_BOOL_8;
+      break;
+    }
     default: {
       MLLM_ERROR("Can't parse datatype: {}", nameOfType(dtype));
       ret = QNN_DATATYPE_UNDEFINED;
