@@ -1,10 +1,13 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <string>
+#include <fstream>
 #include <vector>
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <algorithm>  // For std::transform
 
 #include <mllm/mllm.hpp>
 #include <mllm/utils/Argparse.hpp>
@@ -16,6 +19,14 @@
 
 #include "models/All.hpp"
 
+#ifndef MLLM_GIT_COMMIT_HASH
+#define MLLM_GIT_COMMIT_HASH unknown
+#endif
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+
 MLLM_MAIN({
   auto& help = mllm::Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_name = mllm::Argparse::add<std::string>("-n|--model_name").help("Model name");
@@ -25,7 +36,18 @@ MLLM_MAIN({
   auto& pp = mllm::Argparse::add<std::string>("-pp|--prompt_length").help("Prompt length");
   auto& tg = mllm::Argparse::add<std::string>("-tg|--test_generation_length").help("Test Generation length");
   auto& cache_length = mllm::Argparse::add<int32_t>("-cl|--cache_length").help("Cache length");
+
+  // New CLI Arguments
+  auto& runs = mllm::Argparse::add<int32_t>("-r|--runs").help("Number of benchmark runs").def(3);
+  auto& cooldown_s = mllm::Argparse::add<int32_t>("-cs|--cooldown_s").help("Cooldown time between runs in seconds").def(5);
+  auto& output_csv = mllm::Argparse::add<std::string>("-oc|--output_csv").help("Output results to a CSV file").def("");
+  auto& schema_version = mllm::Argparse::add<int32_t>("-sv|--schema_version").help("Schema version for output format").def(1);
+  auto& kv_dtype_bytes = mllm::Argparse::add<int32_t>("-kv|--kv_dtype_bytes").help("KV cache data type bytes (1: int8, 2: fp16, 4: fp32)").def(4);
+
   mllm::Argparse::parse(argc, argv);
+
+  mllm::Context::instance().setCpuOpThreads(num_threads.get());
+  mllm::setMaximumNumThreads((uint32_t)num_threads.get());
 
   // Print Build Version
   mllm::print("MLLM Build Version :", STRINGIFY(MLLM_GIT_COMMIT_HASH));
@@ -57,6 +79,25 @@ MLLM_MAIN({
   mllm::print("Create Benchmark: ", model_name.get());
   auto benchmark = createBenchmark(model_name.get());
   MLLM_RT_ASSERT(benchmark != nullptr);
+
+
+  // Validate runs early to avoid huge reserve() when negative values cast to size_t.
+  int R = runs.get();
+  if (R <= 0) {
+    mllm::print("[ERROR] --runs must be > 0, got:", R);
+    return 1;
+  }
+
+  // Open file stream
+  std::ofstream csv_file;
+  if (!output_csv.get().empty()) {
+    csv_file.open(output_csv.get());
+    if (!csv_file.is_open()) {
+      mllm::print("[ERROR] Failed to open --output_csv:", output_csv.get());
+      return 1;
+    }
+    csv_file << "schema_version,git_commit,arch,model_name,pp,tg,ttft_ms,prefill_speed,decode_speed,prefill_ms,decode_ms_per_tok,kv_est_bytes_pp,kv_est_bytes_final\n";
+  }
 
   // Print Model Info
   mllm::print("Model Info");
@@ -92,7 +133,7 @@ MLLM_MAIN({
     for (size_t i = 0; i < pp_values.size(); ++i) { pp_tg_pairs.emplace_back(pp_values[i], tg_values[i]); }
   }
 
-  // Actual run for 3 turns and gives avg results. Each turn will sleep for 5 seconds to let the SoC or GPU/NPU cool down.
+  // Actual run for configurable number of turns
   mllm::print("\n========================================");
   mllm::print("Starting Benchmark Tests");
   mllm::print("========================================\n");
@@ -106,15 +147,15 @@ MLLM_MAIN({
 
     // Storage for results
     std::vector<BenchmarkTemplateResult> results;
-    results.reserve(3);
+    results.reserve(static_cast<size_t>(R));
 
-    for (int i = 0; i < 3; ++i) {
-      mllm::print("  Run", i + 1, "of 3...");
+    for (int i = 0; i < R; ++i) {
+      mllm::print("  Run", i + 1, "of", R, "...");
 
-      // Clear cache before each run
+      // Clear cache/state before each run to reduce cross-run interference.
+
       benchmark->clear();
-
-      // Run benchmark
+      // Run benchmark for this (pp, tg) pair.
       auto result = benchmark->run(pp, tg);
       results.push_back(result);
 
@@ -122,14 +163,24 @@ MLLM_MAIN({
       mllm::print("    Prefill Speed:", result.prefill_speed, "tokens/s");
       mllm::print("    Decode Speed :", result.decode_speed, "tokens/s");
 
-      // Sleep for 5 seconds between runs to cool down
-      if (i < 2) {
-        mllm::print("    Cooling down for 5 seconds...");
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+      // Derive per-run latency numbers from throughput (guard against divide-by-zero).
+
+      float prefill_ms = (result.prefill_speed > 0.0f) ? (pp / result.prefill_speed) * 1000.0f : 0.0f;
+      float decode_ms_per_tok = (result.decode_speed > 0.0f) ? (1.0f / result.decode_speed) * 1000.0f : 0.0f;
+      mllm::print("    Prefill Latency   :", prefill_ms, "ms");
+      mllm::print("    Decode Latency    :", decode_ms_per_tok, "ms");
+
+      // Sleep between runs to cool down (configurable).
+
+      int cool = cooldown_s.get();
+      if (i + 1 < R && cool > 0) {
+        mllm::print("    Cooling down for", cool, "seconds...");
+        std::this_thread::sleep_for(std::chrono::seconds(cool));
       }
     }
 
     // Calculate average results
+    float denom = (R > 0) ? static_cast<float>(R) : 1.0f;
     float avg_ttft = 0.0f;
     float avg_prefill_speed = 0.0f;
     float avg_decode_speed = 0.0f;
@@ -140,20 +191,44 @@ MLLM_MAIN({
       avg_decode_speed += result.decode_speed;
     }
 
-    avg_ttft /= 3.0f;
-    avg_prefill_speed /= 3.0f;
-    avg_decode_speed /= 3.0f;
+    avg_ttft /= denom;
+    avg_prefill_speed /= denom;
+    avg_decode_speed /= denom;
 
-    // Print average results
-    mllm::print("\n========== Average Results ==========");
-    mllm::print("Configuration: PP=", pp, " TG=", tg);
-    mllm::print("Average TTFT         :", avg_ttft, "ms");
-    mllm::print("Average Prefill Speed:", avg_prefill_speed, "tokens/s");
-    mllm::print("Average Decode Speed :", avg_decode_speed, "tokens/s");
-    mllm::print("=====================================\n");
+    float avg_prefill_ms = (avg_prefill_speed > 0.0f) ? (pp / avg_prefill_speed) * 1000.0f : 0.0f;
+    float avg_decode_ms_per_tok = (avg_decode_speed > 0.0f) ? (1.0f / avg_decode_speed) * 1000.0f : 0.0f;
+
+    // Rough KV cache estimate (bytes)
+    double kv_est_bytes_pp = 0.0;
+    double kv_est_bytes_final = 0.0;
+
+    // Prepare one line output (avg)
+    std::stringstream ss;
+    ss << schema_version.get() << "," 
+       << STRINGIFY(MLLM_GIT_COMMIT_HASH) << "," 
+       << mllm::cpu::CURRENT_ARCH_STRING << ","
+       << model_name.get() << ","
+       << pp << ","
+       << tg << ","
+       << avg_ttft << ","
+       << avg_prefill_speed << ","
+       << avg_decode_speed << ","
+       << avg_prefill_ms << ","
+       << avg_decode_ms_per_tok << ","
+       << kv_est_bytes_pp << ","
+       << kv_est_bytes_final;
+
+    if (csv_file.is_open()) {
+      csv_file << ss.str() << std::endl;
+    }
   }
 
   mllm::print("\n========================================");
   mllm::print("Benchmark Tests Completed");
   mllm::print("========================================");
+
+  //close file stream
+  if (csv_file.is_open()) {
+    csv_file.close();
+  }
 })
