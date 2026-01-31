@@ -194,6 +194,12 @@ MLLM_MAIN({
     // Rough KV cache estimate (bytes)
     double kv_est_bytes_pp = 0.0;
     double kv_est_bytes_final = 0.0;
+    if (auto info = benchmark->kvEstimateInfo(); info.has_value()) {
+      const int32_t bytes_per = kv_dtype_bytes.get();  // 1/2/4
+      // LLaMA-like KV: 2 * n_layers * n_kv_heads * head_dim * seq_len * bytes
+      kv_est_bytes_pp = 2.0 * info->num_layers * info->num_kv_heads * info->head_dim * (double)pp * bytes_per;
+      kv_est_bytes_final = 2.0 * info->num_layers * info->num_kv_heads * info->head_dim * (double)(pp + tg) * bytes_per;
+    }
 
     // Prepare one line output (avg)
     std::stringstream ss;

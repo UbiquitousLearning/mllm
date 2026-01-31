@@ -3,6 +3,8 @@
 #pragma once
 
 #include <string>
+#include <optional>
+#include <cstdint>
 
 /**
  * @brief Benchmark result structure
@@ -11,6 +13,12 @@ struct BenchmarkTemplateResult {
   float ttft;            ///< Time To First Token in milliseconds
   float prefill_speed;   ///< Prefill phase speed in tokens/s
   float decode_speed;    ///< Decode phase speed in tokens/s
+};
+
+struct KVCacheEstimateInfo {
+  int32_t num_layers = 0;
+  int32_t num_kv_heads = 0;
+  int32_t head_dim = 0;  // hidden_size / num_attention_heads
 };
 
 /**
@@ -58,4 +66,8 @@ class BenchmarkTemplate {
    * @return Test results
    */
   virtual BenchmarkTemplateResult run(int32_t pp, int32_t tg) = 0;
+
+  // Optional: provide info for KV cache size estimation.
+  // If a model does not support it, return std::nullopt.
+  virtual std::optional<KVCacheEstimateInfo> kvEstimateInfo() const { return std::nullopt; }
 };

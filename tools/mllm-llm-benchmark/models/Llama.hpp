@@ -14,6 +14,15 @@
 
 class Llama_Benchmark final : public BenchmarkTemplate {
  public:
+    std::optional<KVCacheEstimateInfo> kvEstimateInfo() const override {
+    if (!cfg_) return std::nullopt;
+    KVCacheEstimateInfo info;
+    info.num_layers = cfg_->num_hidden_layers;
+    info.num_kv_heads = cfg_->num_key_value_heads;
+    info.head_dim = cfg_->hidden_size / cfg_->num_attention_heads;
+    return info;
+  }
+
   void init(const std::string& cfg_path, const std::string& model_path, int32_t cache_length) override {
     cfg_ = std::make_unique<mllm::models::llama::LLaMAConfig>(cfg_path);
 
