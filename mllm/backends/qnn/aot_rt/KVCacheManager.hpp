@@ -24,7 +24,20 @@ template<typename T>
 class KVCacheManager {
  public:
   explicit KVCacheManager(QnnAOTConfig config);
-  ~KVCacheManager() = default;
+  ~KVCacheManager() {
+    // Explicitly clear storage to ensure proper cleanup order
+    // Storage must be released before QNN backend is destroyed
+    for (auto& cache : k_cache_) {
+      cache.buffer_storage.reset();
+      cache.output_buffer_storage.reset();
+    }
+    for (auto& cache : v_cache_) {
+      cache.buffer_storage.reset();
+      cache.output_buffer_storage.reset();
+    }
+    k_cache_.clear();
+    v_cache_.clear();
+  }
 
   void initCache(mllm::Allocator* allocator, int32_t ar_len);
   void rearrangeCache(int32_t ar_len_dst);

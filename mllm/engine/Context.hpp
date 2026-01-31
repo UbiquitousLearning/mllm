@@ -30,6 +30,8 @@ class Context {
 
   Backend::ptr_t getBackend(const DeviceTypes& device);
 
+  void shutdownBackend(const DeviceTypes& device);
+
   inline MemoryManager::ptr_t memoryManager() { return memory_manager_; }
 
   inline DispatcherManager::ptr_t dispatcherManager() { return dispatcher_manager_; }

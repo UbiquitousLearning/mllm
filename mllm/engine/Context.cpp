@@ -41,6 +41,11 @@ Backend::ptr_t Context::getBackend(const DeviceTypes& device) {
   return backends_[device];
 }
 
+void Context::shutdownBackend(const DeviceTypes& device) {
+  if (!backends_.has(device)) { return; }
+  backends_.remove(device);
+}
+
 std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
                                                   const std::vector<Tensor>& inputs, DeviceTypes special_device) {
   MLLM_TRACY_ZONE_SCOPED;

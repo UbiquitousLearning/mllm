@@ -138,7 +138,10 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       if (!cfg->scale) {
         MLLM_ERROR_EXIT(ExitCode::kCoreError, "SymPerTensor quant recipe has no scale. tensor: {}", v->name());
       }
-      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
+
+      MLLM_RT_ASSERT_EQ(cfg->quant_to_type, kUInt8);
+
+      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = -128};
       MLLM_INFO("Configuring SymPerTensor quantization for tensor: {}, scale: {}", v->name(), cfg->scale.item<float>());
       break;
     }

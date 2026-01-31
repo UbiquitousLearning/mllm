@@ -17,6 +17,14 @@ class PromptProcessor {
  public:
   PromptProcessor(KVCacheManager<T>* kv_manager, QnnAOTConfig config);
 
+  ~PromptProcessor() {
+    // Clear module's output tensors before member tensors are destroyed
+    // to avoid double-free or use-after-free issues
+    if (module_) { module_->setOutputTensors({}); }
+    output_tensors_.clear();
+    input_tensors_.clear();
+  }
+
   /**
    * Prefill an LLM Module with the given text input.
    * @param prompt_tokens The text prompt tokens to the LLM Module.

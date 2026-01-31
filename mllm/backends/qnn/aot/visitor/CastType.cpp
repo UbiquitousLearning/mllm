@@ -61,7 +61,10 @@ bool QnnAOTCastTypePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op
     qnn_op_type = "Quantize";
   } else if (isInt(input_dtype) && isFloat(target_dtype)) {
     qnn_op_type = "Dequantize";
+  } else if (isInt(input_dtype) && isInt(target_dtype)) {
+    qnn_op_type = "Convert";
   } else if (input_dtype == kFloat32 && target_dtype == kFloat16) {
+    // TODO, Cast usage is error.
     qnn_op_type = "Cast";
   } else {
     MLLM_ERROR("Unsupported CastType for QNN: {} -> {}", (int)input_dtype, (int)target_dtype);

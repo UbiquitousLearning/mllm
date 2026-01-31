@@ -21,14 +21,13 @@ namespace mllm::qnn {
 
 QnnInterfaceGetProvidersFn_t QnnInterface_getProviders = nullptr;
 
-bool loadQNNSymbol() {
+std::pair<bool, void*> loadQNNSymbol() {
   MLLM_INFO("QNN Backend Lib: libQnnHtp.so");
-  void* qnnLibHandle = nullptr;
-  qnnLibHandle = dlopen("libQnnHtp.so", RTLD_NOW | RTLD_LOCAL);
+  void* qnnLibHandle = dlopen("libQnnHtp.so", RTLD_NOW | RTLD_LOCAL);
   const char* errorOpen = dlerror();
   if (!qnnLibHandle) {
     MLLM_ERROR("Failed to open QNN libs.");
-    return false;
+    return {false, nullptr};
   }
 
   QnnInterface_getProviders = (QnnInterfaceGetProvidersFn_t)dlsym(qnnLibHandle, "QnnInterface_getProviders");
@@ -36,20 +35,20 @@ bool loadQNNSymbol() {
   if (!QnnInterface_getProviders) {
     MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(qnnLibHandle);
-    return false;
+    return {false, nullptr};
   }
 
-  return true;
+  return {true, qnnLibHandle};
 }
 
 QnnSystemInterfaceGetProvidersFn_t QnnSystemInterface_getProviders = nullptr;
 
-bool loadQNNSystemSymbol() {
+std::pair<bool, void*> loadQNNSystemSymbol() {
   void* systemLibraryHandle = dlopen("libQnnSystem.so", RTLD_NOW | RTLD_LOCAL);
   const char* errorOpen = dlerror();
   if (!systemLibraryHandle) {
     MLLM_ERROR("Failed to open QNN System libs.");
-    return false;
+    return {false, nullptr};
   }
 
   QnnSystemInterface_getProviders =
@@ -58,10 +57,10 @@ bool loadQNNSystemSymbol() {
   if (!QnnSystemInterface_getProviders) {
     MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(systemLibraryHandle);
-    return false;
+    return {false, nullptr};
   }
 
-  return true;
+  return {true, systemLibraryHandle};
 }
 
 // --------------- End of QNN symbols loading ---------------
