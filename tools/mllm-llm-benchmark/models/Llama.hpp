@@ -83,6 +83,10 @@ class Llama_Benchmark final : public BenchmarkTemplate {
   }
 
   BenchmarkTemplateResult run(int32_t pp, int32_t tg) override {
+    if (pp <= 0 || tg < 0) {
+      mllm::print("[ERROR] invalid pp/tg:", pp, tg);
+      return {0.f, 0.f, 0.f};
+    }
     if (!model_) return {0.f, 0.f, 0.f};
 
     auto input_ids = mllm::Tensor::empty({1, pp}, mllm::kInt64, mllm::kCPU)
