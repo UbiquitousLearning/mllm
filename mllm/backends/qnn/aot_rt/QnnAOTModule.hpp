@@ -12,6 +12,10 @@ namespace mllm::qnn::aot {
 class QnnAOTModule : public mllm::nn::Module, public models::ARGeneration {
  public:
   explicit QnnAOTModule(const std::string& graph_name);
+  ~QnnAOTModule() {
+    // Clear output tensors to ensure proper cleanup order
+    output_tensors_.clear();
+  }
 
   std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs, const std::vector<mllm::AnyValue>& args) override;
 
