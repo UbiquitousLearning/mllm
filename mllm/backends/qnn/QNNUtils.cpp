@@ -455,7 +455,9 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
   MLLM_RT_ASSERT(!name.empty());
   // in AOT case, the tensor is all on CPU (TODO: handle this)
-  // if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+#ifndef MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
+  if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+#endif
 
   Qnn_DataType_t dataType = mllmDataTypeToQnnDataType(tensor.dtype());
 
@@ -465,6 +467,9 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   auto tensorWrapper = std::make_shared<QNNTensorWrapper>(name, type, dataType, dimensions, quantize);
 
   tensorWrapper->dataContainer_ = tensor;
+
+  // when passed allocated tensor, mark isAlloc_ = true
+  if (!tensor.isNil()) tensorWrapper->isAlloc_ = true;
 
   return tensorWrapper;
 }

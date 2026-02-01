@@ -125,14 +125,15 @@ if(MLLM_BUILD_OPENCL_BACKEND)
   )
 endif()
 
-if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
-  add_subdirectory(backends/qnn)
-endif()
-
+# add definition before including qnn
 if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
   add_compile_definitions(
     MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
   )
+endif()
+
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
+  add_subdirectory(backends/qnn)
 endif()
 
 if(MLLM_BUILD_QNN_BACKEND)
