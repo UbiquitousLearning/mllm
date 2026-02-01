@@ -6,4 +6,4 @@ QNN Backend
 
    setup_env
    core_design
-   qnn_model_convert
+   aot_execute
