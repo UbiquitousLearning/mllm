@@ -1,12 +1,15 @@
-#include "QNNBackend.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <dlfcn.h>
 #include <fstream>
 #include <memory>
-#include "QNNUtils.hpp"
+
 #include "QnnLog.h"
+
+#include "mllm/backends/qnn/QNNBackend.hpp"
+#include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
 #include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
@@ -33,17 +36,16 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   profilingLevel_ = ProfilingLevel::OFF;
   debug_ = false;  // when set true, NATIVE tensor will be regared as APP_READ tensor
 
-  if (!loadQNNSymbol()) {
-    MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN symbols");
-  } else {
-    MLLM_INFO("QNN symbols loaded successfully");
-  }
+  // Load QNN libraries and hold handles for lifecycle management
+  auto [qnnSuccess, qnnHandle] = loadQNNSymbol();
+  if (!qnnSuccess) { MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN symbols"); }
+  qnnHtpLibHandle_ = qnnHandle;
+  MLLM_INFO("QNN symbols loaded successfully");
 
-  if (!loadQNNSystemSymbol()) {
-    MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN System symbols");
-  } else {
-    MLLM_INFO("QNN System symbols loaded successfully");
-  }
+  auto [sysSuccess, sysHandle] = loadQNNSystemSymbol();
+  if (!sysSuccess) { MLLM_ERROR_EXIT(ExitCode::kQnnError, "Failed to load QNN System symbols"); }
+  qnnSystemLibHandle_ = sysHandle;
+  MLLM_INFO("QNN System symbols loaded successfully");
 
   runtime_ = QNNRuntime::create(profilingLevel_, qnnLogLevel);
   if (!runtime_) {
@@ -75,24 +77,67 @@ QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   MLLM_INFO("QNN Perf created successfully");
 }
 
+QNNBackend::~QNNBackend() {
+  // Cleanup order is critical - we hold all QNN library handles to control unload order:
+  // 1. Allocator shutdown (memDeRegister + rpcmem_free) - needs QNN alive
+  // 2. Clear models - tensor destructors try to free but allocator is shut down
+  // 3. Perf cleanup - needs QNN HTP infrastructure alive
+  // 4. Runtime cleanup - frees QNN backend/device handles
+  // 5. Allocator reset - dlcloses libcdsprpc.so (held by allocator)
+  // 6. Close QNN libraries - libQnnSystem.so first, then libQnnHtp.so
+
+  // 1. Properly shutdown allocator while QNN is still alive
+  //    This calls memDeRegister and rpcmem_free safely
+  if (allocator_) {
+    auto* qnnAllocator = dynamic_cast<QNNAllocator*>(allocator_.get());
+    if (qnnAllocator) { qnnAllocator->shutdown(); }
+  }
+
+  // 2. Clear models - tensor destructors will call free() but they're now no-ops
+  qnnModels_.clear();
+  qnnModelIndexMap_.clear();
+
+  // 3. Cleanup perf while QNN HTP infrastructure is still alive
+  if (perf_) { perf_->shutdown(); }
+  perf_.reset();
+
+  // 4. Cleanup runtime - frees QNN backend/device handles
+  runtime_->qnnInterface.contextFree(context_, nullptr);
+  context_ = nullptr;
+  runtime_.reset();
+
+  // 5. Reset allocator - will dlclose libcdsprpc.so since shutdown() was already called
+  allocator_.reset();
+
+  // 6. Close QNN libraries in reverse order of dependency
+  if (qnnSystemLibHandle_) {
+    dlclose(qnnSystemLibHandle_);
+    qnnSystemLibHandle_ = nullptr;
+  }
+  if (qnnHtpLibHandle_) {
+    dlclose(qnnHtpLibHandle_);
+    qnnHtpLibHandle_ = nullptr;
+  }
+}
+
 QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
   assert(qnnInterface != nullptr);
-  mQnnInterface = qnnInterface;
+  qnnInterface_ = qnnInterface;
 
   QnnDevice_Infrastructure_t deviceInfra = nullptr;
-  CALL_QNN(mQnnInterface->deviceGetInfrastructure(&deviceInfra));
+  CALL_QNN(qnnInterface_->deviceGetInfrastructure(&deviceInfra));
   QnnHtpDevice_Infrastructure_t* htpInfra = static_cast<QnnHtpDevice_Infrastructure_t*>(deviceInfra);
-  mPerfInfra = htpInfra->perfInfra;
+  perfInfra_ = htpInfra->perfInfra;
 
   uint32_t deviceId = 0;
   uint32_t coreId = 0;
-  CALL_QNN(mPerfInfra.createPowerConfigId(deviceId, coreId, &mPowerConfigId));
+  CALL_QNN(perfInfra_.createPowerConfigId(deviceId, coreId, &powerConfigId_));
 
-  mPowerConfigBurst = {
+  powerConfigBurst_ = {
       .option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_DCVS_V3,
       .dcvsV3Config =
           {
-              .contextId = mPowerConfigId,  // use the power config id created
+              .contextId = powerConfigId_,  // use the power config id created
               .setDcvsEnable = 1,
               .dcvsEnable = 0,  // 1- To enable Dcvs and consider dcvs power mode, 0- To disable dcvs
               .powerMode = QNN_HTP_PERF_INFRASTRUCTURE_POWERMODE_PERFORMANCE_MODE,
@@ -111,11 +156,11 @@ QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
           },
   };
 
-  mPowerConfigBalanced = {
+  powerConfigBalanced_ = {
       .option = QNN_HTP_PERF_INFRASTRUCTURE_POWER_CONFIGOPTION_DCVS_V3,
       .dcvsV3Config =
           {
-              .contextId = mPowerConfigId,  // use the power config id created
+              .contextId = powerConfigId_,  // use the power config id created
               .setDcvsEnable = 1,
               .dcvsEnable = 1,  // 1- To enable Dcvs and consider dcvs power mode, 0- To disable dcvs
               .powerMode = QNN_HTP_PERF_INFRASTRUCTURE_POWERMODE_ADJUST_UP_DOWN,
@@ -135,8 +180,17 @@ QNNPerf::QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface) {
   };
 }
 
-// destory power config
-QNNPerf::~QNNPerf() { CALL_QNN(mPerfInfra.destroyPowerConfigId(mPowerConfigId)); }
+void QNNPerf::shutdown() {
+  if (isShutdown_) return;
+  isShutdown_ = true;
+  CALL_QNN(perfInfra_.destroyPowerConfigId(powerConfigId_));
+}
+
+QNNPerf::~QNNPerf() {
+  // If shutdown() was already called, skip cleanup
+  // This prevents crashes during program exit when QNN HTP infrastructure might be destroyed
+  if (!isShutdown_) { shutdown(); }
+}
 
 void QNNPerf::setRpcLatencyAndPolling() {
   // set RPC Control Latency
@@ -146,7 +200,7 @@ void QNNPerf::setRpcLatencyAndPolling() {
   rpcControlLatency.rpcControlLatencyConfig = 100;  // use rpc control latency recommended 100 us, refer hexagon sdk
   const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs1[] = {&rpcControlLatency, nullptr};
 
-  CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs1));  // set RPC latency config on power config ID created
+  CALL_QNN(perfInfra_.setPowerConfig(powerConfigId_, powerConfigs1));  // set RPC latency config on power config ID created
 
   // set RPC Polling
   QnnHtpPerfInfrastructure_PowerConfig_t rpcPollingTime;  // refer QnnHtpPerfInfrastructure.h
@@ -155,17 +209,17 @@ void QNNPerf::setRpcLatencyAndPolling() {
   rpcPollingTime.rpcPollingTimeConfig = 9999;  // use rpc polling time recommended 0-10000 us
   const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs2[] = {&rpcPollingTime, nullptr};
 
-  CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs2));  // set RPC polling config on power config ID created
+  CALL_QNN(perfInfra_.setPowerConfig(powerConfigId_, powerConfigs2));  // set RPC polling config on power config ID created
 }
 
 void QNNPerf::setPowerConfigBurst() {
-  const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs[] = {&mPowerConfigBurst, nullptr};
-  CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs));
+  const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs[] = {&powerConfigBurst_, nullptr};
+  CALL_QNN(perfInfra_.setPowerConfig(powerConfigId_, powerConfigs));
 }
 
 void QNNPerf::setPowerConfigBalanced() {
-  const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs[] = {&mPowerConfigBalanced, nullptr};
-  CALL_QNN(mPerfInfra.setPowerConfig(mPowerConfigId, powerConfigs));
+  const QnnHtpPerfInfrastructure_PowerConfig_t* powerConfigs[] = {&powerConfigBalanced_, nullptr};
+  CALL_QNN(perfInfra_.setPowerConfig(powerConfigId_, powerConfigs));
 }
 
 QNNRuntime::~QNNRuntime() {

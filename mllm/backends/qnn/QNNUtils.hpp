@@ -43,8 +43,10 @@ using QnnSystemInterfaceGetProvidersFn_t = Qnn_ErrorHandle_t (*)(const QnnSystem
 extern QnnInterfaceGetProvidersFn_t QnnInterface_getProviders;
 extern QnnSystemInterfaceGetProvidersFn_t QnnSystemInterface_getProviders;
 
-bool loadQNNSymbol();
-bool loadQNNSystemSymbol();
+// Load QNN symbols and return library handle for lifecycle management
+// Returns {success, libHandle} - caller owns the handle and must dlclose it
+std::pair<bool, void*> loadQNNSymbol();
+std::pair<bool, void*> loadQNNSystemSymbol();
 
 // --------------- End of QNN symbols loading ---------------
 
