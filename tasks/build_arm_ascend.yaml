@@ -1,6 +1,6 @@
 Tasks:
   - CMakeConfigTask:
-      cmake_cfg_path: "build-arm-ascend"
+      cmake_cfg_path: "build-ascend"
       cmake_build_type: "ReleaseDebInfo"
       cmake_extra_args:
         - "-DMLLM_CROSS_COMPILE=ON"
@@ -15,4 +15,4 @@ Tasks:
         - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
 
   - CMakeBuildTask:
-      cmake_cfg_path: "build-arm-ascend"
+      cmake_cfg_path: "build-ascend"

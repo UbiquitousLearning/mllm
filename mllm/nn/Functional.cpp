@@ -7,6 +7,7 @@
 #include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/GatherOp.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
+#include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/Scatter2ShardsOp.hpp"
 #include "mllm/core/aops/SigmoidOp.hpp"
@@ -16,6 +17,7 @@
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/core/aops/SiLUOp.hpp"
+#include "mllm/core/aops/RMSNormOp.hpp"
 #include "mllm/core/aops/PadOp.hpp"
 #include "mllm/core/aops/MaskedScatterOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
@@ -31,6 +33,16 @@ Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A, bool transpose
   return Context::instance().buildOpAndSubmitTask(
       OpTypes::kMatMul, aops::MatMulOpOptions{.transpose_a = transpose_A, .transpose_b = transpose_B, .matmul_type = type},
       {A, B})[0];
+}
+
+Tensor linear(const Tensor& x, const Tensor& weight, const Tensor& bias) {
+  aops::LinearOpOptions opts{};
+  opts.setRedirect(true);
+  if (bias.isNil()) {
+    return Context::instance().buildOpAndSubmitTask(OpTypes::kLinear, opts, {x, weight})[0];
+  } else {
+    return Context::instance().buildOpAndSubmitTask(OpTypes::kLinear, opts, {x, weight, bias})[0];
+  }
 }
 
 Tensor view(const Tensor& x, const std::vector<int32_t>& shape) {
@@ -124,6 +136,11 @@ Tensor silu_(const Tensor& x) {
   auto opt = aops::SiLUOpOptions{};
   opt.setInplace(true);
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSiLU, opt, {x})[0];
+}
+
+Tensor rmsNorm(const Tensor& x, const Tensor& weight, float epsilon, bool add_unit_offset) {
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kRMSNorm, aops::RMSNormOpOptions{.epsilon = epsilon, .add_unit_offset = add_unit_offset}, {x, weight})[0];
 }
 
 void scatter2Shards(const Tensor& src, const Tensor& shards_pointer, int32_t dim) {
