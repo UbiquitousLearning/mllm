@@ -148,7 +148,7 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
     current_pos += chunk_size;
   }
 
-  auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, (num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
+  auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, ((int)num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
 
   auto cur_token = module_->sampleGreedy(logits);
 
