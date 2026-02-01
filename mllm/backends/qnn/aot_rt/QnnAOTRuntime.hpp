@@ -19,7 +19,14 @@ using RunnerConfig = QnnAOTConfig;
 class Runner {
  public:
   explicit Runner(const RunnerConfig& config, mllm::preprocessor::AutoTokenizer* tokenizer);
-  ~Runner() = default;
+  ~Runner() {
+    // Explicit destruction order to avoid use-after-free issues
+    // Destroy generators first (they reference kv_manager_)
+    token_generator_.reset();
+    prompt_processor_.reset();
+    // Then destroy kv_manager_
+    kv_manager_.reset();
+  }
 
   bool load();
   void generate(const Tensor& prompt_tokens, int32_t seq_len, const std::function<void(const std::string&)>& token_callback,

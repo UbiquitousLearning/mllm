@@ -571,6 +571,14 @@ bool LLMQuantRecipeSlicePattern::isMatch(const mllm::ir::op_ptr_t& op) {
 }
 
 bool LLMQuantRecipeSlicePattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  auto slice_ir = node->cast_<ir::linalg::SliceOp>();
+  auto i_0 = *(node->inputs().begin());
+
+  if (!i_0->getAttr("quant_recipe")) {
+    auto i_0_spec = genSimpleQuantizationSpecAttr(writer.getContext(), i_0->cast_<ir::tensor::TensorValue>());
+    i_0->setAttr("quant_recipe", i_0_spec);
+  }
+
   return shareQuantSpecSingleInputToSingleOutputAndSetOpQuantAnnoAttr(writer.getContext(),
                                                                       node->cast_<ir::linalg::LinalgIROp>());
 }

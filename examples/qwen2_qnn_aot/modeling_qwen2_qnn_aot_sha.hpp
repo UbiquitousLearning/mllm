@@ -88,7 +88,7 @@ Tensor QDQ_KV(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) 
     case kUInt8PerTensorSym: {
       auto scale = m->getTopParameterFile()->pull(scale_name);
       auto zp = m->getTopParameterFile()->pull(zp_name);
-      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 0);
+      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 128);
 
       // Is 128! not 127!
       auto new_zp = Tensor::constant(128, kInt32).setName(zp_name).setMemType(kParamsNormal);

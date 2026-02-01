@@ -53,6 +53,12 @@ void shutdownContext() {
   }
   ::mllm::cleanThisThread();
 
+  // Clean up QNN Backend before system start to unload QNN dynamic libraries
+  if (isQnnAvailable()) {
+    auto& ctx = Context::instance();
+    ctx.shutdownBackend(kQNN);
+  }
+
   // Clean up memory before backend is freed.
   // FIXME:
   // This line is needed for cuda !!!
