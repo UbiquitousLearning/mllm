@@ -17,6 +17,9 @@ MLLM_MAIN({
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model file path.");
   auto& model_cfg_path = Argparse::add<std::string>("-c|--config").help("Model config file path.");
   auto& qnn_aot_cfg_files = Argparse::add<std::string>("-aot_cfg|--aot_config").help("AOT Config file path.");
+  auto& qnn_env_path = Argparse::add<std::string>("-qnn_env|--qnn_env_path")
+                           .def("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/")
+                           .help("QNN AOT Environment path.");
 
   Argparse::parse(argc, argv);
 
@@ -47,7 +50,7 @@ MLLM_MAIN({
   model.load(params);
 
   // Create Qnn AOT Model
-  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
+  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv(qnn_env_path.get(),
                                                mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
 
   // Model length 32.

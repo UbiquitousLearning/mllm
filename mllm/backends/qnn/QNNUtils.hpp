@@ -302,4 +302,75 @@ QNNParamScalarWrapper::QNNParamScalarWrapper(const std::string& name, T value) :
   }
 }
 
+// --------------- QNN Quantization Print Helper (DBG Use) ---------------
+inline void __printDequantizedUInt16TensorData(const mllm::Tensor& tensor, int dim, std::vector<int32_t>& indices, float scale,
+                                               int32_t offset) {
+  auto shape = tensor.shape();
+  if (dim >= (int)shape.size()) {
+    uint16_t val = tensor.constAt<uint16_t>(indices);
+    float fval = (static_cast<float>(val) + offset) * scale;
+    printf("%.4f", fval);
+    return;
+  }
+
+  int32_t dim_size = shape[dim];
+  printf("[");
+
+  int max_elements_per_dim = 20;
+  bool is_last_dim = (dim == (int)shape.size() - 1);
+
+  if (dim_size <= max_elements_per_dim) {
+    for (int32_t i = 0; i < dim_size; ++i) {
+      if (i > 0) {
+        printf(", ");
+        if (!is_last_dim) printf("\n");
+      }
+      indices.push_back(i);
+      __printDequantizedUInt16TensorData(tensor, dim + 1, indices, scale, offset);
+      indices.pop_back();
+    }
+  } else {
+    const int SHOW_ELEMENTS = max_elements_per_dim / 2;
+    for (int32_t i = 0; i < SHOW_ELEMENTS; ++i) {
+      if (i > 0) {
+        printf(", ");
+        if (!is_last_dim) printf("\n");
+      }
+      indices.push_back(i);
+      __printDequantizedUInt16TensorData(tensor, dim + 1, indices, scale, offset);
+      indices.pop_back();
+    }
+    if (!is_last_dim) {
+      printf(",\n...\n");
+    } else {
+      printf(", ..., ");
+    }
+
+    for (int32_t i = dim_size - SHOW_ELEMENTS; i < dim_size; ++i) {
+      if (i > dim_size - SHOW_ELEMENTS) {
+        printf(", ");
+        if (!is_last_dim) printf("\n");
+      }
+      indices.push_back(i);
+      __printDequantizedUInt16TensorData(tensor, dim + 1, indices, scale, offset);
+      indices.pop_back();
+    }
+  }
+  printf("]");
+}
+
+inline void printDequantizedTensor(const mllm::Tensor& tensor, float scale, int32_t offset) {
+  std::vector<int32_t> indices;
+  // reserve shape size
+  indices.reserve(tensor.shape().size());
+  printf("Dequantized Tensor (scale=%f, offset=%d):\n", scale, offset);
+
+  if (tensor.dtype() == mllm::kUInt16 && tensor.dtype() != mllm::kUInt16PerTensorAsy) {
+    __printDequantizedUInt16TensorData(tensor, 0, indices, scale, offset);
+  } else {
+    printf("Not supported type");
+  }
+  printf("\n");
+}
+
 }  // namespace mllm::qnn

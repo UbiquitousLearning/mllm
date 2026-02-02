@@ -98,6 +98,10 @@ Compilation Commands
 
 This will build the necessary QNN op packages for both AArch64 and HVX v75 targets.
 
+.. note::
+   The Hexagon tools version in the Makefile may change. If compilation fails, please update the version number in the Makefile accordingly.
+
+
 Development Tips
 ----------------
 

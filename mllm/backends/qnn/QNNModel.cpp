@@ -134,8 +134,6 @@ ModelError_t QNNModel::loadGraphTensorInfo(const Qnn_Tensor_t* inputTensors, uin
 
     outputTensorWrappers_.push_back(wrapper);
     tensorWrapperMap_[tensorName] = wrapper;
-    // Record QNN output order (index in outputTensorWrappers_)
-    qnnOutputNameToIndex_[tensorName] = static_cast<int>(outputTensorWrappers_.size() - 1);
   }
 
   MLLM_INFO("QNNModel::loadGraphTensorInfo() loaded {} input tensors and {} output tensors for graph: {}", numInputTensors,
@@ -182,8 +180,6 @@ ModelError_t QNNModel::addTensorWrapper(const std::shared_ptr<QNNTensorWrapper>&
     inputTensorWrappers_.push_back(tensorWrapper);
   } else if (QNN_TENSOR_GET_TYPE(nativeTensor) == QNN_TENSOR_TYPE_APP_READ) {
     outputTensorWrappers_.push_back(tensorWrapper);
-    // Record QNN output order (index in outputTensorWrappers_)
-    qnnOutputNameToIndex_[tensorName] = static_cast<int>(outputTensorWrappers_.size() - 1);
   }
 
   return MODEL_NO_ERROR;

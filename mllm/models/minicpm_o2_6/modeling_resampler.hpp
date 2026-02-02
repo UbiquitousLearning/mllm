@@ -294,7 +294,7 @@ class Resampler : public nn::Module {
     std::vector<Tensor> outputs;
     for (int32_t b = 0; b < batch_size; ++b) {
       // x for this batch
-      Tensor x_b = x[make_slice(b), kAll, kAll].view({seq_len, embed_dim_});
+      Tensor x_b = x[{b, kAll, kAll}].view({seq_len, embed_dim_});
 
       // pos_embed for this batch
       // Tensor pos_embed_b = Tensor::empty({seq_len, embed_dim_}, kFloat32).alloc();
@@ -308,12 +308,12 @@ class Resampler : public nn::Module {
       //   }
       // }
       // TODO: handle 'set 0'
-      Tensor pos_embed_b = pos_embed_padded[make_slice(b), kAll, kAll].view({seq_len, embed_dim_});
+      Tensor pos_embed_b = pos_embed_padded[{b, kAll, kAll}].view({seq_len, embed_dim_});
 
       auto kv_input = x_b + pos_embed_b;
 
       // key_padding_mask for this batch
-      Tensor key_padding_mask_b = key_padding_mask[make_slice(b), kAll].view({max_patch_len});
+      Tensor key_padding_mask_b = key_padding_mask[{b, kAll}].view({max_patch_len});
 
       bool has_padding = false;
       for (int i = 0; i < seq_len; i++) {
