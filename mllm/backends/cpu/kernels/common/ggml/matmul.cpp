@@ -1,5 +1,13 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <mutex>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 #include <cassert>
 #include <cstdint>
 
@@ -30,6 +38,77 @@ void mllm_add_fp32(float* a, float* b, float* c, int n) {
   for (; i < n; i++) { c[i] = a[i] + b[i]; }
 }
 
+namespace {
+struct MMShapeKey {
+  int m, n, k;
+  int kind;  // 0=sgemm/sgemm-like, 1=gemm, 2=gemv
+  bool operator==(const MMShapeKey& o) const {
+    return m == o.m && n == o.n && k == o.k && kind == o.kind;
+  }
+};
+struct MMShapeKeyHash {
+  size_t operator()(const MMShapeKey& s) const {
+    // 简单 hash（够用）
+    size_t h = (size_t)s.m * 1315423911u;
+    h ^= (size_t)s.n * 2654435761u;
+    h ^= (size_t)s.k * 97531u;
+    h ^= (size_t)s.kind;
+    return h;
+  }
+};
+struct MMAgg {
+  uint64_t calls = 0;   // 逻辑调用次数（gemv 用“行数”计）
+  uint64_t flops = 0;   // 估算 flops：2*m*n*k（gemv 用 m=1, calls=rows）
+};
+
+static bool g_mm_shape_on = false;
+static std::once_flag g_mm_shape_init;
+static std::mutex g_mm_shape_mu;
+static std::unordered_map<MMShapeKey, MMAgg, MMShapeKeyHash> g_mm_shape;
+
+static void mm_shape_init() {
+  const char* e = std::getenv("MLLM_MATMUL_SHAPE_LOG");
+  g_mm_shape_on = (e && *e && *e != '0');
+  if (!g_mm_shape_on) return;
+
+  std::atexit([] {
+    std::vector<std::pair<MMShapeKey, MMAgg>> v;
+    {
+      std::lock_guard<std::mutex> lk(g_mm_shape_mu);
+      v.reserve(g_mm_shape.size());
+      for (auto& kv : g_mm_shape) v.push_back(kv);
+    }
+    std::sort(v.begin(), v.end(),
+              [](auto& a, auto& b) { return a.second.flops > b.second.flops; });
+
+    std::fprintf(stderr, "\n[MLLM_MATMUL_SHAPE_LOG] top shapes by FLOPs:\n");
+    int limit = (int)std::min<size_t>(30, v.size());
+    for (int i = 0; i < limit; ++i) {
+      const auto& k = v[i].first;
+      const auto& a = v[i].second;
+      const char* kind =
+          (k.kind == 0 ? "sgemm" : (k.kind == 1 ? "gemm" : "gemv"));
+      std::fprintf(stderr,
+                   "  %2d) %-4s M=%d N=%d K=%d  calls=%llu  flops=%.3e\n",
+                   i + 1, kind, k.m, k.n, k.k,
+                   (unsigned long long)a.calls,
+                   (double)a.flops);
+    }
+    std::fprintf(stderr, "\n");
+  });
+}
+
+static inline void mm_shape_record(int kind, int m, int n, int k,
+                                   uint64_t calls, uint64_t flops) {
+  std::call_once(g_mm_shape_init, mm_shape_init);
+  if (!g_mm_shape_on) return;
+  std::lock_guard<std::mutex> lk(g_mm_shape_mu);
+  MMAgg& a = g_mm_shape[MMShapeKey{m, n, k, kind}];
+  a.calls += calls;
+  a.flops += flops;
+}
+}  // namespace
+
 namespace mllm::cpu::ggml {
 
 #define LLAMAFILE_SGEMM
@@ -53,6 +132,14 @@ void mat_mul(const Tensor& src0_, const Tensor& src1, Tensor& dst, bool support_
   const int M = transpose0 ? src0_shape[src0_shape.size() - 1] : src0_shape[src0_shape.size() - 2];
   const int K = transpose0 ? src0_shape[src0_shape.size() - 2] : src0_shape[src0_shape.size() - 1];
   const int N = transpose1 ? src1_shape[src1_shape.size() - 2] : src1_shape[src1_shape.size() - 1];
+
+  // NOTE: batch_count_mm is ONLY for MLLM_MATMUL_SHAPE_LOG aggregation (does not affect compute path)
+int64_t batch_count_mm = 1;
+  for (size_t i = 0; i + 2 < dst_shape.size(); ++i) batch_count_mm *= dst_shape[i];
+  mm_shape_record(0, M, N, K,
+                  (uint64_t)batch_count_mm,
+                  (uint64_t)(2.0 * (double)batch_count_mm * M * N * (double)K));
+
 
   auto src0_dtype = src0_.dtype();
   auto src1_dtype = src1.dtype();
@@ -197,6 +284,12 @@ llamafile_fallback:;
   if (check_llamafile_sgemm(N, M, K, src1_dtype, src0_dtype, dst_dtype, ld_src1, ld_src0, ld_dst)) {
     if (batch_count == 1) {
       MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
+        if (id == 0) {
+          // flops = 2*M*N*K（注意 llamafile_sgemm 参数顺序是 N,M,K/... 但数学等价）
+          mm_shape_record(/*kind=*/0, (int)M, (int)N, (int)K,
+                          /*calls=*/1,
+                          /*flops=*/2ull * (uint64_t)M * (uint64_t)N * (uint64_t)K);
+        }
         if (!llamafile_sgemm(N, M, K / src0_blck_size, src1.ptr<mllm_byte_t>(), ld_src1 / src1_blck_size,  // B matrix (weight)
                              src0->ptr<mllm_byte_t>(), ld_src0 / src0_blck_size,                           // A matrix (input)
                              dst.ptr<mllm_byte_t>(), ld_dst, id, thread_count, src1_dtype, src0_dtype, dst_dtype, bias_ptr,
@@ -235,6 +328,22 @@ llamafile_fallback:;
 
   // Use gemv/gemm if available
   if ((gemv != nullptr) && dst_dtype == MLLM_TYPE_F32) {
+    // 统计“逻辑工作量”：gemm 覆盖 M4 行；gemv 覆盖剩余行（每行一次 gemv）
+    const int64_t m_gemm = ((gemm != nullptr) && (M > 3)) ? (M - M % 4) : 0;
+    const int64_t m_gemv = M - m_gemm;
+
+    if (m_gemm > 0) {
+      mm_shape_record(/*kind=*/1, (int)m_gemm, (int)N, (int)K,
+                      /*calls=*/1,
+                      /*flops=*/2ull * (uint64_t)m_gemm * (uint64_t)N * (uint64_t)K);
+    }
+    if (m_gemv > 0) {
+      // gemv 每行一次：用 calls=m_gemv，shape 记成 M=1
+      mm_shape_record(/*kind=*/2, /*m=*/1, (int)N, (int)K,
+                      /*calls=*/(uint64_t)m_gemv,
+                      /*flops=*/2ull * (uint64_t)m_gemv * (uint64_t)N * (uint64_t)K);
+    }
+
     int nth = thread_count;
 
     if (!support_bias) {
