@@ -29,10 +29,6 @@ func main() {
 		log.Fatal("FATAL: InitializeContext failed!")
 	}
 	mllm.SetLogLevel(2)
-	if !mllm.StartService(1) {
-		log.Fatal("FATAL: StartService failed!")
-	}
-	defer mllm.StopService()
 	defer mllm.ShutdownContext()
 
 	mllmService := pkgmllm.NewService()
@@ -68,6 +64,11 @@ func main() {
 		mllmService.RegisterSession(sessionID, session)
 		log.Printf("DeepSeek-OCR Session created and registered successfully with ID: %s", sessionID)
 	}
+
+	if !mllm.StartService(1) {
+		log.Fatal("FATAL: StartService failed!")
+	}
+	defer mllm.StopService()
 
 	httpServer := server.NewServer(":8080", mllmService)
 
