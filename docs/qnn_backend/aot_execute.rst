@@ -1,6 +1,9 @@
 QNN AOT Execution Flow
 ================================================================
 
+.. note::
+   Please refer to the `Environment Setup <setup_env.html>`_ documentation to configure the QNN and Hexagon SDK environments before proceeding.
+
 This document aims to explain the main execution flow of QNN AOT (Ahead-of-Time). This implementation is designed to fully leverage the offline compilation capabilities of the Qualcomm QNN framework to achieve efficient inference of fully integer-quantized Large Language Models (LLMs) on mobile devices, which is the de facto workflow for LLM execution on the Hexagon NPU.
 
 Specifically, our implementation employs a W4A16 quantization scheme. The Key-Value (KV) Cache is quantized to ``uint8``, and the linear weights are quantized using Low-Power Blockwise Quantization (LPBQ).
@@ -32,7 +35,7 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
    .. code-block:: shell
 
       cd ./pymllm/backends/qualcomm/transformers/qwen3
-      python train.py --model_path "/your/qwen3/model/path/" --max_length 2048 --num_samples 128 --output_dir "/path/to/output"
+      python train.py --model_path "/your/qwen3/model/path/" --max_length 1024 --num_samples 128 --output_dir "/path/to/output"
 
    This step generates a key file:
 
@@ -41,6 +44,7 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
    Next, convert the exported ``.safetensors`` model to the MLLM format (``.mllm``) using the ``mllm-convertor`` script.
 
    .. code-block:: shell
+      pip install pymllm
 
       mllm-convertor --input_path /path/to/output/model.safetensors --output_path /path/to/output/qwen3_1.7b.mllm
 
@@ -78,11 +82,28 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
    .. code-block:: shell
 
       # Cross-compile the aot_run program for the target device (e.g., Android)
-      task.py tasks/build_android_qnn.yaml
+      python task.py tasks/build_android_qnn.yaml
 
       # Push compiled context file to the device
       adb push qwen3-1.7B-lpbq-sha.bin /data/local/tmp/
       
+      # Push QNN libraries and Op Packages
+      ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
+      OP_PATH=mllm/backends/qnn/custom-op-package/LLaMAPackage/build
+
+      adb push $ANDR_LIB/libQnnHtp.so /data/local/tmp
+      adb push $ANDR_LIB/libQnnHtpV75Stub.so /data/local/tmp
+      adb push $ANDR_LIB/libQnnHtpPrepare.so /data/local/tmp
+      adb push $ANDR_LIB/libQnnHtpProfilingReader.so /data/local/tmp
+      adb push $ANDR_LIB/libQnnHtpOptraceProfilingReader.so /data/local/tmp
+      adb push $ANDR_LIB/libQnnHtpV75CalculatorStub.so /data/local/tmp
+      adb push $QNN_SDK_ROOT/lib/hexagon-v75/unsigned/libQnnHtpV75Skel.so /data/local/tmp
+      adb push $QNN_SDK_ROOT/lib/aarch64-android/libQnnSystem.so /data/local/tmp
+
+      adb push $OP_PATH/aarch64-android/libQnnLLaMAPackage.so /data/local/tmp/libQnnLLaMAPackage_CPU.so
+      adb push $OP_PATH/hexagon-v75/libQnnLLaMAPackage.so /data/local/tmp/libQnnLLaMAPackage_HTP.so
+
+      # Push mllm runner and libs to device
       adb push build-android-arm64-v8a-qnn/bin/*.so /data/local/tmp
       adb push build-android-arm64-v8a-qnn/bin/mllm-qwen3-aot-runner /data/local/tmp
 
