@@ -161,9 +161,7 @@ class ProbeClassifier : public Module {
     float val = 0.0f;
     if (logits.dtype() == mllm::kFloat32) {
       val = logits.ptr<float>()[0];
-    } else if (logits.dtype() == mllm::kFloat16) {
-      val = (float)logits.ptr<__fp16>()[0];
-    }
+    } 
 
     return 1.0f / (1.0f + std::exp(-val));
   }
