@@ -18,8 +18,8 @@ Overall Flow
 
 The QNN AOT execution flow is mainly divided into three stages:
 
-1.  **Model Quantization and Export (Python)**: On the host machine, a Python script is used to quantize the pre-trained floating-point model and export it to the MLLM IR (``.mir``) format.
-2.  **Offline Compilation (C++)**: On the host machine, a C++ compiler program loads the ``.mir`` file, invokes the QNN toolchain for model compilation, graph optimization, and quantization parameter adjustment, and finally generates a QNN Context Binary.
+1.  **Model Quantization and Export (Python)**: On the host machine, a Python script is used to quantize the pre-trained floating-point model and export it to ``.safetensor`` file. The ``.safetensor`` is then converted to ``.mllm`` file using mllm-convertor.
+2.  **Offline Compilation (C++)**: On the host machine, a C++ compiler program loads the ``.mllm`` file, invokes the QNN toolchain for model compilation, graph optimization, and quantization parameter adjustment, and finally generates a QNN Context Binary.
 3.  **On-Device Execution (C++)**: On the target device (e.g., a mobile phone), the AOT runner program loads the pre-compiled context binary and executes inference.
 
 
