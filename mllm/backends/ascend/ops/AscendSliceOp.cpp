@@ -73,7 +73,7 @@ void AscendSliceOp::forward(const std::vector<Tensor>& inputs, std::vector<Tenso
       end = std::max(0, std::min(end, dim_size));
 
       param.offsets.push_back(start);
-      param.size.push_back(end - start);
+      param.size.push_back(std::max(0, end - start));
   }
 
   atb::Operation* op = nullptr;
