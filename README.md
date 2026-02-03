@@ -17,8 +17,9 @@ mllm
 
 ## Latest News
 
+- [2026 Feb 03] 🔥🔥🔥 MLLM Qnn AOT Support for Full Graph Execution on NPU! [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
 - [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
-- [2025 Nov 23] 🔥🔥🔥 MLLM v2 released!
+- [2025 Nov 23] MLLM v2 released!
 - [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
   - A more Pythonic model authoring approach with eager execution
   - Compilation support for easier NPU integration

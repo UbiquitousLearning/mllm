@@ -89,6 +89,8 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
       -m /path/to/output/qwen3_1.7b.mllm \
       -c ./examples/qwen3_qnn_aot/config_1.7B.json \
       --aot_config ./examples/qwen3_qnn_aot/qnn_aot_cfg_1.7B.json
+      # Optional, default value is /opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/
+      # --qnn_env_path path/to/qnn_sdk.
 
 
    This program reads the ``.mllm`` model file and the quantization recipe, and finally generates a QNN context binary file named ``qwen3-1.7B-lpbq-sha.bin``. This file contains all the information needed to execute inference on the target device.
