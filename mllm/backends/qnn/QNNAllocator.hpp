@@ -30,14 +30,36 @@ class QNNAllocator final : public Allocator {
   QNNAllocator();  // need to setQNNPointer afterward
   QNNAllocator(QNN_INTERFACE_VER_TYPE qnnInterface, void* context);
 
-  ~QNNAllocator() {
+  ~QNNAllocator();
+
+  // Explicitly release all QNN memory resources. Call this for proper cleanup when you
+  // want to release memory during normal operation (not program exit).
+  // This is SAFE to call and will properly free all QNN resources.
+  void shutdown() {
+    if (isShutdown_) return;
+    isShutdown_ = true;
+
+    // First, deregister all registered memory
     for (auto iter = ptrToFdAndMemHandleMap_.begin(); iter != ptrToFdAndMemHandleMap_.end();) {
       Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&iter->second.second, 1);
-      if (QNN_SUCCESS != deregisterRet) { MLLM_ERROR("~QNNAllocator: qnnInterface_.memDeRegister failed"); }
-      rpcmem_free(iter->first);
+      if (QNN_SUCCESS != deregisterRet) { MLLM_ERROR("QNNAllocator::shutdown: qnnInterface_.memDeRegister failed"); }
       iter = ptrToFdAndMemHandleMap_.erase(iter);
     }
+
+    // Then, free all allocated memory (registered or not)
+    MLLM_INFO("QNNAllocator::shutdown: freeing all allocated memory");
+    for (void* ptr : qnnMemPtrSet_) { rpcmem_free(ptr); }
+    qnnMemPtrSet_.clear();
   }
+
+  // Legacy name for shutdown() - kept for compatibility
+  void releaseAllResources() { shutdown(); }
+
+  // Mark the allocator as shut down without actually freeing memory.
+  // Use this in destructors to prevent crashes during program exit when
+  // QNN library resources might already be destroyed.
+  // After this is called, all free() calls become no-ops.
+  void markShutdown() { isShutdown_ = true; }
 
   void setQNNPointer(QNN_INTERFACE_VER_TYPE qnnInterface, void* context) {
     this->qnnInterface_ = qnnInterface;
@@ -83,13 +105,21 @@ class QNNAllocator final : public Allocator {
   QNN_INTERFACE_VER_TYPE qnnInterface_;
   Qnn_ContextHandle_t context_ = nullptr;
 
-  RpcMemAllocFn_t rpcmem_alloc;
-  RpcMemFreeFn_t rpcmem_free;
-  RpcMemToFdFn_t rpcmem_to_fd;
+  // Hold the library handle to control unload order
+  // libcdsprpc.so will only be unloaded when this allocator is destroyed
+  void* libCdspHandle_ = nullptr;
+
+  RpcMemAllocFn_t rpcmem_alloc = nullptr;
+  RpcMemFreeFn_t rpcmem_free = nullptr;
+  RpcMemToFdFn_t rpcmem_to_fd = nullptr;
 
   // to check if the ptr is allocted by rpcmem_alloc
   std::set<void*> qnnMemPtrSet_;
   std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
+
+  // Flag to indicate shutdown has been called or destructor is running
+  // When true, free() calls become no-ops to avoid crashes during program exit
+  bool isShutdown_ = false;
 };
 
 std::shared_ptr<QNNAllocator> createQNNAllocator();

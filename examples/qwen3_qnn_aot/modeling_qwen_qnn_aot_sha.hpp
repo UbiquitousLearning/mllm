@@ -88,7 +88,7 @@ Tensor QDQ_KV(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) 
     case kUInt8PerTensorSym: {
       auto scale = m->getTopParameterFile()->pull(scale_name);
       auto zp = m->getTopParameterFile()->pull(zp_name);
-      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 0);
+      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 128);
 
       // Is 128! not 127!
       auto new_zp = Tensor::constant(128, kInt32).setName(zp_name).setMemType(kParamsNormal);
@@ -356,14 +356,12 @@ class Qwen3AttentionSHA final : public nn::Module {
       std::string h_str = std::to_string(h);
 
       // K: De-quantize and re-quantize to int8
-      auto k_h = key_states_per_head[h].to(kFloat32);
-      k_h = k_h.to(kUInt8PerTensorSym);
+      auto k_h = key_states_per_head[h].to(kUInt8PerTensorSym);
       k_h = ptq::QDQ_KV(this, k_h, "k_cast_to_int8_qdq_h" + h_str);
       k_h = k_h.transpose(2, 3);  // [B, 1, D, S]
 
       // V: Quantize to int16 then int8
       auto v_h = ptq::QDQ(this, value_states_per_head[h], "v_cast_to_int16_qdq_h" + h_str);
-      v_h = v_h.to(kFloat32);
       v_h = v_h.to(kUInt8PerTensorSym);
       v_h = ptq::QDQ_KV(this, v_h, "v_cast_to_int8_qdq_h" + h_str);
 

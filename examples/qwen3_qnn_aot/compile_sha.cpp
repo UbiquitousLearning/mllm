@@ -25,6 +25,9 @@ MLLM_MAIN({
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model file path.");
   auto& model_cfg_path = Argparse::add<std::string>("-c|--config").help("Model config file path.");
   auto& qnn_aot_cfg_files = Argparse::add<std::string>("-aot_cfg|--aot_config").help("AOT Config file path.");
+  auto& qnn_env_path = Argparse::add<std::string>("-qnn_env|--qnn_env_path")
+                           .def("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/")
+                           .help("QNN AOT Environment path.");
 
   Argparse::parse(argc, argv);
 
@@ -73,7 +76,7 @@ MLLM_MAIN({
   model.load(params);
 
   // Create Qnn AOT Model
-  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
+  auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv(qnn_env_path.get(),
                                                mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
 
   // Model length 32.
@@ -166,12 +169,8 @@ MLLM_MAIN({
         CL - N,
     }, mllm::kUInt8PerTensorSym);
     trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
-    
     trace_inputs[past_key_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-    trace_inputs[past_key_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
-
     trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-    trace_inputs[past_value_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
       // clang-format on
     }
 

@@ -14,24 +14,36 @@ namespace mllm::qnn {
 #define RPCMEM_DEFAULT_FLAGS 1
 
 QNNAllocator::QNNAllocator() {
-  void* libCdspHandle = dlopen("libcdsprpc.so", RTLD_NOW | RTLD_LOCAL);
-  if (nullptr == libCdspHandle) { MLLM_ERROR_EXIT(1, "dlopen libcdsprpc.so failed"); }
+  libCdspHandle_ = dlopen("libcdsprpc.so", RTLD_NOW | RTLD_LOCAL);
+  if (nullptr == libCdspHandle_) { MLLM_ERROR_EXIT(1, "dlopen libcdsprpc.so failed"); }
 
-  rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle, "rpcmem_alloc");
-  rpcmem_free = (RpcMemFreeFn_t)dlsym(libCdspHandle, "rpcmem_free");
-  rpcmem_to_fd = (RpcMemToFdFn_t)dlsym(libCdspHandle, "rpcmem_to_fd");
+  rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle_, "rpcmem_alloc");
+  rpcmem_free = (RpcMemFreeFn_t)dlsym(libCdspHandle_, "rpcmem_free");
+  rpcmem_to_fd = (RpcMemToFdFn_t)dlsym(libCdspHandle_, "rpcmem_to_fd");
 }
 
 QNNAllocator::QNNAllocator(QNN_INTERFACE_VER_TYPE qnnInterface, void* context)
     : qnnInterface_(qnnInterface), context_(context) {
   MLLM_RT_ASSERT(context_ != nullptr);
 
-  void* libCdspHandle = dlopen("libcdsprpc.so", RTLD_NOW | RTLD_LOCAL);
-  if (nullptr == libCdspHandle) { MLLM_ERROR_EXIT(1, "dlopen libcdsprpc.so failed"); }
+  libCdspHandle_ = dlopen("libcdsprpc.so", RTLD_NOW | RTLD_LOCAL);
+  if (nullptr == libCdspHandle_) { MLLM_ERROR_EXIT(1, "dlopen libcdsprpc.so failed"); }
 
-  rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle, "rpcmem_alloc");
-  rpcmem_free = (RpcMemFreeFn_t)dlsym(libCdspHandle, "rpcmem_free");
-  rpcmem_to_fd = (RpcMemToFdFn_t)dlsym(libCdspHandle, "rpcmem_to_fd");
+  rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle_, "rpcmem_alloc");
+  rpcmem_free = (RpcMemFreeFn_t)dlsym(libCdspHandle_, "rpcmem_free");
+  rpcmem_to_fd = (RpcMemToFdFn_t)dlsym(libCdspHandle_, "rpcmem_to_fd");
+}
+
+QNNAllocator::~QNNAllocator() {
+  // Properly release all resources before unloading the library
+  // Since we hold libCdspHandle_, the library won't be unloaded until we dlclose it
+  shutdown();
+
+  // Now safe to unload the library
+  if (libCdspHandle_) {
+    dlclose(libCdspHandle_);
+    libCdspHandle_ = nullptr;
+  }
 }
 
 bool QNNAllocator::alloc(Storage* storage) {
@@ -46,12 +58,22 @@ bool QNNAllocator::alloc(Storage* storage) {
 }
 
 void QNNAllocator::free(Storage* storage) {
+  // Skip if shutdown was called or destructor is running
+  // During program exit, QNN library resources might be destroyed, so we can't safely call rpcmem_free
+  if (isShutdown_) { return; }
+
+  // Only free memory that was allocated by this allocator and not yet freed
+  if (!qnnMemPtrSet_.count(storage->ptr_)) {
+    return;  // Not our memory or already freed, skip
+  }
+
   if (ptrToFdAndMemHandleMap_.count(storage->ptr_)) {
-    MLLM_RT_ASSERT_EQ(QNN_SUCCESS,
-                      qnnInterface_.memDeRegister(&(ptrToFdAndMemHandleMap_.find(storage->ptr_)->second.second), 1));
+    qnnInterface_.memDeRegister(&(ptrToFdAndMemHandleMap_.find(storage->ptr_)->second.second), 1);
+    ptrToFdAndMemHandleMap_.erase(storage->ptr_);
   }
 
   rpcmem_free(storage->ptr_);
+  qnnMemPtrSet_.erase(storage->ptr_);
 }
 
 void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_tensor) {

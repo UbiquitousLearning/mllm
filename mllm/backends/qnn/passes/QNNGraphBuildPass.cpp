@@ -130,7 +130,8 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
                                             QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                             {.scaleOffsetEncoding = {.scale = scale, .offset = 0}}};
     }
-    ModelError_t err = qnn_model->addTensor(input_tensor->name(), QNN_TENSOR_TYPE_APP_WRITE, input_tensor->tensor_, quantize_param);
+    ModelError_t err =
+        qnn_model->addTensor(input_tensor->name(), QNN_TENSOR_TYPE_APP_WRITE, input_tensor->tensor_, quantize_param);
     if (err != MODEL_NO_ERROR) {
       MLLM_ERROR("Failed to add input tensor {} to graph '{}'", input_tensor->name(), graph_name);
       return;
@@ -139,7 +140,6 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
 
   // Record MLLM expected output order from ReturnOp
   std::vector<std::string> expectedOutputOrder;
-  ir::cf::ReturnOp::ptr_t return_op = nullptr;
 
   // Process each operation in the subgraph
   for (auto& region_op : graph_region->ops()) {
@@ -164,27 +164,10 @@ void QNNGraphBuildPass::buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_gr
         MLLM_WARN("No pattern registered for op type: {}", optype2Str(op_types));
       }
     } else if (auto ret_op = std::dynamic_pointer_cast<ir::cf::ReturnOp>(region_op)) {
-      // Record ReturnOp to extract expected output order
-      return_op = ret_op;
+      continue;
     } else {
       MLLM_WARN("Unsupported op type in QNN subgraph: {}", (int)region_op->getKind());
     }
-  }
-
-  // Extract MLLM expected output order from ReturnOp inputs
-  if (return_op) {
-    for (auto& input : return_op->inputs()) {
-      auto output_tensor = input->cast_<ir::tensor::TensorValue>();
-      if (output_tensor) {
-        expectedOutputOrder.push_back(output_tensor->name());
-      }
-    }
-    // Set expected output order in QNN model
-    qnn_model->setExpectedOutputOrder(expectedOutputOrder);
-    // MLLM_INFO("QNNGraphBuildPass: Recorded MLLM expected output order for graph '{}' with {} outputs", graph_name,
-    //           expectedOutputOrder.size());
-  } else {
-    MLLM_WARN("QNNGraphBuildPass: No ReturnOp found in graph '{}', cannot determine expected output order", graph_name);
   }
 
   // Finalize the QNN graph
