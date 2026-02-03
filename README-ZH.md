@@ -17,7 +17,7 @@ mllm
 
 ## 最新动态
 
-- [2026 年 2 月 3 日] 🔥🔥🔥 MLLM Qnn AOT 已支持在 NPU 上全图执行！[技术报告](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support/)
+- [2026 年 2 月 3 日] 🔥🔥🔥 MLLM Qnn AOT 已支持在 NPU 上全图执行！[快速开始](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [技术报告](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support/)
 - [2025 年 11 月 27 日] Android Demo 更新：通过一种全新的 In-App Go 服务架构，在 Android 上实现了 Qwen3 和 DeepSeek-OCR 的稳定流式推理。
 - [2025 年 11 月 23 日] MLLM v2 发布！
 - [2025 年 8 月 28 日] 即将停止对 MLLM V1 的支持。在弃用前，V1 将集成以下功能：GPT-OSS。随后 MLLM 将迁移至 V2（可在 V2 分支查看）。V2 将带来全新的能力：
