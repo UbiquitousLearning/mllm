@@ -60,7 +60,7 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
          pip install -e .
 
          # link lib to pymllm's dir, so that tvm ffi can find the lib
-         ln -s <absolute path to where you build mllm>/bin/pymllm/pymllm.so mllm/pymllm/lib
+         ln -s <absolute path to where you build mllm>/bin/ mllm/pymllm/lib
 
 
    .. note::
