@@ -43,10 +43,33 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
 
    Next, convert the exported ``.safetensors`` model to the MLLM format (``.mllm``) using the ``mllm-convertor`` script.
 
-   .. code-block:: shell
-      pip install pymllm
+   .. note::
+      Before using ``mllm-convertor``, you need to install the ``pymllm`` package. You can install it using one of the following methods:
 
-      mllm-convertor --input_path /path/to/output/model.safetensors --output_path /path/to/output/qwen3_1.7b.mllm
+      **Standard Installation:**
+
+      .. code-block:: shell
+         
+         bash ./scripts/install_pymllm.sh
+
+      **Editable Installation (for development):**
+
+      .. code-block:: shell
+
+         # In the mllm project root directory
+         pip install -e .
+
+         # link lib to pymllm's dir, so that tvm ffi can find the lib
+         ln -s <absolute path to where you build mllm>/bin/pymllm/pymllm.so mllm/pymllm/lib
+
+
+   .. note::
+      1. The ``--pipeline`` option is not required for converting models in this document.
+      2. The ``--verbose`` option is used to print verbose output. It is recommended to use it for debugging.
+
+   .. code-block:: shell
+
+      mllm-convertor --input_path /path/to/output/model.safetensors --output_path /path/to/output/qwen3_1.7b.mllm --verbose
 
    This will generate the ``qwen3_1.7b.mllm`` file, which will be used in the subsequent compilation step.
 
