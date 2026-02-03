@@ -223,6 +223,33 @@ TEST_F(AscendAttentionKernelTest, GroupedQueryAttentionFloat16) {
             true);
 }
 
+//===----------------------------------------------------------------------===//
+// Concat
+//===----------------------------------------------------------------------===//
+#include "AscendConcatKernelTest.hpp"
+TEST_F(AscendConcatKernelTest, ConcatFloat16) {
+  EXPECT_EQ(ConcatFloat16Test({{2, 3}, {2, 3}}, 0), true);
+  EXPECT_EQ(ConcatFloat16Test({{1, 8}, {1, 8}}, 1), true);
+  EXPECT_EQ(ConcatFloat16Test({{4, 16}, {4, 16}, {4, 16}}, 0), true);
+  EXPECT_EQ(ConcatFloat16Test({{2, 3, 4}, {2, 3, 5}}, 2), true);
+  EXPECT_EQ(ConcatFloat16Test({{2, 3, 4}, {2, 3, 6}}, -1), true);
+  EXPECT_EQ(ConcatFloat16Test({{2, 7}}, 0), true);
+}
+
+//===----------------------------------------------------------------------===//
+// Slice
+//===----------------------------------------------------------------------===//
+#include "AscendSliceKernelTest.hpp"
+TEST_F(AscendSliceKernelTest, SliceFloat16) {
+  using namespace mllm;
+  // SliceIndicesPair(start, end)
+  EXPECT_EQ(SliceFloat16Test({4, 4}, {SliceIndicesPair(0, 2), SliceIndicesPair(0, 4)}), true);
+  EXPECT_EQ(SliceFloat16Test({4, 8}, {SliceIndicesPair(1, 3), SliceIndicesPair(2, 6)}), true);
+  EXPECT_EQ(SliceFloat16Test({2, 16}, {SliceIndicesPair(0, 1), SliceIndicesPair(0, 8)}), true);
+  EXPECT_EQ(SliceFloat16Test({5, 4}, {SliceIndicesPair(-3, -1), SliceIndicesPair(0, 4)}), true);
+  EXPECT_EQ(SliceFloat16Test({3, 4, 5}, {SliceIndicesPair(kAll, kAll), SliceIndicesPair(1, 3), SliceIndicesPair(0, 5)}), true);
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   
