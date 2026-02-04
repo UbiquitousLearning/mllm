@@ -1,0 +1,18 @@
+# Copyright 2024 mllm Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# mllm-kernel: High-performance kernels for mllm
+#
+# This package provides JIT-compiled kernels for CPU (with Highway SIMD),
+# CUDA, and Ascend platforms.
+
+__version__ = "1.0.0"
+
+from . import cpu
+from . import jit_utils
+
+__all__ = [
+    "__version__",
+    "cpu",
+    "jit_utils",
+]

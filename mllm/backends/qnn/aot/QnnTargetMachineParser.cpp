@@ -33,6 +33,7 @@ QcomChipset parseChipset(const std::string& chipset_str) {
   if (chipset_str == "SM8650") return SM8650;
   if (chipset_str == "SM8750") return SM8750;
   if (chipset_str == "SM8850") return SM8850;
+  if (chipset_str == "SM8845") return SM8845;
   if (chipset_str == "SSG2115P") return SSG2115P;
   if (chipset_str == "SSG2125P") return SSG2125P;
   if (chipset_str == "SXR1230P") return SXR1230P;
