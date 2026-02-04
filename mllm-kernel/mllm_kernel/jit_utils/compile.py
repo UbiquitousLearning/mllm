@@ -61,6 +61,11 @@ def _resolve_kernel_path() -> pathlib.Path:
     return path
 
 
+@cache_once
+def _resolve_cpu_simd_features_to_cxx_flags() -> list[str]:
+    pass
+
+
 class _MLLMKernelTemplateArgListGenerator(list[str]):
     def __str__(self) -> str:
         return ", ".join(self)
