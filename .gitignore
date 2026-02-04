@@ -40,3 +40,12 @@ autotuner.log
 /models/
 # Keep source model adapters tracked
 !tools/mllm-llm-benchmark/models/
+
+# ---- bench artifacts (generated / local) ----
+perf.data
+perf.data.old
+bench_context/
+snapshots/
+*.bak
+*.bak.*
+bench_mem_context.csv
