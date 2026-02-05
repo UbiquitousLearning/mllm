@@ -5,8 +5,7 @@
 
 #include "mllm_kernel/common.h"
 
-namespace mllm_kernel {
-namespace cpu {
+namespace mllm_kernel::cpu {
 
 /**
  * @brief TVM FFI callable kernel class for compile-time constant.
@@ -18,6 +17,7 @@ void add_constant(tvm::ffi::Tensor dst, tvm::ffi::Tensor src) {
   float* dst_ptr = GetDataPtr<float>(dst);
   const float* src_ptr = GetConstDataPtr<float>(src);
   size_t n = GetNumElements(src);
+  printf("xwk: %d\n", n);
 }
 
 /**
@@ -29,5 +29,4 @@ void add_constant_runtime(tvm::ffi::Tensor dst, tvm::ffi::Tensor src, float cons
   size_t n = GetNumElements(src);
 }
 
-}  // namespace cpu
-}  // namespace mllm_kernel
+}  // namespace mllm_kernel::cpu
