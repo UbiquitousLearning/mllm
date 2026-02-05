@@ -13,6 +13,7 @@
 #include "mllm/core/aops/PadOp.hpp"
 #include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
+#include "mllm/core/aops/RoPEOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -167,5 +168,13 @@ mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v);
 mllm::Tensor sigmoid(const Tensor& x);
 
 mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices);
+
+// RoPE (Rotary Position Embedding)
+// x: input tensor [B, H, S, D] or [B, S, H, D] depending on input_type
+// cos: cosine values [S, D] or [1, S, 1, D]
+// sin: sine values [S, D] or [1, S, 1, D]
+// Returns: tensor with rotary position embedding applied
+Tensor rope(const Tensor& x, const Tensor& cos, const Tensor& sin,
+            aops::RoPEOpOptionsInputType input_type = aops::RoPEOpOptionsInputType::kBHSD);
 
 }  // namespace mllm::nn::functional
