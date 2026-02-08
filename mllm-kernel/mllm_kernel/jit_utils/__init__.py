@@ -1,0 +1,32 @@
+# Copyright 2024 mllm Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# JIT compilation utilities for mllm kernels.
+
+from .compile import (
+    cache_once,
+    make_cpp_args,
+    load_cpu_jit,
+    load_cuda_jit,
+    # Legacy
+    _tvm_ffi_cpp_load_inline,
+    # Path constants
+    MLLM_KERNEL_TOP_PATH,
+    MLLM_KERNEL_CPU_PATH,
+    MLLM_KERNEL_CUDA_PATH,
+    MLLM_KERNEL_CPU_CSRC_DIR,
+    MLLM_KERNEL_CPU_INCLUDE_DIR,
+)
+
+__all__ = [
+    "cache_once",
+    "make_cpp_args",
+    "load_cpu_jit",
+    "load_cuda_jit",
+    "_tvm_ffi_cpp_load_inline",
+    "MLLM_KERNEL_TOP_PATH",
+    "MLLM_KERNEL_CPU_PATH",
+    "MLLM_KERNEL_CUDA_PATH",
+    "MLLM_KERNEL_CPU_CSRC_DIR",
+    "MLLM_KERNEL_CPU_INCLUDE_DIR",
+]

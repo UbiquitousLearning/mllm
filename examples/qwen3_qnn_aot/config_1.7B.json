@@ -28,5 +28,5 @@
     "use_sliding_window": false,
     "vocab_size": 151936,
     "max_cache_length": 2048,
-    "linear_impl_type": "QNN_LPBQ_w4a16o16_G32"
+    "linear_impl_type": "QNN_LPBQ_w4a16o16_G16"
 }
