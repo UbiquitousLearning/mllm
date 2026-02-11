@@ -165,6 +165,7 @@ def make_cpp_args(
 
 # Path constants
 MLLM_KERNEL_TOP_PATH = _resolve_kernel_path()
+MLLM_KERNEL_INCLUDE_DIR = MLLM_KERNEL_TOP_PATH / "include"
 MLLM_KERNEL_CPU_PATH = MLLM_KERNEL_TOP_PATH / "cpu"
 MLLM_KERNEL_CUDA_PATH = MLLM_KERNEL_TOP_PATH / "cuda"
 MLLM_KERNEL_ASCEND_PATH = MLLM_KERNEL_TOP_PATH / "ascend"
@@ -227,7 +228,7 @@ def load_cpu_jit(
     extra_include_paths = extra_include_paths or []
 
     # Build include paths
-    include_paths = [str(MLLM_KERNEL_CPU_INCLUDE_DIR)]
+    include_paths = [str(MLLM_KERNEL_CPU_INCLUDE_DIR), str(MLLM_KERNEL_INCLUDE_DIR)]
 
     # Add Highway include path if requested
     if use_highway:
@@ -306,7 +307,7 @@ def load_cuda_jit(
     extra_include_paths = extra_include_paths or []
 
     # Build include paths
-    include_paths = [str(MLLM_KERNEL_CUDA_INCLUDE_DIR)]
+    include_paths = [str(MLLM_KERNEL_CUDA_INCLUDE_DIR), str(MLLM_KERNEL_INCLUDE_DIR)]
     include_paths.extend(extra_include_paths)
 
     # Build C++ sources

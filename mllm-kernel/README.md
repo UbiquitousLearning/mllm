@@ -72,6 +72,25 @@ def my_kernel(src: torch.Tensor, param: int) -> torch.Tensor:
     return dst
 ```
 
+### Generate Recommended `.clangd` Config
+
+Use the helper command below to generate a recommended `.clangd` file for this
+repository:
+
+```bash
+python -m mllm_kernel show-clangd-recommend-config
+```
+
+What this command does:
+
+- Adds include paths required by `tvm_ffi`, DLPack, and `mllm-kernel`
+- Detects GPU compute capability from `nvidia-smi` and sets `--cuda-gpu-arch`
+- Tries to detect CUDA Toolkit path and appends `--cuda-path=...` when found
+- If `.clangd` already exists, it will not overwrite it and prints suggested content
+
+Tip: if CUDA is installed in a non-standard location, set `CUDA_HOME` or
+`CUDA_PATH` before running the command.
+
 ## Project Structure
 
 ```
