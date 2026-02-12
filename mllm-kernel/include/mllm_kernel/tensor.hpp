@@ -148,7 +148,7 @@ inline bool is_type(DLDataType dtype) {
 
 struct SymbolicSize {
  public:
-  explicit SymbolicSize(std::string_view annotation = {}) : value_(details::kNullSize), annotation_(annotation) {}  // NOLINT
+  SymbolicSize(std::string_view annotation = {}) : value_(details::kNullSize), annotation_(annotation) {}  // NOLINT
   SymbolicSize(const SymbolicSize&) = delete;
   SymbolicSize& operator=(const SymbolicSize&) = delete;
 

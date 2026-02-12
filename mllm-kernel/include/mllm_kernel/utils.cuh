@@ -67,12 +67,12 @@ SGL_DEVICE auto offset(const void* ptr, U... offset) -> const void* {
 
 }  // namespace device
 
-namespace host {
+namespace mllm_kernel::host {
 
 inline void RuntimeDeviceCheck(::cudaError_t error, DebugInfo location = {}) {
   if (error != ::cudaSuccess) {
     [[unlikely]];
-    ::host::panic(location, "CUDA error: ", ::cudaGetErrorString(error));
+    ::mllm_kernel::host::panic(location, "CUDA error: ", ::cudaGetErrorString(error));
   }
 }
 
@@ -129,4 +129,4 @@ struct LaunchKernel {
   cudaLaunchAttribute m_attrs[1];
 };
 
-}  // namespace host
+}  // namespace mllm_kernel::host

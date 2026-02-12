@@ -78,6 +78,7 @@ Use the helper command below to generate a recommended `.clangd` file for this
 repository:
 
 ```bash
+cd ./mllm-kernel
 python -m mllm_kernel show-clangd-recommend-config
 ```
 

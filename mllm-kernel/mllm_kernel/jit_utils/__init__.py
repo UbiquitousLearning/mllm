@@ -8,8 +8,6 @@ from .compile import (
     make_cpp_args,
     load_cpu_jit,
     load_cuda_jit,
-    # Legacy
-    _tvm_ffi_cpp_load_inline,
     # Path constants
     MLLM_KERNEL_TOP_PATH,
     MLLM_KERNEL_INCLUDE_DIR,
@@ -29,7 +27,6 @@ __all__ = [
     "make_cpp_args",
     "load_cpu_jit",
     "load_cuda_jit",
-    "_tvm_ffi_cpp_load_inline",
     "MLLM_KERNEL_TOP_PATH",
     "MLLM_KERNEL_INCLUDE_DIR",
     "MLLM_KERNEL_CPU_PATH",

@@ -165,7 +165,7 @@ def make_cpp_args(
 
 # Path constants
 MLLM_KERNEL_TOP_PATH = _resolve_kernel_path()
-MLLM_KERNEL_INCLUDE_DIR = MLLM_KERNEL_TOP_PATH / "include"
+MLLM_KERNEL_INCLUDE_DIR = MLLM_KERNEL_TOP_PATH.parent / "include"
 MLLM_KERNEL_CPU_PATH = MLLM_KERNEL_TOP_PATH / "cpu"
 MLLM_KERNEL_CUDA_PATH = MLLM_KERNEL_TOP_PATH / "cuda"
 MLLM_KERNEL_ASCEND_PATH = MLLM_KERNEL_TOP_PATH / "ascend"
@@ -330,51 +330,3 @@ def load_cuda_jit(
         extra_include_paths=include_paths,
         build_directory=build_directory,
     )
-
-
-# Legacy function for backward compatibility
-def _tvm_ffi_cpp_load_inline(
-    *args: str,
-    device: Literal["cpu", "cuda", "ascend"] = "cpu",
-    cpp_files: List[str] | None = None,
-    cuda_files: List[str] | None = None,
-    cpp_wrappers: List[Tuple[str, str]] | None = None,
-    cuda_wrappers: List[Tuple[str, str]] | None = None,
-    extra_cxx_flags: List[str] | None = None,
-    extra_cuda_cxx_flags: List[str] | None = None,
-    extra_ld_flags: List[str] | None = None,
-    extra_include_paths: List[str] | None = None,
-    build_directory: str | None = None,
-) -> Module:
-    """
-    Legacy function for loading JIT kernels.
-
-    Prefer using `load_cpu_jit` or `load_cuda_jit` directly.
-    """
-    if device == "cpu":
-        return load_cpu_jit(
-            *args,
-            cpp_files=cpp_files,
-            cpp_wrappers=cpp_wrappers,
-            extra_cxx_flags=extra_cxx_flags,
-            extra_ld_flags=extra_ld_flags,
-            extra_include_paths=extra_include_paths,
-            build_directory=build_directory,
-        )
-    elif device == "cuda":
-        return load_cuda_jit(
-            *args,
-            cpp_files=cpp_files,
-            cuda_files=cuda_files,
-            cpp_wrappers=cpp_wrappers,
-            cuda_wrappers=cuda_wrappers,
-            extra_cxx_flags=extra_cxx_flags,
-            extra_cuda_cxx_flags=extra_cuda_cxx_flags,
-            extra_ld_flags=extra_ld_flags,
-            extra_include_paths=extra_include_paths,
-            build_directory=build_directory,
-        )
-    elif device == "ascend":
-        raise NotImplementedError("Ascend JIT is not supported yet")
-    else:
-        raise ValueError(f"Unknown device: {device}")
