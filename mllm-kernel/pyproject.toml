@@ -1,0 +1,61 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.11.0", "apache-tvm-ffi", "torch-c-dlpack-ext"
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mllm-kernel"
+version = "1.0.0"
+description = "High-performance mllm kernels"
+readme = "README.md"
+authors = [
+  {name = "chenghua.wang", email = "chenghua.wang.edu@gmail.com"},
+]
+keywords = ["mllm", "kernel", "jit", "llm"]
+requires-python = ">=3.10"
+dependencies = [
+  "packaging",
+  "torch",
+  "torch-c-dlpack-ext",
+  "apache-tvm-ffi",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-html",
+]
+
+[tool.scikit-build]
+# Build configuration
+wheel.py-api = "py3"
+cmake.args = [
+  "-DCMAKE_BUILD_TYPE=Release",
+  "-DMLLM_KERNEL_BUILD_CPU=ON",
+  "-DMLLM_KERNEL_BUILD_CUDA=ON",
+  "-DMLLM_KERNEL_BUILD_ASCEND=OFF",
+]
+sdist.exclude = [".*", ".*/*", "build/*", "tests/*"]
+wheel.exclude = [".*", ".*/*"]
+minimum-version = "build-system.requires"
+
+# Build directory
+build-dir = "build"
+build.verbose = true
+
+# CMake configuration  
+cmake.build-type = "Release"
+
+# Logging
+logging.level = "INFO"
+
+# Wheel configuration - include the Python package
+wheel.packages = ["mllm_kernel"]
+wheel.install-dir = "mllm_kernel"
+
+# Install directories for cmake targets
+wheel.cmake = true
+
+[tool.scikit-build.cmake.define]
+CMAKE_INSTALL_PREFIX = ""

@@ -26,7 +26,8 @@ enum QcomChipset : uint32_t {
   SM8550 = 43,
   SM8650 = 57,
   SM8750 = 69,
-  SM8850 = 87,
+  SM8850 = 87,  // v81
+  SM8845 = 97,  // v81
   SSG2115P = 46,
   SSG2125P = 58,
   SXR1230P = 45,
