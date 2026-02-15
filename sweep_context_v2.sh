@@ -7,9 +7,8 @@ set -euo pipefail
 # THREADS=8 RUNS=1 COOLDOWN=0
 # TG_DH=256 TG_TTFT=2
 # CLS="256 512 1024 2048 4096"
-# Description:
-# - decode_heavy: Fixes tg=TG_DH and sets pp to (cl - tg), used for "filling KV close to cl before decoding".
-# - prefill_ttft: Fixes tg=TG_TTFT and sets pp to (cl - tg), used for "TTFT/prefill as the main method but ensuring at least one token is output".
+# decode_heavy: pp = cl - 256, tg = 256  (long prefill, then decode)
+# prefill_ttft: pp = cl - 2,   tg = 2    (measure prefill/TTFT)
 
 BIN="${BIN:-$HOME/mllm-runok/build/bin/mllm-llm-benchmark}"
 MODEL="${MODEL:-/home/huangzhenhua/models/mllm_tinyllama/tinyllama-fp32.mllm}"
