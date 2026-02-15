@@ -25,7 +25,11 @@ MLLM_MAIN({
     file_version = mllm::ModelFileVersion::kV1;
   } else if (model_version.get() == "v2") {
     file_version = mllm::ModelFileVersion::kV2;
-  }
+  } else {
+    fmt::print("❌ Unsupported model_version: {} (expected v1 or v2)\n", model_version.get());
+    mllm::shutdownContext();
+    return 1;
+   }
 
   if (help.isSet()) {
     Argparse::printHelp();
@@ -48,6 +52,8 @@ MLLM_MAIN({
 
     fmt::print("💬 Prompt text (or 'exit/quit'): ");
     std::getline(std::cin, prompt_text);
+
+    if(prompt_text == "exit" || prompt_text == "quit") { return 0; }
 
     try {
       fmt::print("🔄 Processing...\n");

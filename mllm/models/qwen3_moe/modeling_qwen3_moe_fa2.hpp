@@ -130,7 +130,7 @@ class MoEGate final : public nn::Module {
     auto logits = nn::functional::matmul(hidden_states, weight_.weight(), false, true);
     auto scores = nn::functional::softmax(logits, -1);
     auto [topk_weight, topk_idx] = nn::functional::topk(scores, top_k_, -1, true, false);
-    
+
     if(norm_topk_prob_){
       topk_weight = topk_weight / topk_weight.sum(-1, true);
     }
@@ -174,7 +174,7 @@ class Qwen3MoE final : public nn::Module {
  private:
   Tensor moeInfer(const Tensor& x, Tensor& topk_ids, Tensor& topk_weights) {
     // x shape is [batch_size * seq, hidden_dim]
-    
+
     auto cnts = Tensor::zeros({topk_ids.size(0), (int32_t)experts_.list().size()});
     // Do scatter_ operation
     {
@@ -194,9 +194,8 @@ class Qwen3MoE final : public nn::Module {
     auto tokens_per_expert = cnts.sum(0);
     auto idxs = topk_ids.view({-1}).argsort();
 
-    // TODO this line maybe error
     auto sorted_tokens = x[{idxs / topk_ids.size(1), {kAll}}];
-    
+
     std::vector<Tensor> outputs;
     int start_idx = 0;
 
@@ -342,6 +341,7 @@ class Qwen3MoeDecoder final : public nn::Module {
     self_attn_ = reg<Qwen3MoeAttention>("self_attn", cfg);
     self_attn_.layer_idx_ = layer_idx;
 
+    MLLM_RT_ASSERT(cfg.decoder_sparse_step > 0);
     bool is_mlp_only = std::find(cfg.mlp_only_layers.begin(), cfg.mlp_only_layers.end(), layer_idx) != cfg.mlp_only_layers.end();
     if ((!is_mlp_only) && (cfg.num_experts > 0 && (layer_idx_+1) % cfg.decoder_sparse_step == 0)) {
       mlp_opt0_ = reg<Qwen3MoE>("mlp", cfg);

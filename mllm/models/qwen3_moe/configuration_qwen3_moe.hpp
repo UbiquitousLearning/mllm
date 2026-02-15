@@ -6,7 +6,7 @@
 #include "mllm/engine/ConfigFile.hpp"
 
 namespace mllm::models::qwen3_moe {
-
+// Configuration for Qwen3 Mixture-of-Experts model
 struct Qwen3MoeConfig : protected ConfigFile {
   Qwen3MoeConfig() = default;
 
@@ -22,22 +22,25 @@ struct Qwen3MoeConfig : protected ConfigFile {
     rms_norm_eps = data()["rms_norm_eps"];
     vocab_size = data()["vocab_size"];
     head_dim = data()["head_dim"];
-
-    bos_token_id = data()["bos_token_id"];
-    eos_token_id = data()["eos_token_id"];
     rope_theta = data()["rope_theta"];
 
+    // Special tokens
+    bos_token_id = data()["bos_token_id"];
+    eos_token_id = data()["eos_token_id"];
+
+    // Generation config
     tie_word_embeddings = data()["tie_word_embeddings"];
     max_cache_length = data()["max_cache_length"];
 
     // MoE config
     num_experts = data()["num_experts"];
     num_experts_per_tok = data()["num_experts_per_tok"];
-    moe_intermediate_size = data()["moe_intermediate_size"];    
+    moe_intermediate_size = data()["moe_intermediate_size"];
     norm_topk_prob = data()["norm_topk_prob"];
-    decoder_sparse_step = data()["decoder_sparse_step"];   
+    decoder_sparse_step = data()["decoder_sparse_step"];
     mlp_only_layers = data()["mlp_only_layers"].get<std::vector<int>>();
 
+    // Linear implementation type
     linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
 
@@ -58,9 +61,7 @@ struct Qwen3MoeConfig : protected ConfigFile {
 
   bool tie_word_embeddings = false;
   int32_t max_cache_length = 4096;
-  int32_t end_of_text_token_id = 151645;
-  int32_t thinking_start_token_id = 151667;
-  int32_t thinking_end_token_id = 151668;
+  int32_t end_of_text_token_id = 151645; // fixed default
 
   int32_t num_experts = 128;
   int32_t num_experts_per_tok = 8;
