@@ -37,7 +37,6 @@ MLLM_MAIN({
   auto& tg = mllm::Argparse::add<std::string>("-tg|--test_generation_length").help("Test Generation length");
   auto& cache_length = mllm::Argparse::add<int32_t>("-cl|--cache_length").help("Cache length");
 
-  // New CLI Arguments
   auto& runs = mllm::Argparse::add<int32_t>("-r|--runs").help("Number of benchmark runs").def(3);
   auto& cooldown_s = mllm::Argparse::add<int32_t>("-cs|--cooldown_s").help("Cooldown time between runs in seconds").def(5);
   auto& output_csv = mllm::Argparse::add<std::string>("-oc|--output_csv").help("Output results to a CSV file").def("");
@@ -49,10 +48,10 @@ MLLM_MAIN({
   mllm::Context::instance().setCpuOpThreads(num_threads.get());
   mllm::setMaximumNumThreads((uint32_t)num_threads.get());
 
-  // Print Build Version
+ 
   mllm::print("MLLM Build Version :", STRINGIFY(MLLM_GIT_COMMIT_HASH));
 
-  // Print Device Info
+  
   mllm::print("ARCH               :", mllm::cpu::CURRENT_ARCH_STRING);
   mllm::print("FP16               :", mllm::cpu::hasFP16());
   mllm::print("BF16               :", mllm::cpu::hasBF16());
@@ -75,20 +74,16 @@ MLLM_MAIN({
   mllm::print("AVX512VL           :", mllm::cpu::hasAVX512VL());
   mllm::print("FMA                :", mllm::cpu::hasFMA());
 
-  // Create benchmark
   mllm::print("Create Benchmark: ", model_name.get());
   auto benchmark = createBenchmark(model_name.get());
   MLLM_RT_ASSERT(benchmark != nullptr);
 
-
-  // Validate runs early to avoid huge reserve() when negative values cast to size_t.
   int R = runs.get();
   if (R <= 0) {
     mllm::print("[ERROR] --runs must be > 0, got:", R);
     return 1;
   }
 
-  // Open file stream
   std::ofstream csv_file;
   if (!output_csv.get().empty()) {
     csv_file.open(output_csv.get());
@@ -99,7 +94,6 @@ MLLM_MAIN({
     csv_file << "schema_version,git_commit,arch,model_name,pp,tg,ttft_ms,prefill_speed,decode_speed,prefill_ms,decode_ms_per_tok,kv_est_bytes_pp,kv_est_bytes_final\n";
   }
 
-  // Print Model Info
   mllm::print("Model Info");
   benchmark->init(config_path.get(), model_path.get(), cache_length.get());
   benchmark->printModelInfo();
@@ -145,7 +139,7 @@ MLLM_MAIN({
     mllm::print("  Generation Length (TG):", tg);
     mllm::print("----------------------------------------");
 
-    // Storage for results
+
     std::vector<BenchmarkTemplateResult> results;
     results.reserve(static_cast<size_t>(R));
 
@@ -172,7 +166,6 @@ MLLM_MAIN({
       }
     }
 
-    // Calculate average results
     float denom = (R > 0) ? static_cast<float>(R) : 1.0f;
     float avg_ttft = 0.0f;
     float avg_prefill_speed = 0.0f;
@@ -191,7 +184,7 @@ MLLM_MAIN({
     float avg_prefill_ms = (avg_prefill_speed > 0.0f) ? (pp / avg_prefill_speed) * 1000.0f : 0.0f;
     float avg_decode_ms_per_tok = (avg_decode_speed > 0.0f) ? (1.0f / avg_decode_speed) * 1000.0f : 0.0f;
 
-    // Rough KV cache estimate (bytes)
+    // KV cache estimate
     double kv_est_bytes_pp = 0.0;
     double kv_est_bytes_final = 0.0;
     if (auto info = benchmark->kvEstimateInfo(); info.has_value()) {
@@ -201,7 +194,6 @@ MLLM_MAIN({
       kv_est_bytes_final = 2.0 * info->num_layers * info->num_kv_heads * info->head_dim * (double)(pp + tg) * bytes_per;
     }
 
-    // Prepare one line output (avg)
     std::stringstream ss;
     ss << schema_version.get() << "," 
        << STRINGIFY(MLLM_GIT_COMMIT_HASH) << "," 
@@ -226,7 +218,6 @@ MLLM_MAIN({
   mllm::print("Benchmark Tests Completed");
   mllm::print("========================================");
 
-  //close file stream
   if (csv_file.is_open()) {
     csv_file.close();
   }
