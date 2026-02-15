@@ -5,7 +5,7 @@
 #include <memory>
 #include <algorithm>
 #include <string>
-#include <cctype>   // for std::tolower
+#include <cctype>  
 
 #include "BenchmarkTemplate.hpp"
 #include "Qwen3_W4A32_KAI.hpp"
@@ -14,7 +14,7 @@
 inline std::shared_ptr<BenchmarkTemplate> createBenchmark(const std::string& model_name) {
   auto tolower = [](const std::string& str) {
     std::string result = str;
-    // NOTE: std::tolower expects unsigned char cast to avoid UB for negative char values.
+    // unsigned char cast to avoid UB
     std::transform(result.begin(), result.end(), result.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return result;
