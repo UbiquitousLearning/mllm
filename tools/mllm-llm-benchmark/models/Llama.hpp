@@ -33,13 +33,7 @@ class Llama_Benchmark final : public BenchmarkTemplate {
 
     model_ = std::make_unique<mllm::models::llama::LlamaForCausalLM>("", *cfg_);
 
-    // NOTE:
-    // tinyllama-fp32.mllm used in examples is a V1 parameter file.
-    // Loading it as V2 will assert on magic number mismatch.
-    // We keep V1-only here to make the benchmark runnable; V2 support can be added later
-    // once we have either:
-    //  (1) a reliable file-version probe, or
-    //  (2) a CLI flag to select model file version.
+    // V1 param file only
     auto param = mllm::load(model_path, mllm::ModelFileVersion::kV1);
     model_->load(param);
 
@@ -54,7 +48,6 @@ class Llama_Benchmark final : public BenchmarkTemplate {
     mllm::print("Num Layers         :", cfg_->num_hidden_layers);
     mllm::print("Num Heads          :", cfg_->num_attention_heads);
     mllm::print("Num KV Heads       :", cfg_->num_key_value_heads);
-    // NOTE: Defensive guard (shouldn't happen with valid configs, but keeps benchmark robust).
     int32_t head_dim = (cfg_->num_attention_heads > 0) ? (cfg_->hidden_size / cfg_->num_attention_heads) : 0;
     mllm::print("Head Dim           :", head_dim);
     mllm::print("Intermediate Size  :", cfg_->intermediate_size);
@@ -87,8 +80,7 @@ class Llama_Benchmark final : public BenchmarkTemplate {
   }
 
   void clear() override {
-    // TODO: expose a public KV-cache reset API for LlamaForCausalLM (if needed).
-    // For now, keep it as no-op to minimize API changes in PR1.
+    // TODO: KV cache reset
   }
 
   BenchmarkTemplateResult run(int32_t pp, int32_t tg) override {
@@ -133,7 +125,7 @@ class Llama_Benchmark final : public BenchmarkTemplate {
     BenchmarkTemplateResult r;
     r.ttft = prefill_us / 1000.0f;
     r.prefill_speed = (prefill_us > 0) ? (static_cast<float>(pp) / prefill_us) * 1e6f : 0.f;
-    // NOTE: decode_us is measured from first token timestamp; exclude that first token from decode throughput.
+    // exclude first token from decode throughput
     int decode_tokens = (token_count > 0) ? (token_count - 1) : 0;
     r.decode_speed = (decode_us > 0 && decode_tokens > 0)
                        ? (static_cast<float>(decode_tokens) / decode_us) * 1e6f
