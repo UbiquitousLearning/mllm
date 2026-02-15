@@ -62,14 +62,7 @@ struct MMAgg {
 
 static bool g_mm_shape_on = false;
 static std::once_flag g_mm_shape_init;
-// =========================================================================
-// [WARNING] OFFLINE PROFILING ONLY
-// The following global mutex (g_mm_shape_mu) and shape capturing logic are 
-// strictly designed for OFFLINE shape extraction to guide AOT padding.
-// Do NOT enable MLLM_MATMUL_SHAPE_LOG during rigorous latency/throughput 
-// benchmarking, as lock contention will severely degrade engine concurrency.
-// =========================================================================
-static std::mutex g_mm_shape_mu;
+static std::mutex g_mm_shape_mu;// profiling only — don't enable during perf benchmarks (mutex overhead)
 static std::unordered_map<MMShapeKey, MMAgg, MMShapeKeyHash> g_mm_shape;
 
 static void mm_shape_init() {
@@ -139,7 +132,7 @@ void mat_mul(const Tensor& src0_, const Tensor& src1, Tensor& dst, bool support_
   const int K = transpose0 ? src0_shape[src0_shape.size() - 2] : src0_shape[src0_shape.size() - 1];
   const int N = transpose1 ? src1_shape[src1_shape.size() - 2] : src1_shape[src1_shape.size() - 1];
 
-  // NOTE: batch_count_mm is ONLY for MLLM_MATMUL_SHAPE_LOG aggregation (does not affect compute path)
+ // for shape log aggregation only
 int64_t batch_count_mm = 1;
   for (size_t i = 0; i + 2 < dst_shape.size(); ++i) batch_count_mm *= dst_shape[i];
   mm_shape_record(0, M, N, K,
@@ -291,7 +284,7 @@ llamafile_fallback:;
     if (batch_count == 1) {
       MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
         if (id == 0) {
-          // flops = 2*M*N*K（注意 llamafile_sgemm 参数顺序是 N,M,K/... 但数学等价）
+          // flops = 2*M*N*K
           mm_shape_record(/*kind=*/0, (int)M, (int)N, (int)K,
                           /*calls=*/1,
                           /*flops=*/2ull * (uint64_t)M * (uint64_t)N * (uint64_t)K);
@@ -334,7 +327,7 @@ llamafile_fallback:;
 
   // Use gemv/gemm if available
   if ((gemv != nullptr) && dst_dtype == MLLM_TYPE_F32) {
-    //Estimate logical workload: gemm covers M4 rows; gemv covers the rest
+    // gemm handles rows aligned to 4; gemv handles the rest
     const int64_t m_gemm = ((gemm != nullptr) && (M > 3)) ? (M - M % 4) : 0;
     const int64_t m_gemv = M - m_gemm;
 
@@ -344,7 +337,7 @@ llamafile_fallback:;
                       /*flops=*/2ull * (uint64_t)m_gemm * (uint64_t)N * (uint64_t)K);
     }
     if (m_gemv > 0) {
-      // One gemv per row: calls=m_gemv, shape logged as M=1
+     // one gemv per remaining row
       mm_shape_record(/*kind=*/2, /*m=*/1, (int)N, (int)K,
                       /*calls=*/(uint64_t)m_gemv,
                       /*flops=*/2ull * (uint64_t)m_gemv * (uint64_t)N * (uint64_t)K);
