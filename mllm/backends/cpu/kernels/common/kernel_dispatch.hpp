@@ -18,27 +18,29 @@ namespace mllm::cpu::common {
 //===----------------------------------------------------------------------===//
 // Elementwise + - * / By Matrix
 //===----------------------------------------------------------------------===//
+/// @brief Elementwise operations on contiguous buffers: out[i] = x[i] (op) y[i].
+/// @param out Output buffer of length n.
+/// @param x Input buffer of length n.
+/// @param y Input buffer of length n.
+/// @param n Number of elements.
+/// @note For integer division, behavior is undefined when a divisor is zero.
 HWY_DLLEXPORT void call_elewise_add_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n);
-
 //TODO: fp16 support not implemented yet
 // HWY_DLLEXPORT void call_elewise_add_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, const mllm_fp16_t* y, size_t n);
 // HWY_DLLEXPORT void call_elewise_sub_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, const mllm_fp16_t* y, size_t n);
 // HWY_DLLEXPORT void call_elewise_mul_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, const mllm_fp16_t* y, size_t n);
 // HWY_DLLEXPORT void call_elewise_div_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, const mllm_fp16_t* y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n);
 // HWY_DLLEXPORT void call_elewise_div_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n);
@@ -47,31 +49,160 @@ HWY_DLLEXPORT void call_elewise_mul_int8(mllm_int8_t* out, const mllm_int8_t* x,
 //===----------------------------------------------------------------------===//
 // Elementwise + - * / By Const
 //===----------------------------------------------------------------------===//
+/// @brief Elementwise operations with a scalar constant: out[i] = x[i] (op) y.
+/// @param out Output buffer of length n.
+/// @param x Input buffer of length n.
+/// @param y Scalar constant.
+/// @param n Number of elements.
+/// @note For integer division, behavior is undefined when y == 0.
 HWY_DLLEXPORT void call_elewise_add_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n);
-
 //TODO: fp16 support not implemented yet
 // HWY_DLLEXPORT void call_elewise_add_scl_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, mllm_fp16_t y, size_t n);
 // HWY_DLLEXPORT void call_elewise_sub_scl_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, mllm_fp16_t y, size_t n);
 // HWY_DLLEXPORT void call_elewise_mul_scl_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, mllm_fp16_t y, size_t n);
 // HWY_DLLEXPORT void call_elewise_div_scl_fp16(mllm_fp16_t* out, const mllm_fp16_t* x, mllm_fp16_t y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n);
-
 HWY_DLLEXPORT void call_elewise_add_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_sub_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_mul_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n);
 HWY_DLLEXPORT void call_elewise_div_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n);
+
+//===----------------------------------------------------------------------===//
+// Template wrapper for generic elewise operations
+//===----------------------------------------------------------------------===//
+template<typename T>
+inline void elewise_add_anytype(T* out, const T* x, const T* y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_add_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_add_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_add_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_add_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] + y[i]; }
+  }
+}
+
+template<typename T>
+inline void elewise_sub_anytype(T* out, const T* x, const T* y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_sub_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_sub_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_sub_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_sub_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] - y[i]; }
+  }
+}
+
+template<typename T>
+inline void elewise_mul_anytype(T* out, const T* x, const T* y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_mul_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_mul_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_mul_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_mul_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] * y[i]; }
+  }
+}
+
+template<typename T>
+inline void elewise_div_anytype(T* out, const T* x, const T* y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_div_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_div_int32(out, x, y, n);
+  } else {
+    // Fallback (note: division by zero is undefined)
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] / y[i]; }
+  }
+}
+
+template<typename T>
+inline void elewise_add_scl_anytype(T* out, const T* x, T y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_add_scl_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_add_scl_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_add_scl_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_add_scl_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] + y; }
+  }
+}
+
+template<typename T>
+inline void elewise_sub_scl_anytype(T* out, const T* x, T y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_sub_scl_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_sub_scl_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_sub_scl_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_sub_scl_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] - y; }
+  }
+}
+
+template<typename T>
+inline void elewise_mul_scl_anytype(T* out, const T* x, T y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_mul_scl_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_mul_scl_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_mul_scl_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_mul_scl_int8(out, x, y, n);
+  } else {
+    // Fallback
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] * y; }
+  }
+}
+
+template<typename T>
+inline void elewise_div_scl_anytype(T* out, const T* x, T y, size_t n) {
+  if constexpr (std::is_same_v<T, mllm_fp32_t>) {
+    call_elewise_div_scl_fp32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int32_t>) {
+    call_elewise_div_scl_int32(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int16_t>) {
+    call_elewise_div_scl_int16(out, x, y, n);
+  } else if constexpr (std::is_same_v<T, mllm_int8_t>) {
+    call_elewise_div_scl_int8(out, x, y, n);
+  } else {
+    // Fallback (note: division by zero is undefined)
+    for (size_t i = 0; i < n; ++i) { out[i] = x[i] / y; }
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // Fill Zeros
@@ -292,6 +423,12 @@ inline void fill_random_anytype(T* dst, size_t n, mllm_fp32_t start, mllm_fp32_t
 //===----------------------------------------------------------------------===//
 // Reduce
 //===----------------------------------------------------------------------===//
+/// Sum-reduction over a strided FP32 buffer.
+/// @param dst Output buffer receiving the reduction result(s).
+/// @param src Input buffer.
+/// @param src_stride Stride between consecutive source elements.
+/// @param size Number of elements to reduce.
+/// @param thread_count Requested number of threads (implementation may clamp).
 HWY_DLLEXPORT void call_reduce_sum_fp32(mllm_fp32_t* dst, const mllm_fp32_t* src, size_t src_stride, size_t size, int32_t thread_count);
 
 }  // namespace mllm::cpu::common

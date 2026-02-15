@@ -144,20 +144,20 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_add_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("AddOp not supported on this architecture.");                              
+        NYI("AddOp not supported on this architecture.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
-                                     output.numel(), options_.getThreads());        
+                                     output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_scl_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_add_scl_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("AddOp not supported on this architecture.");                                        
+        NYI("AddOp not supported on this architecture.");
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -184,11 +184,11 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::call_elewise_add_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::elewise_add_anytype(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #else
-        NYI("AddOp not supported on this architecture.");         
+        NYI("AddOp not supported on this architecture.");
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -202,14 +202,14 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_fp16(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), input1.ptr<mllm_fp16_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("AddOp fp16 not supported on x86 architecture yet.");                     
+        NYI("AddOp fp16 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         cpu::arm::ew_add_fp16_scalar(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), *input1.ptr<mllm_fp16_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("AddOp fp16 not supported on x86 architecture yet.");                                          
+        NYI("AddOp fp16 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -223,16 +223,16 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
-                               output.numel());                               
+        cpu::common::elewise_add_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_int32_scalar(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_scl_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_add_scl_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -246,16 +246,16 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
-                               output.numel());                               
+        cpu::common::elewise_add_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_int16_scalar(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_scl_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_add_scl_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -269,15 +269,15 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());                              
+        cpu::common::elewise_add_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_add_int8_scalar(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_add_scl_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
-                                     output.numel());                                     
+        cpu::common::elewise_add_scl_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
+                                     output.numel());
 #endif
       } else {
         NYI("AddOp broadcast not supported.");
@@ -301,7 +301,6 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* a = input0.ptr<mllm_fp32_t>();
         const mllm_complex_fp32_t* b = input1.ptr<mllm_complex_fp32_t>();
         mllm_complex_fp32_t* out = output.ptr<mllm_complex_fp32_t>();
-        
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
@@ -345,22 +344,22 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
-                              options_.getThreads());        
+                              options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_sub_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("SubOp not supported on this architecture.");                               
+        NYI("SubOp not supported on this architecture.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
-                                     output.numel(), options_.getThreads());        
+                                     output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_scl_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_sub_scl_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("SubOp not supported on this architecture.");                                       
+        NYI("SubOp not supported on this architecture.");
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -377,7 +376,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
             cpu::arm::ew_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
-        }        
+        }
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
@@ -387,11 +386,11 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
             size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::call_elewise_sub_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::elewise_sub_anytype(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #else
-        NYI("SubOp not supported on this architecture.");           
+        NYI("SubOp not supported on this architecture.");
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -405,14 +404,14 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_sub_fp16(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), input1.ptr<mllm_fp16_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("SubOp fp16 not supported on x86 architecture yet.");                                   
+        NYI("SubOp fp16 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         cpu::arm::ew_sub_fp16_scalar(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), *input1.ptr<mllm_fp16_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("SubOp fp16 not supported on x86 architecture yet.");                                          
+        NYI("SubOp fp16 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -426,16 +425,16 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_sub_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
-                               output.numel());                               
+        cpu::common::elewise_sub_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_int32_scalar(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_scl_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_sub_scl_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -449,16 +448,16 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_sub_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
-                               output.numel());                               
+        cpu::common::elewise_sub_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_int16_scalar(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_scl_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_sub_scl_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -472,15 +471,15 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_sub_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());                              
+        cpu::common::elewise_sub_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_sub_int8_scalar(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_sub_scl_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
-                                     output.numel());                                     
+        cpu::common::elewise_sub_scl_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
+                                     output.numel());
 #endif
       } else {
         NYI("SubOp broadcast not supported.");
@@ -548,22 +547,22 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
-                              options_.getThreads());        
+                              options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_mul_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("MulOp not supported on this architecture.");                                
+        NYI("MulOp not supported on this architecture.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
-                                     output.numel(), options_.getThreads());        
+                                     output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_scl_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_mul_scl_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("MulOp not supported on this architecture.");                                        
+        NYI("MulOp not supported on this architecture.");
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -580,21 +579,21 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
             cpu::arm::ew_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
-        }        
+        }
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
-          // Each batch processes broadcast_naive_loops iterations of vector_size elements  
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
             size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
             size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::call_elewise_mul_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::elewise_mul_anytype(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #else
-        NYI("MulOp not supported on this architecture.");           
+        NYI("MulOp not supported on this architecture.");
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -608,14 +607,14 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_mul_fp16(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), input1.ptr<mllm_fp16_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("MulOp fp16 not supported on x86 architecture yet.");                                   
+        NYI("MulOp fp16 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         cpu::arm::ew_mul_fp16_scalar(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), *input1.ptr<mllm_fp16_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("MulOp fp16 not supported on x86 architecture yet.");                                        
+        NYI("MulOp fp16 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -629,16 +628,16 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_mul_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
-                               output.numel());                               
+        cpu::common::elewise_mul_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_int32_scalar(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_scl_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_mul_scl_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -652,16 +651,16 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_mul_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
-                               output.numel());                               
+        cpu::common::elewise_mul_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
+                               output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_int16_scalar(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_scl_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
-                                      output.numel());                                      
+        cpu::common::elewise_mul_scl_anytype(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
+                                      output.numel());
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -675,15 +674,15 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_mul_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());                              
+        cpu::common::elewise_mul_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_mul_int8_scalar(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_mul_scl_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
-                                     output.numel());                                     
+        cpu::common::elewise_mul_scl_anytype(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
+                                     output.numel());
 #endif
       } else {
         NYI("MulOp broadcast not supported.");
@@ -751,22 +750,22 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       if (input0.numel() == input1.numel()) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(), output.numel(),
-                              options_.getThreads());        
+                              options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_div_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_div_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("DivOp not supported on this architecture.");                             
+        NYI("DivOp not supported on this architecture.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
-                                     output.numel(), options_.getThreads());        
+                                     output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_div_scl_fp32(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
+        cpu::common::elewise_div_scl_anytype(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                               output.numel());
 #else
-        NYI("DivOp not supported on this architecture.");                                     
+        NYI("DivOp not supported on this architecture.");
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -783,21 +782,21 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
             cpu::arm::ew_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size, options_.getThreads());
           }
-        }        
+        }
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
         // Process each batch separately
         for (int batch = 0; batch < batch_dims; ++batch) {
-          // Each batch processes broadcast_naive_loops iterations of vector_size elements  
+          // Each batch processes broadcast_naive_loops iterations of vector_size elements
           for (int l = 0; l < broadcast_naive_loops; ++l) {
             size_t a_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
             size_t b_offset = batch * vector_size;  // b doesn't broadcast over loops dimension
             size_t out_offset = batch * broadcast_naive_loops * vector_size + l * vector_size;
 
-            cpu::common::call_elewise_div_fp32(out + out_offset, a + a_offset, b + b_offset, vector_size);
+            cpu::common::elewise_div_anytype(out + out_offset, a + a_offset, b + b_offset, vector_size);
           }
         }
 #else
-        NYI("DivOp not supported on this architecture.");          
+        NYI("DivOp not supported on this architecture.");
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
@@ -811,14 +810,14 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_fp16(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), input1.ptr<mllm_fp16_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp fp16 not supported on x86 architecture yet.");                                 
+        NYI("DivOp fp16 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
         cpu::arm::ew_div_fp16_scalar(output.ptr<mllm_fp16_t>(), input0.ptr<mllm_fp16_t>(), *input1.ptr<mllm_fp16_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp fp16 not supported on x86 architecture yet.");                                         
+        NYI("DivOp fp16 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
@@ -832,16 +831,16 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_div_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
-                              output.numel());                               
+        cpu::common::elewise_div_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), input1.ptr<mllm_int32_t>(),
+                              output.numel());
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_int32_scalar(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        cpu::common::call_elewise_div_scl_int32(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
-                              output.numel());                               
+        cpu::common::elewise_div_scl_anytype(output.ptr<mllm_int32_t>(), input0.ptr<mllm_int32_t>(), *input1.ptr<mllm_int32_t>(),
+                              output.numel());
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
@@ -855,14 +854,14 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_int16(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), input1.ptr<mllm_int16_t>(),
                                output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp int16 not supported on x86 architecture yet.");                                   
+        NYI("DivOp int16 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_int16_scalar(output.ptr<mllm_int16_t>(), input0.ptr<mllm_int16_t>(), *input1.ptr<mllm_int16_t>(),
                                       output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp int16 not supported on x86 architecture yet.");                                        
+        NYI("DivOp int16 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
@@ -876,14 +875,14 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_int8(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), input1.ptr<mllm_int8_t>(), output.numel(),
                               options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp int8 not supported on x86 architecture yet.");                                
+        NYI("DivOp int8 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_int8_scalar(output.ptr<mllm_int8_t>(), input0.ptr<mllm_int8_t>(), *input1.ptr<mllm_int8_t>(),
                                      output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp int8 not supported on x86 architecture yet.");                                         
+        NYI("DivOp int8 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("DivOp broadcast not supported.");
@@ -898,14 +897,14 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_fp32_complex(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
                                       input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp complex fp32 not supported on x86 architecture yet.");                                          
+        NYI("DivOp complex fp32 not supported on x86 architecture yet.");
 #endif
       } else if (input1.numel() == 1) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         cpu::arm::ew_div_fp32_complex_scalar(output.ptr<mllm_complex_fp32_t>(), input0.ptr<mllm_fp32_t>(),
                                              *input1.ptr<mllm_complex_fp32_t>(), output.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp complex fp32 not supported on x86 architecture yet.");                                                 
+        NYI("DivOp complex fp32 not supported on x86 architecture yet.");
 #endif
       } else if (can_be_broadcast_naive) {
         const float* a = input0.ptr<mllm_fp32_t>();
@@ -925,7 +924,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
           }
         }
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("DivOp complex fp32 not supported on x86 architecture yet.");            
+        NYI("DivOp complex fp32 not supported on x86 architecture yet.");
 #endif
       } else {
         NYI("DivOp broadcast for complex output not supported.");

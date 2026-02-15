@@ -24,195 +24,150 @@
 namespace mllm::cpu::common {
 
 //===----------------------------------------------------------------------===//
-// Element-wise
+// Elementwise + - * / By Matrix
 //===----------------------------------------------------------------------===//
 HWY_EXPORT(elewise_add_fp32);
 HWY_EXPORT(elewise_sub_fp32);
 HWY_EXPORT(elewise_mul_fp32);
 HWY_EXPORT(elewise_div_fp32);
-
 // HWY_EXPORT(elewise_add_fp16);
 // HWY_EXPORT(elewise_sub_fp16);
 // HWY_EXPORT(elewise_mul_fp16);
 // HWY_EXPORT(elewise_div_fp16);
-
 HWY_EXPORT(elewise_add_int32);
 HWY_EXPORT(elewise_sub_int32);
 HWY_EXPORT(elewise_mul_int32);
 HWY_EXPORT(elewise_div_int32);
-
 HWY_EXPORT(elewise_add_int16);
 HWY_EXPORT(elewise_sub_int16);
 HWY_EXPORT(elewise_mul_int16);
 // HWY_EXPORT(elewise_div_int16);
-
 HWY_EXPORT(elewise_add_int8);
 HWY_EXPORT(elewise_sub_int8);
 HWY_EXPORT(elewise_mul_int8);
 // HWY_EXPORT(elewise_div_int8);
 
+HWY_DLLEXPORT void call_elewise_add_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_add_fp32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_sub_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_sub_fp32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_mul_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_mul_fp32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_div_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_div_fp32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_add_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_add_int32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_sub_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_sub_int32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_mul_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_mul_int32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_div_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_div_int32)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_add_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_add_int16)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_sub_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_sub_int16)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_mul_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_mul_int16)(out, x, y, n);
+}
+// HWY_DLLEXPORT void call_elewise_div_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
+//   HWY_DYNAMIC_DISPATCH(elewise_div_int16)(out, x, y, n);
+// }
+HWY_DLLEXPORT void call_elewise_add_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_add_int8)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_sub_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_sub_int8)(out, x, y, n);
+}
+HWY_DLLEXPORT void call_elewise_mul_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
+  HWY_DYNAMIC_DISPATCH(elewise_mul_int8)(out, x, y, n);
+}
+// HWY_DLLEXPORT void call_elewise_div_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
+//   HWY_DYNAMIC_DISPATCH(elewise_div_int8)(out, x, y, n);
+// }
+
+//===----------------------------------------------------------------------===//
+// Elementwise + - * / By Const
+//===----------------------------------------------------------------------===//
 HWY_EXPORT(elewise_add_scl_fp32);
 HWY_EXPORT(elewise_sub_scl_fp32);
 HWY_EXPORT(elewise_mul_scl_fp32);
 HWY_EXPORT(elewise_div_scl_fp32);
-
 // HWY_EXPORT(elewise_add_scl_fp16);
 // HWY_EXPORT(elewise_sub_scl_fp16);
 // HWY_EXPORT(elewise_mul_scl_fp16);
 // HWY_EXPORT(elewise_div_scl_fp16);
-
 HWY_EXPORT(elewise_add_scl_int32);
 HWY_EXPORT(elewise_sub_scl_int32);
 HWY_EXPORT(elewise_mul_scl_int32);
 HWY_EXPORT(elewise_div_scl_int32);
-
 HWY_EXPORT(elewise_add_scl_int16);
 HWY_EXPORT(elewise_sub_scl_int16);
 HWY_EXPORT(elewise_mul_scl_int16);
 HWY_EXPORT(elewise_div_scl_int16);
-
 HWY_EXPORT(elewise_add_scl_int8);
 HWY_EXPORT(elewise_sub_scl_int8);
 HWY_EXPORT(elewise_mul_scl_int8);
 HWY_EXPORT(elewise_div_scl_int8);
 
-
-HWY_DLLEXPORT void call_elewise_add_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_add_fp32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_sub_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_sub_fp32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_mul_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_mul_fp32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_div_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, const mllm_fp32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_div_fp32)(out, x, y, n);
-}
-
-
-HWY_DLLEXPORT void call_elewise_add_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_add_int32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_sub_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_sub_int32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_mul_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_mul_int32)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_div_int32(mllm_int32_t* out, const mllm_int32_t* x, const mllm_int32_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_div_int32)(out, x, y, n);
-}
-
-
-HWY_DLLEXPORT void call_elewise_add_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_add_int16)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_sub_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_sub_int16)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_mul_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_mul_int16)(out, x, y, n);
-}
-
-// HWY_DLLEXPORT void call_elewise_div_int16(mllm_int16_t* out, const mllm_int16_t* x, const mllm_int16_t* y, size_t n) {
-//   HWY_DYNAMIC_DISPATCH(elewise_div_int16)(out, x, y, n);
-// }
-
-
-HWY_DLLEXPORT void call_elewise_add_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_add_int8)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_sub_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_sub_int8)(out, x, y, n);
-}
-
-HWY_DLLEXPORT void call_elewise_mul_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
-  HWY_DYNAMIC_DISPATCH(elewise_mul_int8)(out, x, y, n);
-}
-
-// HWY_DLLEXPORT void call_elewise_div_int8(mllm_int8_t* out, const mllm_int8_t* x, const mllm_int8_t* y, size_t n) {
-//   HWY_DYNAMIC_DISPATCH(elewise_div_int8)(out, x, y, n);
-// }
-
-
-
 HWY_DLLEXPORT void call_elewise_add_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_add_scl_fp32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_sub_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_sub_scl_fp32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_mul_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_mul_scl_fp32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_div_scl_fp32(mllm_fp32_t* out, const mllm_fp32_t* x, mllm_fp32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_div_scl_fp32)(out, x, y, n);
 }
-
-
 HWY_DLLEXPORT void call_elewise_add_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_add_scl_int32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_sub_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_sub_scl_int32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_mul_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_mul_scl_int32)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_div_scl_int32(mllm_int32_t* out, const mllm_int32_t* x, mllm_int32_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_div_scl_int32)(out, x, y, n);
 }
-
-
 HWY_DLLEXPORT void call_elewise_add_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_add_scl_int16)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_sub_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_sub_scl_int16)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_mul_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_mul_scl_int16)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_div_scl_int16(mllm_int16_t* out, const mllm_int16_t* x, mllm_int16_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_div_scl_int16)(out, x, y, n);
 }
-
-
 HWY_DLLEXPORT void call_elewise_add_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_add_scl_int8)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_sub_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_sub_scl_int8)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_mul_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_mul_scl_int8)(out, x, y, n);
 }
-
 HWY_DLLEXPORT void call_elewise_div_scl_int8(mllm_int8_t* out, const mllm_int8_t* x, mllm_int8_t y, size_t n) {
   HWY_DYNAMIC_DISPATCH(elewise_div_scl_int8)(out, x, y, n);
 }
-
 
 
 //===----------------------------------------------------------------------===//
