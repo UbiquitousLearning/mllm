@@ -1,11 +1,19 @@
-# [Bench] x86 CPU Baseline Profiler & Context Sweep Tool
+# [Bench] CPU Context Sweep Benchmark
 
-**Disclaimer:** This toolchain currently runs strictly on the **CPU (x86_64)**. Its purpose is to establish a rigorous ground-truth CPU baseline, capturing explicit matrix shapes and memory usage boundaries. This data is intended to guide AOT Static Graph bucketing and memory pre-allocation for future NPU integration.
+CPU-only benchmark for measuring prefill/decode latency and memory across different context lengths on x86_64.
 
 ## What is Context Sweep?
-`sweep_context_v2.sh` is an automated benchmarking workflow that tests the framework across scaling context lengths (e.g., 256 to 4096). It isolates prefill and decode stages to extract two critical metrics for AOT preparation:
-1. **Shape Dominance:** Captures explicit GEMM `(M, N, K)` shapes to pinpoint exactly which bucket sizes the AOT compiler needs to nearest-pad (e.g., finding M=254 is dominant in prefill).
-2. **KV Cache Memory Bounds:** Calculates theoretical and empirical (Peak RSS) VRAM requirements prior to execution, establishing strict lower bounds for AOT memory pre-allocation.
+
+`sweep_context_v2.sh` runs the benchmark binary at different context lengths
+(256, 512, 1024, 2048, 4096) and records:
+
+- Prefill / TTFT latency
+- Decode per-token latency
+- Peak RSS memory
+- KV cache size estimate
+
+It also captures GEMM shapes via `MLLM_MATMUL_SHAPE_LOG=1` (M, N, K per matmul call),
+which is useful for understanding compute patterns at each context length.
 
 This folder contains:
 - `data/` : raw CSVs (context sweep + summary)
@@ -15,7 +23,7 @@ This folder contains:
 ## Quick Repro (x86_64 example)
 
 ```bash
-# 1. Build (with toolchain enabled & SIMD fixes)
+# 1. Build 
 cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DBUILD_TESTING=OFF \
