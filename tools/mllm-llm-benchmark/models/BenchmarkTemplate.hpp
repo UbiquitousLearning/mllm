@@ -67,7 +67,6 @@ class BenchmarkTemplate {
    */
   virtual BenchmarkTemplateResult run(int32_t pp, int32_t tg) = 0;
 
-  // Optional: provide info for KV cache size estimation.
-  // If a model does not support it, return std::nullopt.
+  // KV cache size estimation; return nullopt if unsupported
   virtual std::optional<KVCacheEstimateInfo> kvEstimateInfo() const { return std::nullopt; }
 };
