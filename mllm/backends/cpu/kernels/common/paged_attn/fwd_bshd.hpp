@@ -7,6 +7,7 @@
 #include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/kernels/common/paged_attn/arch.hpp"
 #include "mllm/utils/UnsafeMacros.hpp"
+#include <immintrin.h>
 
 namespace mllm::cpu::paged_attn {
 
