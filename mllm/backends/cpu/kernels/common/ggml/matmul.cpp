@@ -48,7 +48,6 @@ struct MMShapeKey {
 };
 struct MMShapeKeyHash {
   size_t operator()(const MMShapeKey& s) const {
-    // 简单 hash（够用）
     size_t h = (size_t)s.m * 1315423911u;
     h ^= (size_t)s.n * 2654435761u;
     h ^= (size_t)s.k * 97531u;
@@ -57,12 +56,19 @@ struct MMShapeKeyHash {
   }
 };
 struct MMAgg {
-  uint64_t calls = 0;   // 逻辑调用次数（gemv 用“行数”计）
-  uint64_t flops = 0;   // 估算 flops：2*m*n*k（gemv 用 m=1, calls=rows）
+  uint64_t calls = 0;   // Logical calls (for gemv, counts as rows)
+  uint64_t flops = 0;   // Estimated FLOPs: 2*m*n*k (for gemv, m=1 and calls=rows)
 };
 
 static bool g_mm_shape_on = false;
 static std::once_flag g_mm_shape_init;
+// =========================================================================
+// [WARNING] OFFLINE PROFILING ONLY
+// The following global mutex (g_mm_shape_mu) and shape capturing logic are 
+// strictly designed for OFFLINE shape extraction to guide AOT padding.
+// Do NOT enable MLLM_MATMUL_SHAPE_LOG during rigorous latency/throughput 
+// benchmarking, as lock contention will severely degrade engine concurrency.
+// =========================================================================
 static std::mutex g_mm_shape_mu;
 static std::unordered_map<MMShapeKey, MMAgg, MMShapeKeyHash> g_mm_shape;
 
@@ -328,7 +334,7 @@ llamafile_fallback:;
 
   // Use gemv/gemm if available
   if ((gemv != nullptr) && dst_dtype == MLLM_TYPE_F32) {
-    // 统计“逻辑工作量”：gemm 覆盖 M4 行；gemv 覆盖剩余行（每行一次 gemv）
+    //Estimate logical workload: gemm covers M4 rows; gemv covers the rest
     const int64_t m_gemm = ((gemm != nullptr) && (M > 3)) ? (M - M % 4) : 0;
     const int64_t m_gemv = M - m_gemm;
 
@@ -338,7 +344,7 @@ llamafile_fallback:;
                       /*flops=*/2ull * (uint64_t)m_gemm * (uint64_t)N * (uint64_t)K);
     }
     if (m_gemv > 0) {
-      // gemv 每行一次：用 calls=m_gemv，shape 记成 M=1
+      // One gemv per row: calls=m_gemv, shape logged as M=1
       mm_shape_record(/*kind=*/2, /*m=*/1, (int)N, (int)K,
                       /*calls=*/(uint64_t)m_gemv,
                       /*flops=*/2ull * (uint64_t)m_gemv * (uint64_t)N * (uint64_t)K);
