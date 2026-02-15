@@ -294,8 +294,8 @@ void CPUReduceSumOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
       case kFloat32: {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::reduce_sum_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), 1, input.numel(), options_.getThreads());
-#elif defined(MLLM_HOST_ARCH_X86) || defined(MLLM_HOST_ARCH_X86_64)        
-        NYI("ReduceSumOp not implemented for x86/x86_64 yet.");
+#elif defined(MLLM_HOST_ARCH_X86) || defined(MLLM_HOST_ARCH_X86_64)
+        common::call_reduce_sum_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), 1, input.numel(), options_.getThreads());
 #endif
         break;
       }
@@ -348,7 +348,7 @@ void CPUReduceSumOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
                                axis_size, options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_X86) || defined(MLLM_HOST_ARCH_X86_64)
           cpu::common::call_reduce_sum_fp32(&output_ptr[out * inner_size + in], &input_ptr[out * axis_size * inner_size + in], inner_size,
-                               axis_size, options_.getThreads());                      
+                               axis_size, options_.getThreads());
 #endif
         }
       }

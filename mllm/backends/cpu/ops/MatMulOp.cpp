@@ -50,7 +50,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mt = aops::MatMulOpType::kBLAS;
 #else
     if (!transpose_a && transpose_b) {
-      // TODO kGGUF still buggy !!!
+      // TODO: kGGUF still buggy !!!
       mt = aops::MatMulOpType::kGGUF;
     } else
     // All fallback to mllm blas
@@ -121,7 +121,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 //                                               o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
 //                                               transpose_a, transpose_b);
 //         }
-//       }  
+//       }
 #else
       NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
 #endif

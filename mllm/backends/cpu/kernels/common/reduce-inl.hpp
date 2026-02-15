@@ -7,7 +7,7 @@
 HWY_BEFORE_NAMESPACE();
 namespace mllm::cpu::common {  // NOLINT
 namespace HWY_NAMESPACE {
-namespace hn = hwy::HWY_NAMESPACE; 
+namespace hn = hwy::HWY_NAMESPACE;
 
 
 struct ScalarAddOp { template<typename T> HWY_INLINE T operator()(T a, T b) const { return a + b; } };
@@ -59,7 +59,7 @@ struct VecSumReduce {
 
 
 template<typename T, typename ScalarOp, typename VectorOp, typename VectorReduceOp>
-HWY_INLINE T reduce_impl(const T* HWY_RESTRICT src, size_t src_stride, size_t size, 
+HWY_INLINE T reduce_impl(const T* HWY_RESTRICT src, size_t src_stride, size_t size,
                          ScalarOp&& scalar_op, VectorOp&& vec_op, VectorReduceOp&& vec_reduce_op) {
   if (size == 0) return T(0);
 
@@ -99,7 +99,7 @@ HWY_INLINE T reduce_impl(const T* HWY_RESTRICT src, size_t src_stride, size_t si
 
     return vec_reduce_op(d, vec_result);
   }
-  
+
   // Scalar path (stride != 1 or too small)
   T scalar_result = src[0];
   for (size_t i = 1; i < size; ++i) {
