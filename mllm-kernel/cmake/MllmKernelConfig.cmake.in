@@ -1,0 +1,16 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Include the targets file
+include("${CMAKE_CURRENT_LIST_DIR}/MllmKernelTargets.cmake")
+
+# Check for required components
+check_required_components(MllmKernel)
+
+# Provide helpful variables
+set(MLLM_KERNEL_INCLUDE_DIRS "${PACKAGE_PREFIX_DIR}/include")
+set(MLLM_KERNEL_CPU_CSRC_DIR "${PACKAGE_PREFIX_DIR}/share/mllm_kernel/cpu/csrc")
+
+# Highway is bundled
+set(MLLM_KERNEL_HAS_HIGHWAY TRUE)
