@@ -1,3 +1,6 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 // ref: https://forums.developer.nvidia.com/t/c-20s-source-location-compilation-error-when-using-nvcc-12-1/258026/3
@@ -21,16 +24,16 @@
 
 #define consteval constexpr
 
-#include "source_location.h"
+#include "mllm_kernel/source_location.hpp"
 
 #undef consteval
 #pragma pop_macro("__cpp_consteval")
 #pragma pop_macro("_NODISCARD")
 #else  // __CUDACC__ && CUDA_VERSION > 12010
-#include "source_location.hpp"
+#include "mllm_kernel/source_location.hpp"
 #endif
 #else  // no __CUDACC__
-#include "source_location.hpp"
+#include "mllm_kernel/source_location.hpp"
 #endif
 
 #include <dlpack/dlpack.h>

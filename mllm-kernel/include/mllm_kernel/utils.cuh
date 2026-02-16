@@ -1,3 +1,6 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include <mllm_kernel/utils.hpp>
@@ -30,20 +33,20 @@ using fp32x4_t = float4;
 
 namespace device {
 
-#define SGL_DEVICE __forceinline__ __device__
+#define MLLM_DEVICE __forceinline__ __device__
 
 inline constexpr auto kWarpThreads = 32u;
 inline constexpr auto kFullMask = 0xffffffffu;
 
 template<bool kUsePDL>
-SGL_DEVICE void PDLWaitPrimary() {
+MLLM_DEVICE void PDLWaitPrimary() {
 #ifndef USE_ROCM
   if constexpr (kUsePDL) { asm volatile("griddepcontrol.wait;" ::: "memory"); }
 #endif
 }
 
 template<bool kUsePDL>
-SGL_DEVICE void PDLTriggerSecondary() {
+MLLM_DEVICE void PDLTriggerSecondary() {
 #ifndef USE_ROCM
   if constexpr (kUsePDL) { asm volatile("griddepcontrol.launch_dependents;" :::); }
 #endif
@@ -54,12 +57,12 @@ namespace pointer {
 // we only allow void * pointer arithmetic for safety
 
 template<typename T = char, std::integral... U>
-SGL_DEVICE auto offset(void* ptr, U... offset) -> void* {
+MLLM_DEVICE auto offset(void* ptr, U... offset) -> void* {
   return static_cast<T*>(ptr) + (... + offset);
 }
 
 template<typename T = char, std::integral... U>
-SGL_DEVICE auto offset(const void* ptr, U... offset) -> const void* {
+MLLM_DEVICE auto offset(const void* ptr, U... offset) -> const void* {
   return static_cast<const T*>(ptr) + (... + offset);
 }
 
@@ -82,11 +85,11 @@ struct LaunchKernel {
  public:
   explicit LaunchKernel(dim3 grid_dim, dim3 block_dim, DLDevice device, std::size_t dynamic_shared_mem_bytes = 0,
                         DebugInfo location = {}) noexcept
-      : m_config(s_make_config(grid_dim, block_dim, resolve_device(device), dynamic_shared_mem_bytes)), m_location(location) {}
+      : config_(s_make_config(grid_dim, block_dim, resolve_device(device), dynamic_shared_mem_bytes)), m_location(location) {}
 
   explicit LaunchKernel(dim3 grid_dim, dim3 block_dim, cudaStream_t stream, std::size_t dynamic_shared_mem_bytes = 0,
                         DebugInfo location = {}) noexcept
-      : m_config(s_make_config(grid_dim, block_dim, stream, dynamic_shared_mem_bytes)), m_location(location) {}
+      : config_(s_make_config(grid_dim, block_dim, stream, dynamic_shared_mem_bytes)), m_location(location) {}
 
   LaunchKernel(const LaunchKernel&) = delete;
   LaunchKernel& operator=(const LaunchKernel&) = delete;
@@ -99,17 +102,17 @@ struct LaunchKernel {
     if (enabled) {
       m_attrs[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
       m_attrs[0].val.programmaticStreamSerializationAllowed = true;
-      m_config.numAttrs = 1;
-      m_config.attrs = m_attrs;
+      config_.numAttrs = 1;
+      config_.attrs = m_attrs;
     } else {
-      m_config.numAttrs = 0;
+      config_.numAttrs = 0;
     }
     return *this;
   }
 
   template<typename T, typename... Args>
   auto operator()(T&& kernel, Args&&... args) const -> void {
-    RuntimeDeviceCheck(::cudaLaunchKernelEx(&m_config, kernel, std::forward<Args>(args)...), m_location);
+    RuntimeDeviceCheck(::cudaLaunchKernelEx(&config_, kernel, std::forward<Args>(args)...), m_location);
   }
 
  private:
@@ -124,7 +127,7 @@ struct LaunchKernel {
     return config;
   }
 
-  cudaLaunchConfig_t m_config;
+  cudaLaunchConfig_t config_;
   const DebugInfo m_location;
   cudaLaunchAttribute m_attrs[1];
 };

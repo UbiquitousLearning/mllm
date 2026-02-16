@@ -27,7 +27,7 @@ void add_constant(tvm::ffi::TensorView dst, tvm::ffi::TensorView src) {
   // 1. Validate input tensors
   SymbolicSize N = {"num_elements"};
   SymbolicDevice device_;
-  TensorMatcher({N})                  // 1D tensor, must be contiguous
+  (void)TensorMatcher({N})            // 1D tensor, must be contiguous
       .with_dtype<int32_t>()          // must be int32
       .with_device<kDLCUDA>(device_)  // must be on CUDA device
       .verify(dst)                    // check tensor dst

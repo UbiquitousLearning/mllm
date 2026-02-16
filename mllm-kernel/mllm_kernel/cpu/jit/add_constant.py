@@ -1,5 +1,5 @@
-# Copyright 2024 mllm Authors
-# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
 #
 # Add constant kernel using Highway SIMD.
 
