@@ -5,9 +5,13 @@
 
 from .compile import (
     cache_once,
+    jit,
     make_cpp_args,
     load_cpu_jit,
     load_cuda_jit,
+    register_jit_kernel,
+    get_jit_kernel_registry,
+    clear_jit_kernel_registry,
     # Path constants
     MLLM_KERNEL_TOP_PATH,
     MLLM_KERNEL_INCLUDE_DIR,
@@ -24,9 +28,13 @@ from .compile import (
 
 __all__ = [
     "cache_once",
+    "jit",
     "make_cpp_args",
     "load_cpu_jit",
     "load_cuda_jit",
+    "register_jit_kernel",
+    "get_jit_kernel_registry",
+    "clear_jit_kernel_registry",
     "MLLM_KERNEL_TOP_PATH",
     "MLLM_KERNEL_INCLUDE_DIR",
     "MLLM_KERNEL_CPU_PATH",

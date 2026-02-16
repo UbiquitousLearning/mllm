@@ -10,9 +10,11 @@ __version__ = "1.0.0"
 
 from . import cpu
 from . import jit_utils
+from .jit_utils import jit
 
 __all__ = [
     "__version__",
     "cpu",
     "jit_utils",
+    "jit",
 ]

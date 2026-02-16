@@ -4,17 +4,21 @@ import torch
 import pathlib
 import functools
 import os
+import re
 import sys
+import threading
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     List,
     Tuple,
     TypeAlias,
     TypeVar,
     Union,
     Literal,
+    cast,
 )
 
 if TYPE_CHECKING:
@@ -126,7 +130,7 @@ MLLM_KERNEL_TEMPLATE_TYPE: TypeAlias = Union[int, float, bool, torch.dtype]
 MLLM_KERNEL_TEMPLATE_DTYPE_MAP: dict[torch.dtype, str] = {
     torch.float: "fp32_t",
     torch.float16: "fp16_t",
-    torch.bfloat16: "bfp16_t",
+    torch.bfloat16: "bf16_t",
     torch.int8: "int8_t",
     torch.int16: "int16_t",
     torch.int32: "int32_t",
@@ -183,6 +187,259 @@ MLLM_KERNEL_ASCEND_INCLUDE_DIR = MLLM_KERNEL_ASCEND_PATH / "include"
 MLLM_KERNEL_DEFAULT_CXX_FLAGS = ["-std=c++20", "-O3", "-fPIC"]
 MLLM_KERNEL_DEFAULT_CUDA_C_FLAGS = ["-std=c++20", "-O3", "--expt-relaxed-constexpr"]
 MLLM_KERNEL_DEFAULT_LDFLAGS = []
+MLLM_KERNEL_CACHE_ROOT = pathlib.Path(os.path.expanduser("~/.cache/mllm_kernel"))
+
+
+JITKernelInfo: TypeAlias = Dict[str, Any]
+_JIT_KERNEL_REGISTRY: dict[str, JITKernelInfo] = {}
+_JIT_KERNEL_REGISTRY_LOCK = threading.Lock()
+
+
+def _make_jit_kernel_registry_key(
+    *,
+    fn: Callable[..., Any],
+    export_name: str,
+    template_cpp_args: Tuple[str, ...],
+    device: Literal["auto", "cpu", "cuda"],
+) -> str:
+    template_key = ",".join(template_cpp_args) if template_cpp_args else "-"
+    return (
+        f"{fn.__module__}.{fn.__qualname__}|"
+        f"export={export_name}|device={device}|template={template_key}"
+    )
+
+
+def register_jit_kernel(info: JITKernelInfo) -> None:
+    """Register one JIT kernel metadata entry into the global table."""
+    key = str(info["key"])
+    with _JIT_KERNEL_REGISTRY_LOCK:
+        _JIT_KERNEL_REGISTRY[key] = info
+
+
+def get_jit_kernel_registry() -> dict[str, JITKernelInfo]:
+    """Get a shallow copy of all registered JIT kernels."""
+    with _JIT_KERNEL_REGISTRY_LOCK:
+        return {k: v.copy() for k, v in _JIT_KERNEL_REGISTRY.items()}
+
+
+def clear_jit_kernel_registry() -> None:
+    """Clear all registered JIT kernel metadata."""
+    with _JIT_KERNEL_REGISTRY_LOCK:
+        _JIT_KERNEL_REGISTRY.clear()
+
+
+def _sanitize_cache_name(name: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("._-")
+    return sanitized or "jit_kernel"
+
+
+def _resolve_build_directory(
+    build_directory: str | None,
+    default_name: str,
+) -> str:
+    if build_directory is None:
+        cache_dir = MLLM_KERNEL_CACHE_ROOT / _sanitize_cache_name(default_name)
+    else:
+        cache_dir = pathlib.Path(os.path.expanduser(build_directory))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return str(cache_dir)
+
+
+def _build_cache_name(
+    device_prefix: str,
+    func_name: str,
+    template_args: Tuple[str, ...] = (),
+) -> str:
+    if not template_args:
+        return f"{device_prefix}_{func_name}"
+    return f"{device_prefix}_{func_name}_" + "_".join(template_args)
+
+
+def _normalize_jit_template_args(
+    args: (
+        MLLM_KERNEL_TEMPLATE_TYPE
+        | List[MLLM_KERNEL_TEMPLATE_TYPE]
+        | Tuple[MLLM_KERNEL_TEMPLATE_TYPE, ...]
+        | None
+    ),
+) -> Tuple[MLLM_KERNEL_TEMPLATE_TYPE, ...]:
+    if args is None:
+        return ()
+    if isinstance(args, list):
+        return tuple(args)
+    if isinstance(args, tuple):
+        return args
+    return (args,)
+
+
+def _iter_tensors(values: Tuple[Any, ...]) -> list[torch.Tensor]:
+    tensors: list[torch.Tensor] = []
+    for value in values:
+        if isinstance(value, torch.Tensor):
+            tensors.append(value)
+        elif isinstance(value, dict):
+            tensors.extend(_iter_tensors(tuple(value.values())))
+        elif isinstance(value, (tuple, list)):
+            tensors.extend(_iter_tensors(tuple(value)))
+    return tensors
+
+
+def _resolve_target_device(
+    device: Literal["auto", "cpu", "cuda"],
+    call_args: Tuple[Any, ...],
+    call_kwargs: dict[str, Any],
+    *,
+    has_cuda_config: bool,
+) -> Literal["cpu", "cuda"]:
+    if device != "auto":
+        return device
+
+    tensors = _iter_tensors(call_args + (call_kwargs,))
+    has_cuda = any(tensor.is_cuda for tensor in tensors)
+    has_cpu = any(not tensor.is_cuda for tensor in tensors)
+    if has_cuda and has_cpu:
+        raise ValueError(
+            "Cannot infer device from mixed CPU/CUDA tensors. "
+            "Please move tensors to one device or pass device='cpu'/'cuda'."
+        )
+    if has_cuda:
+        return "cuda"
+    if has_cpu:
+        return "cpu"
+    if has_cuda_config:
+        return "cuda"
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def jit(
+    *,
+    args: (
+        MLLM_KERNEL_TEMPLATE_TYPE
+        | List[MLLM_KERNEL_TEMPLATE_TYPE]
+        | Tuple[MLLM_KERNEL_TEMPLATE_TYPE, ...]
+        | None
+    ) = None,
+    device: Literal["auto", "cpu", "cuda"] = "auto",
+    func_name: str | None = None,
+    cpp_files: List[str] | None = None,
+    cuda_files: List[str] | None = None,
+    cpp_wrappers: List[Tuple[str, str]] | None = None,
+    cuda_wrappers: List[Tuple[str, str]] | None = None,
+    extra_cxx_flags: List[str] | None = None,
+    extra_cuda_cxx_flags: List[str] | None = None,
+    extra_ld_flags: List[str] | None = None,
+    extra_include_paths: List[str] | None = None,
+    use_highway: bool = True,
+    build_directory: str | None = None,
+) -> Callable[[F], F]:
+    """
+    Decorator for JIT kernels that injects compiled module as first argument.
+
+    Example:
+        @jit(args=[16], cuda_files=["add_constant.cuh"], device="auto")
+        def add_constant_16(compiled_module, dst, src):
+            compiled_module.add_constant_16(dst, src)
+    """
+
+    template_args = _normalize_jit_template_args(args)
+    template_cpp_args = make_cpp_args(*template_args)
+
+    def decorator(fn: F) -> F:
+        export_name = func_name or fn.__name__
+        has_cuda_config = bool(cuda_files or cuda_wrappers)
+
+        default_kernel_name = (
+            f"{export_name}<{template_cpp_args}>" if template_cpp_args else export_name
+        )
+
+        resolved_cpp_wrappers = (
+            [(export_name, default_kernel_name)]
+            if cpp_wrappers is None
+            else cpp_wrappers
+        )
+        resolved_cuda_wrappers = (
+            [(export_name, default_kernel_name)]
+            if cuda_wrappers is None
+            else cuda_wrappers
+        )
+        template_cpp_args_tuple = tuple(str(arg) for arg in template_cpp_args)
+        registry_key = _make_jit_kernel_registry_key(
+            fn=fn,
+            export_name=export_name,
+            template_cpp_args=template_cpp_args_tuple,
+            device=device,
+        )
+
+        register_jit_kernel(
+            {
+                "key": registry_key,
+                "module": fn.__module__,
+                "qualified_name": fn.__qualname__,
+                "export_name": export_name,
+                "decorator_device": device,
+                "has_cuda_config": has_cuda_config,
+                "template_args": template_cpp_args_tuple,
+                "cpp_files": tuple(cpp_files or ()),
+                "cuda_files": tuple(cuda_files or ()),
+                "cpp_wrappers": tuple(resolved_cpp_wrappers),
+                "cuda_wrappers": tuple(resolved_cuda_wrappers),
+                "use_highway": use_highway,
+                "build_directory": build_directory,
+            }
+        )
+
+        @cache_once
+        def _load_module(target_device: Literal["cpu", "cuda"]):
+            resolved_build_directory = _resolve_build_directory(
+                build_directory,
+                _build_cache_name(target_device, export_name, tuple(template_cpp_args)),
+            )
+            if target_device == "cuda":
+                if not has_cuda_config:
+                    raise ValueError(
+                        f"JIT function '{export_name}' resolved to CUDA but no CUDA "
+                        "entry was provided. Please set cuda_files/cuda_wrappers or "
+                        "set device='cpu'."
+                    )
+                return load_cuda_jit(
+                    export_name,
+                    *template_cpp_args,
+                    cpp_files=cpp_files,
+                    cuda_files=cuda_files,
+                    cpp_wrappers=resolved_cpp_wrappers,
+                    cuda_wrappers=resolved_cuda_wrappers,
+                    extra_cxx_flags=extra_cxx_flags,
+                    extra_cuda_cxx_flags=extra_cuda_cxx_flags,
+                    extra_ld_flags=extra_ld_flags,
+                    extra_include_paths=extra_include_paths,
+                    build_directory=resolved_build_directory,
+                )
+            return load_cpu_jit(
+                export_name,
+                *template_cpp_args,
+                cpp_files=cpp_files,
+                cpp_wrappers=resolved_cpp_wrappers,
+                extra_cxx_flags=extra_cxx_flags,
+                extra_ld_flags=extra_ld_flags,
+                extra_include_paths=extra_include_paths,
+                use_highway=use_highway,
+                build_directory=resolved_build_directory,
+            )
+
+        @functools.wraps(fn)
+        def wrapper(*call_args: Any, **call_kwargs: Any):
+            target_device = _resolve_target_device(
+                device,
+                call_args,
+                call_kwargs,
+                has_cuda_config=has_cuda_config,
+            )
+            module = _load_module(target_device)
+            return fn(module, *call_args, **call_kwargs)
+
+        return cast(F, wrapper)
+
+    return decorator
 
 
 def load_cpu_jit(
@@ -252,6 +509,14 @@ def load_cpu_jit(
     cpp_paths = [(MLLM_KERNEL_CPU_CSRC_DIR / f).resolve() for f in cpp_files]
     cpp_sources = [f'#include "{path}"' for path in cpp_paths]
     cpp_sources += [_make_tvm_ffi_wrapper(tup) for tup in cpp_wrappers]
+    build_directory = _resolve_build_directory(
+        build_directory,
+        _build_cache_name(
+            "cpu",
+            str(args[0]) if args else "jit_kernel",
+            tuple(str(arg) for arg in args[1:]),
+        ),
+    )
 
     return load_inline(
         "mllm_jit_kernel_cpu_" + "_".join(str(arg) for arg in args),
@@ -319,6 +584,14 @@ def load_cuda_jit(
     cuda_paths = [(MLLM_KERNEL_CUDA_CSRC_DIR / f).resolve() for f in cuda_files]
     cuda_sources = [f'#include "{path}"' for path in cuda_paths]
     cuda_sources += [_make_tvm_ffi_wrapper(tup) for tup in cuda_wrappers]
+    build_directory = _resolve_build_directory(
+        build_directory,
+        _build_cache_name(
+            "cuda",
+            str(args[0]) if args else "jit_kernel",
+            tuple(str(arg) for arg in args[1:]),
+        ),
+    )
 
     return load_inline(
         "mllm_jit_kernel_cuda_" + "_".join(str(arg) for arg in args),

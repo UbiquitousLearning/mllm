@@ -5,51 +5,85 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import torch
 
-from mllm_kernel.jit_utils.compile import cache_once, load_cpu_jit, make_cpp_args
-
-if TYPE_CHECKING:
-    from tvm_ffi.module import Module
+from mllm_kernel.jit_utils import jit
 
 
-@cache_once
-def _jit_add_constant_module(constant: int) -> Module:
-    """
-    JIT compile add_constant kernel with compile-time constant.
-
-    Args:
-        constant: The constant value to add (used as template parameter)
-
-    Returns:
-        Compiled JIT module with add_constant function
-    """
-    args = make_cpp_args(constant)
-    return load_cpu_jit(
-        "add_constant",
-        *args,
-        cpp_files=["add_constant.cpp"],
-        cpp_wrappers=[("add_constant", f"mllm_kernel::cpu::add_constant<{args}>")],
-    )
+@jit(
+    args=1,
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant", "mllm_kernel::cpu::add_constant<1>")],
+    func_name="add_constant",
+)
+def _add_constant_1(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.add_constant(dst, src)
 
 
-@cache_once
-def _jit_add_constant_runtime_module() -> Module:
-    """
-    JIT compile add_constant kernel with runtime constant.
+@jit(
+    args=2,
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant", "mllm_kernel::cpu::add_constant<2>")],
+    func_name="add_constant",
+)
+def _add_constant_2(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.add_constant(dst, src)
 
-    Returns:
-        Compiled JIT module with add_constant_runtime function
-    """
-    return load_cpu_jit(
-        "add_constant_runtime",
-        cpp_files=["add_constant.cpp"],
-        cpp_wrappers=[
-            ("add_constant_runtime", "mllm_kernel::cpu::add_constant_runtime")
-        ],
-    )
+
+@jit(
+    args=4,
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant", "mllm_kernel::cpu::add_constant<4>")],
+    func_name="add_constant",
+)
+def _add_constant_4(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.add_constant(dst, src)
+
+
+@jit(
+    args=8,
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant", "mllm_kernel::cpu::add_constant<8>")],
+    func_name="add_constant",
+)
+def _add_constant_8(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.add_constant(dst, src)
+
+
+@jit(
+    args=16,
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant", "mllm_kernel::cpu::add_constant<16>")],
+    func_name="add_constant",
+)
+def _add_constant_16(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.add_constant(dst, src)
+
+
+@jit(
+    device="cpu",
+    cpp_files=["add_constant.cpp"],
+    cpp_wrappers=[("add_constant_runtime", "mllm_kernel::cpu::add_constant_runtime")],
+    func_name="add_constant_runtime",
+)
+def _add_constant_runtime(
+    compiled_module, dst: torch.Tensor, src: torch.Tensor, constant: float
+) -> None:
+    compiled_module.add_constant_runtime(dst, src, float(constant))
+
+
+_ADD_CONSTANT_DISPATCH = {
+    1: _add_constant_1,
+    2: _add_constant_2,
+    4: _add_constant_4,
+    8: _add_constant_8,
+    16: _add_constant_16,
+}
 
 
 def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
@@ -85,8 +119,7 @@ def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
         src = src.contiguous()
 
     dst = torch.empty_like(src)
-    module = _jit_add_constant_module(constant)
-    module.add_constant(dst, src)
+    _ADD_CONSTANT_DISPATCH[constant](dst, src)
     return dst
 
 
@@ -117,6 +150,5 @@ def add_constant_runtime(src: torch.Tensor, constant: float) -> torch.Tensor:
         src = src.contiguous()
 
     dst = torch.empty_like(src)
-    module = _jit_add_constant_runtime_module()
-    module.add_constant_runtime(dst, src, float(constant))
+    _add_constant_runtime(dst, src, float(constant))
     return dst

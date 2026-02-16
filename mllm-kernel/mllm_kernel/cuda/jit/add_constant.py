@@ -1,38 +1,35 @@
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
-#
-# Add constant kernel using Highway SIMD.
+
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import torch
 
-from mllm_kernel.jit_utils.compile import cache_once, load_cuda_jit, make_cpp_args
-
-if TYPE_CHECKING:
-    from tvm_ffi.module import Module
+from mllm_kernel.jit_utils import jit
 
 
-@cache_once
-def _jit_add_constant_module(constant: int) -> Module:
-    """
-    JIT compile add_constant kernel with compile-time constant.
+_SUPPORTED_CONSTANTS = (1, 2, 4, 8, 16)
 
-    Args:
-        constant: The constant value to add (used as template parameter)
 
-    Returns:
-        Compiled JIT module with add_constant function
-    """
-    args = make_cpp_args(constant)
-    return load_cuda_jit(
-        "add_constant",
-        *args,
+def _make_add_constant_kernel(constant: int):
+    @jit(
+        args=constant,
         cuda_files=["add_constant.cuh"],
-        cuda_wrappers=[("add_constant", f"add_constant<{args}>")],
+        cpp_wrappers=[],
+        cuda_wrappers=[("add_constant", f"add_constant<{constant}>")],
+        device="cuda",
+        func_name="add_constant",
     )
+    def _kernel(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+        compiled_module.add_constant(dst, src)
+
+    return _kernel
+
+
+_ADD_CONSTANT_DISPATCH = {
+    constant: _make_add_constant_kernel(constant) for constant in _SUPPORTED_CONSTANTS
+}
 
 
 def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
@@ -55,9 +52,9 @@ def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
         >>> x = torch.randn(1024)
         >>> y = add_constant(x, 16)  # y = x + 16
     """
-    if constant not in (1, 2, 4, 8, 16):
+    if constant not in _SUPPORTED_CONSTANTS:
         raise ValueError(
-            f"Constant must be one of [1, 2, 4, 8, 16], got {constant}. "
+            f"Constant must be one of {list(_SUPPORTED_CONSTANTS)}, got {constant}. "
             "Use add_constant_runtime for arbitrary constants."
         )
 
@@ -65,6 +62,5 @@ def add_constant(src: torch.Tensor, constant: int) -> torch.Tensor:
         src = src.contiguous()
 
     dst = torch.empty_like(src)
-    module = _jit_add_constant_module(constant)
-    module.add_constant(dst, src)
+    _ADD_CONSTANT_DISPATCH[constant](dst, src)
     return dst

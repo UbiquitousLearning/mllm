@@ -125,6 +125,41 @@ This helper:
 
 If CUDA is installed in a non-standard location, set `CUDA_HOME` or `CUDA_PATH` first.
 
+## Show Runtime Environment
+
+From repository root:
+
+```bash
+python -m mllm_kernel show-env
+```
+
+This helper prints runtime details, with CUDA information as the primary focus:
+
+- CUDA toolkit and driver hints (`CUDA_HOME`/`CUDA_PATH`, `nvcc`, `nvidia-smi`)
+- CUDA versions from `nvcc`, `nvidia-smi`, and PyTorch build/runtime
+- GPU list and compute capability (when CUDA is available in PyTorch)
+- OS, Python, and CPU model/core count
+
+## Show JIT Registration and Cache Status
+
+From repository root:
+
+```bash
+python -m mllm_kernel show-config
+```
+
+This helper:
+
+- Prints the same environment summary as `show-env`.
+- Lists registered JIT kernels by device.
+- Shows whether each kernel has cached `.so` artifacts.
+- Uses `~/.cache/mllm_kernel` as the default cache root.
+
+Typical first-run behavior:
+
+- First invocation of a kernel may take longer because it triggers compilation.
+- Later invocations reuse cached artifacts and are much faster.
+
 ## Project Layout
 
 ```text
@@ -147,7 +182,3 @@ mllm-kernel/
 │   └── jit_utils/compile.py
 └── cmake/
 ```
-
-## License
-
-Apache-2.0
