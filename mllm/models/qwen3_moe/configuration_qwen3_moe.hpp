@@ -1,0 +1,76 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+#pragma once
+
+#include "mllm/core/aops/LinearOp.hpp"
+#include "mllm/engine/ConfigFile.hpp"
+
+namespace mllm::models::qwen3_moe {
+// Configuration for Qwen3 Mixture-of-Experts model
+struct Qwen3MoeConfig : protected ConfigFile {
+  Qwen3MoeConfig() = default;
+
+  explicit Qwen3MoeConfig(const std::string& file_path) : ConfigFile(file_path) {
+    // Init all
+    attention_bias = data()["attention_bias"];
+    hidden_size = data()["hidden_size"];
+    intermediate_size = data()["intermediate_size"];
+    num_attention_heads = data()["num_attention_heads"];
+    num_key_value_heads = data()["num_key_value_heads"];
+    num_hidden_layers = data()["num_hidden_layers"];
+    max_position_embeddings = data()["max_position_embeddings"];
+    rms_norm_eps = data()["rms_norm_eps"];
+    vocab_size = data()["vocab_size"];
+    head_dim = data()["head_dim"];
+    rope_theta = data()["rope_theta"];
+
+    // Special tokens
+    bos_token_id = data()["bos_token_id"];
+    eos_token_id = data()["eos_token_id"];
+
+    // Generation config
+    tie_word_embeddings = data()["tie_word_embeddings"];
+    max_cache_length = data()["max_cache_length"];
+
+    // MoE config
+    num_experts = data()["num_experts"];
+    num_experts_per_tok = data()["num_experts_per_tok"];
+    moe_intermediate_size = data()["moe_intermediate_size"];
+    norm_topk_prob = data()["norm_topk_prob"];
+    decoder_sparse_step = data()["decoder_sparse_step"];
+    mlp_only_layers = data()["mlp_only_layers"].get<std::vector<int>>();
+
+    // Linear implementation type
+    linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
+  }
+
+  bool attention_bias = false;
+  int32_t hidden_size = 2048;
+  int32_t head_dim = 128;
+  int32_t intermediate_size = 6144;
+  int32_t num_attention_heads = 32;
+  int32_t num_key_value_heads = 4;
+  int32_t num_hidden_layers = 48;
+  int32_t max_position_embeddings = 262144;
+  float rms_norm_eps = 1e-06;
+  int32_t vocab_size = 151936;
+
+  int64_t bos_token_id = 151643;
+  int64_t eos_token_id = 151645;
+  float rope_theta = 1000000.0;
+
+  bool tie_word_embeddings = false;
+  int32_t max_cache_length = 4096;
+  int32_t end_of_text_token_id = 151645; // fixed default
+
+  int32_t num_experts = 128;
+  int32_t num_experts_per_tok = 8;
+  int32_t moe_intermediate_size = 768;
+  bool norm_topk_prob = true;
+  int32_t decoder_sparse_step = 1;
+  std::vector<int> mlp_only_layers;
+
+  aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
+};
+
+}  // namespace mllm::models::qwen3_moe
