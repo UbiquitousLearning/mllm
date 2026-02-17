@@ -12,12 +12,27 @@ from . import compile
 from . import service
 from . import backends
 from .ffi import (
+    # Floating point types
     float32,
     float16,
     bfloat16,
+    # Signed integer types
+    int8,
+    int16,
+    int32,
+    int64,
+    # Unsigned integer types
+    uint8,
+    uint16,
+    uint32,
+    uint64,
+    # Bool type
+    boolean,
+    # Devices
     cpu,
     cuda,
     qnn,
+    # Tensor and utilities
     Tensor,
     empty,
     echo,
@@ -26,7 +41,6 @@ from .ffi import (
     is_numpy_available,
     from_torch,
     from_numpy,
-    empty,
     zeros,
     ones,
     arange,

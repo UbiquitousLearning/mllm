@@ -1,0 +1,79 @@
+{
+  "^model\\.layers\\.\\d+\\.self_attn\\.q_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_K",
+      "shape": [
+        4096,
+        2048
+      ],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.self_attn\\.k_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_K",
+      "shape": [
+        512,
+        2048
+      ],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.self_attn\\.v_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q6_K",
+      "shape": [
+        512,
+        2048
+      ],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.self_attn\\.o_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_K",
+      "shape": [
+        2048,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.mlp\\.experts\\.\\d+\\.up_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_K",
+      "shape": [
+        768,
+        2048
+      ],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.mlp\\.experts\\.\\d+\\.down_proj.(bias|weight)": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q6_K",
+      "shape": [
+        2048,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^lm_head.weight": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_K",
+      "shape": [
+        151936,
+        2048
+      ],
+      "replace": true
+    }
+  }
+}

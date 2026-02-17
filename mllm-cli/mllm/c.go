@@ -4,7 +4,7 @@
 package mllm
 
 /*
-#cgo CFLAGS: -std=c11 
+#cgo CFLAGS: -std=c11
 #cgo LDFLAGS: -lMllmSdkC -lMllmRT -lMllmCPUBackend
 
 #include "mllm/c_api/Runtime.h"

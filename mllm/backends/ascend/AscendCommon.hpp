@@ -41,6 +41,9 @@ void syncGlobalAtbStream();
 // Convert MLLM Tensor metadata to ATB TensorDesc
 void fillAtbTensorDesc(const Tensor& t, atb::TensorDesc& desc);
 
+// Setup ATB Tensor with correct dataSize calculated by ATB Utils
+void fillAtbTensor(const Tensor& t, atb::Tensor& atb_tensor);
+
 // Ascend device information structure
 struct AscendDeviceInfo {
   std::string name;

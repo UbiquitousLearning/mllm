@@ -17,8 +17,9 @@ mllm
 
 ## Latest News
 
+- [2026 Feb 03] 🔥🔥🔥 MLLM Qnn AOT Support for Full Graph Execution on NPU! [Quick Start](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
 - [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
-- [2025 Nov 23] 🔥🔥🔥 MLLM v2 released!
+- [2025 Nov 23] MLLM v2 released!
 - [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
   - A more Pythonic model authoring approach with eager execution
   - Compilation support for easier NPU integration
@@ -74,7 +75,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | Model(v1)                                                                   | CPU  | Hexagon NPU <br> INT8 |
 |-----------------------------------------------------------------------------|------|-----------------------|
 | [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
-| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  |  |
+| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/) |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
 | [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||
@@ -124,8 +125,10 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | :---: | :---: | :---: | :---: | :---: |
 | PC-X86-w/oAVX512  | Ubuntu 22.04  | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |
 | Nvidia A40  | Ubuntu 22.04  | - | ![build-passing](https://img.shields.io/badge/build-passing-green) | - |
-| Xiaomi14-8Elite   | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
-| OnePlus13-8Elite  | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
+| Nvidia RTX Pro 6000  | Ubuntu 22.04  | - | ![build-passing](https://img.shields.io/badge/build-passing-green) | - |
+| Nvidia H20  | Ubuntu 22.04  | - | ![build-passing](https://img.shields.io/badge/build-passing-green) | - |
+| Xiaomi14-8Elite   | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-passing](https://img.shields.io/badge/build-passing-green) |
+| OnePlus13-8Elite  | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-passing](https://img.shields.io/badge/build-passing-green) |
 | MacMini-M4        | MacOS 15.5    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |
 | OrangePi AI Pro(310B)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 | OrangePi AI Studio(310P)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |

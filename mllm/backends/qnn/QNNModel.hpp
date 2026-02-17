@@ -76,21 +76,6 @@ class QNNModel {
 
   std::map<std::string, std::vector<std::string>> getOutputTensorMap() { return modelOutputTensorMap_; }
 
-  // Set expected output order (MLLM order)
-  void setExpectedOutputOrder(const std::vector<std::string>& expectedOrder) { expectedOutputOrder_ = expectedOrder; }
-
-  // Get expected output order
-  [[nodiscard]] const std::vector<std::string>& getExpectedOutputOrder() const { return expectedOutputOrder_; }
-
-  // Get QNN output index by tensor name
-  [[nodiscard]] int getQnnOutputIndex(const std::string& tensorName) const {
-    auto it = qnnOutputNameToIndex_.find(tensorName);
-    if (it != qnnOutputNameToIndex_.end()) {
-      return it->second;
-    }
-    return -1;  // Not found
-  }
-
   // Load input/output tensor information from existing graph
   ModelError_t loadGraphTensorInfo(const Qnn_Tensor_t* inputTensors, uint32_t numInputTensors,
                                    const Qnn_Tensor_t* outputTensors, uint32_t numOutputTensors);
@@ -117,10 +102,6 @@ class QNNModel {
   std::vector<std::shared_ptr<QNNParamScalarWrapper>> paramScalarWrappers_;
 
   std::map<std::string, std::vector<std::string>> modelOutputTensorMap_;
-
-  // Output order mapping: MLLM expected order and QNN actual order
-  std::vector<std::string> expectedOutputOrder_;  // MLLM expected output order (tensor names)
-  std::map<std::string, int> qnnOutputNameToIndex_;  // QNN output tensor name -> index in outputTensorWrappers_
 
   // Storage for node string parameters to ensure lifetime
   struct NodeStringStorage {

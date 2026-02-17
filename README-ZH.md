@@ -17,8 +17,9 @@ mllm
 
 ## 最新动态
 
+- [2026 年 2 月 3 日] 🔥🔥🔥 MLLM Qnn AOT 已支持在 NPU 上全图执行！[快速开始](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [技术报告](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support/)
 - [2025 年 11 月 27 日] Android Demo 更新：通过一种全新的 In-App Go 服务架构，在 Android 上实现了 Qwen3 和 DeepSeek-OCR 的稳定流式推理。
-- [2025 年 11 月 23 日] 🔥🔥🔥 MLLM v2 发布！
+- [2025 年 11 月 23 日] MLLM v2 发布！
 - [2025 年 8 月 28 日] 即将停止对 MLLM V1 的支持。在弃用前，V1 将集成以下功能：GPT-OSS。随后 MLLM 将迁移至 V2（可在 V2 分支查看）。V2 将带来全新的能力：
 
   - 更加 Pythonic 的模型编写方式，支持即时执行（eager execution）
@@ -73,10 +74,10 @@ mllm 框架可以与主流社区框架的模型检查点无缝集成。通过 ml
 
 ### mllm v2
 
-| Model(v1)                                                                   | CPU  | Hexagon NPU <br> INT8 |
+| Model(v2)                                                                   | CPU  | Hexagon NPU <br> INT8 |
 |-----------------------------------------------------------------------------|------|-----------------------|
 | [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
-| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  |  |
+| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/summary) |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
 | [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||

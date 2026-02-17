@@ -258,16 +258,16 @@ void IRContext::setDevice(DeviceTypes device_type) { device_type_ = device_type;
 // FIXME: deprecated, context has no device
 DeviceTypes IRContext::getDevice() { return device_type_; }
 
-bool IRContext::isCacheInputOutputTensor(uint32_t uuid) {
+bool IRContext::isCacheInputOutputTensor(size_t uuid) {
   if (cached_inputs_outputs_.count(uuid)) { return true; }
   return false;
 }
 
-void IRContext::cacheInputOutputTensor(uint32_t uuid, const val_ptr_t& tensor_ir) { cached_inputs_outputs_[uuid] = tensor_ir; }
+void IRContext::cacheInputOutputTensor(size_t uuid, const val_ptr_t& tensor_ir) { cached_inputs_outputs_[uuid] = tensor_ir; }
 
-val_ptr_t IRContext::getCacheInputOutputTensor(uint32_t uuid) { return cached_inputs_outputs_[uuid]; }
+val_ptr_t IRContext::getCacheInputOutputTensor(size_t uuid) { return cached_inputs_outputs_[uuid]; }
 
-std::unordered_map<uint32_t, val_ptr_t>& IRContext::getAllCachedInputOutputTensorIRs() { return cached_inputs_outputs_; }
+std::unordered_map<size_t, val_ptr_t>& IRContext::getAllCachedInputOutputTensorIRs() { return cached_inputs_outputs_; }
 
 void IRContext::pushRegion2InsertRegionStackAndSetRegion(const region_ptr_t& region) {
   insert_region_stack_.push(region);

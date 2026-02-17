@@ -83,7 +83,7 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
   for (auto& region_op : model_op->getTopRegion()->ops()) {
     if (auto sub_graph_op = std::dynamic_pointer_cast<ir::graph::SubGraphOp>(region_op)) {
       auto symbol_attr = sub_graph_op->getSymbolAttr();
-      if (symbol_attr) { subgraphs[symbol_attr->str()] = sub_graph_op; }
+      if (symbol_attr && symbol_attr->str() != "init") { subgraphs[symbol_attr->str()] = sub_graph_op; }
     }
   }
 
@@ -145,6 +145,17 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
     auto subgraph_writer = ir::IRWriter(getCtx(), region);
 
     auto aot_graph = aot_env->captureAOTGraph("context.0", subgraph_name);
+
+    // Add sub-graph inputs
+    for (auto& input : region->inputs()) {
+      auto tensor_input = input->cast_<ir::tensor::TensorValue>();
+      if (tensor_input) { aot_env->captureQnnAOTNodeTensor("context.0", subgraph_name, tensor_input); }
+    }
+    // Add sub-graph outputs
+    for (auto& output : region->outputs()) {
+      auto tensor_output = output->cast_<ir::tensor::TensorValue>();
+      if (tensor_output) { aot_env->captureQnnAOTNodeTensor("context.0", subgraph_name, tensor_output); }
+    }
 
     // Walk through all linalg operations in the subgraph
     subgraph_writer.walk<ir::linalg::LinalgIROp>(

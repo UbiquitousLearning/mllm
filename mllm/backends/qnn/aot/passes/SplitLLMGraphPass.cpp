@@ -197,7 +197,7 @@ uint8_t SplitLLMGraphPass::run(const ir::node_ptr_t& op) {
             if (name == "model." + std::to_string(i) + ".s" + std::to_string(__global_seq_len)) { matched = true; }
             if (name == "model") { matched = true; }
           }
-          if (!matched) { wvw.removeOp(sub_g_op); }
+          if (!matched && name != "init") { wvw.removeOp(sub_g_op); }
           return ir::IRWriter::WalkResult::WALK_CONTINUE;
         });
   }

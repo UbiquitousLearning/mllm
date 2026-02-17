@@ -37,16 +37,14 @@ def main():
     args = parser.parse_args()
 
     m = Qwen3Quantizer(args.model_path, mllm_qualcomm_max_length=args.max_length)
-    m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
-    # m.compile()
-    m.infer(args.infer_text)
 
-    # !!!
-    # Things below is for deploy. We will turn all fp32 weights and some buffers(rope) to quantized dtype.
-    # !!!
-    m.model.lm_head.weight = torch.nn.Parameter(
-        m.model.model.embed_tokens.weight.clone()
-    )
+    # FIXME: Should disable or not.
+    m.disable_fake_quant()
+    m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
+    m.enable_fake_quant()
+    m.recompute_scale_zp()
+    m.validate_concat_observer()
+    m.infer(args.infer_text)
     m.convert()
 
     os.makedirs(args.output_dir, exist_ok=True)

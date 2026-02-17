@@ -8,7 +8,7 @@ This document describes the MLLM command-line interface (CLI) tool, which operat
 
 **Currently, the system officially supports the following models:**
 
-* **LLM**: ``mllmTeam/Qwen3-0.6B-w4a32kai、mllmTeam/Qwen3-4B-w4a8-i8mm-kai``
+* **LLM**: ``mllmTeam/Qwen3-0.6B-w4a32kai,mllmTeam/Qwen3-4B-w4a8-i8mm-kai``
 * **OCR**: ``mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai``
 
 This guide covers three main areas:

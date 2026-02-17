@@ -31,7 +31,7 @@ void StreamingGenerator::generate_next(OmniOutput& output) {
   if (spk_embeds_.isNil()) {
     streamer_ = ++streamer_;
 
-    spk_embeds_ = streamer_.getLastHiddenStates()[make_slice(0), spk_start_idx_ + 1, kAll];
+    spk_embeds_ = streamer_.getLastHiddenStates().slice({0, spk_start_idx_ + 1, mllm::kAll});
 
     std::string tts_eos_token = preprocessor::wideString2Utf8String(L"<|tts_eos|>");
     std::string tts_text = streamer_->text;

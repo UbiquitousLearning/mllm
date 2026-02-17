@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 #include <memory>
+#include <fstream>
 
 #include <QnnTypes.h>
 
@@ -8,6 +9,7 @@
 #include <HTP/QnnHtpDevice.h>
 #include <HTP/QnnHtpCommon.h>
 #include <HTP/QnnHtpContext.h>
+#include <HTP/QnnHtpGraph.h>
 
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/core/DataTypes.hpp"
@@ -106,6 +108,7 @@ std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorV
 Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v) {
   Qnn_QuantizeParams_t ret = QNN_QUANTIZE_PARAMS_INIT;
 
+  MLLM_RT_ASSERT(v);
   MLLM_RT_ASSERT(v->getAttr("quant_recipe"));
   auto quant_spec = v->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()->spec_;
 
@@ -119,14 +122,27 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(quant_spec);
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = cfg->zero_point.item<int32_t>()};
+      if (!cfg->scale || !cfg->zero_point) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "AsymPerTensor quant recipe has no scale or zero point. tensor: {}", v->name());
+      }
+      ret.scaleOffsetEncoding =
+          Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = -cfg->zero_point.item<int32_t>()};
+      MLLM_INFO("Configuring AsymPerTensor quantization for tensor: {}, scale: {}, zero_point: {}", v->name(),
+                cfg->scale.item<float>(), cfg->zero_point.item<int32_t>());
       break;
     }
     case ir::linalg::QuantizationSpecType::kSymPerTensor: {
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecSymPerTensor>(quant_spec);
       ret.encodingDefinition = QNN_DEFINITION_DEFINED;
       ret.quantizationEncoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = 0};
+      if (!cfg->scale) {
+        MLLM_ERROR_EXIT(ExitCode::kCoreError, "SymPerTensor quant recipe has no scale. tensor: {}", v->name());
+      }
+
+      MLLM_RT_ASSERT_EQ(cfg->quant_to_type, kUInt8);
+
+      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = -128};
+      MLLM_INFO("Configuring SymPerTensor quantization for tensor: {}, scale: {}", v->name(), cfg->scale.item<float>());
       break;
     }
     default: {
@@ -159,6 +175,7 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       break;
     }
     case ir::linalg::QuantizationSpecType::kLPBQ: {
+      MLLM_INFO("Solving LPBQ quantization for tensor: {}", v->tensor_.name());
       // This LPBQ Type is for Conv2D Only !!! Linear has diff layout cmp with conv2d
 
       auto cfg = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(quant_spec);
@@ -168,8 +185,11 @@ void QnnAOTNodeTensor::setupComplexTensorQuantization(const ir::tensor::TensorVa
       std::vector<Qnn_ScaleOffset_t> scale_offsets(num_scale_offsets);
       MLLM_RT_ASSERT_EQ(num_scale_offsets, cfg->scale_level_1_fp.size(-1));
       MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.dtype(), kUInt8);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_0_int.rank(), 1);
+      MLLM_RT_ASSERT_EQ(cfg->scale_level_1_fp.rank(), 1);
       for (int i = 0; i < num_scale_offsets; ++i) {
-        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({0, 0, 0, i});
+        scale_offsets[i].scale = cfg->scale_level_1_fp.at<float>({i});
         scale_offsets[i].offset = 0;
       }
 
@@ -253,7 +273,56 @@ QnnAOTNodeOperation::ptr_t QnnAOTNodeOperation::setPackageName(const std::string
 QnnAOTGraph::QnnAOTGraph(QNN_INTERFACE_VER_TYPE& qnnInterface, Qnn_BackendHandle_t backendHandle,
                          Qnn_ContextHandle_t contextHandle, const std::string& graphName) {
   qnn_model_ = std::make_shared<mllm::qnn::QNNModel>(qnnInterface, backendHandle);
-  qnn_model_->initialize(contextHandle, graphName.c_str(), false);
+
+  // Short Depth Conv On HMX Off
+  QnnHtpGraph_CustomConfig_t* p_custom_config = nullptr;
+  // FIXME: @chenghuaWang The code below will make llm inference slow!!!
+  // p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  // p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_SHORT_DEPTH_CONV_ON_HMX_OFF;
+  // p_custom_config->shortDepthConvOnHmxOff = true;
+  // htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // Fold Relu Activation Into Conv Off
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_FOLD_RELU_ACTIVATION_INTO_CONV_OFF;
+  p_custom_config->foldReluActivationIntoConvOff = true;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // FIXME: If need or not
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_PRECISION;
+  p_custom_config->precision = QNN_PRECISION_FLOAT16;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // Optimization level
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+  p_custom_config->optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_FINALIZE_OPTIMIZATION_FLAG;
+  p_custom_config->optimizationOption.floatValue = 3;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  // VTCM Size
+  p_custom_config = (QnnHtpGraph_CustomConfig_t*)malloc(sizeof(QnnHtpGraph_CustomConfig_t));
+  p_custom_config->option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+  p_custom_config->vtcmSizeInMB = 8;
+  htp_graph_configs.push_back(static_cast<QnnGraph_CustomConfig_t>(p_custom_config));
+
+  qnn_graph_configs.resize(htp_graph_configs.size());
+  qnn_graph_configs.reserve(htp_graph_configs.size() + 1);
+  for (int i = 0; i < htp_graph_configs.size(); ++i) {
+    qnn_graph_configs[i].option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    qnn_graph_configs[i].customConfig = htp_graph_configs[i];
+    qnn_graph_config_pass_in_.push_back(&qnn_graph_configs[i]);
+  }
+
+  qnn_graph_config_pass_in_.push_back(nullptr);
+
+  qnn_model_->initialize(contextHandle, graphName.c_str(), false, 1, qnn_graph_config_pass_in_.data());
+}
+
+void QnnAOTGraph::addTensor(const QnnAOTNodeTensor::ptr_t& tensor) {
+  qnn_model_->addTensorWrapper(tensor->getWrapper());
+  all_tensors_.insert({tensor->getWrapper()->getName(), tensor});
 }
 
 void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
@@ -423,6 +492,12 @@ void QnnAOTEnv::_setup(const std::string& path) {
 }
 
 std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string& name, bool weights_sharing) {
+  // Check if context with this name already exists
+  if (contexts_.count(name) > 0) {
+    MLLM_WARN("Context '{}' already exists, reusing the existing context", name);
+    return contexts_[name];
+  }
+
   std::shared_ptr<QnnDeviceAndContext> context = std::make_shared<QnnDeviceAndContext>();
   context->name_ = name;
 
@@ -480,7 +555,37 @@ std::shared_ptr<QnnDeviceAndContext> QnnAOTEnv::createContext(const std::string&
 }
 
 void QnnAOTEnv::saveContext(const std::string& name, const std::string& path) {
-  // TODO
+  if (contexts_.find(name) == contexts_.end()) {
+    MLLM_ERROR("QnnAOTEnv::saveContext Context {} not found", name);
+    return;
+  }
+  auto context = contexts_[name];
+
+  uint64_t binarySize = 0;
+  uint64_t writtenSize = 0;
+
+  auto status = qnn_htp_func_symbols_.qnn_interface_.contextGetBinarySize(context->qnn_ctx_handle_, &binarySize);
+  MLLM_RT_ASSERT_EQ(status, QNN_SUCCESS);
+
+  std::vector<uint8_t> binaryBuffer(binarySize);
+
+  status = qnn_htp_func_symbols_.qnn_interface_.contextGetBinary(
+      context->qnn_ctx_handle_, reinterpret_cast<void*>(binaryBuffer.data()), binarySize, &writtenSize);
+  MLLM_RT_ASSERT_EQ(status, QNN_SUCCESS);
+
+  if (binarySize < writtenSize) {
+    MLLM_ERROR("QNN context binary size mismatch: expected {} bytes, but wrote {} bytes.", binarySize, writtenSize);
+  }
+
+  std::ofstream file(path, std::ios::binary);
+  if (!file.is_open()) {
+    MLLM_ERROR("Failed to open file {} for writing QNN context.", path);
+    return;
+  }
+  file.write(reinterpret_cast<char*>(binaryBuffer.data()), writtenSize);
+  file.close();
+
+  MLLM_INFO("QNN context {} saved to {} written {}", name, path, writtenSize);
 }
 
 void QnnAOTEnv::destroyContext(const std::string& name) {
@@ -591,23 +696,30 @@ QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qn
     __qnn_enable_static_weight = true;
   }
 
+  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
+  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
+  auto graph = contexts_[qnn_context_name]->graphs_[graph_name];
+
+  // If normal weight is cached, we return it directly
+  if (graph->all_tensors_.count(__qnn_tensor_name)) { return graph->all_tensors_[__qnn_tensor_name]; }
+
+  QnnAOTNodeTensor::ptr_t ret = nullptr;
+
   // If static weight is cached, we return it directly.
   if (__qnn_enable_static_weight) {
-    MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
     if (contexts_[qnn_context_name]->static_tensor_.count(__qnn_tensor_name)) {
-      return contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name];
+      ret = contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name];
     }
   }
 
-  // If normal weight is cached, we return it directly
-  MLLM_RT_ASSERT_EQ(contexts_.count(qnn_context_name), 1);
-  MLLM_RT_ASSERT_EQ(contexts_[qnn_context_name]->graphs_.count(graph_name), 1);
-  if (contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_.count(__qnn_tensor_name)) {
-    return contexts_[qnn_context_name]->graphs_[graph_name]->all_tensors_[__qnn_tensor_name];
+  // There has no Tensor in the cache.
+  if (ret == nullptr) {
+    ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+
+    if (__qnn_enable_static_weight) { contexts_[qnn_context_name]->static_tensor_[__qnn_tensor_name] = ret; }
   }
 
-  // There has no Tensor in the cache.
-  auto ret = QnnAOTNodeTensor::create(v, __qnn_enable_static_weight);
+  graph->addTensor(ret);
 
   return ret;
 }

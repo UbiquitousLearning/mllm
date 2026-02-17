@@ -21,14 +21,13 @@ namespace mllm::qnn {
 
 QnnInterfaceGetProvidersFn_t QnnInterface_getProviders = nullptr;
 
-bool loadQNNSymbol() {
+std::pair<bool, void*> loadQNNSymbol() {
   MLLM_INFO("QNN Backend Lib: libQnnHtp.so");
-  void* qnnLibHandle = nullptr;
-  qnnLibHandle = dlopen("libQnnHtp.so", RTLD_NOW | RTLD_LOCAL);
+  void* qnnLibHandle = dlopen("libQnnHtp.so", RTLD_NOW | RTLD_LOCAL);
   const char* errorOpen = dlerror();
   if (!qnnLibHandle) {
     MLLM_ERROR("Failed to open QNN libs.");
-    return false;
+    return {false, nullptr};
   }
 
   QnnInterface_getProviders = (QnnInterfaceGetProvidersFn_t)dlsym(qnnLibHandle, "QnnInterface_getProviders");
@@ -36,20 +35,20 @@ bool loadQNNSymbol() {
   if (!QnnInterface_getProviders) {
     MLLM_ERROR("Failed to load symbol <QnnInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(qnnLibHandle);
-    return false;
+    return {false, nullptr};
   }
 
-  return true;
+  return {true, qnnLibHandle};
 }
 
 QnnSystemInterfaceGetProvidersFn_t QnnSystemInterface_getProviders = nullptr;
 
-bool loadQNNSystemSymbol() {
+std::pair<bool, void*> loadQNNSystemSymbol() {
   void* systemLibraryHandle = dlopen("libQnnSystem.so", RTLD_NOW | RTLD_LOCAL);
   const char* errorOpen = dlerror();
   if (!systemLibraryHandle) {
     MLLM_ERROR("Failed to open QNN System libs.");
-    return false;
+    return {false, nullptr};
   }
 
   QnnSystemInterface_getProviders =
@@ -58,10 +57,10 @@ bool loadQNNSystemSymbol() {
   if (!QnnSystemInterface_getProviders) {
     MLLM_ERROR("Failed to load symbol <QnnSystemInterface_getProviders>. dlerror returns {}.", errorSym);
     dlclose(systemLibraryHandle);
-    return false;
+    return {false, nullptr};
   }
 
-  return true;
+  return {true, systemLibraryHandle};
 }
 
 // --------------- End of QNN symbols loading ---------------
@@ -309,7 +308,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kInt16: {
-      ret = QNN_DATATYPE_UFIXED_POINT_16;
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Int16 is not supported by QNN.");
       break;
     }
     case kInt32: {
@@ -317,7 +316,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kInt64: {
-      ret = QNN_DATATYPE_INT_64;
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Int64 is not supported by QNN.");
       break;
     }
     case kUInt8: {
@@ -325,7 +324,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kUInt16: {
-      ret = QNN_DATATYPE_UFIXED_POINT_16;
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "UInt16 is not supported by QNN.");
       break;
     }
     case kUInt32: {
@@ -333,7 +332,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kUInt64: {
-      ret = QNN_DATATYPE_UINT_64;
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "UInt64 is not supported by QNN.");
       break;
     }
     case kFloat16: {
@@ -383,6 +382,10 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
     case kUInt16PerChannelSym:
     case kUInt16PerChannelAsy: {
       ret = QNN_DATATYPE_UFIXED_POINT_16;
+      break;
+    }
+    case kBool: {
+      ret = QNN_DATATYPE_BOOL_8;
       break;
     }
     default: {
@@ -452,7 +455,9 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
   MLLM_RT_ASSERT(!name.empty());
   // in AOT case, the tensor is all on CPU (TODO: handle this)
-  // if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+#ifndef MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
+  if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
+#endif
 
   Qnn_DataType_t dataType = mllmDataTypeToQnnDataType(tensor.dtype());
 
@@ -462,6 +467,9 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   auto tensorWrapper = std::make_shared<QNNTensorWrapper>(name, type, dataType, dimensions, quantize);
 
   tensorWrapper->dataContainer_ = tensor;
+
+  // when passed allocated tensor, mark isAlloc_ = true
+  if (!tensor.isNil()) tensorWrapper->isAlloc_ = true;
 
   return tensorWrapper;
 }
@@ -483,10 +491,6 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std
 }
 
 void QNNTensorWrapper::alloc() {
-  if (isAlloc_) {
-    MLLM_WARN("Tensor {} has already been allocated.", name_);
-    return;
-  }
   MLLM_RT_ASSERT(dataContainer_.device() == kQNN);
 
   // if storage is not allocated, allocate it
