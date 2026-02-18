@@ -27,6 +27,9 @@ dev = [
   "pytest-html",
 ]
 
+[project.scripts]
+mllm-kernel = "mllm_kernel.__main__:main"
+
 [tool.scikit-build]
 # Build configuration
 wheel.py-api = "py3"

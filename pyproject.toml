@@ -36,6 +36,7 @@ dependencies=[
 cuda = ["tilelang", "flashinfer-python"]
 
 [project.scripts]
+pymllm = "pymllm.__main__:main"
 mllm-convertor = "pymllm.mobile.utils.mllm_convertor:main"
 mllm-service = "pymllm.mobile.service.tools:cli_app"
 
