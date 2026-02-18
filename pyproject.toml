@@ -33,7 +33,7 @@ dependencies=[
 ]
 
 [project.optional-dependencies]
-cuda = ["tilelang"]
+cuda = ["tilelang", "flashinfer-python"]
 
 [project.scripts]
 mllm-convertor = "pymllm.mobile.utils.mllm_convertor:main"
