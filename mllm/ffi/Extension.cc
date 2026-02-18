@@ -83,12 +83,12 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   // Tensor related
   refl::GlobalDef().def("mllm.empty", mllm::ffi::empty);
   refl::GlobalDef().def("mllm.from_torch", [](const tvm::ffi::Tensor& t) -> mllm::ffi::Tensor {
-    auto dl_pack = t.get()->ToDLPack();
+    auto dl_pack = t.ToDLPack();
     return ::mllm::ffi::Tensor(mllm::ffi::__from_dlpack(dl_pack));
   });
 
   refl::GlobalDef().def("mllm.from_numpy", [](const tvm::ffi::Tensor& t) -> mllm::ffi::Tensor {
-    auto dl_pack = t.get()->ToDLPack();
+    auto dl_pack = t.ToDLPack();
     return ::mllm::ffi::Tensor(mllm::ffi::__from_dlpack(dl_pack));
   });
 
@@ -345,6 +345,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;
 
   refl::ObjectDef<::mllm::ffi::BaseOpObj>();
+  refl::ObjectDef<::mllm::ffi::ParameterFileObj>();
   refl::GlobalDef().def("mllm.BaseOp.load", [](const mllm::ffi::BaseOp& self, const mllm::ffi::ParameterFile& obj) -> void {
     self.get()->op_ptr_->load(obj.get()->pf_ptr_);
   });

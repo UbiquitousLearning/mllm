@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-  "scikit-build-core>=0.11.0", "apache-tvm-ffi"
+  "scikit-build-core>=0.11.0", "apache-tvm-ffi == 0.1.8"
 ]
 build-backend = "scikit_build_core.build"
 
@@ -21,7 +21,7 @@ dependencies=[
   "packaging",
   "pytest",
   "pytest-html",
-  "apache-tvm-ffi == 0.1.0b4",
+  "apache-tvm-ffi == 0.1.8",
   "pyyaml >= 6.0.2",
   "openai",
   "modelscope",
@@ -36,8 +36,8 @@ dependencies=[
 cuda = ["tilelang"]
 
 [project.scripts]
-mllm-convertor = "pymllm.utils.mllm_convertor:main"
-mllm-service = "pymllm.service.tools:cli_app"
+mllm-convertor = "pymllm.mobile.utils.mllm_convertor:main"
+mllm-service = "pymllm.mobile.service.tools:cli_app"
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc"]

@@ -18,7 +18,7 @@ dependencies = [
   "packaging",
   "torch",
   "torch-c-dlpack-ext",
-  "apache-tvm-ffi",
+  "apache-tvm-ffi == 0.1.8",
 ]
 
 [project.optional-dependencies]
