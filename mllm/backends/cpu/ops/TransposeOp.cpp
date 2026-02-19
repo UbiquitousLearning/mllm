@@ -28,7 +28,7 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     switch (dtype) {
       case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("Transpose op(HW -> WH) fp32 not supported in x86");
+        x86::transpose_hw_wh_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1]);
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_hw_wh_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1]);
 #endif
@@ -43,7 +43,9 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
         break;
       }
       case kInt64: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        x86::transpose_hw_wh_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape[0], input_shape[1]);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_hw_wh_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape[0], input_shape[1]);
 #endif
         break;
@@ -57,7 +59,8 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     switch (dtype) {
       case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("Transpose op(BSHD -> BHSD) fp32 not supported in x86");
+        x86::transpose_bshd_bhsd_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1],
+                                      input_shape[2], input_shape[3]);
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_bshd_bhsd_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape[0], input_shape[1],
                                       input_shape[2], input_shape[3]);
@@ -74,7 +77,10 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
         break;
       }
       case kInt64: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        x86::transpose_bshd_bhsd_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape[0], input_shape[1],
+                                       input_shape[2], input_shape[3]);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_bshd_bhsd_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape[0], input_shape[1],
                                        input_shape[2], input_shape[3]);
 #endif
@@ -93,7 +99,8 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     switch (dtype) {
       case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-        NYI("Transpose op(BSHD -> BSDH) fp32 not supported in x86");
+        x86::transpose_last_dims_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), batch, input_shape[0],
+                                      input_shape[1]);
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_last_dims_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), batch, input_shape[0],
                                       input_shape[1]);
@@ -110,7 +117,10 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
         break;
       }
       case kInt64: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        x86::transpose_last_dims_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), batch, input_shape[0],
+                                       input_shape[1]);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::transpose_last_dims_int64(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), batch, input_shape[0],
                                        input_shape[1]);
 #endif
@@ -129,21 +139,29 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
 
     switch (dtype) {
       case kFloat32: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        x86::permute_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape.data(), permute_axis.data(),
+                          permute_axis.size());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::permute_fp32(input.ptr<mllm_fp32_t>(), output.ptr<mllm_fp32_t>(), input_shape.data(), permute_axis.data(),
                           permute_axis.size());
 #endif
         break;
       }
       case kFloat16: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        NYI("Transpose op(General permute) fp16 not supported in x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::permute_fp16(input.ptr<mllm_fp16_t>(), output.ptr<mllm_fp16_t>(), input_shape.data(), permute_axis.data(),
                           permute_axis.size());
 #endif
         break;
       }
       case kInt64: {
-#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+        x86::permute_generic<mllm_int64_t>(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape.data(),
+                                           permute_axis.data(), permute_axis.size());
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::permute_generic<mllm_int64_t>(input.ptr<mllm_int64_t>(), output.ptr<mllm_int64_t>(), input_shape.data(),
                                            permute_axis.data(), permute_axis.size());
 #endif
