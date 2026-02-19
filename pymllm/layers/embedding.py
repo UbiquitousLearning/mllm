@@ -120,6 +120,7 @@ class VocabParallelEmbedding(MllmBaseLayer):
         Returns:
             Embedded representation (all-reduced across TP group if needed).
         """
+        local_padding_idx = self.padding_idx
         if self.tp_size > 1:
             # Create mask for valid vocab range
             vocab_mask = (x >= self.vocab_start_index) & (x < self.vocab_end_index)
@@ -130,6 +131,13 @@ class VocabParallelEmbedding(MllmBaseLayer):
                 x - self.vocab_start_index,
                 torch.zeros_like(x),  # Invalid indices become 0 (will be masked)
             )
+            # F.embedding expects indices in local weight-table space.
+            # Only pass padding_idx on the owning rank, remapped to local offset.
+            if self.padding_idx is not None:
+                if self.vocab_start_index <= self.padding_idx < self.vocab_end_index:
+                    local_padding_idx = self.padding_idx - self.vocab_start_index
+                else:
+                    local_padding_idx = None
         else:
             masked_input = x
             vocab_mask = None
@@ -138,7 +146,7 @@ class VocabParallelEmbedding(MllmBaseLayer):
         output = F.embedding(
             masked_input.long(),
             self.weight,
-            padding_idx=self.padding_idx if self.padding_idx is not None else None,
+            padding_idx=local_padding_idx,
         )
 
         # Mask invalid positions (for TP)

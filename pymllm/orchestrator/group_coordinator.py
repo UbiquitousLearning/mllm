@@ -1,6 +1,6 @@
 """GroupCoordinator for distributed communication."""
 
-from typing import List, Optional
+from typing import List
 import torch
 import torch.distributed as dist
 
@@ -63,9 +63,15 @@ class GroupCoordinator:
             return torch.cat(tensor_list, dim=dim)
     
     def broadcast(self, tensor: torch.Tensor, src: int = 0) -> torch.Tensor:
-        """Broadcast from source rank to all."""
+        """Broadcast from source rank to all.
+
+        Args:
+            tensor: Tensor to broadcast.
+            src: Source rank relative to this group (0 <= src < world_size).
+        """
         if self.device_group is not None:
-            dist.broadcast(tensor, src=src, group=self.device_group)
+            global_src = self.ranks[src]
+            dist.broadcast(tensor, src=global_src, group=self.device_group)
         return tensor
 
 
