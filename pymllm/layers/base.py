@@ -3,12 +3,13 @@ from torch import nn
 from torch.nn import Parameter
 from pymllm.layers.utils import set_weight_attrs
 from pymllm.quantization.quant_recipe import QuantRecipe
+from typing import Optional
 
 
 class MllmBaseLayer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.quant_recipe: QuantRecipe = None
+        self.quant_recipe: Optional[QuantRecipe] = None
 
     def weight_loader(self, param: Parameter, loaded_weight: torch.Tensor):
         """Load weights into a parameter.
