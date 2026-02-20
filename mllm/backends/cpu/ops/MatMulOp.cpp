@@ -49,8 +49,8 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #if defined(MLLM_USE_BLAS)
     mt = aops::MatMulOpType::kBLAS;
 #else
-    if (!transpose_a && transpose_b) {
-      // TODO: kGGUF still buggy !!!
+    if (!transpose_a && transpose_b && M >= 4) {
+      // TODO: GGUF matmul should be correct when M < 4
       mt = aops::MatMulOpType::kGGUF;
     } else
     // All fallback to mllm blas
@@ -66,10 +66,6 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       break;
     }
     case aops::MatMulOpType::kGGUF: {
-      // llamafile implementation
-      // only supports specific transpose options
-      MLLM_RT_ASSERT(transpose_a == false && transpose_b == true);
-
       // llamafile uses column-major order, so we actually perform K^T x Q
       if (lhs.isContiguousN(0)) {
         mllm::cpu::ggml::mat_mul(lhs, rhs, o, false, nullptr, transpose_a, transpose_b, options_.getThreads());
@@ -110,20 +106,21 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
                                            transpose_a, transpose_b, thread_count);
         }
       }
-// #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-//       if (lhs.dtype() == kFloat32 && rhs.dtype() == kFloat32 && o.dtype() == kFloat32) {
-//         if (batch_count == 1) {
-//           x86::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
-//                                        transpose_a, transpose_b);
-//         } else {
-//           x86::mllm_blas_batch_matmul_fp32(batch_count, M, K, N, o.stride()[o.shape().size() - 3],
-//                                               lhs.stride()[lhs_shape.size() - 3], rhs.stride()[rhs_shape.size() - 3], 0,
-//                                               o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
-//                                               transpose_a, transpose_b);
-//         }
-//       }
+#elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      if (lhs.dtype() == kFloat32 && rhs.dtype() == kFloat32 && o.dtype() == kFloat32) {
+        if (batch_count == 1) {
+          x86::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+                                     transpose_a, transpose_b, thread_count);
+        } else {
+          x86::mllm_blas_batch_matmul_fp32(batch_count, M, K, N, o.stride()[o.shape().size() - 3],
+                                           lhs.stride()[lhs_shape.size() - 3], rhs.stride()[rhs_shape.size() - 3], 0,
+                                           o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+                                           transpose_a, transpose_b, thread_count);
+        }
+      }
 #else
-      NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
+      NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64, MLLM_HOST_ARCH_ARM, MLLM_HOST_ARCH_X86_64 or MLLM_HOST_ARCH_X86 right "
+          "now.")
 #endif
       break;
     }

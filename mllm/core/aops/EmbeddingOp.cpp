@@ -73,6 +73,7 @@ void EmbeddingOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
   // Output dtype should match weight dtype (e.g., uint16 for AsymPerTensor quantization)
   auto out_dtype = weight_.dtype();
   if (weight_.dtype() == kUInt16) { out_dtype = kUInt16PerTensorAsy; }
+  if (weight_.dtype() == kGGUF_Q4_0 || weight_.dtype() == kGGUF_Q4_K) { out_dtype = kFloat32; }
   outputs.emplace_back(Tensor::empty(o_shape, out_dtype, i.device()));
 }
 
