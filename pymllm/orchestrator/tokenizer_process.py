@@ -41,10 +41,16 @@ class TokenizerProcess:
     def init_sockets(self) -> None:
         self._zmq_ctx = zmq.Context()
         self._recv_from_rr = create_zmq_socket(
-            self._zmq_ctx, zmq.PULL, self._recv_from_rr_addr, bind=False,
+            self._zmq_ctx,
+            zmq.PULL,
+            self._recv_from_rr_addr,
+            bind=False,
         )
         self._send_to_scheduler = create_zmq_socket(
-            self._zmq_ctx, zmq.PUSH, self._send_to_scheduler_addr, bind=True,
+            self._zmq_ctx,
+            zmq.PUSH,
+            self._send_to_scheduler_addr,
+            bind=True,
         )
 
     def event_loop(self) -> None:
