@@ -12,10 +12,11 @@ import torch.nn as nn
 import torch.multiprocessing as mp
 from typing import Callable
 
-from pymllm.configs import get_global_config
 from pymllm.layers import VocabParallelEmbedding
-from pymllm.orchestrator import (
-    initialize_model_parallel,
+from pymllm.orchestrator import initialize_model_parallel
+from pymllm.orchestrator.parallel_state import (
+    get_tensor_model_parallel_rank,
+    get_tensor_model_parallel_world_size,
 )
 
 # Show runtime init logs during test execution.
@@ -91,10 +92,11 @@ def embedding_forward_tp8_worker_cuda(rank: int, local_rank: int, world_size: in
         local_rank: Local rank within this node (for logging/debugging)
         world_size: Total world size
     """
-    config = get_global_config()
+    tp_size = get_tensor_model_parallel_world_size()
+    tp_rank = get_tensor_model_parallel_rank()
 
-    assert config.runtime.tp_size == 8, f"Rank {rank}: tp_size should be 8"
-    assert config.runtime.tp_rank == rank, f"Rank {rank}: tp_rank mismatch"
+    assert tp_size == 8, f"Rank {rank}: tp_size should be 8"
+    assert tp_rank == rank, f"Rank {rank}: tp_rank mismatch"
 
     vocab_size = 1024
     embed_dim = 64
@@ -281,12 +283,12 @@ class TestVocabParallelEmbeddingCUDA:
 
     @pytest.fixture(autouse=True)
     def setup_config(self):
-        config = get_global_config()
-        config.runtime.tp_size = 1
-        config.runtime.tp_rank = 0
+        import pymllm.orchestrator.parallel_state as ps
+        ps._TP_SIZE = 1
+        ps._TP_RANK = 0
         yield
-        config.runtime.tp_size = 1
-        config.runtime.tp_rank = 0
+        ps._TP_SIZE = 1
+        ps._TP_RANK = 0
 
     def test_cuda_forward(self):
         layer = VocabParallelEmbedding(1000, 512).cuda()

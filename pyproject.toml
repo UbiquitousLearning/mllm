@@ -21,7 +21,7 @@ dependencies=[
   "packaging",
   "pytest",
   "pytest-html",
-  "apache-tvm-ffi == 0.1.8",
+  "apache-tvm-ffi == 0.1.8.post2",
   "pyyaml >= 6.0.2",
   "openai",
   "modelscope",
@@ -33,12 +33,13 @@ dependencies=[
 ]
 
 [project.optional-dependencies]
-cuda = ["tilelang", "flashinfer-python"]
+cuda = ["tilelang", "flashinfer-python", "pyzmq"]
 
 [project.scripts]
 pymllm = "pymllm.__main__:main"
 mllm-convertor = "pymllm.mobile.utils.mllm_convertor:main"
 mllm-service = "pymllm.mobile.service.tools:cli_app"
+pymllm-server = "pymllm.server.launch:main"
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc"]

@@ -1,349 +1,321 @@
-"""Global configuration singleton with all server, model and runtime configs."""
+"""Global configuration singleton aggregating all sub-configs."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import argparse
+import types
+from dataclasses import MISSING, dataclass, field, fields
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
-if TYPE_CHECKING:
-    from transformers import PretrainedConfig
-
-
-@dataclass
-class ModelConfig:
-    """Model-specific configuration parsed from HF config.
-    
-    This is a lightweight wrapper around HuggingFace config with
-    additional derived fields for efficiency.
-    """
-    # Original HF config (populated after loading)
-    hf_config: Optional[Any] = field(default=None, repr=False)
-    hf_text_config: Optional[Any] = field(default=None, repr=False)
-    
-    # Model architecture
-    model_type: str = "unknown"
-    architectures: list[str] = field(default_factory=list)
-    
-    # Dimensions
-    hidden_size: int = 0
-    num_hidden_layers: int = 0
-    num_attention_heads: int = 0
-    num_key_value_heads: Optional[int] = None
-    intermediate_size: int = 0
-    vocab_size: int = 0
-    
-    # Context length
-    max_position_embeddings: int = 0
-    context_length: int = 0  # effective context length
-    
-    # Normalization
-    rms_norm_eps: float = 1e-6
-    tie_word_embeddings: bool = False
-    
-    # RoPE
-    rope_theta: float = 10000.0
-    rope_scaling: Optional[Dict[str, Any]] = None
-    
-    # Quantization
-    quantization: Optional[str] = None
-    
-    def __post_init__(self):
-        """Set default kv heads if not specified."""
-        if self.num_key_value_heads is None:
-            self.num_key_value_heads = self.num_attention_heads
-
-
-@dataclass  
-class RuntimeConfig:
-    """Runtime state that changes during execution."""
-    
-    # Distributed state
-    tp_rank: int = 0
-    tp_size: int = 1
-    dp_rank: int = 0
-    dp_size: int = 1
-    pp_rank: int = 0
-    pp_size: int = 1
-    world_rank: int = 0
-    world_size: int = 1
-    local_rank: int = 0
-    
-    # Device
-    device: str = "cuda"
-    
-    # Memory pools
-    max_num_seqs: int = 0
-    max_model_len: int = 0
-    
-    # Scheduler state (mutable during runtime)
-    num_running_reqs: int = 0
-    num_waiting_reqs: int = 0
-    num_swapped_reqs: int = 0
-
-
-@dataclass
-class CacheConfig:
-    """KV cache configuration."""
-    
-    block_size: int = 16
-    num_gpu_blocks: int = 0
-    num_cpu_blocks: int = 0
-    
-    # Cache dtype
-    cache_dtype: Literal["auto", "float16", "bfloat16", "fp8_e4m3", "fp8_e5m2"] = "auto"
-    
-    # Sliding window
-    sliding_window: Optional[int] = None
-    
-    # Prefix caching
-    enable_prefix_caching: bool = False
+from pymllm.configs.server_config import ServerConfig
+from pymllm.configs.model_config import ModelConfig
+from pymllm.configs.quantization_config import QuantizationConfig
 
 
 @dataclass
 class GlobalConfig:
-    """Global configuration singleton containing all configs.
-    
-    This is the single source of truth for all configuration in pymllm.
-    It aggregates ServerConfig, ModelConfig, RuntimeConfig, and CacheConfig.
-    
-    Usage:
-        >>> from pymllm.configs import get_global_config
-        >>> config = get_global_config()
-        >>> 
-        >>> # Access server config
-        >>> config.server.model_path
-        >>> config.server.tp_size
-        >>> 
-        >>> # Access model config
-        >>> config.model.hidden_size
-        >>> config.model.vocab_size
-        >>> 
-        >>> # Access runtime config (mutable)
-        >>> config.runtime.tp_rank
-        >>> config.runtime.device
-        >>> 
-        >>> # Access cache config
-        >>> config.cache.block_size
-        >>> 
-        >>> # Update with new server config
-        >>> config.load_server_config(server_config)
-        >>> 
-        >>> # Update with HF model config
-        >>> config.load_hf_config(hf_config)
+    """Singleton that holds every sub-config pymllm needs.
+
+    Usage::
+
+        from pymllm.configs import get_global_config
+
+        cfg = get_global_config()
+        cfg.model.model_path
+        cfg.model.hidden_size
+        cfg.quantization.method
+        cfg.server.host
     """
-    
-    # Sub-configs
-    server: "ServerConfig" = field(default=None, repr=False)
+
+    server: "ServerConfig" = field(default=None, repr=False)  # type: ignore[assignment]
     model: ModelConfig = field(default_factory=ModelConfig)
-    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
-    cache: CacheConfig = field(default_factory=CacheConfig)
-    
-    # Additional metadata
+    quantization: QuantizationConfig = field(default_factory=QuantizationConfig)
+
     _initialized: bool = field(default=False, repr=False)
-    
+
     def __new__(cls):
-        if not hasattr(cls, '_instance') or cls._instance is None:
+        if not hasattr(cls, "_instance") or cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-    
+
     def __post_init__(self):
-        # Lazy import to avoid circular dependency
         if self.server is None:
-            from pymllm.configs.server_config import ServerConfig
-            self.server = ServerConfig(
-                model_path=Path("."),  # placeholder
-            )
-    
+            self.server = ServerConfig(model_path=None)
+
     @classmethod
     def get_instance(cls) -> "GlobalConfig":
-        """Get the singleton instance."""
-        if not hasattr(cls, '_instance') or cls._instance is None:
+        if not hasattr(cls, "_instance") or cls._instance is None:
             cls._instance = cls()
         return cls._instance
-    
-    def load_server_config(self, server_config: "ServerConfig") -> None:
-        """Load server configuration and sync related fields."""
-        self.server = server_config
-        
-        # Sync tp/dp/pp sizes to runtime
-        self.runtime.tp_size = server_config.tp_size
-        self.runtime.dp_size = server_config.dp_size
-        self.runtime.pp_size = server_config.pp_size
-        self.runtime.device = "cuda" if server_config.base_gpu_id >= 0 else "cpu"
-        
-        self._initialized = True
-    
-    def load_hf_config(self, hf_config: "PretrainedConfig") -> None:
-        """Load HuggingFace model configuration."""
-        from transformers import PretrainedConfig
-        
-        # Store original
-        self.model.hf_config = hf_config
-        
-        # Get text config (for multimodal models)
-        if hasattr(hf_config, "text_config"):
-            self.model.hf_text_config = hf_config.text_config
-            text_config = hf_config.text_config
-        else:
-            text_config = hf_config
-            self.model.hf_text_config = hf_config
-        
-        # Extract fields
-        self.model.model_type = getattr(text_config, "model_type", "unknown")
-        self.model.architectures = getattr(text_config, "architectures", [])
-        
-        self.model.hidden_size = getattr(text_config, "hidden_size", 0)
-        self.model.num_hidden_layers = getattr(text_config, "num_hidden_layers", 0)
-        self.model.num_attention_heads = getattr(text_config, "num_attention_heads", 0)
-        self.model.num_key_value_heads = getattr(text_config, "num_key_value_heads", None)
-        self.model.intermediate_size = getattr(text_config, "intermediate_size", 0)
-        self.model.vocab_size = getattr(text_config, "vocab_size", 0)
-        
-        # Context length
-        self.model.max_position_embeddings = getattr(
-            text_config, "max_position_embeddings", 0
-        )
-        self.model.context_length = self._get_context_length(text_config)
-        
-        # Normalization
-        self.model.rms_norm_eps = getattr(text_config, "rms_norm_eps", 1e-6)
-        self.model.tie_word_embeddings = getattr(
-            text_config, "tie_word_embeddings", False
-        )
-        
-        # RoPE
-        self.model.rope_theta = getattr(text_config, "rope_theta", 10000.0)
-        self.model.rope_scaling = getattr(text_config, "rope_scaling", None)
-        
-        # Sync to cache config
-        self.cache.sliding_window = getattr(text_config, "sliding_window", None)
-    
-    def _get_context_length(self, config: "PretrainedConfig") -> int:
-        """Extract effective context length from config."""
-        # Try various fields
-        for key in ["max_position_embeddings", "n_positions", "seq_length"]:
-            if hasattr(config, key):
-                value = getattr(config, key)
-                if isinstance(value, int) and value > 0:
-                    return value
-        return 2048  # default
-    
-    def update_runtime(self, **kwargs) -> None:
-        """Update runtime configuration."""
-        for key, value in kwargs.items():
-            if hasattr(self.runtime, key):
-                setattr(self.runtime, key, value)
-            else:
-                raise AttributeError(f"RuntimeConfig has no attribute '{key}'")
-    
-    def update_cache(self, **kwargs) -> None:
-        """Update cache configuration."""
-        for key, value in kwargs.items():
-            if hasattr(self.cache, key):
-                setattr(self.cache, key, value)
-            else:
-                raise AttributeError(f"CacheConfig has no attribute '{key}'")
-    
-    def temp(self, **kwargs):
-        """Context manager for temporary config changes.
-        
-        Usage:
-            # Modify runtime config temporarily
-            with config.temp(runtime=config.runtime):
-                config.runtime.tp_size = 2
-                # ... do something with tp_size=2
-            # runtime restored to original values
-        """
-        return _TempGlobalConfig(self, **kwargs)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize all configs to dictionary."""
-        return {
-            "server": self.server.to_dict() if self.server else {},
-            "model": self._model_to_dict(),
-            "runtime": self._runtime_to_dict(),
-            "cache": self._cache_to_dict(),
-        }
-    
-    def _model_to_dict(self) -> Dict[str, Any]:
-        """Convert model config to dict."""
-        return {
-            "model_type": self.model.model_type,
-            "architectures": self.model.architectures,
-            "hidden_size": self.model.hidden_size,
-            "num_hidden_layers": self.model.num_hidden_layers,
-            "num_attention_heads": self.model.num_attention_heads,
-            "num_key_value_heads": self.model.num_key_value_heads,
-            "intermediate_size": self.model.intermediate_size,
-            "vocab_size": self.model.vocab_size,
-            "context_length": self.model.context_length,
-        }
-    
-    def _runtime_to_dict(self) -> Dict[str, Any]:
-        """Convert runtime config to dict."""
-        return {
-            "tp_rank": self.runtime.tp_rank,
-            "tp_size": self.runtime.tp_size,
-            "world_rank": self.runtime.world_rank,
-            "world_size": self.runtime.world_size,
-            "device": self.runtime.device,
-        }
-    
-    def _cache_to_dict(self) -> Dict[str, Any]:
-        """Convert cache config to dict."""
-        return {
-            "block_size": self.cache.block_size,
-            "num_gpu_blocks": self.cache.num_gpu_blocks,
-            "cache_dtype": self.cache.cache_dtype,
-        }
+
+    @classmethod
+    def reset(cls) -> None:
+        """Destroy the singleton (useful in tests)."""
+        cls._instance = None
 
 
-class _TempGlobalConfig:
-    """Context manager for temporary global config changes.
-    
-    Supports nested keys like "runtime.tp_size" to modify sub-configs.
+def _parse_bool(value: Any) -> bool:
+    """Convert common CLI boolean spellings into ``bool``.
+
+    This helper is intentionally permissive because CLI users often provide
+    booleans in different forms (for example ``true``, ``1``, ``yes``,
+    ``false``, ``0``, ``no``). The function raises ``argparse.ArgumentTypeError``
+    to integrate naturally with ``argparse`` validation and error reporting.
     """
-    
-    def __init__(self, config: GlobalConfig, **kwargs):
-        self.config = config
-        self.temp_values = kwargs
-        self.old_values = {}
-    
-    def _get_nested_attr(self, key: str):
-        """Get attribute, supporting dot notation for nested access."""
-        if "." in key:
-            parts = key.split(".")
-            obj = self.config
-            for part in parts[:-1]:
-                obj = getattr(obj, part)
-            return getattr(obj, parts[-1])
-        return getattr(self.config, key)
-    
-    def _set_nested_attr(self, key: str, value):
-        """Set attribute, supporting dot notation for nested access."""
-        if "." in key:
-            parts = key.split(".")
-            obj = self.config
-            for part in parts[:-1]:
-                obj = getattr(obj, part)
-            setattr(obj, parts[-1], value)
-        else:
-            setattr(self.config, key, value)
-    
-    def __enter__(self):
-        for key, value in self.temp_values.items():
-            self.old_values[key] = self._get_nested_attr(key)
-            self._set_nested_attr(key, value)
-        return self.config
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        for key, value in self.old_values.items():
-            self._set_nested_attr(key, value)
+
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return True
+
+    lowered = str(value).strip().lower()
+    if lowered in {"1", "true", "t", "yes", "y", "on"}:
+        return True
+    if lowered in {"0", "false", "f", "no", "n", "off"}:
         return False
+    raise argparse.ArgumentTypeError(
+        f"Invalid boolean value: {value!r}. Expected one of true/false, 1/0, yes/no."
+    )
 
 
-# Convenience function
+def _unwrap_optional(annotation: Any) -> tuple[Any, bool]:
+    """Return ``(inner_type, is_optional)`` for Optional/Union annotations."""
+
+    origin = get_origin(annotation)
+    if origin not in (Union, types.UnionType):
+        return annotation, False
+
+    args = [arg for arg in get_args(annotation) if arg is not type(None)]
+    if len(args) == 1 and len(get_args(annotation)) == 2:
+        return args[0], True
+    return annotation, False
+
+
+def _converter_for_annotation(annotation: Any) -> Optional[Callable[[str], Any]]:
+    """Map a type annotation to an ``argparse`` converter.
+
+    Only scalar, CLI-friendly annotations are supported. Complex runtime fields
+    (for example nested dict/object handles) are intentionally excluded from the
+    generated CLI surface to keep the interface predictable and safe.
+    """
+
+    inner, _ = _unwrap_optional(annotation)
+    origin = get_origin(inner)
+    if origin is not None:
+        if origin is Literal:
+            literal_values = get_args(inner)
+            if literal_values:
+                return type(literal_values[0])
+            return str
+        return None
+
+    if inner in (str, int, float):
+        return inner
+    if inner is Path:
+        return Path
+    return None
+
+
+def _is_bool_annotation(annotation: Any) -> bool:
+    """Return ``True`` if annotation represents a bool/Optional[bool] field."""
+
+    inner, _ = _unwrap_optional(annotation)
+    return inner is bool
+
+
+def _format_default_for_help(value: Any) -> str:
+    """Create a concise, readable default string for CLI help text."""
+
+    if value is MISSING:
+        return "<required>"
+    if value is None:
+        return "None"
+    if isinstance(value, Path):
+        return str(value)
+    return repr(value)
+
+
+def make_args(
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> argparse.ArgumentParser:
+    """Create an ``argparse`` parser with two-level GlobalConfig CLI options.
+
+    The generated options follow the naming pattern ``--<section>.<field>`` so
+    each sub-config can be configured independently:
+
+    - ``server`` options map to :class:`ServerConfig` fields.
+    - ``model`` options map to :class:`ModelConfig` fields.
+    - ``quantization`` options map to :class:`QuantizationConfig` fields.
+
+    Examples
+    --------
+    - ``--server.host 0.0.0.0``
+    - ``--server.port 8080``
+    - ``--server.sleep_on_idle`` (implicit true)
+    - ``--server.sleep_on_idle false`` (explicit false)
+    - ``--quantization.method awq``
+
+    Design notes
+    ------------
+    - Options are generated from dataclass metadata, which keeps the CLI surface
+      synchronized with config definitions and avoids manual drift.
+    - Parser defaults are suppressed (``argparse.SUPPRESS``), so ``read_args``
+      can reliably detect whether a value was explicitly provided by the user.
+    - Only CLI-friendly scalar fields are exposed; runtime-only fields are
+      skipped automatically.
+    """
+
+    if parser is None:
+        parser = argparse.ArgumentParser(
+            prog="pymllm",
+            description="CLI options for configuring pymllm GlobalConfig.",
+        )
+
+    cfg = GlobalConfig.get_instance()
+    sections: list[tuple[str, Any]] = [
+        ("server", cfg.server),
+        ("model", cfg.model),
+        ("quantization", cfg.quantization),
+    ]
+
+    for section_name, section_obj in sections:
+        section_group = parser.add_argument_group(
+            f"{section_name} config",
+            f"Options for the '{section_name}' section of GlobalConfig.",
+        )
+        type_hints = get_type_hints(type(section_obj))
+        for dc_field in fields(section_obj):
+            if dc_field.name.startswith("_"):
+                continue
+
+            annotation = type_hints.get(dc_field.name, dc_field.type)
+            option = f"--{section_name}.{dc_field.name}"
+            dest = f"{section_name}__{dc_field.name}"
+            default_value = getattr(section_obj, dc_field.name)
+
+            if _is_bool_annotation(annotation):
+                section_group.add_argument(
+                    option,
+                    dest=dest,
+                    nargs="?",
+                    const=True,
+                    type=_parse_bool,
+                    default=argparse.SUPPRESS,
+                    help=(
+                        f"{section_name}.{dc_field.name} (bool, default: "
+                        f"{_format_default_for_help(default_value)}). "
+                        "Can be provided as a flag for true or with an explicit value."
+                    ),
+                )
+                continue
+
+            converter = _converter_for_annotation(annotation)
+            if converter is None:
+                # Skip non-scalar or runtime-only fields (e.g. arbitrary objects).
+                continue
+
+            section_group.add_argument(
+                option,
+                dest=dest,
+                type=converter,
+                default=argparse.SUPPRESS,
+                help=(
+                    f"{section_name}.{dc_field.name} (default: "
+                    f"{_format_default_for_help(default_value)})."
+                ),
+            )
+
+    return parser
+
+
+def read_args(
+    argv: Optional[Sequence[str]] = None,
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> GlobalConfig:
+    """Parse CLI args and apply overrides to the singleton ``GlobalConfig``.
+
+    Parameters
+    ----------
+    argv
+        Optional argument vector. If ``None``, ``argparse`` reads from
+        ``sys.argv`` (standard CLI behavior).
+    parser
+        Optional parser to use. When omitted, this function builds one through
+        :func:`make_args`.
+
+    Returns
+    -------
+    GlobalConfig
+        The singleton config instance after CLI overrides have been applied.
+
+    Behavior
+    --------
+    1. Parse all generated ``--section.field`` options.
+    2. Apply only explicitly provided options (no accidental overwrite by parser
+       defaults).
+    3. Rebuild ``ServerConfig`` when server fields change so validation in
+       ``ServerConfig.__post_init__`` and ``_validate`` remains enforced.
+    4. Keep ``server.model_path`` and ``model.model_path`` aligned when only one
+       side is explicitly overridden (the same precedence used by runtime config
+       loading conventions).
+    """
+
+    if parser is None:
+        parser = make_args()
+
+    namespace = parser.parse_args(argv)
+    parsed = vars(namespace)
+    cfg = GlobalConfig.get_instance()
+
+    # Server: reconstruct to preserve validation behavior.
+    from pymllm.configs.server_config import ServerConfig
+
+    server_updates: dict[str, Any] = {}
+    for dc_field in fields(cfg.server):
+        key = f"server__{dc_field.name}"
+        if key in parsed:
+            server_updates[dc_field.name] = parsed[key]
+    if server_updates:
+        server_values = {
+            dc_field.name: getattr(cfg.server, dc_field.name)
+            for dc_field in fields(cfg.server)
+        }
+        server_values.update(server_updates)
+        cfg.server = ServerConfig(**server_values)
+
+    # Model / Quantization: in-place updates are sufficient.
+    for section_name, section_obj in (
+        ("model", cfg.model),
+        ("quantization", cfg.quantization),
+    ):
+        for dc_field in fields(section_obj):
+            key = f"{section_name}__{dc_field.name}"
+            if key in parsed:
+                setattr(section_obj, dc_field.name, parsed[key])
+
+    # Keep model path synchronized when only one side is explicitly overridden.
+    server_model_overridden = "server__model_path" in parsed
+    model_model_overridden = "model__model_path" in parsed
+    if server_model_overridden and not model_model_overridden:
+        cfg.model.model_path = cfg.server.model_path
+    elif model_model_overridden and not server_model_overridden:
+        cfg.server.model_path = cfg.model.model_path
+
+    cfg._initialized = True
+    return cfg
+
+
 def get_global_config() -> GlobalConfig:
-    """Get the global config singleton instance."""
+    """Return the global config singleton."""
     return GlobalConfig.get_instance()
