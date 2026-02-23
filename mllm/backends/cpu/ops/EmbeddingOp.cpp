@@ -56,8 +56,17 @@ void CPUEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
                                 ous.coffsettedPtr<float>({b, (int)s, 0}), options_.hidden_size);
             break;
           }
-          default: NYI("Not supported weight dtype for arm llm embedding token op");
+        
+        case kGGUF_Q4_0: {
+          auto token_idx = *ins.coffsettedPtr<mllm_int64_t>({b, (int)s});
+          if (token_idx >= 0) {
+            dequantize_row_q4_0(weight_.ptr<block_q4_0>() + token_idx * options_.hidden_size / QK4_0,
+                                ous.coffsettedPtr<float>({b, (int)s, 0}), options_.hidden_size);
+          }
+          break;
         }
+        default: NYI("Not supported weight dtype for arm llm embedding token op");
+      }
       }
     });
   }
