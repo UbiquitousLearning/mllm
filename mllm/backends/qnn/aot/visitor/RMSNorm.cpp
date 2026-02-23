@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <memory>
+
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
@@ -43,16 +45,29 @@ bool QnnAOTRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op)
   auto weight =
       writer.getContext()->lookupSymbolTable(a->getName() + ".weight")->outputs().front()->cast_<ir::tensor::TensorValue>();
 
-  // fake bias, nn module seems to be inconsistent with document (AMAZING!)
-  auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), weight->tensor_.dtype());
-  auto bias_node = ir::tensor::TensorValue::build(writer.getContext().get(), bias_tensor);
-  bias_node->tensor_.setName(a->getName() + "_runtime_bias");
-  bias_node->name() = a->getName() + "_runtime_bias";
+  // Fake bias, nn module seems to be inconsistent with document (AMAZING!)
+  auto bias_tensor = mllm::Tensor::zeros(weight->tensor_.shape(), kUInt16);
+  bias_tensor = bias_tensor.__unsafeSetDType(kUInt16PerTensorAsy);
 
-  // fake bias quant recipe
-  auto bias_scale = Tensor::ones({1});
-  bias_scale.at<float>({0}) = 1.0 / 32767;
-  auto quant_spec = mllm::ir::linalg::QuantizationSpecSymPerTensor::create(-32768, 32767, kInt16, kFloat32, bias_scale);
+  MLLM_WARN("Making Fake bias for RMSNorm");
+  for (int i = 0; i < bias_tensor.numel(); ++i) {
+    MLLM_RT_ASSERT_EQ(bias_tensor.ptr<mllm_uint16_t>()[i], 0);
+    bias_tensor.ptr<mllm_uint16_t>()[i] = 0;
+  }
+
+  bias_tensor.setName(a->getName() + "_runtime_bias");
+  auto bias_node = writer.getContext()->create<ir::tensor::TensorValue>(bias_tensor);
+
+  // Fake bias quant recipe
+  auto bias_scale = Tensor::ones({1}, kFloat32);
+  auto bias_zero_point = Tensor::zeros({1}, kInt32);
+  bias_scale.at<float>({0}) =
+      std::static_pointer_cast<ir::linalg::QuantizationSpecAsymPerTensor>(
+          op->getAttr("quant_recipe")->cast_<mllm::ir::linalg::LinalgIRQuantizatonAnnotationAttr>()->annotation_.outputs[0])
+          ->scale.item<float>();
+  MLLM_RT_ASSERT_EQ(bias_zero_point.item<mllm_int32_t>(), 0);
+  auto quant_spec =
+      mllm::ir::linalg::QuantizationSpecAsymPerTensor::create(0, 65535, kUInt16, kFloat32, kInt32, bias_scale, bias_zero_point);
   auto quant_attr = mllm::ir::linalg::LinalgIRQuantizatonSpecAttr::build(writer.getContext().get(), quant_spec);
   bias_node->setAttr("quant_recipe", quant_attr);
 

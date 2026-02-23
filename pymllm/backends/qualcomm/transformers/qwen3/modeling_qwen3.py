@@ -65,13 +65,13 @@ class Qwen3MLP(nn.Module):
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
         self.gate_proj = QLinearLPBQ(
-            self.hidden_size, self.intermediate_size, bias=False, block_size=32
+            self.hidden_size, self.intermediate_size, bias=False, block_size=16
         )
         self.up_proj = QLinearLPBQ(
-            self.hidden_size, self.intermediate_size, bias=False, block_size=32
+            self.hidden_size, self.intermediate_size, bias=False, block_size=16
         )
         self.down_proj = QLinearLPBQ(
-            self.intermediate_size, self.hidden_size, bias=False, block_size=32
+            self.intermediate_size, self.hidden_size, bias=False, block_size=16
         )
 
         # QDQ
@@ -173,25 +173,25 @@ class Qwen3Attention(nn.Module):
             config.hidden_size,
             config.num_attention_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=32,
+            block_size=16,
         )
         self.k_proj = QLinearLPBQ(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=32,
+            block_size=16,
         )
         self.v_proj = QLinearLPBQ(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=32,
+            block_size=16,
         )
         self.o_proj = QLinearLPBQ(
             config.num_attention_heads * self.head_dim,
             config.hidden_size,
             bias=config.attention_bias,
-            block_size=32,
+            block_size=16,
         )
         self.q_norm = QRMSNorm(
             self.head_dim, eps=config.rms_norm_eps, quant_bits=16
@@ -695,10 +695,11 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
     def __init__(self, config):
         super().__init__(config)
+        self.config = config
         self.model = Qwen3Model(config)
         self.vocab_size = config.vocab_size
         self.lm_head = QLinearLPBQ(
-            config.hidden_size, config.vocab_size, bias=False, block_size=32
+            config.hidden_size, config.vocab_size, bias=False, block_size=16
         )
         self.mllm_qualcomm_max_length = None
 
@@ -707,6 +708,11 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
         # Initialize weights and apply final processing
         self.post_init()
+
+    @torch.no_grad()
+    def copy_lm_head_weight_from_embed_tokens(self):
+        if self.config.tie_word_embeddings:
+            self.lm_head.weight.copy_(self.model.embed_tokens.weight)
 
     @can_return_tuple
     @auto_docstring

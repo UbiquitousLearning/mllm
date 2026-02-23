@@ -27,10 +27,11 @@ class ActivationQDQ(nn.Module):
 
         # 1. Calculate quantization range based on bits and scheme
         if qscheme in [torch.per_tensor_symmetric, torch.per_channel_symmetric]:
-            # Symmetric: range is [-(2^(bits-1)), 2^(bits-1) - 1]
-            # e.g., 8-bit: -128 to 127
-            self.quant_min = -(2 ** (bits - 1))
-            self.quant_max = 2 ** (bits - 1) - 1
+            # NOTE: If left empty: with uint8 and symmetric quantization, the observer will use [0, 255] as the range. And 128 as the zero_point.
+            self.quant_min = None
+            self.quant_max = None
+            assert bits == 8, "Symmetric quantization is only supported for 8-bit"
+            self.dtype = torch.uint8
         else:
             # Asymmetric (Affine): range is [0, 2^bits - 1]
             # e.g., 8-bit: 0 to 255

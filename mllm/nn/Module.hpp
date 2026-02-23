@@ -158,7 +158,7 @@ class Module {
         others.push_back(std::forward<Args>(args));
       } else if constexpr (std::is_same_v<CleanType, std::vector<Tensor>>) {
         tensors.reserve(tensors.size() + args.size());
-        for (auto& tensor : args) { tensors.push_back(std::move(tensor)); }
+        for (auto& tensor : args) { tensors.push_back(tensor); }
       } else if constexpr (std::is_same_v<CleanType, std::vector<AnyValue>>) {
         others.reserve(others.size() + args.size());
         for (auto& value : args) { others.push_back(std::move(value)); }

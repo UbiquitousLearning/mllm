@@ -57,7 +57,7 @@ void EqualOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& ou
   for (const auto& input : inputs) { input_shapes.push_back(input.shape()); }
   std::vector<int> output_shape = broadcastShapes(input_shapes);
   if (output_shape.empty()) { output_shape = inputs[0].shape(); }
-  Tensor output_0 = Tensor::empty(output_shape, kUInt8, inputs[0].device());
+  Tensor output_0 = Tensor::empty(output_shape, kBool, inputs[0].device());
   outputs.emplace_back(output_0);
 }
 

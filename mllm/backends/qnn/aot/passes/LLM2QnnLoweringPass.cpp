@@ -83,7 +83,7 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
   for (auto& region_op : model_op->getTopRegion()->ops()) {
     if (auto sub_graph_op = std::dynamic_pointer_cast<ir::graph::SubGraphOp>(region_op)) {
       auto symbol_attr = sub_graph_op->getSymbolAttr();
-      if (symbol_attr) { subgraphs[symbol_attr->str()] = sub_graph_op; }
+      if (symbol_attr && symbol_attr->str() != "init") { subgraphs[symbol_attr->str()] = sub_graph_op; }
     }
   }
 

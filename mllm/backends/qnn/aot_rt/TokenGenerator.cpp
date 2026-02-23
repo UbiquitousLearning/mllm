@@ -1,6 +1,7 @@
 #include "mllm/backends/qnn/aot_rt/TokenGenerator.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include <cstring>
+#include <numeric>
 #include <utility>
 
 namespace mllm::qnn::aot {
@@ -16,7 +17,7 @@ TokenGenerator<T>::TokenGenerator(mllm::preprocessor::AutoTokenizer* tokenizer, 
 
 template<typename T>
 void TokenGenerator<T>::init_io() {
-  input_tensors_.reserve(4 + 2 * config_.num_layers);
+  input_tensors_.reserve(3 + 2 * config_.num_layers);
 
   // 1. Input IDs
   auto input_ids = Tensor::empty({1, 1}, kInt32, kQNN).alloc();
@@ -38,7 +39,8 @@ void TokenGenerator<T>::init_io() {
   const auto& v_caches = kv_manager_->getVCache();
   // K
   for (int l = 0; l < config_.num_layers; ++l) {
-    auto k_tensor = Tensor::empty({1, (int)config_.num_heads, config_.head_dim, config_.context_len}, config_.kv_dtype, kQNN);
+    auto k_tensor =
+        Tensor::empty({1, (int)config_.num_heads, config_.head_dim, config_.context_len - 1}, config_.kv_dtype, kQNN);
     k_tensor.impl()->storage()->ptr_ = k_caches[l].buffer;
     k_tensor.impl()->storage()->mem_type_ = kManual;
     k_tensor.setName("past_key_" + std::to_string(l));
@@ -98,14 +100,19 @@ void TokenGenerator<T>::prepare_io(uint64_t cur_token, int64_t start_pos) {
 }
 
 template<typename T>
-int64_t TokenGenerator<T>::generate(std::vector<uint64_t>& tokens, int64_t start_pos, int32_t seq_len,
+int64_t TokenGenerator<T>::generate(std::vector<int64_t>& tokens, int64_t start_pos, int32_t seq_len,
                                     const std::function<void(const std::string&)>& token_callback, bool dump_logits) {
   int64_t current_pos = start_pos;
-  uint64_t next_token = tokens.back();
+  int64_t next_token = tokens.back();
   int64_t generated_count = 0;
 
   // Ensure KV cache is arranged for decode (1 token)
   kv_manager_->rearrangeCache(1);
+
+  // Initialize attention mask for decode phase
+  std::vector<int32_t> attention_map(1);
+  std::iota(attention_map.begin(), attention_map.end(), -1);
+  kv_manager_->initAttentionMask(input_tensors_[2].ptr<uint16_t>(), attention_map, 1, current_pos);
 
   module_->setOutputTensors(output_tensors_);
 
@@ -121,6 +128,9 @@ int64_t TokenGenerator<T>::generate(std::vector<uint64_t>& tokens, int64_t start
     // Update KV Cache
     int32_t n_update = 1;
     kv_manager_->updateCache(1, current_pos, n_update, {});
+
+    // Update attention mask
+    kv_manager_->updateAttentionMask(input_tensors_[2].ptr<uint16_t>(), 1, current_pos, n_update);
 
     // Get logits
     auto logits = output_tensors_[0].to(kCPU).squeeze(0);

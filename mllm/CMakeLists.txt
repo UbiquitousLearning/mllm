@@ -56,17 +56,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "App
   endif()
 endif()
 
-# FIXME: @oreomaker Need to remove comma features in slice!
-# Suppress comma-subscript warnings (deprecated C++ feature that will be removed in C++26)
-# This flag is only available in Clang 13+ and GCC 10+
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-  target_compile_options(MllmRT PUBLIC -Wno-comma-subscript)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
-    target_compile_options(MllmRT PUBLIC -Wno-comma-subscript)
-  endif()
-endif()
-
 # ONLY APPLE CAN DO !
 # Processing OpenMP
 if(MLLM_KERNEL_USE_THREADS AND MLLM_KERNEL_THREADS_VENDOR_OPENMP)
@@ -125,14 +114,15 @@ if(MLLM_BUILD_OPENCL_BACKEND)
   )
 endif()
 
-if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
-  add_subdirectory(backends/qnn)
-endif()
-
+# add definition before including qnn
 if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
   add_compile_definitions(
     MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE
   )
+endif()
+
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
+  add_subdirectory(backends/qnn)
 endif()
 
 if(MLLM_BUILD_QNN_BACKEND)

@@ -8,12 +8,21 @@
 
 #include "mllm/backends/ascend/ops/AscendElewiseOps.hpp"
 #include "mllm/backends/ascend/ops/AscendX2XOp.hpp"
+#include "mllm/backends/ascend/ops/AscendSiLUOp.hpp"
+#include "mllm/backends/ascend/ops/AscendLinearOp.hpp"
+#include "mllm/backends/ascend/ops/AscendRMSNormOp.hpp"
+#include "mllm/backends/ascend/ops/AscendViewOp.hpp"
+#include "mllm/backends/ascend/ops/AscendMatMulOp.hpp"
+#include "mllm/backends/ascend/ops/AscendSoftmaxOp.hpp"
+#include "mllm/backends/ascend/ops/AscendConcatOp.hpp"
+#include "mllm/backends/ascend/ops/AscendSliceOp.hpp"
 
 namespace mllm::ascend {
 
 AscendBackend::AscendBackend() : Backend(kAscend, createAscendAllocator()) {
-  regOpFactory<AscendAddOpFactory>();
-  regOpFactory<AscendX2XOpFactory>();
+ regOpFactory<AscendAddOpFactory,AscendSubOpFactory,AscendMulOpFactory,AscendX2XOpFactory,AscendSiLUOpFactory,
+              AscendLinearOpFactory,AscendRMSNormOpFactory,AscendViewOpFactory,AscendMatMulOpFactory,AscendSoftmaxOpFactory,
+              AscendConcatOpFactory, AscendSliceOpFactory>();
   auto& devices = AscendDeviceMetaInfo::instance().devices;
   for (const auto& device : devices) {
     const auto bytes_to_mb = [](size_t bytes) { return bytes / (1024.0 * 1024.0); };

@@ -130,6 +130,9 @@ class QnnAOTGraph : public std::enable_shared_from_this<QnnAOTGraph> {
 
  private:
   std::shared_ptr<mllm::qnn::QNNModel> qnn_model_;
+  std::vector<QnnGraph_Config_t> qnn_graph_configs;
+  std::vector<QnnGraph_CustomConfig_t> htp_graph_configs;
+  std::vector<const QnnGraph_Config_t*> qnn_graph_config_pass_in_;
 };
 
 struct QnnDeviceAndContext {

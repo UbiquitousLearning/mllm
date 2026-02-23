@@ -26,16 +26,21 @@ class QNNPerf {
   }
   explicit QNNPerf(const QNN_INTERFACE_VER_TYPE* qnnInterface);
   ~QNNPerf();
+
+  // Explicitly destroy power config. Call this while QNN HTP infrastructure is still alive.
+  void shutdown();
+
   void setRpcLatencyAndPolling();
   void setPowerConfigBurst();
   void setPowerConfigBalanced();
 
  private:
-  const QNN_INTERFACE_VER_TYPE* mQnnInterface = nullptr;
-  QnnHtpDevice_PerfInfrastructure_t mPerfInfra{};
-  uint32_t mPowerConfigId;
-  QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBurst{};
-  QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBalanced{};
+  const QNN_INTERFACE_VER_TYPE* qnnInterface_ = nullptr;
+  QnnHtpDevice_PerfInfrastructure_t perfInfra_{};
+  uint32_t powerConfigId_ = 0;
+  QnnHtpPerfInfrastructure_PowerConfig_t powerConfigBurst_{};
+  QnnHtpPerfInfrastructure_PowerConfig_t powerConfigBalanced_{};
+  bool isShutdown_ = false;
 };
 
 class QNNRuntime {
@@ -86,6 +91,7 @@ class QNNRuntime {
 class QNNBackend final : public Backend {
  public:
   QNNBackend();
+  ~QNNBackend();
 
   bool loadContext(const std::string& contextPath);
   bool createContext();
@@ -127,6 +133,11 @@ class QNNBackend final : public Backend {
   Qnn_ContextHandle_t context_ = nullptr;
   std::unique_ptr<QNNRuntime> runtime_;
   std::unique_ptr<QNNPerf> perf_;
+
+  // Hold QNN library handles to control unload order
+  // These libraries will only be unloaded when QNNBackend is destroyed
+  void* qnnHtpLibHandle_ = nullptr;
+  void* qnnSystemLibHandle_ = nullptr;
 
   // Graph management
   std::map<std::string, int> qnnModelIndexMap_;

@@ -187,6 +187,7 @@ void KVCacheManager<T>::rearrangeCache(int32_t ar_len_dst) {
 
 template<typename T>
 void KVCacheManager<T>::rearrangeKey(KVCache<T>& k_cache, int32_t ar_len_dst) {
+  // [B, H, D, S] rearrange.
   const int32_t src_cache_num = (cur_ar_len_ == config_.context_len) ? config_.context_len : config_.context_len - cur_ar_len_;
   const int32_t dst_cache_num = config_.context_len - ar_len_dst;
   T* k_cache_in_read_ptr = k_cache.buffer;
@@ -213,6 +214,7 @@ void KVCacheManager<T>::rearrangeKey(KVCache<T>& k_cache, int32_t ar_len_dst) {
 
 template<typename T>
 void KVCacheManager<T>::rearrangeValue(KVCache<T>& v_cache, int32_t ar_len_dst) {
+  // [B, H, S, D] rearrange.
   const int32_t src_cache_num = (cur_ar_len_ == config_.context_len) ? config_.context_len : config_.context_len - cur_ar_len_;
   const int32_t dst_cache_num = config_.context_len - ar_len_dst;
   T* v_cache_in_read_ptr = v_cache.buffer;

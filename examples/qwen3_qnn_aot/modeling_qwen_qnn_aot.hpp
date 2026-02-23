@@ -17,6 +17,25 @@ namespace mllm::models::qwen3 {
 
 namespace ptq {
 
+Tensor QDQ_CONSTANT(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
+  std::string scale_name = qdq_name_in_pytorch + ".scale";
+  std::string zp_name = qdq_name_in_pytorch + ".zero_point";
+  switch (in.dtype()) {
+    case kFloat32:
+    case kUInt16PerTensorAsy: {
+      auto scale = m->getTopParameterFile()->pull(scale_name);
+      auto zp = m->getTopParameterFile()->pull(zp_name);
+      in.attach("scale", scale.impl(), true);
+      in.attach("zero_point", zp.impl(), true);
+      break;
+    }
+    default: {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Can't Process dtype={}", nameOfType(in.dtype()));
+    }
+  }
+  return in;
+}
+
 Tensor QDQ(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) {
   std::string scale_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.scale";
   std::string zp_name = m->getModuleName() + "." + qdq_name_in_pytorch + ".fake_quant.zero_point";
@@ -64,7 +83,7 @@ Tensor QDQ_KV(nn::Module* m, Tensor in, const std::string& qdq_name_in_pytorch) 
     case kUInt8PerTensorSym: {
       auto scale = m->getTopParameterFile()->pull(scale_name);
       auto zp = m->getTopParameterFile()->pull(zp_name);
-      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 0);
+      MLLM_RT_ASSERT_EQ(zp.item<mllm_int32_t>(), 128);
 
       // Is 128! not 127!
       auto new_zp = Tensor::constant(128, kInt32).setName(zp_name).setMemType(kParamsNormal);
@@ -113,7 +132,7 @@ Tensor rotateHalf(Tensor x, nn::Module* m, const std::string& qdq_name_in_pytorc
 }
 
 using vi32 = std::vector<int32_t>;
-#define CONV2D_PROPERTY vi32{1, 1}, vi32{1, 1}, vi32{0, 0}, vi32{1, 1}, false, aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32
+#define CONV2D_PROPERTY vi32{1, 1}, vi32{1, 1}, vi32{0, 0}, vi32{1, 1}, false, aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G16
 
 // Using Conv2D to replace Linear.
 // Conv2D Filter Weight is [1, 1, In, Out]
@@ -230,8 +249,8 @@ class Qwen3Attention final : public nn::Module {
     key_states = ptq::QDQ(this, key_states, "k_norm_output_qdq");
 
     // [B, H, S, D]
-    auto cos = llm_embedding_cos.unsqueeze(1);
-    auto sin = llm_embedding_sin.unsqueeze(1);
+    auto cos = llm_embedding_cos.unsqueeze(1, true);
+    auto sin = llm_embedding_sin.unsqueeze(1, true);
     query_states =
         ptq::QDQ(this,
                  ptq::QDQ(this, query_states * cos, "q_rope_mul_0_output_qdq")
@@ -275,7 +294,9 @@ class Qwen3Attention final : public nn::Module {
     auto minus_value = Tensor::constant(-20, kFloat32);
     minus_value = ptq::QDQ(this, minus_value, "neg_20_qdq");
     auto attn_vv = ptq::QDQ(this, attn_min.addConstant(minus_value), "minus_0_output_qdq");
-    attn = nn::functional::where(causal_mask.equal(0.f), attn, attn_vv);
+    auto zero_constant = Tensor::constant(0.f, kFloat32);
+    zero_constant = ptq::QDQ_CONSTANT(this, zero_constant, "constant_zero");
+    attn = nn::functional::where(causal_mask.equalConstant(zero_constant), attn, attn_vv);
     attn = ptq::QDQ(this, attn, "where_attn_qdq");
     attn = ptq::QDQ(this, nn::functional::softmax(attn, -1), "softmax_output_qdq");
     auto y = ptq::QDQ(this, nn::functional::matmul(attn, vh), "attn_value_matmul_output_qdq");
@@ -290,6 +311,7 @@ class Qwen3Attention final : public nn::Module {
 
 class Qwen3Decoder final : public nn::Module {
  public:
+  int layer_idx_;
   Qwen3Attention self_attn_;
   Qwen3MLP mlp_;
   nn::RMSNorm input_layer_norm_;
@@ -297,7 +319,8 @@ class Qwen3Decoder final : public nn::Module {
 
   Qwen3Decoder() = default;
 
-  Qwen3Decoder(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+  Qwen3Decoder(const std::string& name, const Qwen3Config& cfg, int layer_idx) : nn::Module(name) {
+    layer_idx_ = layer_idx;
     self_attn_ = reg<Qwen3Attention>("self_attn", cfg);
     mlp_ = reg<Qwen3MLP>("mlp", cfg);
     input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
@@ -312,7 +335,7 @@ class Qwen3Decoder final : public nn::Module {
     auto past_value = inputs[5];
 
     auto hidden_states = inputs[0];
-    hidden_states = ptq::QDQ(this, hidden_states, "input_layernorm_input_qdq");
+    if (layer_idx_ != 0) { hidden_states = ptq::QDQ(this, hidden_states, "input_layernorm_input_qdq"); }
     auto residual = hidden_states;
     hidden_states = input_layer_norm_(hidden_states);
     auto _ = self_attn_(hidden_states, llm_embedding_sin, llm_embedding_cos, causal_mask, past_key, past_value);
@@ -327,7 +350,7 @@ class Qwen3Decoder final : public nn::Module {
 };
 
 class Qwen3Text final : public nn::Module {
-  nn::ModuleList<Qwen3Decoder> decode_blocks_;
+  nn::ModuleListWithIdx<Qwen3Decoder> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Embedding embedding_;
   nn::Param rope_sin_;
@@ -341,7 +364,7 @@ class Qwen3Text final : public nn::Module {
   Qwen3Text(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
     num_hidden_layers_ = cfg.num_hidden_layers;
     hidden_size_ = cfg.hidden_size;
-    decode_blocks_ = reg<nn::ModuleList<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
+    decode_blocks_ = reg<nn::ModuleListWithIdx<Qwen3Decoder>>("layers", cfg.num_hidden_layers, cfg);
     for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
@@ -354,9 +377,6 @@ class Qwen3Text final : public nn::Module {
 
     // X is already embedded
     auto x = embedding_(inputs[0]);
-
-    // Quantization
-    x = x.to(kUInt16PerTensorAsy);
 
     const auto& position_ids = inputs[1];
     auto causal_mask = inputs[2];

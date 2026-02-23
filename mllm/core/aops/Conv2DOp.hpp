@@ -12,6 +12,7 @@ enum class Conv2DOpImplType {
   kDefault = 0,
 
   // LPBQ
+  kQNN_LPBQ_w4a16o16_G16,
   kQNN_LPBQ_w4a16o16_G32,
   kQNN_LPBQ_w4a16o16_G64,
 };
@@ -28,7 +29,11 @@ struct Conv2DOpOptions : public BaseOpOptions<Conv2DOpOptions> {
 };
 
 inline Conv2DOpImplType str2Conv2DOpImplType(const std::string& str) {
-  static const std::unordered_map<std::string, Conv2DOpImplType> map = {{"Default", Conv2DOpImplType::kDefault}};
+  static const std::unordered_map<std::string, Conv2DOpImplType> map = {
+      {"Default", Conv2DOpImplType::kDefault},
+      {"QNN_LPBQ_w4a16o16_G16", Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G16},
+      {"QNN_LPBQ_w4a16o16_G32", Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32},
+      {"QNN_LPBQ_w4a16o16_G64", Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G64}};
 
   auto it = map.find(str);
   if (it != map.end()) { return it->second; }
@@ -38,7 +43,11 @@ inline Conv2DOpImplType str2Conv2DOpImplType(const std::string& str) {
 }
 
 inline std::string Conv2DOpImplType2Str(Conv2DOpImplType type) {
-  static const std::unordered_map<Conv2DOpImplType, std::string> map = {{Conv2DOpImplType::kDefault, "Default"}};
+  static const std::unordered_map<Conv2DOpImplType, std::string> map = {
+      {Conv2DOpImplType::kDefault, "Default"},
+      {Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G16, "QNN_LPBQ_w4a16o16_G16"},
+      {Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32, "QNN_LPBQ_w4a16o16_G32"},
+      {Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G64, "QNN_LPBQ_w4a16o16_G64"}};
 
   auto it = map.find(type);
   if (it != map.end()) return it->second;

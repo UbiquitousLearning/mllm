@@ -30,6 +30,8 @@ class QEmbedding(nn.Module):
                 qscheme=torch.per_tensor_affine,
                 dtype=torch.qint32,
                 eps=0.0001 / 65535,
+                quant_min=0,
+                quant_max=2 ** (quant_bits) - 1,
             ),
             quant_min=0,
             quant_max=2 ** (quant_bits) - 1,
@@ -122,9 +124,12 @@ class QEmbedding(nn.Module):
             f"Class: {class_name}, Instance: {instance_class_name}, Weight Quantized: scale={self.weight_fake_quant.scale}, zp={self.weight_fake_quant.zero_point}"
         )
 
-    def disable_quant(self):
+    def disable_fakequant(self):
         """Completely turn off quantization noise and return to floating point mode"""
-        self.weight_fake_quant.disable_fakequant()
+        self.weight_fake_quant.disable_fake_quant()
+
+    def enable_fakequant(self):
+        self.weight_fake_quant.enable_fake_quant()
 
     def extra_repr(self):
         s = f"{self.num_embeddings}, {self.embedding_dim}"

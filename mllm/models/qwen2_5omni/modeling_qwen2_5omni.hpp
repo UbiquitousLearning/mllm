@@ -5,7 +5,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <numeric>
+#include <random>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "mllm/mllm.hpp"
@@ -18,6 +23,8 @@
 #include "mllm/utils/Enumerate.hpp"
 
 #include "mllm/models/qwen2_5omni/configuration_qwen2_5omni.hpp"
+#include "mllm/models/qwen2_5omni/modeling_qwen2_5omni_talker.hpp"
+#include "mllm/models/qwen2_5omni/modeling_qwen2_5omni_token2wav.hpp"
 
 namespace mllm::models::qwen2_5omni {
 
@@ -91,6 +98,7 @@ inline auto makeMultimodalPositionEmbedding(Tensor& position_ids, const Tensor& 
 
   return {sin, cos};
 }
+
 
 inline auto makeWindowIndex(const Tensor& grid_thw, int window_size, int spatial_merge_size,
                             int patch_size) -> std::pair<std::vector<int32_t>, std::vector<int32_t>> {
@@ -239,6 +247,70 @@ inline auto makeVisualRotaryPosEmbIds(Tensor& grid_thw, int32_t spatial_merge_si
   }
 
   return out;
+}
+
+inline float kaiserBesselI0(float x) {
+  const float ax = std::fabs(x);
+  if (ax < 3.75f) {
+    const float y = (x / 3.75f) * (x / 3.75f);
+    return 1.0f + y * (3.5156229f + y * (3.0899424f + y * (1.2067492f + y * (0.2659732f + y * (0.0360768f + y * 0.0045813f)))));
+  }
+  const float y = 3.75f / ax;
+  return (std::exp(ax) / std::sqrt(ax)) *
+         (0.39894228f + y * (0.01328592f + y * (0.00225319f + y * (-0.00157565f + y * (0.00916281f +
+                                             y * (-0.02057706f + y * (0.02635537f + y * (-0.01647633f + y * 0.00392377f))))))));
+}
+
+inline Tensor kaiserSincFilter1d(float cutoff, float half_width, int32_t kernel_size) {
+  const bool is_even = (kernel_size % 2 == 0);
+  const int32_t half_size = kernel_size / 2;
+
+  const float delta_f = 4.0f * half_width;
+  const float attenuation = 2.285f * (half_size - 1) * static_cast<float>(M_PI) * delta_f + 7.95f;
+
+  float beta = 0.0f;
+  if (attenuation > 50.0f) {
+    beta = 0.1102f * (attenuation - 8.7f);
+  } else if (attenuation >= 21.0f) {
+    beta = 0.5842f * std::pow(attenuation - 21.0f, 0.4f) + 0.07886f * (attenuation - 21.0f);
+  }
+
+  std::vector<float> window(kernel_size);
+  const float denom = kaiserBesselI0(beta);
+  for (int32_t n = 0; n < kernel_size; ++n) {
+    const float ratio = (kernel_size == 1) ? 0.0f : (2.0f * n) / (kernel_size - 1) - 1.0f;
+    const float val = beta * std::sqrt(std::max(0.0f, 1.0f - ratio * ratio));
+    window[n] = (denom == 0.0f) ? 0.0f : kaiserBesselI0(val) / denom;
+  }
+
+  std::vector<float> time_indices(kernel_size);
+  if (is_even) {
+    for (int32_t i = 0; i < kernel_size; ++i) { time_indices[i] = static_cast<float>(i - half_size) + 0.5f; }
+  } else {
+    for (int32_t i = 0; i < kernel_size; ++i) { time_indices[i] = static_cast<float>(i - half_size); }
+  }
+
+  Tensor filter = Tensor::empty({1, 1, kernel_size}, kFloat32, kCPU).alloc();
+  auto* filter_ptr = filter.ptr<float>();
+
+  if (cutoff == 0.0f) {
+    std::fill(filter_ptr, filter_ptr + kernel_size, 0.0f);
+    return filter;
+  }
+
+  float sum = 0.0f;
+  for (int32_t i = 0; i < kernel_size; ++i) {
+    const float x = 2.0f * cutoff * time_indices[i];
+    const float sinc = (x == 0.0f) ? 1.0f : std::sin(static_cast<float>(M_PI) * x) / (static_cast<float>(M_PI) * x);
+    const float value = 2.0f * cutoff * window[i] * sinc;
+    filter_ptr[i] = value;
+    sum += value;
+  }
+  if (sum != 0.0f) {
+    for (int32_t i = 0; i < kernel_size; ++i) { filter_ptr[i] /= sum; }
+  }
+
+  return filter;
 }
 
 inline auto makeVisualRotaryPosEmbFull(Tensor& inv_freq, int seq_len) -> Tensor {
@@ -1056,6 +1128,8 @@ class Qwen2_5OmniForCausalLM : public ARGeneration {
     max_length_ = cfg.max_cache_length;
   }
 
+  void clearCache() { kv_cache_.clearCache(); }
+
   ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
     auto sequence = input.at("sequence");
 
@@ -1161,6 +1235,18 @@ class Qwen2_5OmniForCausalLM : public ARGeneration {
     auto seq_len = hidden_states.shape()[1];
     auto last_hidden = hidden_states[{kAll, {seq_len - 1}, kAll}];
     auto logits = thinker_.lm_head_(last_hidden);
+
+    const bool output_hidden_states =
+        args.count("output_hidden_states") ? args.at("output_hidden_states").get<bool>() : false;
+
+    if (output_hidden_states) {
+      return {
+          {"sequence", logits},
+          {"position_ids", position_ids},
+          {"hidden_states", hidden_states},
+          {"input_embeddings", input_embeddings},
+      };
+    }
 
     return {
         {"sequence", logits},
@@ -1373,6 +1459,578 @@ class Qwen2_5OmniForCausalLM : public ARGeneration {
 
   const Qwen2_5OmniConfig& cfg_;
   nn::StaticCache kv_cache_;
+};
+
+struct Qwen2_5OmniAudioGenerationConfig {
+  int32_t thinker_max_new_tokens = 1024;
+  bool thinker_do_sample = false;
+  int32_t thinker_top_k = 0;
+  float thinker_top_p = 0.0f;
+  float thinker_temperature = 1.0f;
+
+  int32_t talker_max_new_tokens = 1024;
+  int32_t talker_min_new_tokens = 128;
+  bool talker_do_sample = true;
+  int32_t talker_top_k = 40;
+  float talker_top_p = 0.8f;
+  float talker_temperature = 0.9f;
+  float talker_repetition_penalty = 1.05f;
+  std::vector<int64_t> talker_eos_token_ids = {};
+  bool suppress_codec_bos = true;
+
+  int32_t token2wav_num_steps = 10;
+  float token2wav_guidance_scale = 0.5f;
+  float token2wav_sway_coefficient = -1.0f;
+};
+
+struct Qwen2_5OmniAudioGenerationResult {
+  Tensor sequences = Tensor::nil();
+  Tensor wav = Tensor::nil();
+};
+
+class Qwen2_5OmniForConditionalGeneration {
+ public:
+  explicit Qwen2_5OmniForConditionalGeneration(const Qwen2_5OmniConfig& cfg)
+      : cfg_(cfg),
+        thinker_(cfg_),
+        talker_("talker", cfg_.talker_cfg),
+        token2wav_("token2wav", cfg_.token2wav_cfg) {}
+
+  void load(const ParameterFile::ptr_t& param) {
+    thinker_.thinker_.load(param);
+    if (cfg_.enable_audio_output) {
+      talker_.load(param);
+      token2wav_.load(param);
+    }
+  }
+
+  void loadSpeakers(const std::string& path) { speaker_map_ = loadSpeakerMap(path); }
+
+  void clearCache() {
+    thinker_.clearCache();
+    talker_.clearCache();
+  }
+
+  Qwen2_5OmniAudioGenerationResult generateAudio(const ARGenerationOutputPast& input, const Qwen2_5OmniAudioGenerationConfig& gen_cfg,
+                                                 const std::string& speaker = "") {
+    if (!cfg_.enable_audio_output) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Audio output is disabled in Qwen2.5-Omni config.");
+    }
+    if (speaker_map_.speakers.empty()) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Speaker map is empty. Call loadSpeakers() first.");
+    }
+
+    const std::string speaker_name = speaker.empty() ? speaker_map_.default_speaker : speaker;
+    auto spk_it = speaker_map_.speakers.find(speaker_name);
+    if (spk_it == speaker_map_.speakers.end()) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unknown speaker '{}'.", speaker_name);
+    }
+
+    auto thinker_output = runThinkerGeneration(input, gen_cfg);
+    if (thinker_output.generated_ids.empty()) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Thinker produced no tokens; cannot run talker.");
+    }
+
+    auto talker_output = runTalkerGeneration(input, thinker_output, spk_it->second, gen_cfg);
+    auto wav = token2wav_.forward(talker_output, spk_it->second.cond.to(kFloat32), spk_it->second.ref_mel.to(kFloat32),
+                                  gen_cfg.token2wav_num_steps, gen_cfg.token2wav_guidance_scale, gen_cfg.token2wav_sway_coefficient);
+
+    return {
+        .sequences = thinker_output.sequences,
+        .wav = wav,
+    };
+  }
+
+  Tensor generateReferenceWav(const std::string& speaker = "") {
+    if (speaker_map_.speakers.empty()) { return Tensor::nil(); }
+    const std::string speaker_name = speaker.empty() ? speaker_map_.default_speaker : speaker;
+    auto spk_it = speaker_map_.speakers.find(speaker_name);
+    if (spk_it == speaker_map_.speakers.end()) { return Tensor::nil(); }
+    auto ref_mel = spk_it->second.ref_mel.to(kFloat32);
+    ref_mel = ref_mel.permute({0, 2, 1});
+    if (!ref_mel.isContiguous()) { ref_mel = ref_mel.contiguous(); }
+    return token2wav_.vocodeMel(ref_mel);
+  }
+
+ private:
+  Qwen2_5OmniConfig cfg_;
+  Qwen2_5OmniSpeakerMap speaker_map_{};
+
+ public:
+  Qwen2_5OmniForCausalLM thinker_;
+  Qwen2_5OmniTalker talker_;
+  Qwen2_5OmniToken2WavModel token2wav_;
+
+ private:
+  struct ThinkerGenerationOutput {
+    Tensor sequences = Tensor::nil();
+    std::vector<int64_t> generated_ids;
+    std::vector<Tensor> token_embeddings;
+    std::vector<Tensor> token_hidden_states;
+    int32_t prompt_len = 0;
+  };
+
+  static Tensor makeTokenTensor(int64_t token_id) {
+    Tensor out = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
+    out.at<mllm_int64_t>({0, 0}) = token_id;
+    return out;
+  }
+
+  static Tensor makeTokenTensor(const std::vector<int64_t>& ids) {
+    Tensor out = Tensor::empty({1, static_cast<int32_t>(ids.size())}, kInt64, kCPU).alloc();
+    auto* ptr = out.ptr<mllm_int64_t>();
+    std::copy(ids.begin(), ids.end(), ptr);
+    return out;
+  }
+
+  static Tensor concatTokenTensors(const std::vector<Tensor>& parts) {
+    MLLM_RT_ASSERT(!parts.empty());
+    int32_t total_len = 0;
+    for (const auto& part : parts) {
+      MLLM_RT_ASSERT_EQ(part.shape().size(), 2);
+      MLLM_RT_ASSERT_EQ(part.shape()[0], 1);
+      MLLM_RT_ASSERT_EQ(part.dtype(), kInt64);
+      MLLM_RT_ASSERT_EQ(part.device(), kCPU);
+      total_len += part.shape()[1];
+    }
+
+    Tensor out = Tensor::empty({1, total_len}, kInt64, kCPU).alloc();
+    auto* out_ptr = out.ptr<mllm_int64_t>();
+    int32_t offset = 0;
+    for (const auto& part : parts) {
+      auto* in_ptr = part.ptr<mllm_int64_t>();
+      int32_t len = part.shape()[1];
+      std::copy(in_ptr, in_ptr + len, out_ptr + offset);
+      offset += len;
+    }
+    return out;
+  }
+
+  static void zeroEmbeddingsByTokenId(Tensor& embeds, const Tensor& input_ids, int64_t token_id) {
+    MLLM_RT_ASSERT_EQ(input_ids.shape().size(), 2);
+    MLLM_RT_ASSERT_EQ(embeds.shape().size(), 3);
+    MLLM_RT_ASSERT_EQ(input_ids.shape()[1], embeds.shape()[1]);
+
+    auto seq_len = input_ids.shape()[1];
+    auto dim = embeds.shape()[2];
+    auto* ids = input_ids.ptr<mllm_int64_t>();
+
+    if (embeds.dtype() == kFloat32) {
+      for (int s = 0; s < seq_len; ++s) {
+        if (ids[s] != token_id) continue;
+        auto* out_ptr = embeds.offsettedPtr<float>({0, s, 0});
+        std::fill(out_ptr, out_ptr + dim, 0.0f);
+      }
+    } else if (embeds.dtype() == kFloat16) {
+      for (int s = 0; s < seq_len; ++s) {
+        if (ids[s] != token_id) continue;
+        auto* out_ptr = embeds.offsettedPtr<mllm_fp16_t>({0, s, 0});
+        std::fill(out_ptr, out_ptr + dim, static_cast<mllm_fp16_t>(0));
+      }
+    } else {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unsupported embedding dtype for Qwen2.5-Omni talker preparation.");
+    }
+  }
+
+  static Tensor getLastLogits(const Tensor& logits) {
+    MLLM_RT_ASSERT_EQ(logits.shape().size(), 3);
+    if (logits.shape()[1] == 1) { return logits; }
+    return logits[{kAll, logits.shape()[1] - 1, kAll}];
+  }
+
+  static int64_t sampleFromDistribution(const std::vector<float>& probs) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::discrete_distribution<> dist(probs.begin(), probs.end());
+    return dist(gen);
+  }
+
+  static int64_t categoricalSample(const Tensor& probs) {
+    MLLM_RT_ASSERT_EQ(probs.dtype(), kFloat32);
+    auto* prob_data = probs.ptr<float>();
+    int vocab_size = probs.shape().back();
+
+    std::vector<float> cumulative_probs(vocab_size);
+    std::partial_sum(prob_data, prob_data + vocab_size, cumulative_probs.begin());
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    float r = dis(gen);
+
+    auto it = std::lower_bound(cumulative_probs.begin(), cumulative_probs.end(), r);
+    if (it == cumulative_probs.end()) { return static_cast<int64_t>(vocab_size - 1); }
+    return static_cast<int64_t>(std::distance(cumulative_probs.begin(), it));
+  }
+
+  static void applyRepetitionPenalty(Tensor& logits, const std::vector<int64_t>& token_ids, float penalty) {
+    if (penalty <= 1.0f || token_ids.empty()) { return; }
+    if (logits.dtype() != kFloat32) { logits = logits.to(kFloat32); }
+
+    int vocab_size = logits.shape().back();
+    if (logits.shape().size() == 2) { MLLM_RT_ASSERT_EQ(logits.shape()[0], 1); }
+
+    std::unordered_set<int64_t> unique_ids;
+    unique_ids.reserve(token_ids.size());
+    for (auto id : token_ids) { unique_ids.insert(id); }
+
+    auto* logits_ptr = logits.ptr<float>();
+    for (auto id : unique_ids) {
+      if (id < 0 || id >= vocab_size) { continue; }
+      float& v = logits_ptr[id];
+      v = (v < 0.0f) ? v * penalty : v / penalty;
+    }
+  }
+
+  static void applyTopKLogits(Tensor& logits, int32_t top_k) {
+    if (top_k <= 0) { return; }
+    if (logits.dtype() != kFloat32) { logits = logits.to(kFloat32); }
+    if (logits.shape().size() == 2) { MLLM_RT_ASSERT_EQ(logits.shape()[0], 1); }
+
+    int vocab_size = logits.shape().back();
+    int k = std::min(std::max(top_k, 1), vocab_size);
+
+    auto* logits_ptr = logits.ptr<float>();
+    std::vector<int> indices(vocab_size);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::partial_sort(indices.begin(), indices.begin() + k, indices.end(),
+                      [&logits_ptr](int i1, int i2) { return logits_ptr[i1] > logits_ptr[i2]; });
+
+    float threshold = logits_ptr[indices[k - 1]];
+    float neg_inf = -std::numeric_limits<float>::infinity();
+    for (int i = 0; i < vocab_size; ++i) {
+      if (logits_ptr[i] < threshold) { logits_ptr[i] = neg_inf; }
+    }
+  }
+
+  static void applyTopPLogits(Tensor& logits, float top_p) {
+    if (top_p <= 0.0f || top_p >= 1.0f) { return; }
+    if (logits.dtype() != kFloat32) { logits = logits.to(kFloat32); }
+    if (logits.shape().size() == 2) { MLLM_RT_ASSERT_EQ(logits.shape()[0], 1); }
+
+    int vocab_size = logits.shape().back();
+    auto* logits_ptr = logits.ptr<float>();
+
+    std::vector<int> indices(vocab_size);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::sort(indices.begin(), indices.end(), [&logits_ptr](int i1, int i2) { return logits_ptr[i1] > logits_ptr[i2]; });
+
+    float max_logit = logits_ptr[indices[0]];
+    std::vector<float> probs(vocab_size);
+    float sum_exp = 0.0f;
+    for (int i = 0; i < vocab_size; ++i) {
+      float exp_val = std::exp(logits_ptr[indices[i]] - max_logit);
+      probs[i] = exp_val;
+      sum_exp += exp_val;
+    }
+    if (sum_exp <= 0.0f) { return; }
+    for (auto& p : probs) { p /= sum_exp; }
+
+    float cumulative = 0.0f;
+    int keep = 0;
+    for (int i = 0; i < vocab_size; ++i) {
+      cumulative += probs[i];
+      keep++;
+      if (cumulative > top_p) { break; }
+    }
+    keep = std::max(keep, 1);
+
+    float neg_inf = -std::numeric_limits<float>::infinity();
+    for (int i = keep; i < vocab_size; ++i) {
+      logits_ptr[indices[i]] = neg_inf;
+    }
+  }
+
+  static int64_t sampleFromLogits(Tensor logits, bool do_sample) {
+    if (logits.dtype() != kFloat32) { logits = logits.to(kFloat32); }
+    if (!do_sample) {
+      auto* logits_ptr = logits.ptr<float>();
+      int vocab_size = logits.shape().back();
+      auto max_it = std::max_element(logits_ptr, logits_ptr + vocab_size);
+      return static_cast<int64_t>(std::distance(logits_ptr, max_it));
+    }
+    Tensor probs = nn::functional::softmax(logits, -1);
+    if (probs.dtype() != kFloat32) { probs = probs.to(kFloat32); }
+    return categoricalSample(probs);
+  }
+
+  static int64_t sampleGreedyLocal(const Tensor& logits) {
+    Tensor last_logits = getLastLogits(logits);
+    if (last_logits.dtype() != kFloat32) { last_logits = last_logits.to(kFloat32); }
+    auto* logits_data = last_logits.ptr<float>();
+    int vocab_size = last_logits.shape().back();
+    auto max_it = std::max_element(logits_data, logits_data + vocab_size);
+    return static_cast<int64_t>(std::distance(logits_data, max_it));
+  }
+
+  static int64_t sampleTemperatureLocal(const Tensor& logits, float temperature) {
+    Tensor last_logits = getLastLogits(logits);
+    if (last_logits.dtype() != kFloat32) { last_logits = last_logits.to(kFloat32); }
+    if (temperature != 1.0f && temperature > 0.0f) { last_logits = last_logits * (1.f / temperature); }
+    Tensor probs = nn::functional::softmax(last_logits, -1);
+    if (probs.dtype() != kFloat32) { probs = probs.to(kFloat32); }
+    return categoricalSample(probs);
+  }
+
+  static int64_t sampleTopKLocal(const Tensor& logits, int k, float temperature) {
+    Tensor last_logits = getLastLogits(logits);
+    if (last_logits.dtype() != kFloat32) { last_logits = last_logits.to(kFloat32); }
+    if (temperature != 1.0f && temperature > 0.0f) { last_logits = last_logits * (1.f / temperature); }
+    Tensor probs = nn::functional::softmax(last_logits, -1);
+    if (probs.dtype() != kFloat32) { probs = probs.to(kFloat32); }
+
+    auto* prob_data = probs.ptr<float>();
+    int vocab_size = probs.shape().back();
+    if (k <= 0 || k > vocab_size) { k = vocab_size; }
+
+    std::vector<int> indices(vocab_size);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::partial_sort(indices.begin(), indices.begin() + k, indices.end(),
+                      [&prob_data](int i1, int i2) { return prob_data[i1] > prob_data[i2]; });
+
+    std::vector<float> top_k_probs(k);
+    float sum = 0.0f;
+    for (int i = 0; i < k; ++i) {
+      top_k_probs[i] = prob_data[indices[i]];
+      sum += top_k_probs[i];
+    }
+    if (sum <= 0.0f) { return static_cast<int64_t>(indices[0]); }
+    for (int i = 0; i < k; ++i) { top_k_probs[i] *= (1.f / sum); }
+
+    return static_cast<int64_t>(indices[sampleFromDistribution(top_k_probs)]);
+  }
+
+  static int64_t sampleTopPLocal(const Tensor& logits, float p, float temperature) {
+    Tensor last_logits = getLastLogits(logits);
+    if (last_logits.dtype() != kFloat32) { last_logits = last_logits.to(kFloat32); }
+    if (temperature != 1.0f && temperature > 0.0f) { last_logits = last_logits * (1.f / temperature); }
+    Tensor probs = nn::functional::softmax(last_logits, -1);
+    if (probs.dtype() != kFloat32) { probs = probs.to(kFloat32); }
+
+    auto* prob_data = probs.ptr<float>();
+    int vocab_size = probs.shape().back();
+
+    std::vector<int> indices(vocab_size);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::sort(indices.begin(), indices.end(), [&prob_data](int i1, int i2) { return prob_data[i1] > prob_data[i2]; });
+
+    std::vector<float> top_probs;
+    float cumulative_prob = 0.0f;
+    int i = 0;
+    for (; i < vocab_size && cumulative_prob < p; ++i) {
+      top_probs.push_back(prob_data[indices[i]]);
+      cumulative_prob += prob_data[indices[i]];
+    }
+
+    float sum = std::accumulate(top_probs.begin(), top_probs.end(), 0.0f);
+    if (sum <= 0.0f) { return static_cast<int64_t>(indices[0]); }
+    for (float& prob : top_probs) { prob *= (1.f / sum); }
+
+    return static_cast<int64_t>(indices[sampleFromDistribution(top_probs)]);
+  }
+
+  int64_t sampleToken(const Tensor& logits, bool do_sample, int32_t top_k, float top_p, float temperature) {
+    bool use_sampling = do_sample || (temperature != 1.0f) || (top_k > 0) || (top_p > 0.0f);
+    if (use_sampling) {
+      if (top_k > 0) { return sampleTopKLocal(logits, top_k, temperature); }
+      if (top_p > 0.0f) { return sampleTopPLocal(logits, top_p, temperature); }
+      return sampleTemperatureLocal(logits, temperature);
+    }
+    return sampleGreedyLocal(logits);
+  }
+
+  ThinkerGenerationOutput runThinkerGeneration(const ARGenerationOutputPast& input, const Qwen2_5OmniAudioGenerationConfig& gen_cfg) {
+    thinker_.clearCache();
+
+    ARGenerationOutputPast past = input;
+    ARGenerationArgs args;
+    args.emplace("output_hidden_states", AnyValue(true));
+
+    const auto& input_ids = input.at("sequence");
+    MLLM_RT_ASSERT_EQ(input_ids.shape().size(), 2);
+
+    std::vector<int64_t> generated_ids;
+    std::vector<Tensor> token_embeddings;
+    std::vector<Tensor> token_hidden_states;
+
+    for (int32_t step = 0; step < gen_cfg.thinker_max_new_tokens; ++step) {
+      auto output = thinker_.forward(past, args);
+      auto logits = output.at("sequence");
+
+      auto input_embeddings = output.at("input_embeddings");
+      auto hidden_states = output.at("hidden_states");
+
+      if (step == 0) {
+        auto embeds_to_talker = input_embeddings.clone();
+        if (input.count("input_features")) { zeroEmbeddingsByTokenId(embeds_to_talker, input_ids, cfg_.audio_token_id); }
+        if (input.count("img")) { zeroEmbeddingsByTokenId(embeds_to_talker, input_ids, cfg_.image_token_id); }
+        if (input.count("video")) { zeroEmbeddingsByTokenId(embeds_to_talker, input_ids, cfg_.video_token_id); }
+        token_embeddings.emplace_back(std::move(embeds_to_talker));
+      } else {
+        token_embeddings.emplace_back(std::move(input_embeddings));
+      }
+      token_hidden_states.emplace_back(std::move(hidden_states));
+
+      int64_t next_token_id = sampleToken(logits, gen_cfg.thinker_do_sample, gen_cfg.thinker_top_k, gen_cfg.thinker_top_p,
+                                          gen_cfg.thinker_temperature);
+      generated_ids.push_back(next_token_id);
+
+      if (next_token_id == cfg_.eos_token_id) { break; }
+
+      past = std::move(output);
+      past["sequence"] = makeTokenTensor(next_token_id);
+    }
+
+    std::vector<int64_t> sequence_ids;
+    sequence_ids.reserve(input_ids.shape()[1] + generated_ids.size());
+    auto* input_ptr = input_ids.ptr<mllm_int64_t>();
+    for (int i = 0; i < input_ids.shape()[1]; ++i) { sequence_ids.push_back(input_ptr[i]); }
+    sequence_ids.insert(sequence_ids.end(), generated_ids.begin(), generated_ids.end());
+
+    return {
+        .sequences = makeTokenTensor(sequence_ids),
+        .generated_ids = std::move(generated_ids),
+        .token_embeddings = std::move(token_embeddings),
+        .token_hidden_states = std::move(token_hidden_states),
+        .prompt_len = input_ids.shape()[1],
+    };
+  }
+
+  Tensor runTalkerGeneration(const ARGenerationOutputPast& input, const ThinkerGenerationOutput& thinker_output,
+                             const Qwen2_5OmniSpeakerParams& speaker_params, const Qwen2_5OmniAudioGenerationConfig& gen_cfg) {
+    if (thinker_output.generated_ids.empty()) { return Tensor::nil(); }
+
+    talker_.clearCache();
+
+    const auto& input_ids = input.at("sequence");
+    const auto& token_embeddings = thinker_output.token_embeddings;
+    const auto& token_hidden_states = thinker_output.token_hidden_states;
+
+    std::vector<Tensor> reply_hidden_states(token_hidden_states.begin() + 1, token_hidden_states.end());
+    std::vector<Tensor> reply_token_embeds(token_embeddings.begin() + 1, token_embeddings.end());
+
+    auto hidden_dtype = token_hidden_states[0].dtype();
+    auto hidden_device = token_hidden_states[0].device();
+    auto embed_dtype = token_embeddings[0].dtype();
+    auto embed_device = token_embeddings[0].device();
+    Tensor reply_hidden = reply_hidden_states.empty()
+                              ? Tensor::empty({1, 0, token_hidden_states[0].shape()[2]}, hidden_dtype, hidden_device).alloc()
+                              : nn::functional::concat(reply_hidden_states, 1);
+    Tensor reply_embeds = reply_token_embeds.empty()
+                              ? Tensor::empty({1, 0, token_embeddings[0].shape()[2]}, embed_dtype, embed_device).alloc()
+                              : nn::functional::concat(reply_token_embeds, 1);
+    auto thinker_reply_part = reply_hidden + reply_embeds;
+    if (thinker_reply_part.shape()[1] == 0) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Thinker response is too short for talker conditioning.");
+    }
+
+    std::vector<int64_t> talker_text_ids;
+    talker_text_ids.reserve(input_ids.shape()[1] + 2);
+    auto* input_ptr = input_ids.ptr<mllm_int64_t>();
+    for (int i = 0; i < input_ids.shape()[1]; ++i) { talker_text_ids.push_back(input_ptr[i]); }
+    talker_text_ids.push_back(speaker_params.bos_token);
+    talker_text_ids.push_back(thinker_output.generated_ids.front());
+    auto talker_input_text_ids = makeTokenTensor(talker_text_ids);
+
+    std::vector<int64_t> talker_codec_ids(input_ids.shape()[1] + 2, talker_.codec_mask_token());
+    talker_codec_ids[input_ids.shape()[1]] = talker_.codec_pad_token();
+    talker_codec_ids[input_ids.shape()[1] + 1] = talker_.codec_bos_token();
+    auto talker_input_ids = makeTokenTensor(talker_codec_ids);
+
+    auto talker_inputs_embeds = Tensor(token_hidden_states[0]);
+    talker_inputs_embeds = talker_inputs_embeds + token_embeddings[0];
+    auto talker_text_bos_embed = thinker_.thinker_.model_.embedding_(makeTokenTensor(speaker_params.bos_token));
+    auto first_reply = thinker_reply_part.shape()[1] > 0
+                           ? thinker_reply_part[{kAll, {0, 1}, kAll}]
+                           : Tensor::empty({1, 0, talker_inputs_embeds.shape()[2]}, talker_inputs_embeds.dtype(), talker_inputs_embeds.device())
+                                 .alloc();
+    talker_inputs_embeds = nn::functional::concat({talker_inputs_embeds, talker_text_bos_embed, first_reply}, 1);
+
+    auto eos_embedding = thinker_.thinker_.model_.embedding_(makeTokenTensor(talker_.text_eos_token()));
+    auto pad_embedding = thinker_.thinker_.model_.embedding_(makeTokenTensor(talker_.text_pad_token()));
+    Tensor reply_tail =
+        thinker_reply_part.shape()[1] > 1
+            ? thinker_reply_part[{kAll, {1, thinker_reply_part.shape()[1]}, kAll}]
+            : Tensor::empty({1, 0, talker_inputs_embeds.shape()[2]}, talker_inputs_embeds.dtype(), talker_inputs_embeds.device()).alloc();
+    thinker_reply_part = nn::functional::concat({reply_tail, eos_embedding, pad_embedding}, 1);
+
+    Tensor talker_attention_mask = Tensor::nil();
+    if (input.count("attention_mask")) {
+      auto mask = input.at("attention_mask");
+      if (mask.dtype() != kFloat16 && mask.dtype() != kFloat32) { mask = mask.to(kFloat32); }
+      auto ones = Tensor::ones({1, 2}, mask.dtype(), mask.device());
+      talker_attention_mask = nn::functional::concat({mask, ones}, 1);
+    }
+
+    Tensor image_grid_thw = input.count("grid_thw") ? input.at("grid_thw") : Tensor::nil();
+
+    std::vector<int64_t> generated_codes;
+    Tensor position_ids = Tensor::nil();
+    Tensor cur_input_ids = talker_input_ids;
+    Tensor cur_input_text_ids = talker_input_text_ids;
+    Tensor cur_inputs_embeds = talker_inputs_embeds;
+    Tensor cur_reply_part = thinker_reply_part;
+
+    std::vector<int64_t> repetition_tokens = talker_codec_ids;
+    repetition_tokens.reserve(talker_codec_ids.size() + gen_cfg.talker_max_new_tokens);
+
+    std::vector<int64_t> eos_ids = gen_cfg.talker_eos_token_ids;
+    if (eos_ids.empty()) {
+      eos_ids.push_back(talker_.codec_pad_token());
+      eos_ids.push_back(talker_.codec_eos_token());
+    }
+
+    for (int32_t step = 0; step < gen_cfg.talker_max_new_tokens; ++step) {
+      auto output = talker_.forward(cur_input_ids, cur_input_text_ids, cur_reply_part, cur_inputs_embeds, talker_attention_mask,
+                                    image_grid_thw, position_ids);
+
+      auto logits = output.logits;
+      auto last_logits = getLastLogits(logits);
+
+      const int32_t vocab_size = last_logits.shape().back();
+
+      if (gen_cfg.suppress_codec_bos) {
+        auto* logits_ptr = last_logits.ptr<float>();
+        logits_ptr[talker_.codec_bos_token()] = -1e9f;
+      }
+      if (gen_cfg.talker_min_new_tokens > 0 && step < gen_cfg.talker_min_new_tokens) {
+        auto* logits_ptr = last_logits.ptr<float>();
+        for (int64_t eos_id : eos_ids) {
+          if (eos_id >= 0 && eos_id < vocab_size) { logits_ptr[eos_id] = -1e9f; }
+        }
+      }
+      applyRepetitionPenalty(last_logits, repetition_tokens, gen_cfg.talker_repetition_penalty);
+
+      Tensor sample_logits = last_logits;
+      if (gen_cfg.talker_temperature != 1.0f && gen_cfg.talker_temperature > 0.0f) {
+        sample_logits = sample_logits * (1.f / gen_cfg.talker_temperature);
+      }
+      if (gen_cfg.talker_do_sample) {
+        if (gen_cfg.talker_top_k > 0) { applyTopKLogits(sample_logits, gen_cfg.talker_top_k); }
+        if (gen_cfg.talker_top_p > 0.0f) { applyTopPLogits(sample_logits, gen_cfg.talker_top_p); }
+      }
+
+      int64_t next_token_id = sampleFromLogits(sample_logits, gen_cfg.talker_do_sample);
+      generated_codes.push_back(next_token_id);
+      repetition_tokens.push_back(next_token_id);
+
+      if (std::find(eos_ids.begin(), eos_ids.end(), next_token_id) != eos_ids.end()) { break; }
+
+      position_ids = output.position_ids;
+      cur_reply_part = output.thinker_reply_part;
+      cur_input_ids = makeTokenTensor(next_token_id);
+      cur_input_text_ids = Tensor::nil();
+      cur_inputs_embeds = Tensor::nil();
+    }
+
+    if (!generated_codes.empty()) { generated_codes.pop_back(); }
+    if (generated_codes.empty()) {
+      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Talker produced no codec tokens.");
+    }
+    return makeTokenTensor(generated_codes);
+  }
+
+ 
 };
 
 }  // namespace mllm::models::qwen2_5omni

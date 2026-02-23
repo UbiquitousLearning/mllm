@@ -314,13 +314,13 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   // FIXME: deprecated, context has no device
   DeviceTypes getDevice();
 
-  bool isCacheInputOutputTensor(uint32_t uuid);
+  bool isCacheInputOutputTensor(size_t uuid);
 
-  void cacheInputOutputTensor(uint32_t uuid, const val_ptr_t& tensor_ir);
+  void cacheInputOutputTensor(size_t uuid, const val_ptr_t& tensor_ir);
 
-  val_ptr_t getCacheInputOutputTensor(uint32_t uuid);
+  val_ptr_t getCacheInputOutputTensor(size_t uuid);
 
-  std::unordered_map<uint32_t, val_ptr_t>& getAllCachedInputOutputTensorIRs();
+  std::unordered_map<size_t, val_ptr_t>& getAllCachedInputOutputTensorIRs();
 
   // A long name that avoid user to use this low level API
   void pushRegion2InsertRegionStackAndSetRegion(const region_ptr_t& region);
@@ -335,7 +335,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   std::unordered_map<val_ptr_t, std::string> value_names_;
   region_ptr_t cur_insert_region_;
   node_ptr_t top_level_op_;
-  std::unordered_map<uint32_t, val_ptr_t> cached_inputs_outputs_;
+  std::unordered_map<size_t, val_ptr_t> cached_inputs_outputs_;
   std::stack<region_ptr_t> insert_region_stack_;
 };
 

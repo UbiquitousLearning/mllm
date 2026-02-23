@@ -1,7 +1,7 @@
 {
     "target_machine": {
-        "htp_arch": "V81",
-        "htp_chipset": "SM8850",
+        "htp_arch": "V75",
+        "htp_chipset": "SM8650",
         "htp_try_best_performance": "HtpBurst",
         "htp_security_pd_session": "HtpSignedPd",
         "htp_vtcm_capability_in_mb": 8
@@ -17,12 +17,13 @@
         "llm_recipe": true,
         "layers": 28,
         "builtin_llm_pass": {
-            "model": "qwen3",
+            "model": "qwen2",
             "lm_head": {
                 "fallback": {
-                    "method": "per-channel",
+                    "method": "LPBQ",
                     "sym": true,
-                    "precision": "w8a16"
+                    "precision": "w4a16",
+                    "block_size": 32
                 }
             },
             "linear": {

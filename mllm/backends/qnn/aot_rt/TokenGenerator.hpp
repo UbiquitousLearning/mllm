@@ -19,13 +19,19 @@ class TokenGenerator {
   TokenGenerator(mllm::preprocessor::AutoTokenizer* tokenizer, KVCacheManager<T>* kv_manager,
                  std::unique_ptr<std::unordered_set<uint64_t>>&& eos_ids, QnnAOTConfig config);
 
-  virtual ~TokenGenerator() = default;
+  virtual ~TokenGenerator() {
+    // Clear module's output tensors before member tensors are destroyed
+    // to avoid double-free or use-after-free issues
+    if (module_) { module_->setOutputTensors({}); }
+    output_tensors_.clear();
+    input_tensors_.clear();
+  }
 
   void init_io();
 
   virtual const std::vector<float>& get_all_logits();
 
-  virtual int64_t generate(std::vector<uint64_t>& tokens, int64_t start_pos, int32_t seq_len,
+  virtual int64_t generate(std::vector<int64_t>& tokens, int64_t start_pos, int32_t seq_len,
                            const std::function<void(const std::string&)>& token_callback, bool dump_logits);
 
  protected:

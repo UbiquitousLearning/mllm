@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/mllm.hpp"
 #include "mllm/backends/qnn/aot_rt/PromptProcessor.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/SlicePrimitives.hpp"
@@ -125,13 +126,14 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
 
   module_->setOutputTensors(output_tensors_);
 
+  MLLM_INFO("num_tokens: {}", num_tokens);
+
   while (processed_tokens < num_tokens) {
     int64_t chunk_size = std::min((int64_t)config_.ar_len, num_tokens - processed_tokens);
 
     prepare_io(prompt_tokens, processed_tokens, current_pos);
 
-    // Run forward
-    auto module_input = input_tensors_;
+    std::vector<Tensor> module_input = input_tensors_;
     output_tensors_ = (*module_)(module_input);
 
     int32_t n_update = chunk_size;
@@ -146,7 +148,7 @@ int64_t PromptProcessor<T>::prefill(const std::vector<int64_t>& prompt_tokens, i
     current_pos += chunk_size;
   }
 
-  auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, (num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
+  auto logits = output_tensors_[0].to(kCPU).squeeze(0)[{kAll, ((int)num_tokens + config_.ar_len - 1) % config_.ar_len, kAll}];
 
   auto cur_token = module_->sampleGreedy(logits);
 

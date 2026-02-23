@@ -61,6 +61,7 @@ void CPUConv2DOp::load(const ParameterFile::ptr_t& ploader) {
       weight_ = packed_weight;
       break;
     }
+    case aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G16:
     case aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G32:
     case aops::Conv2DOpImplType::kQNN_LPBQ_w4a16o16_G64: {
       break;

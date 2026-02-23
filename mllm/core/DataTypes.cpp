@@ -39,6 +39,7 @@ size_t lanesOfType(DataTypes dtype) {
     // CASE(kGGUF_IQ2_S) There is no such type right now.
     // CASE(kBFloat16)  There is no such type right now.
     CASE(kUInt8)
+    CASE(kBool)
     CASE(kUInt16)
     CASE(kUInt32)
     CASE(kInt64)
@@ -91,6 +92,7 @@ size_t bytesOfType(DataTypes dtype) {
     // CASE(kGGUF_IQ2_S) There is no such type right now.
     // CASE(kBFloat16)  There is no such type right now.
     CASE(kUInt8)
+    CASE(kBool)
     CASE(kUInt16)
     CASE(kUInt32)
     CASE(kInt64)
@@ -160,6 +162,7 @@ std::string nameOfType(DataTypes dtype) {
     CASE(kInt4)
     CASE(kUInt4)
     case kByte: return MllmDataTypeInfo<kUInt8>::name();
+    case kBool: return "Bool";  // kBool stored as uint8, display name "Bool"
     default: NYI("Unknown data type");
   }
   return "Unknow";
