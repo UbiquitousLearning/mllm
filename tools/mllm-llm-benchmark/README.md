@@ -1,11 +1,5 @@
 # MLLM LLM Benchmark Tool
 
-## Why
-
-There wasn't a unified way to benchmark mllm performance with varying context lengths. The existing benchmark tools had prefill length and decode length settings, but no automated sweep across contexts. So I put together this tool + a bash script to run sweeps automatically.
-
----
-
 ## Overview
 
 This is a benchmark tool for measuring MLLM model performance, including:
