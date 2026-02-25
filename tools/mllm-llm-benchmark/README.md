@@ -53,16 +53,16 @@ Output goes to `bench_context/context_sweep_v2.csv`.
 - `MODEL`: Path to model file (required)
 - `CFG`: Path to config json (default: `./examples/llama/config_tiny_llama.json`)
 - `THREADS`: Number of threads (default: 8)
-- `RUNS`: How many runs to average (default: 1)
+- `RUNS`: How many runs to average (default: 1, LLaMA models auto-limited to 1)
 - `COOLDOWN`: Seconds to wait between runs (default: 0)
-- `CLS`: Context lengths to test (default: "256 512 1024 2048 4096")
+- `CTX_LENS`: Context lengths to test (default: "256 512 1024 2048 4096")
 - `TG_DH`: Generate length for decode_heavy mode (default: 256)
 - `TG_TTFT`: Generate length for prefill_ttft mode (default: 2)
 - `OUTDIR`: Output directory (default: bench_context)
 
 **Test modes:**
-- `prefill_ttft`: Measures time to first token (prompt length = CL-2, generates 2 tokens)
-- `decode_heavy`: Measures decode throughput (prompt length = CL-256, generates 256 tokens)
+- `prefill_ttft`: Measures time to first token (prompt length = CTX_LEN-2, generates 2 tokens)
+- `decode_heavy`: Measures decode throughput (prompt length = CTX_LEN-256, generates 256 tokens)
 
 ### Plot Results
 

@@ -78,6 +78,17 @@ MLLM_MAIN({
     return 1;
   }
 
+  std::string m_name = model_name.get();
+  std::transform(m_name.begin(), m_name.end(), m_name.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  if (R > 1 && (m_name.find("llama") != std::string::npos ||
+                m_name.find("tiny_llama") != std::string::npos)) {
+    mllm::print("[WARN] KV-cache reset not available for LLaMA yet");
+    mllm::print("[WARN] Forcing runs=1 to prevent cache corruption");
+    R = 1;
+
+  }
+
   std::ofstream csv_file;
   if (!output_csv.get().empty()) {
     csv_file.open(output_csv.get());
@@ -85,13 +96,14 @@ MLLM_MAIN({
       mllm::print("[ERROR] Failed to open --output_csv:", output_csv.get());
       return 1;
     }
-    csv_file << "schema_version,git_commit,arch,model_name,pp,tg,ttft_ms,prefill_speed,decode_speed,prefill_ms,decode_ms_per_"
+    csv_file << "schema_version,git_commit,arch,model_name,cache_length,pp,tg,ttft_ms,prefill_speed,decode_speed,prefill_ms,decode_ms_per_"
                 "tok,kv_est_bytes_pp,kv_est_bytes_final\n";
   }
 
   mllm::print("Model Info");
   benchmark->init(config_path.get(), model_path.get(), cache_length.get());
   benchmark->printModelInfo();
+  mllm::print("Cache Length       :", cache_length.get());
 
   // Warmup run
   mllm::print("Warmup Run");
@@ -202,7 +214,7 @@ MLLM_MAIN({
 
     std::stringstream ss;
     ss << schema_version.get() << "," << STRINGIFY(MLLM_GIT_COMMIT_HASH) << "," << mllm::cpu::CURRENT_ARCH_STRING << ","
-       << model_name.get() << "," << pp << "," << tg << "," << avg_ttft << "," << avg_prefill_speed << "," << avg_decode_speed
+       << model_name.get() << "," << cache_length.get() << "," << pp << "," << tg << "," << avg_ttft << "," << avg_prefill_speed << "," << avg_decode_speed
        << "," << avg_prefill_ms << "," << avg_decode_ms_per_tok << "," << kv_est_bytes_pp << "," << kv_est_bytes_final;
 
     if (csv_file.is_open()) { csv_file << ss.str() << std::endl; }

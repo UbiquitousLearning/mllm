@@ -20,7 +20,7 @@ with open(csv_path, "r", newline="") as f:
         rows.append(row)
 
 # normalize numeric fields
-num_fields = ["cl","pp","tg","threads","ttft_ms","prefill_ms","decode_ms","decode_ms_per_tok","peak_rss_kb","kv_est_kb"]
+num_fields = ["ctx_len","pp","tg","threads","ttft_ms","prefill_ms","decode_ms","decode_ms_per_tok","peak_rss_kb","kv_est_kb"]
 for row in rows:
     for k in num_fields:
         if k in row:
@@ -29,13 +29,13 @@ for row in rows:
 # write summary
 stamp = os.path.splitext(os.path.basename(csv_path))[0]
 summary_path = os.path.join(out_dir, f"{stamp}.summary.csv")
-fieldnames = ["ts","git","arch","model","mode","cl","pp","tg","threads",
+fieldnames = ["ts","git","arch","model","mode","ctx_len","pp","tg","threads",
               "ttft_ms","prefill_ms","decode_ms","decode_ms_per_tok",
               "peak_rss_kb","kv_est_kb","peak_rss_gb","kv_est_mb"]
 with open(summary_path, "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=fieldnames)
     w.writeheader()
-    for row in sorted(rows, key=lambda x: (x.get("mode",""), x.get("cl",0))):
+    for row in sorted(rows, key=lambda x: (x.get("mode",""), x.get("ctx_len",0))):
         peak_rss_kb = row.get("peak_rss_kb", float("nan"))
         kv_est_kb   = row.get("kv_est_kb", float("nan"))
         out = {k: row.get(k, "") for k in fieldnames}
@@ -67,32 +67,32 @@ def plot_mode(mode, xkey, ykey, ylabel, fname):
     plt.savefig(os.path.join(out_dir, fname), dpi=180)
     plt.close()
 
-plot_mode("prefill_ttft", "cl", "ttft_ms", "TTFT (ms)", f"{stamp}.prefill_ttft.ttft_ms.png")
-plot_mode("prefill_ttft", "cl", "prefill_ms", "Prefill latency (ms)", f"{stamp}.prefill_ttft.prefill_ms.png")
-plot_mode("decode_heavy", "cl", "decode_ms_per_tok", "Decode latency per token (ms)", f"{stamp}.decode_heavy.decode_ms_per_tok.png")
-plot_mode("decode_heavy", "cl", "decode_ms", "Decode latency total (ms)", f"{stamp}.decode_heavy.decode_ms.png")
+plot_mode("prefill_ttft", "ctx_len", "ttft_ms", "TTFT (ms)", f"{stamp}.prefill_ttft.ttft_ms.png")
+plot_mode("prefill_ttft", "ctx_len", "prefill_ms", "Prefill latency (ms)", f"{stamp}.prefill_ttft.prefill_ms.png")
+plot_mode("decode_heavy", "ctx_len", "decode_ms_per_tok", "Decode latency per token (ms)", f"{stamp}.decode_heavy.decode_ms_per_tok.png")
+plot_mode("decode_heavy", "ctx_len", "decode_ms", "Decode latency total (ms)", f"{stamp}.decode_heavy.decode_ms.png")
 
 # memory plots
 mem = {}
 for row in rows:
-    cl = row.get("cl", float("nan"))
-    if cl != cl: 
+    ctx_len = row.get("ctx_len", float("nan"))
+    if ctx_len != ctx_len: 
         continue
-    cl = int(cl)
+    ctx_len = int(ctx_len)
     peak = row.get("peak_rss_kb", float("nan"))
     kv   = row.get("kv_est_kb", float("nan"))
-    cur = mem.get(cl, {"peak": float("nan"), "kv": float("nan")})
+    cur = mem.get(ctx_len, {"peak": float("nan"), "kv": float("nan")})
     if peak==peak and (cur["peak"]!=cur["peak"] or peak>cur["peak"]): cur["peak"]=peak
     if kv==kv and (cur["kv"]!=cur["kv"] or kv>cur["kv"]): cur["kv"]=kv
-    mem[cl]=cur
+    mem[ctx_len]=cur
 
-cls = sorted(mem.keys())
-peak_gb = [(mem[c]["peak"]/(1024*1024)) if mem[c]["peak"]==mem[c]["peak"] else float("nan") for c in cls]
-kv_mb   = [(mem[c]["kv"]/1024) if mem[c]["kv"]==mem[c]["kv"] else float("nan") for c in cls]
+ctx_lens = sorted(mem.keys())
+peak_gb = [(mem[c]["peak"]/(1024*1024)) if mem[c]["peak"]==mem[c]["peak"] else float("nan") for c in ctx_lens]
+kv_mb   = [(mem[c]["kv"]/1024) if mem[c]["kv"]==mem[c]["kv"] else float("nan") for c in ctx_lens]
 
 plt.figure()
-plt.plot(cls, peak_gb, marker="o")
-plt.xlabel("cl")
+plt.plot(ctx_lens, peak_gb, marker="o")
+plt.xlabel("ctx_len")
 plt.ylabel("Peak RSS (GB)")
 plt.xscale("log", base=2)
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
@@ -101,8 +101,8 @@ plt.savefig(os.path.join(out_dir, f"{stamp}.memory.peak_rss_gb.png"), dpi=180)
 plt.close()
 
 plt.figure()
-plt.plot(cls, kv_mb, marker="o")
-plt.xlabel("cl")
+plt.plot(ctx_lens, kv_mb, marker="o")
+plt.xlabel("ctx_len")
 plt.ylabel("KV estimate (MB)")
 plt.xscale("log", base=2)
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
