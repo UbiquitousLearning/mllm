@@ -7,7 +7,7 @@ and returns the results (logits, next_token_ids) back to the scheduler.
 
 import logging
 from multiprocessing.connection import Connection
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import zmq
 
@@ -41,10 +41,16 @@ class ModelRunnerProcess:
     def init_sockets(self) -> None:
         self._zmq_ctx = zmq.Context()
         self._recv_from_scheduler = create_zmq_socket(
-            self._zmq_ctx, zmq.PULL, self._recv_from_scheduler_addr, bind=False,
+            self._zmq_ctx,
+            zmq.PULL,
+            self._recv_from_scheduler_addr,
+            bind=False,
         )
         self._send_to_scheduler = create_zmq_socket(
-            self._zmq_ctx, zmq.PUSH, self._send_to_scheduler_addr, bind=False,
+            self._zmq_ctx,
+            zmq.PUSH,
+            self._send_to_scheduler_addr,
+            bind=False,
         )
 
     def event_loop(self) -> None:
@@ -62,18 +68,41 @@ class ModelRunnerProcess:
     def _forward_batch(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         """Run the model forward pass and sampling for *batch*.
 
+        *batch* is a dict produced by ``SchedulerProcess.get_next_batch_to_run``
+        whose ``"requests"`` list contains
+        :class:`~pymllm.engine.io_struct.TokenizedGenerateReqInput` objects.
+
+        Returns a dict ``{"batch_id": ..., "finished": [...], "unfinished": [...]}``
+        where each element of *finished* / *unfinished* is a plain output dict
+        containing at least ``"rid"`` and ``"output_token_ids"``.
+
         TODO: implement real forward pass, logits processing, and sampling.
         """
         requests = batch.get("requests", [])
-        finished = []
-        unfinished = []
+        finished: List[Dict[str, Any]] = []
+        unfinished: List[Dict[str, Any]] = []
 
         for req in requests:
-            # TODO: actual model forward, logits -> next_token_ids
-            next_token_ids = []  # placeholder
-            req["output_token_ids"] = req.get("output_token_ids", []) + next_token_ids
-            # TODO: check EOS / max_tokens to decide finished vs. unfinished
-            finished.append(req)
+            # Support both TokenizedGenerateReqInput dataclass (normal path) and
+            # legacy plain dicts (defensive).
+            rid: str = req.rid if hasattr(req, "rid") else req.get("rid")
+            input_ids: List[int] = (
+                req.input_ids if hasattr(req, "input_ids") else req.get("input_ids", [])
+            )
+            mm_inputs: Optional[Dict[str, Any]] = (
+                req.mm_inputs if hasattr(req, "mm_inputs") else req.get("mm_inputs")
+            )
+
+            # TODO: actual model forward; pass input_ids and mm_inputs to the model.
+            next_token_ids: List[int] = []  # placeholder
+
+            output: Dict[str, Any] = {
+                "rid": rid,
+                "output_token_ids": next_token_ids,
+                "finished": True,
+            }
+            # TODO: check EOS / max_tokens to decide finished vs. unfinished.
+            finished.append(output)
 
         return {
             "batch_id": batch.get("batch_id"),

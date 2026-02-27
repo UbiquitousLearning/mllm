@@ -30,6 +30,8 @@ dependencies=[
   "typer",
   "torch",
   "torchao",
+  "pyfiglet",
+  "termcolor",
 ]
 
 [project.optional-dependencies]
