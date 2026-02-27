@@ -102,6 +102,9 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_CONV1DOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_Conv1DOp && (v)->getKind() <= RK_Op_LinalgIROp_Conv1DOp
 
+#define RTTI_RK_OP_LINALGIROP_CONVTRANSPOSE1DOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ConvTranspose1DOp && (v)->getKind() <= RK_Op_LinalgIROp_ConvTranspose1DOp
+
 #define RTTI_RK_OP_LINALGIROP_CONV2DOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_Conv2DOp && (v)->getKind() <= RK_Op_LinalgIROp_Conv2DOp
 
@@ -228,6 +231,9 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_SIGMOIDOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_SigmoidOp && (v)->getKind() <= RK_Op_LinalgIROp_SigmoidOp
+
+#define RTTI_RK_OP_LINALGIROP_TANHOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_TanhOp && (v)->getKind() <= RK_Op_LinalgIROp_TanhOp
 
 #define RTTI_RK_OP_LINALGIROP_CUSTOMIZEDOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_CustomizedOp && (v)->getKind() <= RK_Op_LinalgIROp_CustomizedOp

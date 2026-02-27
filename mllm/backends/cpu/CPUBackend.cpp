@@ -14,6 +14,7 @@
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
 #include "mllm/backends/cpu/ops/Conv1DOp.hpp"
+#include "mllm/backends/cpu/ops/ConvTranspose1DOp.hpp"
 #include "mllm/backends/cpu/ops/Conv2DOp.hpp"
 #include "mllm/backends/cpu/ops/Conv3DOp.hpp"
 #include "mllm/backends/cpu/ops/CopyOp.hpp"
@@ -52,6 +53,7 @@
 #include "mllm/backends/cpu/ops/Scatter2ShardsOp.hpp"
 #include "mllm/backends/cpu/ops/SiLUOp.hpp"
 #include "mllm/backends/cpu/ops/SigmoidOp.hpp"
+#include "mllm/backends/cpu/ops/TanhOp.hpp"
 #include "mllm/backends/cpu/ops/SliceOp.hpp"
 #include "mllm/backends/cpu/ops/SoftmaxOp.hpp"
 #include "mllm/backends/cpu/ops/SplitOp.hpp"
@@ -78,12 +80,12 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSiLUOpFactory, CPUSigmoidOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
                CPUReLUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory,
                CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPURoPEOpFactory, CPUCausalMaskOpFactory, CPUConv1DOpFactory,
-               CPUConv3DOpFactory, CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory,
-               CPUMeanOpFactory, CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
-               CPUConv2DOpFactory, CPULayerNorm2DOpFactory, CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory,
-               CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
-               CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory,
-               CPUGatherOpFactory>();
+               CPUConvTranspose1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory,
+               CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory, CPUKVCacheOpFactory, CPUPagedAttnOpFactory,
+               CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory, CPUConv2DOpFactory, CPULayerNorm2DOpFactory,
+               CPUInterpolateOpFactory, CPUPadOpFactory, CPUMaskedScatterOpFactory, CPUArgsortOpFactory, CPUCloneOpFactory,
+               CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory, CPURadixAttnRelaxOpFactory,
+               CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory, CPUGatherOpFactory, CPUTanhOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {

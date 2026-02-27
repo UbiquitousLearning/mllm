@@ -11,6 +11,7 @@
 #include "mllm/nn/layers/RMSNorm.hpp"         // IWYU pragma: export
 #include "mllm/nn/layers/SiLU.hpp"            // IWYU pragma: export
 #include "mllm/nn/layers/Sigmoid.hpp"         // IWYU pragma: export
+#include "mllm/nn/layers/Tanh.hpp"            // IWYU pragma: export
 #include "mllm/nn/layers/Embedding.hpp"       // IWYU pragma: export
 #include "mllm/nn/layers/GELU.hpp"            // IWYU pragma: export
 #include "mllm/nn/layers/QuickGELU.hpp"       // IWYU pragma: export
@@ -26,6 +27,7 @@
 #include "mllm/nn/layers/Param.hpp"           // IWYU pragma: export
 #include "mllm/nn/layers/KVCache.hpp"         // IWYU pragma: export
 #include "mllm/nn/layers/Conv1D.hpp"          // IWYU pragma: export
+#include "mllm/nn/layers/ConvTranspose1D.hpp" // IWYU pragma: export
 #include "mllm/nn/layers/AvgPool1d.hpp"       // IWYU pragma: export
 #include "mllm/nn/layers/STFT.hpp"            // IWYU pragma: export
 #include "mllm/nn/layers/PagedAttn.hpp"       // IWYU pragma: export

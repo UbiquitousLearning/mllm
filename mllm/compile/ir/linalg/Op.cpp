@@ -55,6 +55,7 @@ LINALG_AOPS_DECL(OpTypes::kTranspose, TransposeOp);
 LINALG_AOPS_DECL(OpTypes::kRMSNorm, RMSNormOp);
 LINALG_AOPS_DECL(OpTypes::kSiLU, SiLUOp);
 LINALG_AOPS_DECL(OpTypes::kSigmoid, SigmoidOp);
+LINALG_AOPS_DECL(OpTypes::kTanh, TanhOp);
 
 LINALG_AOPS_DECL(OpTypes::kCastType, CastTypeOp);
 
@@ -70,6 +71,7 @@ LINALG_AOPS_DECL(OpTypes::kRepeat, RepeatOp);
 LINALG_AOPS_DECL(OpTypes::kPermute, PermuteOp);
 
 LINALG_AOPS_DECL(OpTypes::kConv1D, Conv1DOp);
+LINALG_AOPS_DECL(OpTypes::kConvTranspose1D, ConvTranspose1DOp);
 LINALG_AOPS_DECL(OpTypes::kConv2D, Conv2DOp);
 LINALG_AOPS_DECL(OpTypes::kConv3D, Conv3DOp);
 
