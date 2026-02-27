@@ -14,7 +14,7 @@ chunks) and one-shot responses are both supported.
 import asyncio
 import dataclasses
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import zmq
 import zmq.asyncio
@@ -82,19 +82,39 @@ class RequestResponseProcess:
         )
         self._loop_task = loop.create_task(self._run())
 
-    async def add_request(self, request: GenerateReqInput) -> ReqState:
-        """Enqueue a request and return its :class:`ReqState`.
+    async def add_request(
+        self, request: GenerateReqInput
+    ) -> Union[ReqState, List[ReqState]]:
+        """Enqueue request(s) and return the corresponding :class:`ReqState`(s).
+
+        * **Single request** (``request.is_single is True``): behaves exactly as
+          before – registers one ``ReqState`` and enqueues one message.
+        * **Batch request** (``request.is_single is False``): splits the batch
+          into *N* individual sub-requests, registers a ``ReqState`` per rid, and
+          enqueues each sub-request separately so the downstream pipeline sees
+          independent messages.  Returns a ``List[ReqState]`` in the same order
+          as the input rids.
 
         Callers should ``await state.event.wait()`` in a loop, consuming
         ``state.out_list`` entries until ``state.finished`` is ``True``.
         """
-        if not isinstance(request.rid, str):
-            raise ValueError("RequestResponseProcess currently accepts single requests only.")
-        rid = request.rid
-        state = ReqState()
-        self._rid_to_state[rid] = state
-        await self._request_queue.put(request.to_request_dict())
-        return state
+        if request.is_single:
+            rid = request.rid if isinstance(request.rid, str) else request.rid[0]
+            state = ReqState()
+            self._rid_to_state[rid] = state
+            await self._request_queue.put(request.to_request_dict())
+            return state
+
+        # Batch path: fan-out into individual sub-requests.
+        states: List[ReqState] = []
+        for i in range(request.batch_size):
+            sub = request[i]
+            rid = sub.rid if isinstance(sub.rid, str) else str(sub.rid)
+            state = ReqState()
+            self._rid_to_state[rid] = state
+            await self._request_queue.put(sub.to_request_dict())
+            states.append(state)
+        return states
 
     def remove_state(self, rid: str) -> None:
         """Remove the ``ReqState`` for *rid* (called by the caller once done)."""

@@ -78,6 +78,7 @@ class ServerConfig:
     # --------------------------------------------------------------------- #
     # Feature switches
     # --------------------------------------------------------------------- #
+    enable_shared_queue: bool = False  # Use shared memory queue for fast IPC
     # enable_lora: bool = False
     # max_loaded_loras: Optional[int] = None
     # max_loras_per_batch: int = 8

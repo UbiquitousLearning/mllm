@@ -135,8 +135,17 @@ class GenerateReqInput(BaseReq):
 
 @dataclass
 class TokenizedGenerateReqInput(BaseReq):
+    # The decoded text passed to the tokenizer (empty string if only input_ids
+    # were provided by the caller).
     input_text: str = ""
+    # Token IDs produced by the tokenizer.
     input_ids: List[int] = field(default_factory=list)
+    # Multimodal inputs (processor output, e.g. pixel_values, or raw image /
+    # audio / video data when no processor is available).  ``None`` means the
+    # request is text-only.
+    mm_inputs: Optional[Dict[str, Any]] = None
+    # Raw sampling parameters dict (parsed into a SamplingParams object by the
+    # model runner when needed).
     sampling_params: Dict[str, Any] = field(default_factory=dict)
     stream: bool = False
     return_logprob: bool = False

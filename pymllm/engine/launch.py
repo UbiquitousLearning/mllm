@@ -11,6 +11,14 @@ import torch.multiprocessing as mp
 from transformers import AutoConfig
 from huggingface_hub import snapshot_download
 
+try:
+    from pyfiglet import figlet_format
+    from termcolor import colored
+
+    HAS_BANNER_LIBS = True
+except ImportError:
+    HAS_BANNER_LIBS = False
+
 from pymllm.configs import get_global_config
 from pymllm.engine.io_struct import GenerateReqInput
 from pymllm.orchestrator.ipc_utils import make_ipc_address
@@ -18,6 +26,7 @@ from pymllm.orchestrator.request_response_process import (
     ReqState,
     RequestResponseProcess,
 )
+from pymllm.orchestrator.shared_memory_queue import TensorQueue
 from pymllm.orchestrator.tokenizer_process import run_tokenizer_process
 from pymllm.orchestrator.scheduler_process import run_scheduler_process
 from pymllm.orchestrator.model_runner_process import run_model_runner_process
@@ -68,6 +77,26 @@ class Engine:
         # Record all subprocesses
         procs_and_readers: List[tuple] = []
 
+        # Config dict for the tokenizer subprocess (must be picklable).
+        cfg = get_global_config()
+        enable_shared_queue = cfg.server.enable_shared_queue
+
+        # Create shared queue if enabled
+        shared_queue = None
+        if enable_shared_queue:
+            # TODO: WCH init CUDA IPC things.
+            shared_queue = TensorQueue(maxsize=1000)  # Configurable max size
+            logger.info("Shared memory queue enabled for fast IPC")
+
+        tokenizer_cfg: Dict[str, Any] = {
+            "tokenizer_path": str(cfg.server.tokenizer_path),
+            "tokenizer_mode": cfg.server.tokenizer_mode,
+            "trust_remote_code": cfg.server.trust_remote_code,
+            "context_length": cfg.server.context_length,
+            "hf_config": cfg.model.hf_config,
+            "enable_shared_queue": enable_shared_queue,
+        }
+
         # Tokenizer
         tokenizer_reader, tokenizer_writer = mp.Pipe(duplex=False)
         tokenizer_proc = mp.Process(
@@ -76,6 +105,8 @@ class Engine:
                 addr_request_response_to_tokenizer,
                 addr_tokenizer_to_scheduler,
                 tokenizer_writer,
+                tokenizer_cfg,
+                shared_queue,  # Pass shared queue
             ),
             daemon=True,
         )
@@ -91,6 +122,8 @@ class Engine:
                 addr_model_runner_to_scheduler,
                 addr_scheduler_to_detokenizer,
                 scheduler_writer,
+                shared_queue,  # Pass shared queue
+                enable_shared_queue,  # Pass flag
             ),
             daemon=True,
         )
@@ -165,6 +198,29 @@ class Engine:
         self._rr_process.start(self._loop)
         logger.info("RequestResponseProcess started in main process")
 
+        # Print colorful gradient ASCII art banner
+        if HAS_BANNER_LIBS:
+            try:
+                text = figlet_format("pymllm", font="slant")
+                fired_up = figlet_format("FIRED UP!", font="slant")
+
+                # Apply blue-purple gradient
+                lines = text.strip().split("\n")
+                colors_cycle = ["blue", "cyan", "blue", "magenta", "magenta"]
+                for i, line in enumerate(lines):
+                    color = colors_cycle[i % len(colors_cycle)]
+                    print(colored(line, color, attrs=["bold"]))
+
+                # Print "FIRED UP!" in bright magenta
+                for line in fired_up.strip().split("\n"):
+                    print(colored(line, "magenta", attrs=["bold"]))
+                print()
+            except Exception as e:
+                logger.debug(f"Failed to print banner: {e}")
+                print("🚀 pymllm FIRED UP! 🚀\n")
+        else:
+            print("🚀 pymllm FIRED UP! 🚀\n")
+
     def generate(
         self,
         prompt: Optional[Union[List[str], str]] = None,
@@ -181,10 +237,14 @@ class Engine:
         stream: bool = False,
         rid: Optional[Union[List[str], str]] = None,
         **kwargs,
-    ) -> Dict[str, Any]:
-        """Synchronous, non-streaming generation entry point."""
-        if rid is None:
-            rid = uuid.uuid4().hex
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+        """Synchronous, non-streaming generation entry point.
+
+        Accepts a single prompt (``str``) or a batch (``List[str]``).  Returns a
+        single result dict for single inputs and a list of result dicts for batch
+        inputs, preserving the input order.
+        """
+        rid = self._make_rids(rid, prompt, input_ids)
         request = GenerateReqInput(
             rid=rid,
             text=prompt,
@@ -203,11 +263,18 @@ class Engine:
         )
         request.normalize_batch_and_arguments()
 
-        async def _run() -> Dict[str, Any]:
-            state = await self._rr_process.add_request(request)
-            if isinstance(rid, list):
-                raise ValueError("Synchronous `generate` currently supports single request.")
-            return await self._wait_for_final_result(rid, state)
+        async def _run() -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+            result = await self._rr_process.add_request(request)
+            if request.is_single:
+                single_rid = rid if isinstance(rid, str) else rid[0]
+                return await self._wait_for_final_result(single_rid, result)  # type: ignore[arg-type]
+            # Batch: wait for every sub-request concurrently.
+            rids_list: List[str] = rid if isinstance(rid, list) else [rid]  # type: ignore[assignment]
+            states: List[ReqState] = result  # type: ignore[assignment]
+            outputs = await asyncio.gather(
+                *(self._wait_for_final_result(r, s) for r, s in zip(rids_list, states))
+            )
+            return list(outputs)
 
         return self._loop.run_until_complete(_run())
 
@@ -230,13 +297,14 @@ class Engine:
     ) -> AsyncIterator[Dict[str, Any]]:
         """Asynchronous generation entry point.
 
-        When *stream* is ``False`` (default) the returned async iterator
-        yields a **single** final result dict.  When *stream* is ``True``
-        every incremental chunk from the detokenizer is yielded as it
-        arrives, following the ``Event + out_list`` pattern.
+        For a **single** request and ``stream=False`` yields one final result
+        dict; with ``stream=True`` yields incremental chunks.
+
+        For a **batch** request the iterator yields the final result for each
+        sub-request as it completes (order not guaranteed); streaming mode yields
+        incremental chunks from all sub-requests interleaved.
         """
-        if rid is None:
-            rid = uuid.uuid4().hex
+        rid = self._make_rids(rid, prompt, input_ids)
         request = GenerateReqInput(
             rid=rid,
             text=prompt,
@@ -254,18 +322,55 @@ class Engine:
             extra_options=kwargs,
         )
         request.normalize_batch_and_arguments()
-        state = await self._rr_process.add_request(request)
+        result = await self._rr_process.add_request(request)
 
-        try:
-            if isinstance(rid, list):
-                raise ValueError("`generate_async` currently supports single request only.")
-            if stream:
-                async for chunk in self._stream_results(rid, state):
-                    yield chunk
-            else:
-                yield await self._wait_for_final_result(rid, state)
-        finally:
-            self._rr_process.remove_state(rid)
+        if request.is_single:
+            single_rid = rid if isinstance(rid, str) else rid[0]  # type: ignore[index]
+            state: ReqState = result  # type: ignore[assignment]
+            try:
+                if stream:
+                    async for chunk in self._stream_results(single_rid, state):
+                        yield chunk
+                else:
+                    yield await self._wait_for_final_result(single_rid, state)
+            finally:
+                self._rr_process.remove_state(single_rid)
+        else:
+            rids_list: List[str] = rid if isinstance(rid, list) else [rid]  # type: ignore[assignment]
+            states: List[ReqState] = result  # type: ignore[assignment]
+            try:
+                if stream:
+                    # Merge streams from all sub-requests using an asyncio queue.
+                    queue: asyncio.Queue = asyncio.Queue()
+
+                    async def _forward(r: str, s: ReqState) -> None:
+                        async for chunk in self._stream_results(r, s):
+                            await queue.put(chunk)
+                        await queue.put(None)  # sentinel
+
+                    tasks = [
+                        asyncio.create_task(_forward(r, s))
+                        for r, s in zip(rids_list, states)
+                    ]
+                    done_count = 0
+                    while done_count < len(tasks):
+                        item = await queue.get()
+                        if item is None:
+                            done_count += 1
+                        else:
+                            yield item
+                    await asyncio.gather(*tasks)
+                else:
+                    for coro in asyncio.as_completed(
+                        [
+                            self._wait_for_final_result(r, s)
+                            for r, s in zip(rids_list, states)
+                        ]
+                    ):
+                        yield await coro
+            finally:
+                for r in rids_list:
+                    self._rr_process.remove_state(r)
 
     @staticmethod
     async def _wait_for_final_result(rid: str, state: ReqState) -> Dict[str, Any]:
@@ -289,6 +394,30 @@ class Engine:
             if state.finished:
                 return
             state.event.clear()
+
+    @staticmethod
+    def _make_rids(
+        rid: Optional[Union[str, List[str]]],
+        prompt: Optional[Union[str, List[str]]],
+        input_ids: Optional[Union[List[int], List[List[int]]]],
+    ) -> Union[str, List[str]]:
+        """Return rids, auto-generating UUIDs when *rid* is ``None``.
+
+        The helper infers whether the call is a batch from *prompt* / *input_ids*
+        so callers don't have to handle this case themselves.
+        """
+        if rid is not None:
+            return rid
+        # Determine batch size from the text/input_ids argument.
+        is_batch = isinstance(prompt, list) or (
+            isinstance(input_ids, list)
+            and len(input_ids) > 0
+            and isinstance(input_ids[0], list)
+        )
+        if is_batch:
+            n = len(prompt) if prompt is not None else len(input_ids)  # type: ignore[arg-type]
+            return [uuid.uuid4().hex for _ in range(n)]
+        return uuid.uuid4().hex
 
     def shutdown(self) -> None:
         """Terminate all subprocesses."""

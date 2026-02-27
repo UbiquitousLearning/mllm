@@ -5,6 +5,10 @@ Receives tokenized requests from the TokenizerProcess, organises them into
 batches, dispatches batches to the ModelRunnerProcess for forward passes,
 collects results, and streams finished token IDs to the DetokenizerProcess.
 
+Supports two modes:
+    1. Legacy ZMQ path: Receive TokenizedGenerateReqInput via ZMQ recv_pyobj
+    2. Shared queue fast path: Read rid from shared queue and metadata from shared memory
+
 The main ``event_loop`` scheduler flow::
 
     while True:
@@ -18,6 +22,7 @@ The main ``event_loop`` scheduler flow::
 """
 
 import logging
+import queue as stdlib_queue
 import time
 from collections import deque
 from multiprocessing.connection import Connection
@@ -25,7 +30,9 @@ from typing import Any, Deque, Dict, List, Optional
 
 import zmq
 
+from pymllm.engine.io_struct import TokenizedGenerateReqInput
 from pymllm.orchestrator.ipc_utils import create_zmq_socket
+from pymllm.orchestrator.shared_memory_queue import SharedMemoryManager, TensorQueue
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +46,18 @@ class SchedulerProcess:
         send_to_model_runner_addr: str,
         recv_from_model_runner_addr: str,
         send_to_detokenizer_addr: str,
+        shared_queue: Optional[TensorQueue] = None,
+        enable_shared_queue: bool = False,
     ):
         # ZMQ addresses
         self._recv_from_tokenizer_addr = recv_from_tokenizer_addr
         self._send_to_model_runner_addr = send_to_model_runner_addr
         self._recv_from_model_runner_addr = recv_from_model_runner_addr
         self._send_to_detokenizer_addr = send_to_detokenizer_addr
+
+        # Shared queue configuration
+        self._shared_queue = shared_queue
+        self._enable_shared_queue = enable_shared_queue
 
         # ZMQ runtime objects (initialised in init_sockets)
         self._zmq_ctx: Optional[zmq.Context] = None
@@ -55,7 +68,7 @@ class SchedulerProcess:
         self._poller: Optional[zmq.Poller] = None
 
         # Request management
-        self._waiting_queue: Deque[Dict[str, Any]] = deque()
+        self._waiting_queue: Deque[TokenizedGenerateReqInput] = deque()
         self._running_batch: Optional[Dict[str, Any]] = None
         self._finished: List[Dict[str, Any]] = []
 
@@ -97,7 +110,10 @@ class SchedulerProcess:
 
     def event_loop(self) -> None:
         """Infinite scheduling loop."""
-        logger.info("SchedulerProcess event loop started")
+        logger.info(
+            "SchedulerProcess event loop started (shared_queue=%s)",
+            self._enable_shared_queue,
+        )
         while True:
             self.recv_requests()
             self.process_input_requests()
@@ -114,15 +130,80 @@ class SchedulerProcess:
     def recv_requests(self) -> None:
         """Non-blocking receive of tokenized requests from TokenizerProcess.
 
-        Uses ``zmq.Poller`` with a short timeout so the scheduler is never
-        stuck waiting when there are batches to run.
+        Supports two modes:
+        1. Legacy ZMQ: Uses ``zmq.Poller`` with a short timeout
+        2. Shared queue: Non-blocking get from multiprocessing.Queue
+
+        Messages are either:
+        * A :class:`~pymllm.engine.io_struct.TokenizedGenerateReqInput`
+          dataclass – appended to ``_waiting_queue``.
+        * A plain abort sentinel dict ``{"rid": ..., "abort": True}`` – handled
+          inline by removing the matching rid from the waiting queue.
         """
+        if self._enable_shared_queue and self._shared_queue is not None:
+            self._recv_from_shared_queue()
+        else:
+            self._recv_from_zmq()
+
+    def _recv_from_zmq(self) -> None:
+        """Receive requests via legacy ZMQ path."""
         while True:
             events = dict(self._poller.poll(timeout=0))  # non-blocking
             if self._recv_from_tokenizer not in events:
                 break
-            req = self._recv_from_tokenizer.recv_pyobj(zmq.NOBLOCK)
-            self._waiting_queue.append(req)
+            msg = self._recv_from_tokenizer.recv_pyobj(zmq.NOBLOCK)
+            # Abort sentinel: plain dict with "abort" key.
+            if isinstance(msg, dict) and msg.get("abort"):
+                rid = msg.get("rid")
+                logger.debug("Scheduler received abort for rid=%s", rid)
+                self._waiting_queue = type(self._waiting_queue)(
+                    r for r in self._waiting_queue if r.rid != rid
+                )
+            else:
+                self._waiting_queue.append(msg)
+
+    def _recv_from_shared_queue(self) -> None:
+        """Receive requests via shared memory + shared queue fast path."""
+        while True:
+            try:
+                # Non-blocking get from shared queue
+                rid, shm_name, mm_inputs = self._shared_queue.get(timeout=0.0001)
+
+                # Read metadata from shared memory (and unlink immediately)
+                metadata: TokenizedGenerateReqInput = SharedMemoryManager.read_metadata(
+                    shm_name, unlink=True
+                )
+
+                # Reconstruct the full TokenizedGenerateReqInput with mm_inputs
+                full_request = TokenizedGenerateReqInput(
+                    rid=metadata.rid,
+                    input_text=metadata.input_text,
+                    input_ids=metadata.input_ids,
+                    mm_inputs=mm_inputs,  # Restored from shared queue
+                    sampling_params=metadata.sampling_params,
+                    stream=metadata.stream,
+                    return_logprob=metadata.return_logprob,
+                    logprob_start_len=metadata.logprob_start_len,
+                    top_logprobs_num=metadata.top_logprobs_num,
+                    lora_path=metadata.lora_path,
+                    session_params=metadata.session_params,
+                )
+
+                self._waiting_queue.append(full_request)
+                logger.debug(f"Received request {rid} from shared queue")
+
+            except stdlib_queue.Empty:
+                # No more requests available
+                break
+            except Exception as e:
+                logger.error(f"Error receiving from shared queue: {e}", exc_info=True)
+                # Try to cleanup shared memory if possible
+                try:
+                    if "shm_name" in locals():
+                        SharedMemoryManager.cleanup(shm_name)
+                except:
+                    pass
+                break
 
     # ------------------------------------------------------------------
     # Step 2: process input requests
@@ -227,6 +308,8 @@ def run_scheduler_process(
     recv_from_model_runner_addr: str,
     send_to_detokenizer_addr: str,
     pipe_writer: Connection,
+    shared_queue: Optional[TensorQueue] = None,
+    enable_shared_queue: bool = False,
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
     proc = SchedulerProcess(
@@ -234,6 +317,8 @@ def run_scheduler_process(
         send_to_model_runner_addr,
         recv_from_model_runner_addr,
         send_to_detokenizer_addr,
+        shared_queue=shared_queue,
+        enable_shared_queue=enable_shared_queue,
     )
     proc.init_sockets()
 
