@@ -18,7 +18,7 @@ dependencies = [
   "packaging",
   "torch",
   "torch-c-dlpack-ext",
-  "apache-tvm-ffi",
+  "apache-tvm-ffi == 0.1.8.post2",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +26,9 @@ dev = [
   "pytest",
   "pytest-html",
 ]
+
+[project.scripts]
+mllm-kernel = "mllm_kernel.__main__:main"
 
 [tool.scikit-build]
 # Build configuration

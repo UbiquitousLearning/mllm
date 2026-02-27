@@ -3,3 +3,4 @@ build-py/
 .vscode/settings.json
 compile_commands.json
 .clangd
+.pytest_cache/
