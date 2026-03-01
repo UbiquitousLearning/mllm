@@ -76,7 +76,10 @@ class Llama_Benchmark final : public BenchmarkTemplate {
   }
 
   void clear() override {
-    // TODO: KV cache reset
+    if (!model_) {
+      return;
+    }
+    model_->kvCache().setCurrentSeqCnt(0);
   }
 
   BenchmarkTemplateResult run(int32_t pp, int32_t tg) override {
