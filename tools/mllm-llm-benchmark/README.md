@@ -53,7 +53,7 @@ Output goes to `bench_context/context_sweep_v2.csv`.
 - `MODEL`: Path to model file (required)
 - `CFG`: Path to config json (default: `./examples/llama/config_tiny_llama.json`)
 - `THREADS`: Number of threads (default: 8)
-- `RUNS`: How many runs to average (default: 1, LLaMA models auto-limited to 1)
+- `RUNS`: How many runs to average (default: 1)
 - `COOLDOWN`: Seconds to wait between runs (default: 0)
 - `CTX_LENS`: Context lengths to test (default: "256 512 1024 2048 4096")
 - `TG_DH`: Generate length for decode_heavy mode (default: 256)
