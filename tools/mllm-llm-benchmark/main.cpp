@@ -78,17 +78,6 @@ MLLM_MAIN({
     return 1;
   }
 
-  std::string m_name = model_name.get();
-  std::transform(m_name.begin(), m_name.end(), m_name.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  if (R > 1 && (m_name.find("llama") != std::string::npos ||
-                m_name.find("tiny_llama") != std::string::npos)) {
-    mllm::print("[WARN] KV-cache reset not available for LLaMA yet");
-    mllm::print("[WARN] Forcing runs=1 to prevent cache corruption");
-    R = 1;
-
-  }
-
   std::ofstream csv_file;
   if (!output_csv.get().empty()) {
     csv_file.open(output_csv.get());
