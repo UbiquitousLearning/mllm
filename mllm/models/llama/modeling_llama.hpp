@@ -377,6 +377,8 @@ class LlamaForCausalLM : public nn::Module, public ARGeneration {
   bool tie_word_embeddings_;
   bool mask_by_tensor_;
 
+  inline nn::AbstractStaticCache& kvCache() { return *kv_cache_; }
+
  private:
   std::unique_ptr<nn::AbstractStaticCache> kv_cache_;
 };

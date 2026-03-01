@@ -10,7 +10,6 @@ This is a benchmark tool for measuring MLLM model performance, including:
 ## Build
 
 Build from the mllm_v2 project root directory:
-
 ```bash
 mkdir -p build && cd build
 cmake ..
@@ -20,7 +19,6 @@ make mllm-llm-benchmark
 ## Usage
 
 ### Basic Usage
-
 ```bash
 ./mllm-llm-benchmark \
   -n qwen3-w4a32-kai \
@@ -30,6 +28,47 @@ make mllm-llm-benchmark
   -pp 64,128,256 \
   -tg 100,200,300 \
   -cl 2048
+```
+
+### Context Sweep (New Feature)
+
+For automated benchmarking across different context lengths, use the sweep script:
+```bash
+cd tools/mllm-llm-benchmark
+chmod +x scripts/sweep_context_v2.sh
+
+# Configure paths
+export BIN=../../build/bin/mllm-llm-benchmark
+export MODEL=/path/to/your-model.mllm
+export CFG=/path/to/config.json
+
+# Run sweep
+./scripts/sweep_context_v2.sh
+```
+
+Output goes to `bench_context/context_sweep_v2.csv`. 
+
+**Configuration options:**
+- `BIN`: Path to benchmark binary (required)
+- `MODEL`: Path to model file (required)
+- `CFG`: Path to config json (default: `./examples/llama/config_tiny_llama.json`)
+- `THREADS`: Number of threads (default: 8)
+- `RUNS`: How many runs to average (default: 1)
+- `COOLDOWN`: Seconds to wait between runs (default: 0)
+- `CTX_LENS`: Context lengths to test (default: "256 512 1024 2048 4096")
+- `TG_DH`: Generate length for decode_heavy mode (default: 256)
+- `TG_TTFT`: Generate length for prefill_ttft mode (default: 2)
+- `OUTDIR`: Output directory (default: bench_context)
+
+**Test modes:**
+- `prefill_ttft`: Measures time to first token (prompt length = CTX_LEN-2, generates 2 tokens)
+- `decode_heavy`: Measures decode throughput (prompt length = CTX_LEN-256, generates 256 tokens)
+
+### Plot Results
+
+Visualize benchmark results:
+```bash
+python3 scripts/plot_sweep.py bench_context/context_sweep_v2.csv output_dir/
 ```
 
 ### Parameters
@@ -47,7 +86,6 @@ make mllm-llm-benchmark
 ### Examples
 
 #### Testing Qwen3-0.6B Model
-
 ```bash
 ./mllm-llm-benchmark \
   -n qwen3-w4a32-kai \
@@ -60,7 +98,6 @@ make mllm-llm-benchmark
 ```
 
 #### Quick Test (Single Configuration)
-
 ```bash
 ./mllm-llm-benchmark \
   -n qwen3-w4a32-kai \
@@ -73,7 +110,6 @@ make mllm-llm-benchmark
 ```
 
 ## Output Example
-
 ```
 MLLM Build Version : abc123def456
 ARCH               : ARM64
@@ -144,7 +180,6 @@ Each test configuration executes the following steps:
 ### 1. Create New Benchmark Class
 
 Create `YourModel_Benchmark.hpp` in the `models/` directory:
-
 ```cpp
 #include "BenchmarkTemplate.hpp"
 #include <mllm/models/yourmodel/modeling_yourmodel.hpp>
@@ -178,7 +213,6 @@ class YourModel_Benchmark final : public BenchmarkTemplate {
 ```
 
 ### 2. Register in All.hpp
-
 ```cpp
 #include "YourModel_Benchmark.hpp"
 
