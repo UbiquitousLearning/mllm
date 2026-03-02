@@ -79,6 +79,39 @@ class ServerConfig:
     # Feature switches
     # --------------------------------------------------------------------- #
     enable_shared_queue: bool = False  # Use shared memory queue for fast IPC
+
+    # CUDA IPC transport for multimodal GPU tensors.
+    # Requires enable_shared_queue=True to take effect.
+    #
+    # Three transport modes (mutually exclusive for GPU tensors):
+    #
+    #   "default"
+    #       GPU tensors are moved to CPU first (GPU→CPU copy), then placed in
+    #       POSIX shared memory via share_memory_(). Safe but adds a device copy.
+    #
+    #   "cuda_ipc"
+    #       GPU tensors stay on GPU. Each tensor is wrapped in a
+    #       TransportProxyTensor whose __getstate__ calls storage._share_cuda_()
+    #       to obtain an IPC handle; the receiver reconstructs via
+    #       UntypedStorage._new_shared_cuda(*handle). Simple, but the underlying
+    #       GPU allocation is never freed until the sender process exits
+    #       (PyTorch limitation) -- can leak GPU memory in long-running services.
+    #
+    #   "cuda_ipc_pool"  [recommended for production]
+    #       GPU tensors are copied into a pre-allocated fixed-size GPU workspace
+    #       (MmItemMemoryPool). Each outgoing tensor occupies a "chunk" of the
+    #       pool; the chunk's IPC handle is sent via CudaIpcTensorTransportProxy.
+    #       After the receiver finishes copying data it increments a shared-memory
+    #       sync flag; a background recycler thread in the sender watches these
+    #       flags and returns chunks to the available pool. No GPU memory is leaked.
+    tensor_transport_mode: str = "default"  # one of: default, cuda_ipc, cuda_ipc_pool
+
+    # Size of the pre-allocated CUDA IPC memory pool in MB.
+    # Only used when tensor_transport_mode == "cuda_ipc_pool".
+    cuda_ipc_pool_size_mb: int = 512
+
+    # How often (seconds) the pool recycler thread wakes up.
+    cuda_ipc_recycle_interval: float = 0.1
     # enable_lora: bool = False
     # max_loaded_loras: Optional[int] = None
     # max_loras_per_batch: int = 8
@@ -102,6 +135,18 @@ class ServerConfig:
         self._validate()
 
     def _validate(self) -> None:
+        valid_modes = {"default", "cuda_ipc", "cuda_ipc_pool"}
+        if self.tensor_transport_mode not in valid_modes:
+            raise ValueError(
+                f"`tensor_transport_mode` must be one of {valid_modes}, "
+                f"got {self.tensor_transport_mode!r}."
+            )
+        if self.tensor_transport_mode != "default" and not self.enable_shared_queue:
+            raise ValueError(
+                "`tensor_transport_mode` != 'default' requires `enable_shared_queue=True`."
+            )
+        if self.cuda_ipc_pool_size_mb <= 0:
+            raise ValueError("`cuda_ipc_pool_size_mb` must be > 0.")
         if self.port <= 0 or self.port > 65535:
             raise ValueError("`port` must be in range [1, 65535].")
         if self.max_prefill_tokens is not None and self.max_prefill_tokens <= 0:
