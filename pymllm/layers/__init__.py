@@ -13,6 +13,20 @@ from pymllm.layers.rope import (
     apply_rope_pos_ids,
     apply_rope_with_cos_sin_cache,
 )
+from pymllm.layers.sampling import (
+    chain_speculative_sampling,
+    min_p_sampling_from_probs,
+    sampling_from_logits,
+    sampling_from_probs,
+    softmax,
+    top_k_mask_logits,
+    top_k_renorm_probs,
+    top_k_sampling_from_probs,
+    top_k_top_p_sampling_from_logits,
+    top_k_top_p_sampling_from_probs,
+    top_p_renorm_probs,
+    top_p_sampling_from_probs,
+)
 from pymllm.layers.utils import set_weight_attrs
 
 __all__ = [
@@ -32,4 +46,16 @@ __all__ = [
     "apply_rope_pos_ids",
     "apply_llama31_rope_pos_ids",
     "apply_rope_with_cos_sin_cache",
+    "softmax",
+    "sampling_from_probs",
+    "sampling_from_logits",
+    "top_p_sampling_from_probs",
+    "top_k_sampling_from_probs",
+    "min_p_sampling_from_probs",
+    "top_k_top_p_sampling_from_logits",
+    "top_k_top_p_sampling_from_probs",
+    "top_p_renorm_probs",
+    "top_k_renorm_probs",
+    "top_k_mask_logits",
+    "chain_speculative_sampling",
 ]
