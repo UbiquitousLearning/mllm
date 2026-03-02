@@ -6,7 +6,7 @@ Three-layer architecture::
     TokenToKVPoolAllocator  manages a free-list of integer indices
     KVPool                  holds the actual GPU K/V tensors
 
-All indices are **int64** tensors on the target device.  Slot 0 in the KV
+All indices are **int32** tensors on the target device.  Slot 0 in the KV
 buffers is reserved as a padding / dummy-output slot and is never allocated.
 """
 
@@ -210,7 +210,7 @@ class TokenToKVPoolAllocator:
         allocator = TokenToKVPoolAllocator(size=4096, device="cuda")
 
         # --- basic alloc / free ---
-        indices = allocator.alloc(128)      # 128 free slot indices (int64)
+        indices = allocator.alloc(128)      # 128 free slot indices (int32)
         allocator.free(indices[:64])        # return 64 slots
 
         # --- batch free (amortised) ---
@@ -251,14 +251,14 @@ class TokenToKVPoolAllocator:
         """Reset the allocator so that all slots ``[1, size]`` are free. The first slot is reserved for padding."""
         if self.page_size == 1:
             self.free_slots = torch.arange(
-                1, self.size + 1, dtype=torch.int64, device=self.device
+                1, self.size + 1, dtype=torch.int32, device=self.device
             )
         else:
             num_pages = self.size // self.page_size
             self.free_slots = torch.arange(
-                1, num_pages + 1, dtype=torch.int64, device=self.device
+                1, num_pages + 1, dtype=torch.int32, device=self.device
             )
-        self.release_slots = torch.empty((0,), dtype=torch.int64, device=self.device)
+        self.release_slots = torch.empty((0,), dtype=torch.int32, device=self.device)
         self._is_not_in_free_group = True
         self._free_group: List[torch.Tensor] = []
 
@@ -273,7 +273,7 @@ class TokenToKVPoolAllocator:
         self.free_slots = torch.cat((self.free_slots, self.release_slots))
         if self.need_sort:
             self.free_slots, _ = torch.sort(self.free_slots)
-        self.release_slots = torch.empty((0,), dtype=torch.int64, device=self.device)
+        self.release_slots = torch.empty((0,), dtype=torch.int32, device=self.device)
 
     def free_group_begin(self) -> None:
         """Start collecting ``free()`` calls; actual release is deferred to ``free_group_end``."""
@@ -290,7 +290,7 @@ class TokenToKVPoolAllocator:
     def alloc(self, need_size: int) -> Optional[torch.Tensor]:
         """Allocate *need_size* token indices.
 
-        Returns a 1-D ``int64`` tensor on success, or ``None`` if the pool is
+        Returns a 1-D ``int32`` tensor on success, or ``None`` if the pool is
         exhausted.
         """
         if self.page_size == 1:
@@ -380,7 +380,7 @@ class ReqToTokenPool:
         self.device = torch.device(device)
 
         self.req_to_token = torch.zeros(
-            (max_reqs, max_context_len), dtype=torch.int64, device=self.device
+            (max_reqs, max_context_len), dtype=torch.int32, device=self.device
         )
         self._free_slots: List[int] = list(range(max_reqs))
 

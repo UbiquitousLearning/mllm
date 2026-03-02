@@ -4,9 +4,26 @@ TokenizerProcess -- subprocess that tokenizes incoming raw requests.
 Receives raw requests from RequestResponseProcess via ZMQ, tokenizes them,
 and forwards the tokenized payloads to the SchedulerProcess.
 
-Supports two modes:
-    1. Legacy ZMQ path: Send TokenizedGenerateReqInput via ZMQ send_pyobj
-    2. Shared queue fast path: Write metadata to shared memory and put rid in shared queue
+Supports two transport modes (controlled by ``enable_shared_queue`` and
+``tensor_transport_mode`` in the tokenizer config):
+
+1. **Legacy ZMQ path** (``enable_shared_queue=False``):
+   Tokenized objects are sent directly via ``ZMQ send_pyobj`` (pickle). This
+   is simple but slow for large multimodal tensors.
+
+2. **Shared queue fast path** (``enable_shared_queue=True``):
+   Metadata is written to POSIX shared memory and the queue carries a
+   lightweight ``(rid, shm_name, mm_inputs)`` tuple. The GPU tensors inside
+   ``mm_inputs`` are transported differently depending on ``tensor_transport_mode``:
+
+   * ``"default"``       – GPU tensors are moved to CPU first (GPU→CPU copy),
+     then placed in POSIX shared memory.
+   * ``"cuda_ipc"``      – GPU tensors stay on GPU; they are wrapped in a
+     :class:`TransportProxyTensor` whose pickle uses CUDA IPC handles.
+     Simple but may leak GPU memory.
+   * ``"cuda_ipc_pool"`` – GPU tensors are copied into a pre-allocated
+     :class:`MmItemMemoryPool` workspace and shared via pool-chunk IPC
+     handles. Chunks are recycled; no GPU memory is leaked.
 """
 
 import logging
@@ -17,6 +34,7 @@ import zmq
 from transformers import AutoProcessor, AutoTokenizer
 
 from pymllm.engine.io_struct import TokenizedGenerateReqInput
+from pymllm.orchestrator.cuda_ipc_transport import MmItemMemoryPool, TensorTransportMode
 from pymllm.orchestrator.ipc_utils import create_zmq_socket
 from pymllm.orchestrator.shared_memory_queue import SharedMemoryManager, TensorQueue
 
@@ -40,22 +58,43 @@ class TokenizerProcess:
             Serialisable dict built by the parent process (``Engine``) before
             spawning.  Required keys:
 
-            * ``tokenizer_path``    – str, path to the tokenizer directory.
-            * ``tokenizer_mode``    – ``"auto" | "slow" | "fast"``.
-            * ``trust_remote_code`` – bool.
-            * ``context_length``    – Optional[int], explicit cap; inferred from
-              ``hf_config`` when ``None``.
-            * ``hf_config``         – Optional HuggingFace PretrainedConfig
-              (pickled by multiprocessing); used only to infer ``context_length``.
-            * ``enable_shared_queue`` – bool, whether to use shared memory fast path.
+            * ``tokenizer_path``        – str, path to the tokenizer directory.
+            * ``tokenizer_mode``        – ``"auto" | "slow" | "fast"``.
+            * ``trust_remote_code``     – bool.
+            * ``context_length``        – Optional[int], explicit cap; inferred
+              from ``hf_config`` when ``None``.
+            * ``hf_config``             – Optional HuggingFace PretrainedConfig.
+            * ``enable_shared_queue``   – bool, whether to use shared memory fast path.
+            * ``tensor_transport_mode`` – ``"default" | "cuda_ipc" | "cuda_ipc_pool"``.
+            * ``cuda_ipc_pool_size_mb`` – int, pool size in MB (cuda_ipc_pool only).
+            * ``cuda_ipc_recycle_interval`` – float, recycler sleep interval (s).
+
         shared_queue:
-            Optional TensorQueue for shared memory fast path communication.
+            Optional :class:`TensorQueue` for the shared memory fast path.
+            When *transport_mode* is ``"cuda_ipc_pool"`` this queue should have
+            been constructed with a ``MmItemMemoryPool``; the ``TokenizerProcess``
+            initialises its own pool in that case.
         """
         self._recv_from_rr_addr = recv_from_rr_addr
         self._send_to_scheduler_addr = send_to_scheduler_addr
         self._tokenizer_cfg = tokenizer_cfg
         self._enable_shared_queue = tokenizer_cfg.get("enable_shared_queue", False)
         self._shared_queue = shared_queue
+
+        # Tensor transport configuration
+        self._transport_mode: TensorTransportMode = tokenizer_cfg.get(
+            "tensor_transport_mode", "default"
+        )
+        # Pool for cuda_ipc_pool mode – will be initialised lazily when the
+        # process first encounters a CUDA tensor.
+        self._ipc_pool: Optional[MmItemMemoryPool] = None
+        if self._transport_mode == "cuda_ipc_pool":
+            # The pool must be created inside the subprocess (after fork/spawn)
+            # because it allocates CUDA memory.  We defer to _ensure_pool().
+            pool_mb: int = int(tokenizer_cfg.get("cuda_ipc_pool_size_mb", 512))
+            recycle: float = float(tokenizer_cfg.get("cuda_ipc_recycle_interval", 0.1))
+            self._ipc_pool_size_mb = pool_mb
+            self._ipc_recycle_interval = recycle
 
         self._zmq_ctx: Optional[zmq.Context] = None
         self._recv_from_rr: Optional[zmq.Socket] = None
@@ -89,8 +128,9 @@ class TokenizerProcess:
     def event_loop(self) -> None:
         """Infinite loop: recv raw request -> tokenize -> send to scheduler."""
         logger.info(
-            "TokenizerProcess event loop started (shared_queue=%s)",
+            "TokenizerProcess event loop started (shared_queue=%s, transport=%s)",
             self._enable_shared_queue,
+            self._transport_mode,
         )
         while True:
             raw_request: Dict[str, Any] = self._recv_from_rr.recv_pyobj()
@@ -108,12 +148,19 @@ class TokenizerProcess:
     ) -> None:
         """Send tokenized request via shared memory + shared queue fast path.
 
-        Args:
-            tokenized: Either TokenizedGenerateReqInput dataclass or abort dict
+        GPU tensors inside ``mm_inputs`` are handled according to
+        ``self._transport_mode``:
+
+        * ``"default"``       – moved to CPU via ``share_memory_()`` by ``TensorQueue``.
+        * ``"cuda_ipc"``      – wrapped in :class:`TransportProxyTensor` (stays on GPU).
+        * ``"cuda_ipc_pool"`` – copied into the :class:`MmItemMemoryPool` workspace and
+          wrapped in :class:`CudaIpcTensorTransportProxy`.
+
+        Abort sentinel messages are forwarded via ZMQ (they are lightweight dicts).
         """
         # Handle abort sentinel
         if isinstance(tokenized, dict) and tokenized.get("abort"):
-            # Fallback to ZMQ for abort messages
+            # Fallback to ZMQ for abort messages (no tensor payload)
             self._send_to_scheduler.send_pyobj(tokenized)
             return
 
@@ -121,10 +168,14 @@ class TokenizerProcess:
             f"Expected TokenizedGenerateReqInput, got {type(tokenized)}"
         )
 
+        # Lazily initialise the CUDA IPC pool (must happen inside the subprocess)
+        if self._transport_mode == "cuda_ipc_pool":
+            self._ensure_pool()
+
         rid = tokenized.rid
         mm_inputs = tokenized.mm_inputs
 
-        # Create a lightweight metadata object (without mm_inputs)
+        # Create lightweight metadata object (mm_inputs sent separately via queue)
         metadata = TokenizedGenerateReqInput(
             rid=tokenized.rid,
             input_text=tokenized.input_text,
@@ -143,9 +194,73 @@ class TokenizerProcess:
         shm_name = SharedMemoryManager.write_metadata(rid, metadata)
 
         # Put (rid, shm_name, mm_inputs) into shared queue
+        # TensorQueue.put() handles wrapping mm_inputs based on transport_mode
         self._shared_queue.put(rid, shm_name, mm_inputs)
 
-        logger.debug(f"Sent request {rid} via shared queue (shm={shm_name})")
+        logger.debug(
+            "Sent request %s via shared queue (shm=%s, transport=%s)",
+            rid,
+            shm_name,
+            self._transport_mode,
+        )
+
+    # ------------------------------------------------------------------
+    # CUDA IPC pool initialisation (deferred to subprocess)
+    # ------------------------------------------------------------------
+
+    def _ensure_pool(self) -> None:
+        """Lazily create the MmItemMemoryPool inside the subprocess.
+
+        This is deferred because CUDA context creation must happen after
+        ``torch.multiprocessing.Process`` has started (post-fork/spawn).
+        Once the pool is created we update the shared queue's transport config
+        in-place so the same underlying ``multiprocessing.Queue`` object is reused
+        (both processes already hold a reference to it).
+        """
+        if self._ipc_pool is not None:
+            return
+        try:
+            import torch
+
+            if not torch.cuda.is_available():
+                logger.warning(
+                    "CUDA not available; falling back to transport_mode='default'"
+                )
+                self._transport_mode = "default"
+                if self._shared_queue is not None:
+                    self._shared_queue._transport_mode = "default"
+                return
+
+            pool_bytes = self._ipc_pool_size_mb * 1024 * 1024
+            device = torch.cuda.current_device()
+            self._ipc_pool = MmItemMemoryPool(
+                memory_size=pool_bytes,
+                recycle_interval=self._ipc_recycle_interval,
+                device=device,
+            )
+            # Update the shared queue's config in-place.
+            # Both processes share the same multiprocessing.Queue object, so we
+            # just update the wrapper's transport metadata; the underlying queue
+            # pipe is unchanged.
+            if self._shared_queue is not None:
+                self._shared_queue._transport_mode = self._transport_mode
+                self._shared_queue._pool = self._ipc_pool
+
+            logger.info(
+                "MmItemMemoryPool initialised: %d MB on cuda:%d",
+                self._ipc_pool_size_mb,
+                device,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to initialise MmItemMemoryPool: %s; "
+                "falling back to transport_mode='default'",
+                exc,
+                exc_info=True,
+            )
+            self._transport_mode = "default"
+            if self._shared_queue is not None:
+                self._shared_queue._transport_mode = "default"
 
     # ------------------------------------------------------------------
     # Tokenization and multimodal preprocessing
@@ -352,6 +467,8 @@ class TokenizerProcess:
         return mm
 
     def shutdown(self) -> None:
+        if self._ipc_pool is not None:
+            self._ipc_pool.shutdown()
         if self._recv_from_rr is not None:
             self._recv_from_rr.close()
         if self._send_to_scheduler is not None:

@@ -55,7 +55,7 @@ logging.level = "INFO"
 
 # Wheel configuration - include the Python package
 wheel.packages = ["mllm_kernel"]
-wheel.install-dir = "mllm_kernel"
+wheel.install-dir = ""
 
 # Install directories for cmake targets
 wheel.cmake = true

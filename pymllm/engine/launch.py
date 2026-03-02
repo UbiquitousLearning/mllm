@@ -26,7 +26,6 @@ from pymllm.orchestrator.request_response_process import (
     ReqState,
     RequestResponseProcess,
 )
-from pymllm.orchestrator.shared_memory_queue import TensorQueue
 from pymllm.orchestrator.tokenizer_process import run_tokenizer_process
 from pymllm.orchestrator.scheduler_process import run_scheduler_process
 from pymllm.orchestrator.model_runner_process import run_model_runner_process
@@ -80,13 +79,30 @@ class Engine:
         # Config dict for the tokenizer subprocess (must be picklable).
         cfg = get_global_config()
         enable_shared_queue = cfg.server.enable_shared_queue
+        transport_mode: str = (
+            cfg.server.tensor_transport_mode
+        )  # "default" | "cuda_ipc" | "cuda_ipc_pool"
 
-        # Create shared queue if enabled
+        # Create shared queue if enabled.
+        # Note: the MmItemMemoryPool (for "cuda_ipc_pool") is created *inside*
+        # the tokenizer subprocess after CUDA is initialised.  The queue here
+        # is constructed without a pool; TokenizerProcess._ensure_pool() will
+        # swap in a pool-aware queue at runtime.
         shared_queue = None
         if enable_shared_queue:
-            # TODO: WCH init CUDA IPC things.
-            shared_queue = TensorQueue(maxsize=1000)  # Configurable max size
-            logger.info("Shared memory queue enabled for fast IPC")
+            from pymllm.orchestrator.shared_memory_queue import TensorQueue as _TQ
+
+            # Construct with the configured transport mode.  The pool is not
+            # supplied here; it will be lazily initialised inside the subprocess.
+            shared_queue = _TQ(
+                maxsize=1000,
+                transport_mode=transport_mode,
+                pool=None,  # pool initialised lazily inside TokenizerProcess
+            )
+            logger.info(
+                "Shared memory queue enabled for fast IPC (transport_mode=%s)",
+                transport_mode,
+            )
 
         tokenizer_cfg: Dict[str, Any] = {
             "tokenizer_path": str(cfg.server.tokenizer_path),
@@ -95,6 +111,9 @@ class Engine:
             "context_length": cfg.server.context_length,
             "hf_config": cfg.model.hf_config,
             "enable_shared_queue": enable_shared_queue,
+            "tensor_transport_mode": transport_mode,
+            "cuda_ipc_pool_size_mb": cfg.server.cuda_ipc_pool_size_mb,
+            "cuda_ipc_recycle_interval": cfg.server.cuda_ipc_recycle_interval,
         }
 
         # Tokenizer
@@ -124,6 +143,7 @@ class Engine:
                 scheduler_writer,
                 shared_queue,  # Pass shared queue
                 enable_shared_queue,  # Pass flag
+                transport_mode,  # Pass tensor transport mode
             ),
             daemon=True,
         )

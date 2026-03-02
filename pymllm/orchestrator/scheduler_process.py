@@ -9,6 +9,10 @@ Supports two modes:
     1. Legacy ZMQ path: Receive TokenizedGenerateReqInput via ZMQ recv_pyobj
     2. Shared queue fast path: Read rid from shared queue and metadata from shared memory
 
+When the shared queue fast path is active the scheduler also handles CUDA IPC
+tensor reconstruction via
+:func:`~pymllm.orchestrator.cuda_ipc_transport.unwrap_mm_inputs_from_ipc`.
+
 The main ``event_loop`` scheduler flow::
 
     while True:
@@ -31,6 +35,10 @@ from typing import Any, Deque, Dict, List, Optional
 import zmq
 
 from pymllm.engine.io_struct import TokenizedGenerateReqInput
+from pymllm.orchestrator.cuda_ipc_transport import (
+    TensorTransportMode,
+    unwrap_mm_inputs_from_ipc,
+)
 from pymllm.orchestrator.ipc_utils import create_zmq_socket
 from pymllm.orchestrator.shared_memory_queue import SharedMemoryManager, TensorQueue
 
@@ -48,6 +56,7 @@ class SchedulerProcess:
         send_to_detokenizer_addr: str,
         shared_queue: Optional[TensorQueue] = None,
         enable_shared_queue: bool = False,
+        tensor_transport_mode: TensorTransportMode = "default",
     ):
         # ZMQ addresses
         self._recv_from_tokenizer_addr = recv_from_tokenizer_addr
@@ -58,6 +67,7 @@ class SchedulerProcess:
         # Shared queue configuration
         self._shared_queue = shared_queue
         self._enable_shared_queue = enable_shared_queue
+        self._tensor_transport_mode = tensor_transport_mode
 
         # ZMQ runtime objects (initialised in init_sockets)
         self._zmq_ctx: Optional[zmq.Context] = None
@@ -111,8 +121,9 @@ class SchedulerProcess:
     def event_loop(self) -> None:
         """Infinite scheduling loop."""
         logger.info(
-            "SchedulerProcess event loop started (shared_queue=%s)",
+            "SchedulerProcess event loop started (shared_queue=%s, transport=%s)",
             self._enable_shared_queue,
+            self._tensor_transport_mode,
         )
         while True:
             self.recv_requests()
@@ -163,10 +174,21 @@ class SchedulerProcess:
                 self._waiting_queue.append(msg)
 
     def _recv_from_shared_queue(self) -> None:
-        """Receive requests via shared memory + shared queue fast path."""
+        """Receive requests via shared memory + shared queue fast path.
+
+        After reading a ``(rid, shm_name, mm_inputs)`` tuple from the queue:
+        1. The tokenized metadata is read from the POSIX shared memory segment.
+        2. If CUDA IPC is enabled, ``mm_inputs`` may contain
+           :class:`~pymllm.orchestrator.cuda_ipc_transport.CudaIpcTensorTransportProxy`
+           or :class:`~pymllm.orchestrator.cuda_ipc_transport.TransportProxyTensor`
+           objects that are reconstructed by calling
+           :func:`~pymllm.orchestrator.cuda_ipc_transport.unwrap_mm_inputs_from_ipc`.
+           This step also increments sync flags so the sender can recycle pool chunks.
+        3. A full ``TokenizedGenerateReqInput`` is assembled and appended to
+           ``_waiting_queue``.
+        """
         while True:
             try:
-                # Non-blocking get from shared queue
                 rid, shm_name, mm_inputs = self._shared_queue.get(timeout=0.0001)
 
                 # Read metadata from shared memory (and unlink immediately)
@@ -174,12 +196,16 @@ class SchedulerProcess:
                     shm_name, unlink=True
                 )
 
-                # Reconstruct the full TokenizedGenerateReqInput with mm_inputs
+                # Reconstruct GPU tensors from CUDA IPC handles (if any)
+                if self._tensor_transport_mode in ("cuda_ipc", "cuda_ipc_pool"):
+                    mm_inputs = unwrap_mm_inputs_from_ipc(mm_inputs)
+
+                # Reassemble the full request
                 full_request = TokenizedGenerateReqInput(
                     rid=metadata.rid,
                     input_text=metadata.input_text,
                     input_ids=metadata.input_ids,
-                    mm_inputs=mm_inputs,  # Restored from shared queue
+                    mm_inputs=mm_inputs,
                     sampling_params=metadata.sampling_params,
                     stream=metadata.stream,
                     return_logprob=metadata.return_logprob,
@@ -190,18 +216,18 @@ class SchedulerProcess:
                 )
 
                 self._waiting_queue.append(full_request)
-                logger.debug(f"Received request {rid} from shared queue")
+                logger.debug("Received request %s from shared queue", rid)
 
             except stdlib_queue.Empty:
-                # No more requests available
                 break
-            except Exception as e:
-                logger.error(f"Error receiving from shared queue: {e}", exc_info=True)
-                # Try to cleanup shared memory if possible
+            except Exception as exc:
+                logger.error(
+                    "Error receiving from shared queue: %s", exc, exc_info=True
+                )
                 try:
                     if "shm_name" in locals():
                         SharedMemoryManager.cleanup(shm_name)
-                except:
+                except Exception:
                     pass
                 break
 
@@ -310,6 +336,7 @@ def run_scheduler_process(
     pipe_writer: Connection,
     shared_queue: Optional[TensorQueue] = None,
     enable_shared_queue: bool = False,
+    tensor_transport_mode: TensorTransportMode = "default",
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
     proc = SchedulerProcess(
@@ -319,6 +346,7 @@ def run_scheduler_process(
         send_to_detokenizer_addr,
         shared_queue=shared_queue,
         enable_shared_queue=enable_shared_queue,
+        tensor_transport_mode=tensor_transport_mode,
     )
     proc.init_sockets()
 
