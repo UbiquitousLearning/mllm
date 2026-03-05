@@ -858,6 +858,48 @@ TEST_F(FlashAttn2KernelTest, fwd_bshd) {
 #endif
 
 //===----------------------------------------------------------------------===//
+// Tanh
+//===----------------------------------------------------------------------===//
+#include "TanhKernelTest.hpp"
+TEST_F(TanhKernelTest, TanhFloat32) { EXPECT_EQ(testTanh({{8}, {2, 3, 4}}), true); }
+
+//===----------------------------------------------------------------------===//
+// ConvTranspose1D
+//===----------------------------------------------------------------------===//
+#include "ConvTranspose1DKernelTest.hpp"
+TEST_F(ConvTranspose1DKernelTest, Basic) {
+  EXPECT_EQ(testConvTranspose1D({
+                {
+                    {"batch", 1},
+                    {"in_channel", 2},
+                    {"out_channel", 3},
+                    {"sequence", 4},
+                    {"kernel_size", 3},
+                    {"stride", 2},
+                    {"padding", 1},
+                    {"output_padding", 0},
+                    {"dilation", 1},
+                    {"groups", 1},
+                    {"bias", 1},
+                },
+                {
+                    {"batch", 2},
+                    {"in_channel", 1},
+                    {"out_channel", 2},
+                    {"sequence", 5},
+                    {"kernel_size", 2},
+                    {"stride", 1},
+                    {"padding", 0},
+                    {"output_padding", 0},
+                    {"dilation", 1},
+                    {"groups", 1},
+                    {"bias", 0},
+                },
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
 // Conv2D Test
 //
 // auto in_channel = cfg.at("in_channel");
