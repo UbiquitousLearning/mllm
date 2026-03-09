@@ -4,6 +4,7 @@ Provides helpers to generate unique IPC addresses and create pre-configured
 ZMQ sockets so that every process uses the same conventions.
 """
 
+import logging
 import os
 import tempfile
 from typing import Optional
@@ -68,3 +69,24 @@ def close_zmq_socket(sock: zmq.Socket) -> None:
         sock.close()
     except zmq.ZMQError:
         pass
+
+
+def setup_subprocess_logging(log_level: str = "info") -> None:
+    """Configure logging for a spawned subprocess.
+
+    When Python spawns a subprocess (``mp.set_start_method('spawn')``), the
+    child starts with a blank logging configuration.  Call this function at the
+    very beginning of every subprocess entry point so that log records are
+    emitted at the correct level.
+
+    Parameters
+    ----------
+    log_level
+        Case-insensitive level name, e.g. ``"debug"``, ``"info"``, ``"warning"``.
+    """
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    logging.getLogger("pymllm").setLevel(level)

@@ -40,18 +40,12 @@ class ServerConfig:
     max_queued_requests: Optional[int] = None
     max_total_tokens: Optional[int] = None
     chunked_prefill_size: Optional[int] = None
-    max_prefill_tokens: int = None
+    max_prefill_tokens: Optional[int] = None
     schedule_policy: Literal["auto", "fcfs"] = "fcfs"
     schedule_conservativeness: float = 1.0
     sleep_on_idle: bool = False
     stream_interval: int = 1
     stream_output: bool = True
-
-    # --------------------------------------------------------------------- #
-    # Threads
-    # --------------------------------------------------------------------- #
-    enable_disk_io_async: bool = False
-    disk_io_async_thread_count: int = 1
 
     # --------------------------------------------------------------------- #
     # Device
@@ -62,11 +56,18 @@ class ServerConfig:
     # Backend / acceleration
     # --------------------------------------------------------------------- #
     attention_backend: Literal["auto", "flashinfer"] = "auto"
+    gdn_decode_backend: Literal["auto", "flashinfer", "mllm_kernel", "pytorch"] = "auto"
     sampling_backend: Optional[str] = None
     disable_cuda_graph: bool = False
-    enable_torch_compile: bool = True
+    enable_torch_compile: bool = False
     torch_compile_max_bs: int = 32
     random_seed: Optional[int] = 42
+
+    # --------------------------------------------------------------------- #
+    # Output parsers (reasoning / tool calls)
+    # --------------------------------------------------------------------- #
+    reasoning_parser: Optional[str] = None   # e.g. "deepseek-r1", "qwen3"
+    tool_call_parser: Optional[str] = None   # e.g. "qwen25", "llama3", "hermes"
 
     # --------------------------------------------------------------------- #
     # Logging and observability
@@ -74,11 +75,15 @@ class ServerConfig:
     log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
     enable_metrics: bool = False
     show_time_cost: bool = False
+    # Log prefill/decode throughput stats every N decode batches (0 = disabled)
+    decode_log_interval: int = 40
 
     # --------------------------------------------------------------------- #
     # Feature switches
     # --------------------------------------------------------------------- #
     enable_shared_queue: bool = False  # Use shared memory queue for fast IPC
+    disable_radix_cache: bool = False  # Disable radix-tree prefix caching
+    radix_cache_page_size: int = 1  # Number of tokens per KV-pool page in RadixCache
 
     # CUDA IPC transport for multimodal GPU tensors.
     # Requires enable_shared_queue=True to take effect.
@@ -161,5 +166,7 @@ class ServerConfig:
             raise ValueError("`max_running_requests` must be > 0 when set.")
         if self.max_queued_requests is not None and self.max_queued_requests < 0:
             raise ValueError("`max_queued_requests` must be >= 0 when set.")
+        if self.radix_cache_page_size < 1:
+            raise ValueError("`radix_cache_page_size` must be >= 1.")
         if self.schedule_conservativeness <= 0:
             raise ValueError("`schedule_conservativeness` must be > 0.")

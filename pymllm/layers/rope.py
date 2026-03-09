@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 import flashinfer
@@ -44,7 +44,10 @@ def apply_rope(
     """
     if inplace:
         flashinfer.rope.apply_rope_inplace(
-            q, k, indptr, offsets,
+            q,
+            k,
+            indptr,
+            offsets,
             rotary_dim=rotary_dim,
             interleave=interleave,
             rope_scale=rope_scale,
@@ -53,7 +56,10 @@ def apply_rope(
         return None
 
     return flashinfer.rope.apply_rope(
-        q, k, indptr, offsets,
+        q,
+        k,
+        indptr,
+        offsets,
         rotary_dim=rotary_dim,
         interleave=interleave,
         rope_scale=rope_scale,
@@ -102,7 +108,10 @@ def apply_llama31_rope(
     """
     if inplace:
         flashinfer.rope.apply_llama31_rope_inplace(
-            q, k, indptr, offsets,
+            q,
+            k,
+            indptr,
+            offsets,
             rotary_dim=rotary_dim,
             interleave=interleave,
             rope_scale=rope_scale,
@@ -114,7 +123,10 @@ def apply_llama31_rope(
         return None
 
     return flashinfer.rope.apply_llama31_rope(
-        q, k, indptr, offsets,
+        q,
+        k,
+        indptr,
+        offsets,
         rotary_dim=rotary_dim,
         interleave=interleave,
         rope_scale=rope_scale,
@@ -156,7 +168,9 @@ def apply_rope_pos_ids(
     """
     if inplace:
         flashinfer.rope.apply_rope_pos_ids_inplace(
-            q, k, pos_ids,
+            q,
+            k,
+            pos_ids,
             rotary_dim=rotary_dim,
             interleave=interleave,
             rope_scale=rope_scale,
@@ -165,7 +179,9 @@ def apply_rope_pos_ids(
         return None
 
     return flashinfer.rope.apply_rope_pos_ids(
-        q, k, pos_ids,
+        q,
+        k,
+        pos_ids,
         rotary_dim=rotary_dim,
         interleave=interleave,
         rope_scale=rope_scale,
@@ -208,7 +224,9 @@ def apply_llama31_rope_pos_ids(
     """
     if inplace:
         flashinfer.rope.apply_llama31_rope_pos_ids_inplace(
-            q, k, pos_ids,
+            q,
+            k,
+            pos_ids,
             rotary_dim=rotary_dim,
             interleave=interleave,
             rope_scale=rope_scale,
@@ -220,7 +238,9 @@ def apply_llama31_rope_pos_ids(
         return None
 
     return flashinfer.rope.apply_llama31_rope_pos_ids(
-        q, k, pos_ids,
+        q,
+        k,
+        pos_ids,
         rotary_dim=rotary_dim,
         interleave=interleave,
         rope_scale=rope_scale,
@@ -265,12 +285,117 @@ def apply_rope_with_cos_sin_cache(
     """
     if inplace:
         flashinfer.rope.apply_rope_with_cos_sin_cache_inplace(
-            positions, query, key, head_size, cos_sin_cache,
+            positions,
+            query,
+            key,
+            head_size,
+            cos_sin_cache,
             is_neox=is_neox,
         )
         return None
 
     return flashinfer.rope.apply_rope_with_cos_sin_cache(
-        positions, query, key, head_size, cos_sin_cache,
+        positions,
+        query,
+        key,
+        head_size,
+        cos_sin_cache,
         is_neox=is_neox,
     )
+
+
+def _rotate_half(x: torch.Tensor) -> torch.Tensor:
+    """Rotate the second half of the last dimension into the first half (neox-style)."""
+    half = x.shape[-1] // 2
+    return torch.cat((-x[..., half:], x[..., :half]), dim=-1)
+
+
+def apply_mrope(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    positions: torch.Tensor,
+    cos_sin_cache: torch.Tensor,
+    mrope_section: List[int],
+    mrope_interleaved: bool = True,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Apply multi-dimensional rotary position embedding (M-RoPE).
+
+    Used by Qwen3-VL which assigns independent (t, h, w) position indices to
+    each token.  For text tokens all three indices are the same sequential
+    value; for image tokens they follow the spatial grid layout.
+
+    Args:
+        q: Query tensor, shape ``(T, num_q_heads, head_dim)``.
+        k: Key tensor, shape ``(T, num_kv_heads, head_dim)``.
+        positions: 3-D position IDs, shape ``(3, T)`` — rows are
+            ``(temporal, height, width)`` position indices.
+        cos_sin_cache: Precomputed cache, shape ``(max_pos, head_dim)``.
+            The first ``head_dim // 2`` columns are cosine values and the
+            remaining columns are sine values, each for frequencies
+            ``0, 1, ..., head_dim // 2 - 1``.
+        mrope_section: Three integers ``[s_t, s_h, s_w]`` that partition
+            the ``head_dim // 2`` rotary frequency dimensions among the
+            temporal, height, and width components.
+            ``sum(mrope_section)`` must equal ``head_dim // 2``.
+        mrope_interleaved: When ``True`` (Qwen3-VL default), uses the
+            interleaved layout where frequency dimensions are cycled
+            ``(t, h, w, t, h, w, ...)`` rather than grouped consecutively.
+
+    Returns:
+        ``(q_rope, k_rope)`` with the same shapes as the inputs.
+    """
+    rotary_dim = cos_sin_cache.shape[-1]  # = head_dim
+    half_dim = rotary_dim // 2
+
+    # Look up cos/sin for each of the 3 position dimensions.
+    # positions: [3, T]  =>  cos_sin: [3, T, rotary_dim]
+    cos_sin = cos_sin_cache[positions]
+    cos = cos_sin[..., :half_dim]  # [3, T, half_dim]
+    sin = cos_sin[..., half_dim:]  # [3, T, half_dim]
+
+    if mrope_interleaved:
+        # Interleaved layout (Qwen3-VL): within the first
+        # mrope_section[1]*3 frequency dims, indices cycle (t, h, w).
+        # Remaining dims (indices >= span) all use the temporal position.
+        # Matches SGLang's apply_interleaved_rope.
+        cos_merged = cos[0].clone()  # start with temporal; shape [T, half_dim]
+        sin_merged = sin[0].clone()
+        span_h = mrope_section[1] * 3
+        span_w = mrope_section[2] * 3
+        cos_merged[..., 1:span_h:3] = cos[1, ..., 1:span_h:3]
+        cos_merged[..., 2:span_w:3] = cos[2, ..., 2:span_w:3]
+        sin_merged[..., 1:span_h:3] = sin[1, ..., 1:span_h:3]
+        sin_merged[..., 2:span_w:3] = sin[2, ..., 2:span_w:3]
+    else:
+        # Non-interleaved (Qwen2-VL style): consecutive frequency sections.
+        cos_sects = cos.split(mrope_section, dim=-1)  # list of [T, s_i]
+        sin_sects = sin.split(mrope_section, dim=-1)
+        # Section i picks its cos/sin from positions[i]
+        cos_merged = torch.cat(
+            [cos_sects[i][i] for i in range(3)], dim=-1
+        )  # [T, half_dim]
+        sin_merged = torch.cat(
+            [sin_sects[i][i] for i in range(3)], dim=-1
+        )  # [T, half_dim]
+
+    # Expand to full rotary_dim for the neox-style rotation formula:
+    # q_rot = q * cos_full + rotate_half(q) * sin_full
+    cos_full = cos_merged.repeat(1, 2)  # [T, rotary_dim]
+    sin_full = sin_merged.repeat(1, 2)  # [T, rotary_dim]
+    cos_4d = cos_full.unsqueeze(1)  # [T, 1, rotary_dim] -- broadcasts over heads
+    sin_4d = sin_full.unsqueeze(1)
+
+    q_rot = q[..., :rotary_dim] * cos_4d + _rotate_half(q[..., :rotary_dim]) * sin_4d
+    k_rot = k[..., :rotary_dim] * cos_4d + _rotate_half(k[..., :rotary_dim]) * sin_4d
+
+    q_out = (
+        torch.cat([q_rot, q[..., rotary_dim:]], dim=-1)
+        if rotary_dim < q.shape[-1]
+        else q_rot
+    )
+    k_out = (
+        torch.cat([k_rot, k[..., rotary_dim:]], dim=-1)
+        if rotary_dim < k.shape[-1]
+        else k_rot
+    )
+    return q_out, k_out

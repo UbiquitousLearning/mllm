@@ -65,8 +65,12 @@ class RequestResponseProcess:
 
         self._loop_task: Optional[asyncio.Task] = None
 
-    def start(self, loop: asyncio.AbstractEventLoop) -> None:
-        """Kick off the background send/recv tasks on *loop*."""
+    def start(self) -> None:
+        """Bind ZMQ sockets.  Background tasks are started lazily by
+        :meth:`listen` on the first :meth:`add_request` call, so they
+        always run on the correct event loop regardless of whether the
+        caller is uvicorn, ``loop.run_until_complete``, or anything else.
+        """
         self._zmq_ctx = zmq.asyncio.Context()
         self._send_to_tokenizer = create_zmq_socket(
             self._zmq_ctx,
@@ -80,7 +84,20 @@ class RequestResponseProcess:
             self._recv_from_detokenizer_addr,
             bind=True,
         )
+
+    def listen(self) -> None:
+        """Start the send/recv background tasks on the **current** running
+        event loop.  Idempotent — subsequent calls are no-ops while the
+        tasks are still alive.
+
+        Called automatically by :meth:`add_request`, so callers never need
+        to invoke this directly.
+        """
+        if self._loop_task is not None and not self._loop_task.done():
+            return
+        loop = asyncio.get_running_loop()
         self._loop_task = loop.create_task(self._run())
+        logger.debug("RequestResponseProcess: background tasks started")
 
     async def add_request(
         self, request: GenerateReqInput
@@ -98,6 +115,8 @@ class RequestResponseProcess:
         Callers should ``await state.event.wait()`` in a loop, consuming
         ``state.out_list`` entries until ``state.finished`` is ``True``.
         """
+        self.listen()
+
         if request.is_single:
             rid = request.rid if isinstance(request.rid, str) else request.rid[0]
             state = ReqState()

@@ -83,6 +83,10 @@ class KVPool:
         self.device = torch.device(device)
         self.dtype = dtype
 
+        # pin_memory only applies to CPU tensors
+        if self.device.type != "cpu":
+            pin_memory = False
+
         buf_len = size + 1  # slot 0 is padding
 
         if buf_len % 8 != 0:
@@ -470,6 +474,161 @@ def make_full_attention_net_mem_pool(
         need_sort=need_sort,
     )
     return pool, allocator
+
+
+class GDNPool:
+    """Pre-allocated memory pool for GDN recurrent and conv states.
+
+    Indexed by ``req_pool_idx`` (same index space as :class:`ReqToTokenPool`).
+    Slot 0 is reserved as a padding / dummy slot and is never allocated.
+
+    Layout::
+
+        recurrent_state[gdn_layer_idx, slot, num_v_heads, head_k_dim, head_v_dim]
+            float32 (FlashInfer requirement)
+        conv_state[gdn_layer_idx, slot, conv_dim, kernel_size - 1]
+            model dtype (bfloat16 / float16)
+
+    Parameters
+    ----------
+    max_reqs : int
+        Maximum number of concurrent requests (matches ``ReqToTokenPool.size``).
+    num_gdn_layers : int
+        Number of GDN (linear attention) layers in the model.
+    num_v_heads : int
+        Number of value heads per GDN layer.
+    head_k_dim : int
+        Per-head key dimension.
+    head_v_dim : int
+        Per-head value dimension.
+    conv_dim : int
+        Total convolution input dimension (``key_dim * 2 + value_dim``).
+    conv_kernel_size : int
+        Causal conv1d kernel width (state stores ``kernel_size - 1`` columns).
+    device : str | torch.device
+        Target device.
+    dtype : torch.dtype
+        Storage dtype for conv_state (recurrent_state is always float32).
+    """
+
+    def __init__(
+        self,
+        max_reqs: int,
+        num_gdn_layers: int,
+        num_v_heads: int,
+        head_k_dim: int,
+        head_v_dim: int,
+        conv_dim: int,
+        conv_kernel_size: int,
+        device: Union[str, torch.device] = "cuda",
+        dtype: torch.dtype = torch.bfloat16,
+        max_track_slots: int = 0,
+    ):
+        self.max_reqs = max_reqs
+        self.num_gdn_layers = num_gdn_layers
+        self.num_v_heads = num_v_heads
+        self.head_k_dim = head_k_dim
+        self.head_v_dim = head_v_dim
+        self.conv_dim = conv_dim
+        self.conv_kernel_size = conv_kernel_size
+        self.device = torch.device(device)
+        self.dtype = dtype
+        self.max_track_slots = max_track_slots
+
+        # Track slots live after the working slots: indices
+        # [max_reqs + 1, max_reqs + 1 + max_track_slots)
+        pool_size = max_reqs + 1 + max_track_slots  # slot 0 is padding
+
+        # Recurrent state: always float32 (FlashInfer requirement)
+        # Shape: [num_gdn_layers, pool_size, num_v_heads, head_v_dim, head_k_dim]
+        # Note: FlashInfer uses (V, K) layout for the state matrix
+        self.recurrent_state = torch.zeros(
+            (num_gdn_layers, pool_size, num_v_heads, head_v_dim, head_k_dim),
+            dtype=torch.float32,
+            device=self.device,
+        )
+
+        # Conv state: model dtype
+        # Shape: [num_gdn_layers, pool_size, conv_dim, kernel_size - 1]
+        self.conv_state = torch.zeros(
+            (num_gdn_layers, pool_size, conv_dim, conv_kernel_size - 1),
+            dtype=dtype,
+            device=self.device,
+        )
+
+        # Track-slot free list (indices into the pool starting after working slots)
+        self._track_slot_base = max_reqs + 1
+        self._free_track_slots: List[int] = list(
+            range(self._track_slot_base, self._track_slot_base + max_track_slots)
+        )
+
+        logger.info(
+            "GDNPool allocated: %d GDN layers, %d working + %d track slots, "
+            "v_heads=%d, k_dim=%d, v_dim=%d, conv_dim=%d, kernel=%d, %.2f GB",
+            num_gdn_layers,
+            max_reqs,
+            max_track_slots,
+            num_v_heads,
+            head_k_dim,
+            head_v_dim,
+            conv_dim,
+            conv_kernel_size,
+            self.mem_bytes() / (1 << 30),
+        )
+
+    def get_layer_state(
+        self, gdn_layer_idx: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Return ``(recurrent_state, conv_state)`` for a specific GDN layer.
+
+        Both are views into the pool tensors with shape:
+        - recurrent: ``[pool_size, num_v_heads, head_v_dim, head_k_dim]``
+        - conv: ``[pool_size, conv_dim, kernel_size - 1]``
+        """
+        return (
+            self.recurrent_state[gdn_layer_idx],
+            self.conv_state[gdn_layer_idx],
+        )
+
+    def reset_states(self, req_pool_indices: torch.Tensor) -> None:
+        """Zero-init GDN states for the given request pool indices.
+
+        Called when new requests are allocated to ensure clean state.
+        """
+        if req_pool_indices.numel() == 0:
+            return
+        # Zero both recurrent and conv states for all GDN layers
+        self.recurrent_state[:, req_pool_indices] = 0
+        self.conv_state[:, req_pool_indices] = 0
+
+    # ------------------------------------------------------------------
+    # Track-slot management (for prefix cache GDN state snapshots)
+    # ------------------------------------------------------------------
+
+    def alloc_track_slot(self) -> Optional[int]:
+        """Allocate a single track slot index.  Returns ``None`` if exhausted."""
+        if not self._free_track_slots:
+            return None
+        return self._free_track_slots.pop()
+
+    def free_track_slot(self, slot: int) -> None:
+        """Return a track slot to the free list."""
+        self._free_track_slots.append(slot)
+
+    def copy_states(self, src_index: int, dst_index: int) -> None:
+        """Copy recurrent and conv states from *src_index* to *dst_index*.
+
+        Works for any pool indices (working or track slots).
+        """
+        self.recurrent_state[:, dst_index] = self.recurrent_state[:, src_index]
+        self.conv_state[:, dst_index] = self.conv_state[:, src_index]
+
+    def mem_bytes(self) -> int:
+        """Total memory consumption in bytes."""
+        return (
+            self.recurrent_state.nelement() * self.recurrent_state.element_size()
+            + self.conv_state.nelement() * self.conv_state.element_size()
+        )
 
 
 def make_req_to_token_pool(
