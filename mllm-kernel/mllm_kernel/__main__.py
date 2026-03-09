@@ -388,7 +388,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     parser = argparse.ArgumentParser(
-        prog="python -m mllm_kernel",
+        prog="mllm_kernel",
         description="mllm-kernel helper commands.",
     )
     parser.add_argument(
