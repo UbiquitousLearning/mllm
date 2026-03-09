@@ -28,11 +28,101 @@ from pymllm.orchestrator.request_response_process import (
 )
 from pymllm.orchestrator.tokenizer_process import run_tokenizer_process
 from pymllm.orchestrator.scheduler_process import run_scheduler_process
-from pymllm.orchestrator.model_runner_process import run_model_runner_process
 from pymllm.orchestrator.detokenizer_process import run_detokenizer_process
-from pymllm.orchestrator.async_disk_io_process import run_async_disk_io_process
 
 logger = logging.getLogger(__name__)
+
+# Standard HuggingFace config fields that indicate max output tokens,
+# checked in priority order.
+_MAX_NEW_TOKENS_FIELDS = (
+    "max_new_tokens",
+    "max_tokens",
+    "max_completion_tokens",
+)
+
+
+def _normalize_eos_raw(raw) -> List[int]:
+    """Normalize a raw eos_token_id value (int, list, or None) to a list."""
+    if raw is None:
+        return []
+    if isinstance(raw, int):
+        return [raw]
+    if isinstance(raw, (list, tuple)):
+        return [x for x in raw if isinstance(x, int)]
+    return []
+
+
+def _get_eos_token_ids(hf_config, model_path=None) -> List[int]:
+    """Extract EOS token ID(s) from a HuggingFace model config.
+
+    Searches in priority order:
+    1. ``hf_config.eos_token_id`` (top-level, standard models)
+    2. ``hf_config.text_config.eos_token_id`` (VL / multimodal models)
+    3. ``generation_config.json`` (many models store EOS here)
+    4. ``tokenizer_config.json`` via AutoTokenizer (last resort)
+    """
+    if hf_config is None:
+        return []
+
+    # 1. Top-level config
+    ids = _normalize_eos_raw(getattr(hf_config, "eos_token_id", None))
+    if ids:
+        return ids
+
+    # 2. Nested text_config (VL / multimodal models like Qwen3-VL)
+    text_config = getattr(hf_config, "text_config", None)
+    if text_config is not None:
+        ids = _normalize_eos_raw(getattr(text_config, "eos_token_id", None))
+        if ids:
+            return ids
+
+    # 3. generation_config.json (lightweight, just reads a JSON file)
+    if model_path is not None:
+        try:
+            from transformers import GenerationConfig
+
+            gen_cfg = GenerationConfig.from_pretrained(str(model_path))
+            ids = _normalize_eos_raw(getattr(gen_cfg, "eos_token_id", None))
+            if ids:
+                logger.info("EOS token IDs from generation_config.json: %s", ids)
+                return ids
+        except Exception:
+            pass
+
+    # 4. Tokenizer (last resort)
+    if model_path is not None:
+        try:
+            from transformers import AutoTokenizer
+
+            tok = AutoTokenizer.from_pretrained(str(model_path), trust_remote_code=True)
+            if tok.eos_token_id is not None:
+                ids = [tok.eos_token_id]
+                logger.info("EOS token ID from tokenizer: %s", ids)
+                return ids
+        except Exception:
+            pass
+
+    return []
+
+
+def _get_model_default_max_new_tokens(hf_config) -> Optional[int]:
+    """Extract max output token limit from a HuggingFace model config.
+
+    Checks standard fields in priority order.  Returns ``None`` when the
+    config does not specify any recognised output-length field.
+    """
+    if hf_config is None:
+        return None
+    for field_name in _MAX_NEW_TOKENS_FIELDS:
+        value = getattr(hf_config, field_name, None)
+        if value is not None and isinstance(value, int) and value > 0:
+            logger.info(
+                "Using model config %s=%d as default max_new_tokens",
+                field_name,
+                value,
+            )
+            return value
+    return None
 
 
 class Engine:
@@ -59,20 +149,12 @@ class Engine:
         addr_tokenizer_to_scheduler: str = make_ipc_address(
             "tokenizer_to_scheduler", uid
         )
-        addr_scheduler_to_model_runner: str = make_ipc_address(
-            "scheduler_to_model_runner", uid
-        )
-        addr_model_runner_to_scheduler: str = make_ipc_address(
-            "model_runner_to_scheduler", uid
-        )
         addr_scheduler_to_detokenizer: str = make_ipc_address(
             "scheduler_to_detokenizer", uid
         )
         addr_detokenizer_to_request_response: str = make_ipc_address(
             "detokenizer_to_request_response", uid
         )
-        addr_scheduler_to_disk_io: str = make_ipc_address("scheduler_to_disk_io", uid)
-
         # Record all subprocesses
         procs_and_readers: List[tuple] = []
 
@@ -114,6 +196,7 @@ class Engine:
             "tensor_transport_mode": transport_mode,
             "cuda_ipc_pool_size_mb": cfg.server.cuda_ipc_pool_size_mb,
             "cuda_ipc_recycle_interval": cfg.server.cuda_ipc_recycle_interval,
+            "log_level": cfg.server.log_level,
         }
 
         # Tokenizer
@@ -131,38 +214,43 @@ class Engine:
         )
         procs_and_readers.append((tokenizer_proc, tokenizer_reader, "tokenizer"))
 
-        # Scheduler
+        # Determine default max_new_tokens from model config (if available)
+        model_max_new_tokens = _get_model_default_max_new_tokens(
+            cfg.model.hf_config
+        )
+        scheduler_kwargs = {}
+        if model_max_new_tokens is not None:
+            scheduler_kwargs["default_max_new_tokens"] = model_max_new_tokens
+
+        # Extract EOS token ID(s) from model config
+        eos_token_ids = _get_eos_token_ids(cfg.model.hf_config, model_path=cfg.server.model_path)
+        if eos_token_ids:
+            scheduler_kwargs["eos_token_ids"] = eos_token_ids
+            logger.info("EOS token IDs for scheduler: %s", eos_token_ids)
+
+        # Model runner config — passed to the scheduler process which now
+        # owns the model runner in-process (sglang-style architecture).
+        scheduler_kwargs["server_config"] = cfg.server
+        scheduler_kwargs["model_config"] = cfg.model
+        scheduler_kwargs["gpu_id"] = cfg.server.base_gpu_id
+
+        # Scheduler (+ in-process model runner)
         scheduler_reader, scheduler_writer = mp.Pipe(duplex=False)
         scheduler_proc = mp.Process(
             target=run_scheduler_process,
             args=(
                 addr_tokenizer_to_scheduler,
-                addr_scheduler_to_model_runner,
-                addr_model_runner_to_scheduler,
                 addr_scheduler_to_detokenizer,
                 scheduler_writer,
                 shared_queue,  # Pass shared queue
                 enable_shared_queue,  # Pass flag
                 transport_mode,  # Pass tensor transport mode
+                cfg.server.log_level,  # Pass log level
             ),
+            kwargs=scheduler_kwargs,
             daemon=True,
         )
         procs_and_readers.append((scheduler_proc, scheduler_reader, "scheduler"))
-
-        # Model Runner
-        model_runner_reader, model_runner_writer = mp.Pipe(duplex=False)
-        model_runner_proc = mp.Process(
-            target=run_model_runner_process,
-            args=(
-                addr_scheduler_to_model_runner,
-                addr_model_runner_to_scheduler,
-                model_runner_writer,
-            ),
-            daemon=True,
-        )
-        procs_and_readers.append(
-            (model_runner_proc, model_runner_reader, "model_runner")
-        )
 
         # Detokenizer
         detokenizer_reader, detokenizer_writer = mp.Pipe(duplex=False)
@@ -172,20 +260,11 @@ class Engine:
                 addr_scheduler_to_detokenizer,
                 addr_detokenizer_to_request_response,
                 detokenizer_writer,
+                tokenizer_cfg,
             ),
             daemon=True,
         )
         procs_and_readers.append((detokenizer_proc, detokenizer_reader, "detokenizer"))
-
-        # Async Disk I/O
-        if get_global_config().server.enable_disk_io_async:
-            disk_io_reader, disk_io_writer = mp.Pipe(duplex=False)
-            disk_io_proc = mp.Process(
-                target=run_async_disk_io_process,
-                args=(addr_scheduler_to_disk_io, disk_io_writer),
-                daemon=True,
-            )
-            procs_and_readers.append((disk_io_proc, disk_io_reader, "async_disk_io"))
 
         # Start all subprocesses
         for proc, _, name in procs_and_readers:
@@ -203,20 +282,15 @@ class Engine:
                 raise RuntimeError(f"{name} process failed to initialise: {msg}")
             logger.info("%s process ready", name)
 
-        # RR Process is current main process
+        # RR Process is current main process — only bind ZMQ sockets here.
+        # Background tasks are started lazily by listen() on the first
+        # add_request(), so they always run on the correct event loop.
         self._rr_process = RequestResponseProcess(
             send_to_tokenizer_addr=addr_request_response_to_tokenizer,
             recv_from_detokenizer_addr=addr_detokenizer_to_request_response,
         )
-
-        try:
-            self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-
-        self._rr_process.start(self._loop)
-        logger.info("RequestResponseProcess started in main process")
+        self._rr_process.start()
+        logger.info("RequestResponseProcess sockets bound")
 
         # Print colorful gradient ASCII art banner
         if HAS_BANNER_LIBS:
@@ -296,7 +370,12 @@ class Engine:
             )
             return list(outputs)
 
-        return self._loop.run_until_complete(_run())
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_run())
 
     async def generate_async(
         self,
@@ -354,10 +433,15 @@ class Engine:
                 else:
                     yield await self._wait_for_final_result(single_rid, state)
             finally:
-                self._rr_process.remove_state(single_rid)
+                if not state.finished:
+                    logger.info("Aborting request %s (client disconnected)", single_rid)
+                    await self._rr_process.abort_request(single_rid)
+                else:
+                    self._rr_process.remove_state(single_rid)
         else:
             rids_list: List[str] = rid if isinstance(rid, list) else [rid]  # type: ignore[assignment]
             states: List[ReqState] = result  # type: ignore[assignment]
+            _bg_tasks: List[asyncio.Task] = []
             try:
                 if stream:
                     # Merge streams from all sub-requests using an asyncio queue.
@@ -368,18 +452,18 @@ class Engine:
                             await queue.put(chunk)
                         await queue.put(None)  # sentinel
 
-                    tasks = [
+                    _bg_tasks = [
                         asyncio.create_task(_forward(r, s))
                         for r, s in zip(rids_list, states)
                     ]
                     done_count = 0
-                    while done_count < len(tasks):
+                    while done_count < len(_bg_tasks):
                         item = await queue.get()
                         if item is None:
                             done_count += 1
                         else:
                             yield item
-                    await asyncio.gather(*tasks)
+                    await asyncio.gather(*_bg_tasks)
                 else:
                     for coro in asyncio.as_completed(
                         [
@@ -389,8 +473,14 @@ class Engine:
                     ):
                         yield await coro
             finally:
-                for r in rids_list:
-                    self._rr_process.remove_state(r)
+                for t in _bg_tasks:
+                    t.cancel()
+                for r, s in zip(rids_list, states):
+                    if not s.finished:
+                        logger.info("Aborting request %s (client disconnected)", r)
+                        await self._rr_process.abort_request(r)
+                    else:
+                        self._rr_process.remove_state(r)
 
     @staticmethod
     async def _wait_for_final_result(rid: str, state: ReqState) -> Dict[str, Any]:
@@ -443,7 +533,11 @@ class Engine:
         """Terminate all subprocesses."""
         if self._rr_process is not None:
             try:
-                self._loop.run_until_complete(self._rr_process.shutdown())
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._rr_process.shutdown())
+                else:
+                    loop.run_until_complete(self._rr_process.shutdown())
             except Exception:
                 pass
         for proc in self._subprocesses:

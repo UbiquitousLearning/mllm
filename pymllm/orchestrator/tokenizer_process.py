@@ -35,7 +35,7 @@ from transformers import AutoProcessor, AutoTokenizer
 
 from pymllm.engine.io_struct import TokenizedGenerateReqInput
 from pymllm.orchestrator.cuda_ipc_transport import MmItemMemoryPool, TensorTransportMode
-from pymllm.orchestrator.ipc_utils import create_zmq_socket
+from pymllm.orchestrator.ipc_utils import create_zmq_socket, setup_subprocess_logging
 from pymllm.orchestrator.shared_memory_queue import SharedMemoryManager, TensorQueue
 
 logger = logging.getLogger(__name__)
@@ -352,6 +352,7 @@ class TokenizerProcess:
                 )
             # Accept a list for robustness; take the first element.
             input_text = str(text[0]) if isinstance(text, list) else str(text)
+            logger.debug(f"Tokenizing input text {input_text}")
 
             encode_kwargs: Dict[str, Any] = {
                 "add_special_tokens": True,
@@ -485,6 +486,7 @@ def run_tokenizer_process(
     shared_queue: Optional[TensorQueue] = None,
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
+    setup_subprocess_logging(tokenizer_cfg.get("log_level", "info"))
     proc = TokenizerProcess(
         recv_from_rr_addr, send_to_scheduler_addr, tokenizer_cfg, shared_queue
     )

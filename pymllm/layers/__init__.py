@@ -6,9 +6,12 @@ from pymllm.layers.layer_norm import LayerNorm
 from pymllm.layers.linear import ColumnParallelLinear, Linear, RowParallelLinear
 from pymllm.layers.mlp import MLP, ParallelMLP
 from pymllm.layers.rms_norm import GemmaRMSNorm, RMSNorm
+from pymllm.layers.rms_norm_gated import RMSNormGated
+from pymllm.layers.gated_delta_net import GatedDeltaNet
 from pymllm.layers.rope import (
     apply_llama31_rope,
     apply_llama31_rope_pos_ids,
+    apply_mrope,
     apply_rope,
     apply_rope_pos_ids,
     apply_rope_with_cos_sin_cache,
@@ -41,6 +44,7 @@ __all__ = [
     "LayerNorm",
     "RMSNorm",
     "GemmaRMSNorm",
+    "apply_mrope",
     "apply_rope",
     "apply_llama31_rope",
     "apply_rope_pos_ids",

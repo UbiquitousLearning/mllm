@@ -180,3 +180,12 @@ class ForwardBatch:
 
     # ---- attention backend (set by model runner) ----
     attn_backend: Optional["AttentionBackend"] = None
+
+    # ---- multimodal M-RoPE ----
+    # Per-request position delta for M-RoPE decode steps.
+    # Set by the model during prefill; consumed during decode to offset positions.
+    mrope_position_deltas: Optional[torch.Tensor] = None  # [batch_size] int64
+
+    # ---- multimodal vision inputs (extend / prefill only) ----
+    pixel_values: Optional[torch.Tensor] = None
+    image_grid_thw: Optional[torch.Tensor] = None

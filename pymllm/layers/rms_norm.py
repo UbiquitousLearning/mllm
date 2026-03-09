@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Tuple, Union
+
 import torch
 import flashinfer
 from torch.nn import Parameter
@@ -19,7 +21,15 @@ class RMSNorm(MllmBaseLayer):
         self.weight = Parameter(torch.empty(hidden_size))
         set_weight_attrs(self.weight, {"weight_loader": self.weight_loader})
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: Optional[torch.Tensor] = None,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        if residual is not None:
+            flashinfer.norm.fused_add_rmsnorm(x, residual, self.weight.data, self.eps)
+            return x, residual
+
         if x.shape[-1] != self.hidden_size:
             raise ValueError(
                 f"Expected last dim == hidden_size ({self.hidden_size}), "
@@ -47,7 +57,17 @@ class GemmaRMSNorm(MllmBaseLayer):
         self.weight = Parameter(torch.empty(hidden_size))
         set_weight_attrs(self.weight, {"weight_loader": self.weight_loader})
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: Optional[torch.Tensor] = None,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        if residual is not None:
+            flashinfer.norm.gemma_fused_add_rmsnorm(
+                x, residual, self.weight.data, self.eps
+            )
+            return x, residual
+
         if x.shape[-1] != self.hidden_size:
             raise ValueError(
                 f"Expected last dim == hidden_size ({self.hidden_size}), "

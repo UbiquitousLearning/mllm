@@ -8,7 +8,10 @@ from pymllm.layers.attention.flashinfer_backend import (
     WrapperDispatch,
     should_use_tensor_core,
 )
+from pymllm.layers.attention.gdn_backend import GDNAttnBackend
+from pymllm.layers.attention.hybrid_backend import HybridAttnBackend
 from pymllm.layers.attention.radix_attention import AttentionType, RadixAttention
+from pymllm.layers.attention.radix_linear_attention import RadixLinearAttention
 
 __all__ = [
     # Base
@@ -16,10 +19,15 @@ __all__ = [
     # RadixAttention
     "AttentionType",
     "RadixAttention",
+    # RadixLinearAttention (GDN)
+    "RadixLinearAttention",
     # FlashInfer backend
     "FlashInferAttnBackend",
     "DecodeMetadata",
     "PrefillMetadata",
     "WrapperDispatch",
     "should_use_tensor_core",
+    # GDN + Hybrid backends
+    "GDNAttnBackend",
+    "HybridAttnBackend",
 ]

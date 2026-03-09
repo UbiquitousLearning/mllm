@@ -74,6 +74,15 @@ def softmax(
     torch.Tensor
         Probabilities with the same shape as *logits*.
     """
+    # Clamp temperature to avoid division by zero (temperature=0 → greedy).
+    # Replace 0 with 1 here; the caller (ModelRunner.sample) handles
+    # temperature=0 via argmax before reaching this path.
+    if temperature is not None:
+        if isinstance(temperature, torch.Tensor):
+            temperature = temperature.clamp(min=1e-6)
+        elif temperature < 1e-6:
+            temperature = 1.0  # effectively no scaling; caller uses argmax
+
     if _HAS_FLASHINFER:
         return _fi_sampling.softmax(
             logits, temperature=temperature, enable_pdl=enable_pdl

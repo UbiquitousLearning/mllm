@@ -127,6 +127,16 @@ def _converter_for_annotation(annotation: Any) -> Optional[Callable[[str], Any]]
     return None
 
 
+def _choices_for_annotation(annotation: Any) -> Optional[list]:
+    """Extract allowed values from a ``Literal`` annotation, if applicable."""
+
+    inner, _ = _unwrap_optional(annotation)
+    origin = get_origin(inner)
+    if origin is Literal:
+        return list(get_args(inner))
+    return None
+
+
 def _is_bool_annotation(annotation: Any) -> bool:
     """Return ``True`` if annotation represents a bool/Optional[bool] field."""
 
@@ -225,16 +235,27 @@ def make_args(
                 # Skip non-scalar or runtime-only fields (e.g. arbitrary objects).
                 continue
 
-            section_group.add_argument(
-                option,
+            choices = _choices_for_annotation(annotation)
+            kwargs: dict[str, Any] = dict(
                 dest=dest,
                 type=converter,
                 default=argparse.SUPPRESS,
-                help=(
+            )
+            if choices is not None:
+                kwargs["choices"] = choices
+                choices_str = ", ".join(str(c) for c in choices)
+                kwargs["help"] = (
+                    f"{section_name}.{dc_field.name} "
+                    f"{{choices: {choices_str}}} "
+                    f"(default: {_format_default_for_help(default_value)})."
+                )
+            else:
+                kwargs["help"] = (
                     f"{section_name}.{dc_field.name} (default: "
                     f"{_format_default_for_help(default_value)})."
-                ),
-            )
+                )
+
+            section_group.add_argument(option, **kwargs)
 
     return parser
 

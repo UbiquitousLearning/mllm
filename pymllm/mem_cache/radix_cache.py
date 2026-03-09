@@ -18,7 +18,7 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import torch
 
@@ -189,6 +189,7 @@ class InsertResult:
     """Returned by :meth:`RadixCache.insert`."""
 
     prefix_len: int = 0
+    last_node: Optional[TreeNode] = None
 
 
 @dataclass
@@ -224,11 +225,13 @@ class RadixCache:
         sliding_window_size: Optional[int] = None,
         disable: bool = False,
         token_to_kv_pool_allocator: Any = None,
+        on_node_evict: Optional[Callable[[int], None]] = None,
     ):
         self.page_size = page_size
         self.sliding_window_size = sliding_window_size
         self.disable = disable
         self.pool = token_to_kv_pool_allocator
+        self.on_node_evict = on_node_evict
 
         if self.pool is not None and hasattr(self.pool, "device"):
             self.device = self.pool.device
@@ -332,9 +335,10 @@ class RadixCache:
             plen = self._insert_swa(
                 self.root_node, key, value, prev_prefix_len, swa_evicted_seqlen
             )
+            return InsertResult(prefix_len=plen)
         else:
-            plen = self._insert_normal(self.root_node, key, value)
-        return InsertResult(prefix_len=plen)
+            plen, last_node = self._insert_normal(self.root_node, key, value)
+            return InsertResult(prefix_len=plen, last_node=last_node)
 
     def evict(self, num_tokens: int, swa_num_tokens: int = 0) -> EvictResult:
         """Evict up to *num_tokens* (full) and *swa_num_tokens* (SWA) tokens.
@@ -589,30 +593,38 @@ class RadixCache:
 
         return values, best_node, best_count
 
-    def _insert_normal(self, node: TreeNode, key: RadixKey, value: torch.Tensor) -> int:
+    def _insert_normal(
+        self, node: TreeNode, key: RadixKey, value: torch.Tensor
+    ) -> Tuple[int, TreeNode]:
+        """Insert into non-SWA tree.  Returns ``(prefix_len, last_node)``."""
         now = time.monotonic()
         node.last_access_time = now
         if len(key) == 0:
-            return 0
+            return 0, node
 
         total_prefix = 0
-        while len(key) > 0:
-            ck = _child_key(key, self.page_size)
-            if ck not in node.children:
-                break
+        ck = _child_key(key, self.page_size)
+        while len(key) > 0 and ck in node.children:
             node = node.children[ck]
             node.last_access_time = now
             plen = _key_match(node.key, key, self.page_size)
-            if plen < len(node.key):
-                self._split_node(node.key, node, plen)
             total_prefix += plen
             key = key[plen:]
             value = value[plen:]
 
-        if len(key) > 0:
-            self._add_leaf(node, key, value)
+            if plen < len(node.key):
+                # Partial match: split the node.  ``node`` must advance to
+                # the NEW parent so that any remaining key is added as a
+                # sibling of the tail, not a child of it.
+                node = self._split_node(node.key, node, plen)
+            if len(key) > 0:
+                ck = _child_key(key, self.page_size)
 
-        return total_prefix
+        if len(key) > 0:
+            new_leaf = self._add_leaf(node, key, value)
+            node = new_leaf
+
+        return total_prefix, node
 
     def _insert_swa(
         self,
@@ -730,6 +742,8 @@ class RadixCache:
         self._evictable_size -= len(node.key)
         if self.supports_swa and not node.swa_tombstone:
             self._swa_evictable_size -= len(node.key)
+        if self.on_node_evict is not None:
+            self.on_node_evict(node.id)
 
     def _tombstone_node(self, node: TreeNode) -> None:
         node.swa_tombstone = True

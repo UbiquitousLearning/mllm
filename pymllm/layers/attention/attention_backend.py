@@ -104,6 +104,28 @@ class AttentionBackend(ABC):
             )
 
     # ------------------------------------------------------------------
+    # GDN linear-attention interface (used by HybridAttnBackend)
+    # ------------------------------------------------------------------
+
+    def forward_gdn(
+        self,
+        layer: "RadixLinearAttention",
+        forward_batch: "ForwardBatch",
+        mixed_qkv: torch.Tensor,
+        a: torch.Tensor,
+        b: torch.Tensor,
+    ) -> torch.Tensor:
+        """Run GDN linear-attention for one layer.
+
+        Only implemented by backends that support hybrid (full + GDN)
+        architectures.  The default raises ``NotImplementedError``.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support GDN linear attention. "
+            "Use HybridAttnBackend for hybrid full+GDN models."
+        )
+
+    # ------------------------------------------------------------------
     # Optional CUDA-graph interface
     # ------------------------------------------------------------------
 

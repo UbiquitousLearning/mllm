@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import zmq
 
-from pymllm.orchestrator.ipc_utils import create_zmq_socket
+from pymllm.orchestrator.ipc_utils import create_zmq_socket, setup_subprocess_logging
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +24,19 @@ class DetokenizerProcess:
         self,
         recv_from_scheduler_addr: str,
         send_to_rr_addr: str,
+        tokenizer_cfg: Optional[Dict[str, Any]] = None,
     ):
         self._recv_from_scheduler_addr = recv_from_scheduler_addr
         self._send_to_rr_addr = send_to_rr_addr
+        self._tokenizer_cfg = tokenizer_cfg or {}
 
         self._zmq_ctx: Optional[zmq.Context] = None
         self._recv_from_scheduler: Optional[zmq.Socket] = None
         self._send_to_rr: Optional[zmq.Socket] = None
 
-        # TODO: initialise the tokenizer (needed for decode)
         self._tokenizer = None
+        # Track previous decoded text per rid for incremental (delta) output
+        self._rid_to_prev_text: Dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -54,32 +57,102 @@ class DetokenizerProcess:
             bind=False,
         )
 
+    def init_tokenizer(self) -> None:
+        """Load the tokenizer from the configured path."""
+        tokenizer_path = self._tokenizer_cfg.get("tokenizer_path")
+        if tokenizer_path is None:
+            logger.warning(
+                "No tokenizer_path in tokenizer_cfg; detokenization disabled"
+            )
+            return
+
+        from transformers import AutoTokenizer
+
+        trust_remote_code = self._tokenizer_cfg.get("trust_remote_code", False)
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_path,
+            trust_remote_code=trust_remote_code,
+        )
+        logger.info("Detokenizer loaded tokenizer from %s", tokenizer_path)
+
     def event_loop(self) -> None:
         """Infinite loop: recv token IDs -> detokenize -> send text to RR."""
         logger.info("DetokenizerProcess event loop started")
         while True:
             token_id_out = self._recv_from_scheduler.recv_pyobj()
-            str_out = self._detokenize(token_id_out)
-            self._send_to_rr.send_pyobj(str_out)
+            results = self._detokenize(token_id_out)
+            for result in results:
+                self._send_to_rr.send_pyobj(result)
 
     # ------------------------------------------------------------------
-    # Detokenization (placeholder)
+    # Detokenization
     # ------------------------------------------------------------------
 
-    def _detokenize(self, token_id_out: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert token IDs to text.
+    def _detokenize(self, token_id_out: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Convert token IDs to text and fan out one result per rid.
 
-        TODO: replace with real tokenizer.decode() call and incremental
-        detokenization logic.
+        The scheduler sends a batch dict with parallel lists keyed by
+        ``"rids"``, ``"output_ids"``, ``"finished_reasons"``, etc.
+        This method decodes each rid's output_ids and produces one result
+        dict per rid with keys ``"rid"`` (singular) and ``"finished"``
+        (bool) as expected by ``RequestResponseProcess._recv_loop``.
         """
-        output_ids: List[int] = token_id_out.get("output_token_ids", [])
-        # placeholder: join ids as string
-        text = ""  # TODO: self._tokenizer.decode(output_ids)
-        return {
-            "rid": token_id_out.get("rid"),
-            "text": text,
-            "output_token_ids": output_ids,
-        }
+        rids: List[str] = token_id_out.get("rids", [])
+        output_ids: List[int] = token_id_out.get("output_ids", [])
+        finished_reasons: List[Optional[str]] = token_id_out.get("finished_reasons", [])
+        decode_ids: List[int] = token_id_out.get("decode_ids", [])
+        skip_special_tokens_list: List[bool] = token_id_out.get(
+            "skip_special_tokens", []
+        )
+        prompt_tokens_list: List[int] = token_id_out.get("prompt_tokens", [])
+        completion_tokens_list: List[int] = token_id_out.get("completion_tokens", [])
+
+        results: List[Dict[str, Any]] = []
+
+        for i, rid in enumerate(rids):
+            finished_reason = finished_reasons[i] if i < len(finished_reasons) else None
+            is_finished = finished_reason is not None
+            skip_special = (
+                skip_special_tokens_list[i]
+                if i < len(skip_special_tokens_list)
+                else True
+            )
+            prompt_tokens = prompt_tokens_list[i] if i < len(prompt_tokens_list) else 0
+            completion_tokens = (
+                completion_tokens_list[i] if i < len(completion_tokens_list) else 0
+            )
+
+            # Decode text from output_ids
+            if self._tokenizer is not None:
+                text = self._tokenizer.decode(
+                    output_ids,
+                    skip_special_tokens=skip_special,
+                )
+            else:
+                text = ""
+
+            # Compute incremental delta by diffing against previous text
+            prev_text = self._rid_to_prev_text.get(rid, "")
+            delta_text = text[len(prev_text):]
+            self._rid_to_prev_text[rid] = text
+
+            # Clean up tracking when request finishes
+            if is_finished:
+                self._rid_to_prev_text.pop(rid, None)
+
+            result: Dict[str, Any] = {
+                "rid": rid,
+                "text": text,
+                "delta": delta_text,
+                "output_token_ids": list(output_ids),
+                "finished": is_finished,
+                "finished_reason": finished_reason,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+            }
+            results.append(result)
+
+        return results
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -98,10 +171,17 @@ def run_detokenizer_process(
     recv_from_scheduler_addr: str,
     send_to_rr_addr: str,
     pipe_writer: Connection,
+    tokenizer_cfg: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
-    proc = DetokenizerProcess(recv_from_scheduler_addr, send_to_rr_addr)
+    setup_subprocess_logging((tokenizer_cfg or {}).get("log_level", "info"))
+    proc = DetokenizerProcess(
+        recv_from_scheduler_addr,
+        send_to_rr_addr,
+        tokenizer_cfg=tokenizer_cfg,
+    )
     proc.init_sockets()
+    proc.init_tokenizer()
 
     pipe_writer.send({"status": "ready", "process": "detokenizer"})
     pipe_writer.close()
