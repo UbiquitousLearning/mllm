@@ -1,7 +1,10 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
-#include <memory>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <memory>
+#include <system_error>
 
 #include <QnnTypes.h>
 
@@ -20,6 +23,81 @@
 #include "mllm/backends/qnn/aot/QnnTargetMachine.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/utils/Log.hpp"
+
+namespace {
+
+std::string normalizeLibPath(std::string path) {
+  if (!path.empty() && path.back() != '/') { path.push_back('/'); }
+  return path;
+}
+
+std::vector<std::string> getPossibleQnnDynLibPaths() {
+  std::vector<std::string> paths;
+
+  if (const char* qairt_root = std::getenv("QAIRT_SDK_ROOT")) {
+    paths.emplace_back(normalizeLibPath(std::string(qairt_root) + "/lib/x86_64-linux-clang"));
+  }
+  if (const char* qnn_root = std::getenv("QNN_SDK_ROOT")) {
+    auto candidate = normalizeLibPath(std::string(qnn_root) + "/lib/x86_64-linux-clang");
+    if (std::find(paths.begin(), paths.end(), candidate) == paths.end()) { paths.emplace_back(std::move(candidate)); }
+  }
+
+  constexpr const char* kLegacyDefaultPath = "/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/";
+  if (std::find(paths.begin(), paths.end(), kLegacyDefaultPath) == paths.end()) { paths.emplace_back(kLegacyDefaultPath); }
+
+  return paths;
+}
+
+void prependToLdLibraryPath(const std::string& path) {
+  if (path.empty()) { return; }
+  const char* current = std::getenv("LD_LIBRARY_PATH");
+  std::string value = path;
+  if (current && *current) {
+    if (std::string(current).find(path) != std::string::npos) { return; }
+    value += ":" + std::string(current);
+  }
+  setenv("LD_LIBRARY_PATH", value.c_str(), 1);
+}
+
+void preloadHostRuntimeLib(const std::filesystem::path& lib_path) {
+  if (lib_path.empty() || !std::filesystem::exists(lib_path)) { return; }
+  static std::vector<void*> handles;
+  if (void* handle = dlopen(lib_path.c_str(), RTLD_NOW | RTLD_GLOBAL)) { handles.push_back(handle); }
+}
+
+void prepareHostRuntimeDeps() {
+  const char* ndk_root = std::getenv("ANDROID_NDK_ROOT");
+  if (!ndk_root || !*ndk_root) { return; }
+
+  namespace fs = std::filesystem;
+  const fs::path llvm_lib_dir = fs::path(ndk_root) / "toolchains/llvm/prebuilt/linux-x86_64/lib";
+  const fs::path llvm_gnu_lib_dir = llvm_lib_dir / "x86_64-unknown-linux-gnu";
+
+  if (!fs::exists(llvm_gnu_lib_dir)) { return; }
+
+  prependToLdLibraryPath(llvm_gnu_lib_dir.string());
+  prependToLdLibraryPath(llvm_lib_dir.string());
+
+  const fs::path libunwind = llvm_gnu_lib_dir / "libunwind.so";
+  if (!fs::exists(libunwind)) { return; }
+
+  const fs::path shim_dir = fs::temp_directory_path() / "mllm-qnn-host-libs";
+  const fs::path libunwind_shim = shim_dir / "libunwind.so.1";
+
+  std::error_code ec;
+  fs::create_directories(shim_dir, ec);
+  if (ec) { return; }
+
+  if (!fs::exists(libunwind_shim)) { fs::create_symlink(libunwind, libunwind_shim, ec); }
+  if (ec) { return; }
+
+  prependToLdLibraryPath(shim_dir.string());
+  preloadHostRuntimeLib(llvm_gnu_lib_dir / "libc++.so.1");
+  preloadHostRuntimeLib(llvm_gnu_lib_dir / "libc++abi.so.1");
+  preloadHostRuntimeLib(libunwind_shim);
+}
+
+}  // namespace
 
 namespace mllm::qnn::aot {
 
@@ -348,9 +426,7 @@ bool QnnAOTGraph::compile() {
   return ret;
 }
 
-const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_{
-    "/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/",
-};
+const std::vector<std::string> QnnDynSymbolLoader::possible_qnn_dyn_lib_paths_ = getPossibleQnnDynLibPaths();
 
 QnnDynSymbolLoader::~QnnDynSymbolLoader() {
   for (auto& item : libs_) {
@@ -399,6 +475,7 @@ QnnAOTEnv::QnnAOTEnv(const std::string& lib_path, const QcomTargetMachine& targe
 }
 
 void QnnAOTEnv::_setup(const std::string& path) {
+  prepareHostRuntimeDeps();
   auto& loader = QnnDynSymbolLoader::instance();
   std::string htp_backend_lib_name = "libQnnHtp.so";
   // GLOBAL Load

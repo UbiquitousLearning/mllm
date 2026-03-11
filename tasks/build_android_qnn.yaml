@@ -3,7 +3,7 @@ Tasks:
       mllm_qnn_package_place: "mllm/backends/qnn/custom-op-package/LLaMAPackage"
       targets:
         - "htp_aarch64"
-        - "htp_v75"
+        - "htp_v79"
 
   - CMakeConfigTask:
       cmake_cfg_path: "build-android-arm64-v8a-qnn"
@@ -16,7 +16,7 @@ Tasks:
         - "-DANDROID_PLATFORM=android-28"
         - "-DANDROID_ABI=arm64-v8a"
         - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=armv8.2-a+fp16+fp16fml+dotprod+i8mm;-ffast-math;-Wno-nan-infinity-disabled"'
-        - "-DCMAKE_INSTALL_PREFIX=/root/mllm-install-android-arm64-v8a-qnn"
+        - "-DCMAKE_INSTALL_PREFIX=$PWD/mllm-install-android-arm64-v8a-qnn"
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
         - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"

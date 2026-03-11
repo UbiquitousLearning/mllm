@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cstdlib>
+#include <string>
 #include <unordered_map>
 #include <mllm/mllm.hpp>
 #include <mllm/compile/PassManager.hpp>
@@ -12,13 +14,22 @@
 
 using mllm::Argparse;
 
+namespace {
+
+std::string defaultQnnEnvPath() {
+  if (const char* qairt_root = std::getenv("QAIRT_SDK_ROOT")) { return std::string(qairt_root) + "/lib/x86_64-linux-clang/"; }
+  return "/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/";
+}
+
+}  // namespace
+
 MLLM_MAIN({
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model file path.");
   auto& model_cfg_path = Argparse::add<std::string>("-c|--config").help("Model config file path.");
   auto& qnn_aot_cfg_files = Argparse::add<std::string>("-aot_cfg|--aot_config").help("AOT Config file path.");
   auto& qnn_env_path = Argparse::add<std::string>("-qnn_env|--qnn_env_path")
-                           .def("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/")
+                           .def(defaultQnnEnvPath())
                            .help("QNN AOT Environment path.");
 
   Argparse::parse(argc, argv);
