@@ -141,12 +141,23 @@ struct MiniCPMO45Message {
   std::string prompt;
   std::string img_file_path;
   std::string audio_file_path;
+  std::string ref_audio_file_path;
   std::string system_prompt =
       "You are a helpful assistant. You can accept video, audio and text input and output voice and text.";
+  std::string ref_audio_prompt_prefix = "Clone the voice in the provided audio prompt.";
+  std::string ref_audio_prompt_suffix = "As an assistant, you will speak using this voice style.";
 
   [[nodiscard]] std::string buildChatMessage(bool generate_audio = false) const {
     std::string result;
-    if (!system_prompt.empty()) { result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n"; }
+    if (!ref_audio_file_path.empty()) {
+      result += "<|im_start|>system\n";
+      if (!ref_audio_prompt_prefix.empty()) { result += ref_audio_prompt_prefix + "\n"; }
+      result += "<audio>./</audio>";
+      if (!ref_audio_prompt_suffix.empty()) { result += "\n" + ref_audio_prompt_suffix; }
+      result += "<|im_end|>\n";
+    } else if (!system_prompt.empty()) {
+      result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n";
+    }
 
     result += "<|im_start|>user\n";
     if (!img_file_path.empty()) { result += "<image>./</image>"; }
@@ -299,7 +310,9 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
 
   ARGenerationOutputPast convertMessage(const MiniCPMO45Message& message, bool generate_audio_prompt = false) {
     bool has_image = !message.img_file_path.empty();
-    bool has_audio = !message.audio_file_path.empty();
+    bool has_ref_audio = !message.ref_audio_file_path.empty();
+    bool has_user_audio = !message.audio_file_path.empty();
+    bool has_audio = has_ref_audio || has_user_audio;
 
     auto applied_string = message.buildChatMessage(generate_audio_prompt);
 
@@ -309,7 +322,8 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     std::vector<int> grid;
 
     Tensor audio_features = Tensor::nil();
-    int32_t audio_length = 0;
+    std::vector<int32_t> audio_lengths;
+    std::vector<Tensor> audio_feature_list;
 
     if (has_image) {
       auto [tensors, orig_size, target_sizes, img_grid] = image_preprocessor_.process(message.img_file_path);
@@ -319,10 +333,40 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
       grid = std::move(img_grid);
     }
 
-    if (has_audio) {
+    if (has_ref_audio) {
+      auto audio_data = mllm::audio::readWAV(message.ref_audio_file_path, 16000);
+      auto audio_length = static_cast<int32_t>(audio_data.size());
+      if (audio_length > 0) {
+        audio_lengths.push_back(audio_length);
+        auto ref_audio_features = audio_preprocessor_.processAudioData(audio_data.data(), audio_length);
+        if (!ref_audio_features.isNil()) { audio_feature_list.push_back(ref_audio_features); }
+      }
+    }
+
+    if (has_user_audio) {
       auto audio_data = mllm::audio::readWAV(message.audio_file_path, 16000);
-      audio_length = static_cast<int32_t>(audio_data.size());
-      audio_features = audio_preprocessor_.processAudioData(audio_data.data(), audio_length);
+      auto audio_length = static_cast<int32_t>(audio_data.size());
+      if (audio_length > 0) {
+        audio_lengths.push_back(audio_length);
+        auto user_audio_features = audio_preprocessor_.processAudioData(audio_data.data(), audio_length);
+        if (!user_audio_features.isNil()) { audio_feature_list.push_back(user_audio_features); }
+      }
+    }
+
+    if (!audio_feature_list.empty()) {
+      int32_t batch = static_cast<int32_t>(audio_feature_list.size());
+      auto channels = audio_feature_list[0].shape()[1];
+      auto frames = audio_feature_list[0].shape()[2];
+      audio_features = Tensor::empty({batch, channels, frames}, kFloat32, kCPU)
+                           .setMemType(kExtraInput)
+                           .setName("audio_features")
+                           .alloc();
+      auto* dst = audio_features.ptr<float>();
+      auto single_size = static_cast<size_t>(channels) * static_cast<size_t>(frames);
+      for (int32_t i = 0; i < batch; ++i) {
+        std::memcpy(dst + static_cast<size_t>(i) * single_size, audio_feature_list[i].ptr<float>(),
+                    single_size * sizeof(float));
+      }
     }
 
     if (has_image) {
@@ -354,10 +398,13 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     }
 
     if (has_audio) {
-      auto audio_placeholder = getAudioPlaceholder(audio_length, false);
-      size_t audio_placeholder_pos = applied_string.find("<audio>./</audio>");
-      if (audio_placeholder_pos != std::string::npos) {
+      size_t search_pos = 0;
+      for (auto audio_length : audio_lengths) {
+        auto audio_placeholder = getAudioPlaceholder(audio_length, false);
+        auto audio_placeholder_pos = applied_string.find("<audio>./</audio>", search_pos);
+        if (audio_placeholder_pos == std::string::npos) { break; }
         applied_string.replace(audio_placeholder_pos, std::string("<audio>./</audio>").size(), audio_placeholder);
+        search_pos = audio_placeholder_pos + audio_placeholder.size();
       }
     }
 
