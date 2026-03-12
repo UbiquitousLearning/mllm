@@ -149,8 +149,8 @@ struct MiniCPMO45Message {
     if (!system_prompt.empty()) { result += "<|im_start|>system\n" + system_prompt + "<|im_end|>\n"; }
 
     result += "<|im_start|>user\n";
-    if (!img_file_path.empty()) { result += "(<image>./</image>)"; }
-    if (!audio_file_path.empty()) { result += "(<audio>./</audio>)"; }
+    if (!img_file_path.empty()) { result += "<image>./</image>"; }
+    if (!audio_file_path.empty()) { result += "<audio>./</audio>"; }
 
     if (!prompt.empty()) {
       if (!img_file_path.empty() || !audio_file_path.empty()) { result += "\n"; }
@@ -160,7 +160,7 @@ struct MiniCPMO45Message {
     result += "<|im_end|>\n";
     result += "<|im_start|>assistant\n";
 
-    if (generate_audio) { result += "<|spk_bos|><|spk|><|spk_eos|><|tts_bos|>"; }
+    if (generate_audio) { result += "<think>\n\n</think>\n\n<|tts_bos|>"; }
     return result;
   }
 };
@@ -326,7 +326,7 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     }
 
     if (has_image) {
-      std::regex img_pattern(R"(\(<image>\./</image>\))");
+      std::regex img_pattern(R"(<image>\./</image>)");
       std::vector<std::string> image_tags;
       std::sregex_iterator iter(applied_string.begin(), applied_string.end(), img_pattern);
       std::sregex_iterator end;
@@ -355,9 +355,9 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
 
     if (has_audio) {
       auto audio_placeholder = getAudioPlaceholder(audio_length, false);
-      size_t audio_placeholder_pos = applied_string.find("(<audio>./</audio>)");
+      size_t audio_placeholder_pos = applied_string.find("<audio>./</audio>");
       if (audio_placeholder_pos != std::string::npos) {
-        applied_string.replace(audio_placeholder_pos, std::string("(<audio>./</audio>)").size(), audio_placeholder);
+        applied_string.replace(audio_placeholder_pos, std::string("<audio>./</audio>").size(), audio_placeholder);
       }
     }
 
