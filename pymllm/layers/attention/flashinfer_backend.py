@@ -351,10 +351,17 @@ class FlashInferAttnBackend(AttentionBackend):
             # Extend / prefill
             prefix_lens = forward_batch.extend_prefix_lens
             extend_no_prefix = (
-                forward_batch.extend_prefix_lens_cpu is not None
-                and not any(forward_batch.extend_prefix_lens_cpu)
+                forward_batch.extend_prefix_lens_cpu is None
+                or not any(forward_batch.extend_prefix_lens_cpu)
             )
-            use_ragged = extend_no_prefix
+            # use_ragged=True: match sglang's default.
+            # - extend_no_prefix=True  → ragged-only (pure prefill, no cache)
+            # - extend_no_prefix=False → ragged+paged merge (cache hit)
+            # The paged wrapper covers only the cached prefix (prefix_lens),
+            # the ragged wrapper covers the new extend tokens.  No overlap.
+            # NOTE: to avoid a FlashInfer edge-case with 1-token ragged
+            # extends, _allocate_extend guarantees extend_len >= 2.
+            use_ragged = True
 
             self.indices_updater_prefill.update(
                 forward_batch.req_pool_indices,
@@ -829,9 +836,12 @@ class _FlashInferIndicesUpdaterPrefill:
             )
         else:
             if use_ragged:
+                # Merge path: paged covers ONLY the cached prefix so there
+                # is no overlap with the ragged (extend) tokens.
                 paged_kernel_lens = prefix_lens
-                paged_kernel_lens_sum = paged_kernel_lens.sum().item()
+                paged_kernel_lens_sum = int(paged_kernel_lens.sum().item())
             else:
+                # Paged-only path: covers the full sequence.
                 paged_kernel_lens = seq_lens
                 paged_kernel_lens_sum = seq_lens_sum
 
@@ -872,9 +882,13 @@ class _FlashInferIndicesUpdaterPrefill:
                 paged_kernel_lens_sum = int(paged_kernel_lens.sum().item())
                 kv_start_idx = seq_lens - paged_kernel_lens
             else:
-                # Full-context portion.
-                paged_kernel_lens = seq_lens
-                paged_kernel_lens_sum = seq_lens_sum
+                # Full-context SWA wrapper: same split as non-SWA.
+                if use_ragged:
+                    paged_kernel_lens = prefix_lens
+                    paged_kernel_lens_sum = int(paged_kernel_lens.sum().item())
+                else:
+                    paged_kernel_lens = seq_lens
+                    paged_kernel_lens_sum = seq_lens_sum
                 kv_start_idx = None
 
             kv_indptr = self.kv_indptr[wrapper_id]

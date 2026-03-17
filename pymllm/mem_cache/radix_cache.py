@@ -698,6 +698,16 @@ class RadixCache:
         value: torch.Tensor,
         swa_tombstone: bool = False,
     ) -> TreeNode:
+        # If parent was a childless (leaf) node, it will no longer be
+        # evictable after gaining a child.  Adjust the size counter.
+        if (
+            len(parent.children) == 0
+            and parent != self.root_node
+            and parent.lock_ref == 0
+            and not parent.evicted
+        ):
+            self._evictable_size -= len(parent.key)
+
         new_node = TreeNode()
         new_node.parent = parent
         new_node.key = key
@@ -711,6 +721,13 @@ class RadixCache:
 
     def _split_node(self, key: RadixKey, child: TreeNode, split_len: int) -> TreeNode:
         """Split *child* at *split_len*, returning the new parent node."""
+        logger.debug(
+            "[SPLIT] node_id=%d key_len=%d split_len=%d "
+            "parent_val[:4]=%s child_val[:4]=%s",
+            child.id, len(key), split_len,
+            child.value[:min(split_len, 4)].tolist() if child.value is not None else [],
+            child.value[split_len:split_len+4].tolist() if child.value is not None and len(child.value) > split_len else [],
+        )
         new_node = TreeNode()
         new_node.children[_child_key(key[split_len:], self.page_size)] = child
         new_node.parent = child.parent
@@ -742,6 +759,8 @@ class RadixCache:
         self._evictable_size -= len(node.key)
         if self.supports_swa and not node.swa_tombstone:
             self._swa_evictable_size -= len(node.key)
+        # Mark as evicted so node.evicted returns True.
+        node.value = None
         if self.on_node_evict is not None:
             self.on_node_evict(node.id)
 
