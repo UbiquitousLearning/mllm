@@ -419,6 +419,7 @@ class ModelRunnerProcess:
            still points at freed slots → use-after-free during decode.
         4. **Update** ``cache_protected_len`` and radix lock.
         """
+        _dbg = logger.isEnabledFor(logging.DEBUG)
         cache = self._radix_cache
         if cache is None or cache.disable:
             return
@@ -441,14 +442,32 @@ class ModelRunnerProcess:
                 torch.int64
             )
 
+            if _dbg:
+                logger.debug(
+                    "[CACHE INSERT] rid=%s seq_len=%d pool[slot=%d,0:%d]=%s",
+                    rid, seq_len, slot, min(seq_len, 8),
+                    kv_indices[:min(seq_len, 8)].tolist(),
+                )
+
             key = RadixKey(input_ids)
             result = cache.insert(key, kv_indices)
             new_prefix_len = result.prefix_len
 
             # --- Step 2: free duplicates ---
             cache_protected_len = self._rid_to_cache_protected_len.get(rid, 0)
+            if _dbg:
+                logger.debug(
+                    "[CACHE INSERT] rid=%s insert prefix_len=%d cache_protected=%d",
+                    rid, new_prefix_len, cache_protected_len,
+                )
             if new_prefix_len > cache_protected_len:
                 dup_indices = kv_indices[cache_protected_len:new_prefix_len]
+                if _dbg:
+                    logger.debug(
+                        "[CACHE INSERT] rid=%s freeing dup [%d:%d]=%s",
+                        rid, cache_protected_len, new_prefix_len,
+                        dup_indices[:min(len(dup_indices), 8)].tolist(),
+                    )
                 if dup_indices.numel() > 0:
                     runner.token_to_kv_pool_allocator.free(dup_indices)
 
@@ -458,7 +477,23 @@ class ModelRunnerProcess:
             # (still-live) indices instead of the freed ones.
             rematch = cache.match_prefix(key)
             new_indices = rematch.indices
+            if _dbg:
+                logger.debug(
+                    "[CACHE INSERT] rid=%s rematch len=%d indices[:8]=%s",
+                    rid, len(new_indices), new_indices[:min(len(new_indices), 8)].tolist(),
+                )
+            if cache.page_size == 1:
+                assert len(new_indices) == seq_len, (
+                    f"Re-match length mismatch after insert: "
+                    f"{len(new_indices)=}, {seq_len=}, rid={rid}"
+                )
             if len(new_indices) > cache_protected_len:
+                if _dbg:
+                    logger.debug(
+                        "[CACHE INSERT] rid=%s write-back pool[slot=%d,%d:%d]=%s",
+                        rid, slot, cache_protected_len, len(new_indices),
+                        new_indices[cache_protected_len:cache_protected_len+8].tolist(),
+                    )
                 runner.req_to_token_pool.write(
                     (slot, slice(cache_protected_len, len(new_indices))),
                     new_indices[cache_protected_len:].to(torch.int32),
@@ -558,12 +593,17 @@ class ModelRunnerProcess:
                 last_node = None
                 cached_indices = None
 
-            # Ensure at least 1 token is extended (not fully cached).
-            # A full cache hit (prefix_len == full_seq_len) would produce a
-            # 0-length input tensor that crashes CUDA kernels.  Back off by 1
-            # so the model always sees the last token.
-            if prefix_len >= full_seq_len:
-                prefix_len = full_seq_len - 1
+            # Ensure at least 2 tokens are extended (not nearly fully cached).
+            # Reasons:
+            # 1. A full cache hit (prefix_len == full_seq_len) would produce a
+            #    0-length input tensor that crashes CUDA kernels.
+            # 2. A 1-token extend triggers an edge case in FlashInfer's
+            #    ragged forward_return_lse (qo_len=1, kv_len=1, causal=True)
+            #    where s1 (log-partition) is computed incorrectly, causing
+            #    the cascade merge to produce wrong logits → EOS.
+            # By ensuring extend_len >= 2, we avoid both issues.
+            if prefix_len >= full_seq_len - 1 and full_seq_len >= 2:
+                prefix_len = full_seq_len - 2
                 if cached_indices is not None:
                     cached_indices = cached_indices[:prefix_len]
 
@@ -575,18 +615,41 @@ class ModelRunnerProcess:
 
             if prefix_len > 0:
                 logger.info(
-                    "Radix cache hit for rid=%s: %d/%d tokens reused (%.1f%%)",
+                    "Radix cache hit for rid=%s: %d/%d tokens reused (%.1f%%) "
+                    "node_id=%s cached_kv[:8]=%s",
                     m["rid"],
                     prefix_len,
                     full_seq_len,
                     100.0 * prefix_len / full_seq_len,
+                    last_node.id if last_node is not None else None,
+                    cached_indices[:min(prefix_len, 8)].tolist()
+                    if cached_indices is not None else [],
+                )
+                logger.info(
+                    "Radix cache tree after match: evictable=%d protected=%d",
+                    cache.evictable_size(),
+                    cache.protected_size(),
                 )
 
         total_new_tokens = sum(actual_extend_lens)
 
+        # --- Step 1.5: Lock matched radix nodes BEFORE allocation ---
+        # This MUST happen before any allocation that could trigger eviction.
+        # Without locking first, _alloc_kv_with_eviction could evict the
+        # matched nodes, freeing their KV pool slots and causing
+        # use-after-free when we later read from cached_indices.
+        if cache is not None and not cache.disable:
+            for i, m in enumerate(requests_meta):
+                node = matched_nodes[i]
+                if node is not None and actual_prefix_lens[i] > 0:
+                    swa_boundary_id = cache.inc_lock_ref(node)
+                    self._rid_to_radix_lock[m["rid"]] = (node, swa_boundary_id)
+
         # --- Step 2: Allocate req pool slots ---
         slots = runner.req_to_token_pool.alloc(batch_size)
         if slots is None:
+            # Rollback locks on failure
+            self._unlock_matched_nodes(requests_meta)
             raise RuntimeError("Failed to allocate req pool slots for extend batch")
 
         # --- Step 3: Allocate KV tokens (with eviction retry) ---
@@ -594,6 +657,8 @@ class ModelRunnerProcess:
         if out_cache_loc is None:
             for s in slots:
                 runner.req_to_token_pool.free(s)
+            # Rollback locks on failure
+            self._unlock_matched_nodes(requests_meta)
             raise RuntimeError(
                 f"Failed to allocate {total_new_tokens} KV tokens for extend batch "
                 f"(even after eviction)"
@@ -611,6 +676,11 @@ class ModelRunnerProcess:
             # Write cached prefix indices (from the match result we saved)
             cached_indices = cached_indices_list[i]
             if cached_indices is not None and prefix_len > 0:
+                logger.debug(
+                    "[ALLOC EXTEND] rid=%s writing prefix[0:%d] to pool[slot=%d]: %s",
+                    rid, prefix_len, slot,
+                    cached_indices[:min(prefix_len, 8)].tolist(),
+                )
                 runner.req_to_token_pool.write(
                     (slot, slice(0, prefix_len)),
                     cached_indices[:prefix_len].to(torch.int32),
@@ -678,15 +748,23 @@ class ModelRunnerProcess:
                     if ts is not None:
                         self._rid_to_gdn_track_slot[rid] = ts
 
-        # --- Step 5: Lock matched radix nodes ---
-        if cache is not None and not cache.disable:
-            for i, m in enumerate(requests_meta):
-                node = matched_nodes[i]
-                if node is not None and actual_prefix_lens[i] > 0:
-                    swa_boundary_id = cache.inc_lock_ref(node)
-                    self._rid_to_radix_lock[m["rid"]] = (node, swa_boundary_id)
+        # (Locking already done in Step 1.5 above)
 
         return out_cache_loc, actual_prefix_lens, actual_extend_lens
+
+    def _unlock_matched_nodes(self, requests_meta: List[Dict[str, Any]]) -> None:
+        """Rollback radix locks acquired during match_prefix.
+
+        Called when allocation fails after locking matched nodes.
+        """
+        cache = self._radix_cache
+        if cache is None or cache.disable:
+            return
+        for m in requests_meta:
+            lock = self._rid_to_radix_lock.pop(m["rid"], None)
+            if lock is not None:
+                node, swa_id = lock
+                cache.dec_lock_ref(node, swa_id)
 
     def _alloc_kv_with_eviction(self, num_tokens: int) -> Optional[torch.Tensor]:
         """Try to allocate KV tokens, evicting from radix cache if needed."""
