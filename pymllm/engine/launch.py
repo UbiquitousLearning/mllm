@@ -215,21 +215,21 @@ class Engine:
         procs_and_readers.append((tokenizer_proc, tokenizer_reader, "tokenizer"))
 
         # Determine default max_new_tokens from model config (if available)
-        model_max_new_tokens = _get_model_default_max_new_tokens(
-            cfg.model.hf_config
-        )
+        model_max_new_tokens = _get_model_default_max_new_tokens(cfg.model.hf_config)
         scheduler_kwargs = {}
         if model_max_new_tokens is not None:
             scheduler_kwargs["default_max_new_tokens"] = model_max_new_tokens
 
         # Extract EOS token ID(s) from model config
-        eos_token_ids = _get_eos_token_ids(cfg.model.hf_config, model_path=cfg.server.model_path)
+        eos_token_ids = _get_eos_token_ids(
+            cfg.model.hf_config, model_path=cfg.server.model_path
+        )
         if eos_token_ids:
             scheduler_kwargs["eos_token_ids"] = eos_token_ids
             logger.info("EOS token IDs for scheduler: %s", eos_token_ids)
 
         # Model runner config — passed to the scheduler process which now
-        # owns the model runner in-process (sglang-style architecture).
+        # owns the model runner in-process.
         scheduler_kwargs["server_config"] = cfg.server
         scheduler_kwargs["model_config"] = cfg.model
         scheduler_kwargs["gpu_id"] = cfg.server.base_gpu_id

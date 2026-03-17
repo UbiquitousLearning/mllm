@@ -1,7 +1,6 @@
 """ModelRunner runs the forward passes of the models.
 
-Simplified from sglang's ``ModelRunner`` for pymllm's single-GPU inference
-architecture.  Handles:
+pymllm's single-GPU inference architecture.  Handles:
 
 * Model loading (HuggingFace checkpoint via ``transformers``)
 * KV-cache memory pool initialisation
@@ -329,7 +328,9 @@ class ModelRunner:
 
         # Hybrid model metadata (GDN layers)
         self.num_gdn_layers: int = getattr(self.model, "num_gdn_layers", 0)
-        self.full_attn_layer_ids: set = getattr(self.model, "full_attn_layer_ids", set())
+        self.full_attn_layer_ids: set = getattr(
+            self.model, "full_attn_layer_ids", set()
+        )
 
         logger.info(
             "Model metadata: layers=%d, q_heads=%d, kv_heads=%d, "
@@ -521,7 +522,9 @@ class ModelRunner:
             gdn_head_k_dim = getattr(text_config, "linear_key_head_dim", 128)
             gdn_head_v_dim = getattr(text_config, "linear_value_head_dim", 128)
             gdn_conv_kernel = getattr(text_config, "linear_conv_kernel_dim", 4)
-            gdn_conv_dim = gdn_num_k_heads * gdn_head_k_dim * 2 + gdn_num_v_heads * gdn_head_v_dim
+            gdn_conv_dim = (
+                gdn_num_k_heads * gdn_head_k_dim * 2 + gdn_num_v_heads * gdn_head_v_dim
+            )
 
             self.gdn_pool = GDNPool(
                 max_reqs=self.max_running_requests,
@@ -542,7 +545,11 @@ class ModelRunner:
             self.max_total_num_tokens,
             self.max_running_requests,
             self.token_to_kv_pool._mem_bytes() / (1 << 30),
-            *([self.gdn_pool.mem_bytes() / (1 << 30)] if self.gdn_pool is not None else []),
+            *(
+                [self.gdn_pool.mem_bytes() / (1 << 30)]
+                if self.gdn_pool is not None
+                else []
+            ),
         )
 
     def _profile_max_num_tokens(self) -> int:
@@ -594,23 +601,39 @@ class ModelRunner:
             gdn_head_k_dim = getattr(text_config, "linear_key_head_dim", 128)
             gdn_head_v_dim = getattr(text_config, "linear_value_head_dim", 128)
             gdn_conv_kernel = getattr(text_config, "linear_conv_kernel_dim", 4)
-            gdn_conv_dim = gdn_num_k_heads * gdn_head_k_dim * 2 + gdn_num_v_heads * gdn_head_v_dim
+            gdn_conv_dim = (
+                gdn_num_k_heads * gdn_head_k_dim * 2 + gdn_num_v_heads * gdn_head_v_dim
+            )
 
             # Estimate GDN pool memory for max_running_requests
             # Track slots add max_reqs_est extra slots for prefix cache snapshots
-            max_reqs_est = min(
-                max(int(rest_memory_bytes / cell_size / self.context_len * 512), 2048),
-                4096,
-            ) if self.server_config.max_running_requests is None else self.server_config.max_running_requests
+            max_reqs_est = (
+                min(
+                    max(
+                        int(rest_memory_bytes / cell_size / self.context_len * 512),
+                        2048,
+                    ),
+                    4096,
+                )
+                if self.server_config.max_running_requests is None
+                else self.server_config.max_running_requests
+            )
             pool_size = max_reqs_est + 1 + max_reqs_est  # +track_slots
             recurrent_bytes = (
-                self.num_gdn_layers * pool_size * gdn_num_v_heads
-                * gdn_head_v_dim * gdn_head_k_dim * 4  # float32
+                self.num_gdn_layers
+                * pool_size
+                * gdn_num_v_heads
+                * gdn_head_v_dim
+                * gdn_head_k_dim
+                * 4  # float32
             )
             dtype_size = torch.tensor([], dtype=self.dtype).element_size()
             conv_bytes = (
-                self.num_gdn_layers * pool_size * gdn_conv_dim
-                * (gdn_conv_kernel - 1) * dtype_size
+                self.num_gdn_layers
+                * pool_size
+                * gdn_conv_dim
+                * (gdn_conv_kernel - 1)
+                * dtype_size
             )
             gdn_pool_bytes = recurrent_bytes + conv_bytes
             rest_memory_bytes -= gdn_pool_bytes

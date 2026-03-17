@@ -2,8 +2,8 @@
 SchedulerProcess -- the central scheduling and inference hub.
 
 Receives tokenized requests from the TokenizerProcess, organises them into
-batches, runs model forward passes via the **in-process** model runner
-(sglang-style), and streams finished token IDs to the DetokenizerProcess.
+batches, runs model forward passes via the **in-process** model runner,
+and streams finished token IDs to the DetokenizerProcess.
 
 Architecture: the scheduler owns the :class:`ModelRunnerProcess` directly
 (same process, direct function calls).  GPU resources (KV cache, req pool
@@ -351,7 +351,7 @@ class SchedulerProcess:
         self._recv_from_tokenizer_addr = recv_from_tokenizer_addr
         self._send_to_detokenizer_addr = send_to_detokenizer_addr
 
-        # Model config (for in-process model runner, sglang-style)
+        # Model config (for in-process model runner)
         self._server_config = server_config
         self._model_config = model_config
         self._gpu_id = gpu_id
@@ -393,18 +393,19 @@ class SchedulerProcess:
         # Monotonic request-slot counter (simplified; no GPU pool access)
         self._next_req_pool_idx: int = 0
 
-        # ------ Throughput metrics (sglang-style interval logging) ------
+        # ------ Throughput metrics ------
         # How often (in decode batches) to log throughput stats.
         self._decode_log_interval: int = (
             server_config.decode_log_interval
-            if server_config is not None and hasattr(server_config, "decode_log_interval")
+            if server_config is not None
+            and hasattr(server_config, "decode_log_interval")
             else 40
         )
         # Accumulators reset at each log interval
-        self._num_prefill_tokens: int = 0       # new prefill tokens (excluding cache hits)
-        self._num_prefill_cache_tokens: int = 0 # prefill tokens served from cache
-        self._num_decode_tokens: int = 0        # generated decode tokens
-        self._num_prefill_reqs: int = 0         # prefill requests count
+        self._num_prefill_tokens: int = 0  # new prefill tokens (excluding cache hits)
+        self._num_prefill_cache_tokens: int = 0  # prefill tokens served from cache
+        self._num_decode_tokens: int = 0  # generated decode tokens
+        self._num_prefill_reqs: int = 0  # prefill requests count
         # Timestamps for throughput calculation
         self._last_prefill_stats_tic: float = time.time()
         self._last_decode_stats_tic: float = time.time()
@@ -436,7 +437,7 @@ class SchedulerProcess:
         self._poller.register(self._recv_from_tokenizer, zmq.POLLIN)
 
     def init_model(self) -> None:
-        """Create and initialise the in-process model runner (sglang-style).
+        """Create and initialise the in-process model runner.
 
         Must be called after ``init_sockets`` and inside the subprocess
         (after spawn) since it performs CUDA initialisation.
@@ -693,7 +694,7 @@ class SchedulerProcess:
     # ------------------------------------------------------------------
 
     def run_batch(self, batch: ScheduleBatch) -> Dict[str, Any]:
-        """Execute the batch via the in-process model runner (sglang-style).
+        """Execute the batch via the in-process model runner.
 
         Direct function call — no ZMQ serialisation overhead.
         """
@@ -772,7 +773,9 @@ class SchedulerProcess:
             self._used_tokens += len(new_token_ids)
 
             # Check finish conditions
-            req.check_finished(eos_token_id=self._eos_token_ids[0] if self._eos_token_ids else None)
+            req.check_finished(
+                eos_token_id=self._eos_token_ids[0] if self._eos_token_ids else None
+            )
 
         # Process batch requests based on forward mode
         if batch.forward_mode.is_extend():
@@ -987,7 +990,7 @@ def run_scheduler_process(
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``.
 
-    The scheduler process now also owns the model runner (sglang-style),
+    The scheduler process now also owns the model runner,
     so model initialisation happens here.
     """
     setup_subprocess_logging(log_level)
