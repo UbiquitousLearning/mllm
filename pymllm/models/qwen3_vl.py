@@ -152,7 +152,7 @@ class Qwen3VisionAttention(nn.Module):
         q, k, v = qkv.reshape(seq_len, 3, self.num_heads, self.head_dim).unbind(dim=1)
 
         # Apply rotary position embedding.
-        # cos/sin are [total_tokens, head_dim // 2].  Following sglang's
+        # cos/sin are [total_tokens, head_dim // 2].
         # VisionAttention: double them to full head_dim and apply RoPE to
         # all head dimensions (the rotation pairs (q[i], q[i + head_dim//2])).
         cos = rotary_pos_emb_cos
@@ -1154,7 +1154,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         )
 
         # Prune hidden_states before lm_head to avoid a wasteful
-        # [total_tokens, vocab] matmul during prefill.  Following sglang's
+        # [total_tokens, vocab] matmul during prefill.
         # LogitsProcessor._get_pruned_states(): in extend mode only keep
         # the last token of each sequence; in decode mode all rows are
         # already one-per-sequence.
@@ -1172,7 +1172,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         # LM head: always use weight matrix directly for the linear
         # projection.  Works for both nn.Embedding (tied) and nn.Linear
-        # (untied).  Matches sglang LogitsProcessor._compute_lm_head().
+        # (untied).
         logits = torch.matmul(
             hidden_states.to(self.lm_head.weight.dtype),
             self.lm_head.weight.T,
@@ -1307,9 +1307,7 @@ def _load_stacked_weight(
         elif shard_id == "v":
             kv_size = shard_size
             q_size = total_size - 2 * kv_size
-            param.data[q_size + kv_size : q_size + 2 * kv_size].copy_(
-                loaded_weight
-            )
+            param.data[q_size + kv_size : q_size + 2 * kv_size].copy_(loaded_weight)
     else:
         # gate_up: 0 -> gate, 1 -> up (same size, idx*size is correct)
         shard_size = loaded_weight.shape[0]

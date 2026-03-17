@@ -1,8 +1,8 @@
 """
 ModelRunnerProcess -- GPU-owning component that executes model forward passes.
 
-Instantiated **in-process** by :class:`SchedulerProcess` (sglang-style
-architecture).  The scheduler calls :meth:`_forward_batch` directly —
+Instantiated **in-process** by :class:`SchedulerProcess`
+The scheduler calls :meth:`_forward_batch` directly —
 no inter-process communication is involved.
 
 This component owns the GPU: it holds a :class:`ModelRunner` with model
@@ -267,8 +267,16 @@ class ModelRunnerProcess:
                 src = mm.get("image_inputs") if "image_inputs" in mm else mm
                 if src is None:
                     continue
-                pv = src.get("pixel_values") if hasattr(src, "get") else getattr(src, "pixel_values", None)
-                thw = src.get("image_grid_thw") if hasattr(src, "get") else getattr(src, "image_grid_thw", None)
+                pv = (
+                    src.get("pixel_values")
+                    if hasattr(src, "get")
+                    else getattr(src, "pixel_values", None)
+                )
+                thw = (
+                    src.get("image_grid_thw")
+                    if hasattr(src, "get")
+                    else getattr(src, "image_grid_thw", None)
+                )
                 if pv is not None:
                     if not isinstance(pv, torch.Tensor):
                         pv = torch.as_tensor(pv)
@@ -408,8 +416,6 @@ class ModelRunnerProcess:
     def _insert_into_radix_cache(self, requests_meta: List[Dict[str, Any]]) -> None:
         """Insert prefill KV indices into the radix cache for future reuse.
 
-        Mirrors sglang's ``cache_unfinished_req`` pattern:
-
         1. **Insert** the request's token → KV index mapping into the tree.
         2. **Free duplicates** — indices in ``[cache_protected_len, new_prefix_len)``
            are now owned by the tree; the request's copies are redundant.
@@ -445,8 +451,11 @@ class ModelRunnerProcess:
             if _dbg:
                 logger.debug(
                     "[CACHE INSERT] rid=%s seq_len=%d pool[slot=%d,0:%d]=%s",
-                    rid, seq_len, slot, min(seq_len, 8),
-                    kv_indices[:min(seq_len, 8)].tolist(),
+                    rid,
+                    seq_len,
+                    slot,
+                    min(seq_len, 8),
+                    kv_indices[: min(seq_len, 8)].tolist(),
                 )
 
             key = RadixKey(input_ids)
@@ -458,15 +467,19 @@ class ModelRunnerProcess:
             if _dbg:
                 logger.debug(
                     "[CACHE INSERT] rid=%s insert prefix_len=%d cache_protected=%d",
-                    rid, new_prefix_len, cache_protected_len,
+                    rid,
+                    new_prefix_len,
+                    cache_protected_len,
                 )
             if new_prefix_len > cache_protected_len:
                 dup_indices = kv_indices[cache_protected_len:new_prefix_len]
                 if _dbg:
                     logger.debug(
                         "[CACHE INSERT] rid=%s freeing dup [%d:%d]=%s",
-                        rid, cache_protected_len, new_prefix_len,
-                        dup_indices[:min(len(dup_indices), 8)].tolist(),
+                        rid,
+                        cache_protected_len,
+                        new_prefix_len,
+                        dup_indices[: min(len(dup_indices), 8)].tolist(),
                     )
                 if dup_indices.numel() > 0:
                     runner.token_to_kv_pool_allocator.free(dup_indices)
@@ -480,7 +493,9 @@ class ModelRunnerProcess:
             if _dbg:
                 logger.debug(
                     "[CACHE INSERT] rid=%s rematch len=%d indices[:8]=%s",
-                    rid, len(new_indices), new_indices[:min(len(new_indices), 8)].tolist(),
+                    rid,
+                    len(new_indices),
+                    new_indices[: min(len(new_indices), 8)].tolist(),
                 )
             if cache.page_size == 1:
                 assert len(new_indices) == seq_len, (
@@ -491,8 +506,13 @@ class ModelRunnerProcess:
                 if _dbg:
                     logger.debug(
                         "[CACHE INSERT] rid=%s write-back pool[slot=%d,%d:%d]=%s",
-                        rid, slot, cache_protected_len, len(new_indices),
-                        new_indices[cache_protected_len:cache_protected_len+8].tolist(),
+                        rid,
+                        slot,
+                        cache_protected_len,
+                        len(new_indices),
+                        new_indices[
+                            cache_protected_len : cache_protected_len + 8
+                        ].tolist(),
                     )
                 runner.req_to_token_pool.write(
                     (slot, slice(cache_protected_len, len(new_indices))),
@@ -587,7 +607,8 @@ class ModelRunnerProcess:
                 logger.debug(
                     "Discarding radix cache hit for rid=%s: no GDN state "
                     "for matched node (prefix_len=%d)",
-                    m["rid"], prefix_len,
+                    m["rid"],
+                    prefix_len,
                 )
                 prefix_len = 0
                 last_node = None
@@ -622,8 +643,9 @@ class ModelRunnerProcess:
                     full_seq_len,
                     100.0 * prefix_len / full_seq_len,
                     last_node.id if last_node is not None else None,
-                    cached_indices[:min(prefix_len, 8)].tolist()
-                    if cached_indices is not None else [],
+                    cached_indices[: min(prefix_len, 8)].tolist()
+                    if cached_indices is not None
+                    else [],
                 )
                 logger.info(
                     "Radix cache tree after match: evictable=%d protected=%d",
@@ -678,8 +700,10 @@ class ModelRunnerProcess:
             if cached_indices is not None and prefix_len > 0:
                 logger.debug(
                     "[ALLOC EXTEND] rid=%s writing prefix[0:%d] to pool[slot=%d]: %s",
-                    rid, prefix_len, slot,
-                    cached_indices[:min(prefix_len, 8)].tolist(),
+                    rid,
+                    prefix_len,
+                    slot,
+                    cached_indices[: min(prefix_len, 8)].tolist(),
                 )
                 runner.req_to_token_pool.write(
                     (slot, slice(0, prefix_len)),
@@ -719,7 +743,9 @@ class ModelRunnerProcess:
                         logger.debug(
                             "GDN state restored for rid=%s from track_slot=%d "
                             "(prefix_len=%d)",
-                            rid, track_slot, prefix_len,
+                            rid,
+                            track_slot,
+                            prefix_len,
                         )
                     else:
                         # Cache hit but no GDN snapshot — reset to zero.
@@ -731,7 +757,8 @@ class ModelRunnerProcess:
                         logger.debug(
                             "GDN state reset for rid=%s (cache hit but no "
                             "track slot, prefix_len=%d)",
-                            rid, prefix_len,
+                            rid,
+                            prefix_len,
                         )
                 else:
                     # No cache hit — fresh request, zero-init
@@ -1034,7 +1061,8 @@ class ModelRunnerProcess:
                 gdn_pool.free_track_slot(track_slot)
                 logger.debug(
                     "Freed GDN track slot %d for evicted node %d",
-                    track_slot, node_id,
+                    track_slot,
+                    node_id,
                 )
 
     # ------------------------------------------------------------------

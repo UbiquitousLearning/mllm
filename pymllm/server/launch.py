@@ -1,8 +1,7 @@
 """pymllm HTTP server -- RESTful API entry point.
 
 This module implements a FastAPI-based HTTP server that wraps the pymllm
-:class:`Engine` and exposes OpenAI-compatible and native REST endpoints,
-following the architecture of sglang's ``http_server.py``.
+:class:`Engine` and exposes OpenAI-compatible and native REST endpoints.
 
 Endpoints
 ---------
@@ -896,9 +895,8 @@ def _prepare_args():
 def launch_server():
     """Launch the pymllm Engine then start the uvicorn HTTP server.
 
-    This function mirrors sglang's ``launch_server``: it first boots all engine
-    subprocesses (tokenizer, scheduler, model-runner, detokenizer) and then
-    hands off to uvicorn to serve HTTP traffic.
+    It first boots all engine subprocesses (tokenizer, scheduler, model-runner, detokenizer) 
+    and then hands off to uvicorn to serve HTTP traffic.
     """
     _prepare_args()
     cfg = get_global_config()

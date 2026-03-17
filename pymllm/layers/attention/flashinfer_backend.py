@@ -350,11 +350,10 @@ class FlashInferAttnBackend(AttentionBackend):
         else:
             # Extend / prefill
             prefix_lens = forward_batch.extend_prefix_lens
-            extend_no_prefix = (
-                forward_batch.extend_prefix_lens_cpu is None
-                or not any(forward_batch.extend_prefix_lens_cpu)
+            extend_no_prefix = forward_batch.extend_prefix_lens_cpu is None or not any(
+                forward_batch.extend_prefix_lens_cpu
             )
-            # use_ragged=True: match sglang's default.
+            # use_ragged=True
             # - extend_no_prefix=True  → ragged-only (pure prefill, no cache)
             # - extend_no_prefix=False → ragged+paged merge (cache hit)
             # The paged wrapper covers only the cached prefix (prefix_lens),

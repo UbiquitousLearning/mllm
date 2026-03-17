@@ -3,8 +3,7 @@
 Captures CUDA graphs for a set of discrete batch sizes so that the decode
 forward pass can be replayed without CPU-side kernel-launch overhead.
 
-Simplified from sglang's ``CudaGraphRunner`` for pymllm's single-GPU
-architecture.  Handles:
+``CudaGraphRunner`` for pymllm's single-GPU architecture.  Handles:
 
 * Pre-allocated input buffers (avoids per-step allocations)
 * CUDA-graph capture for each batch size
