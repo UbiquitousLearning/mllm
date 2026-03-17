@@ -13,7 +13,7 @@ tasks/mllmteam*
 
 # Building files and binary
 build*/
-install*/
+/install*/
 mllm-sdk-*/
 mllm-install-*/
 

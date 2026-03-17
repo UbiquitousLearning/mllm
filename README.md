@@ -308,6 +308,15 @@ mllm provides a set of model converters to convert models from other popular mod
 bash ./scripts/install_pymllm.sh
 ```
 
+> **Tip for CUDA-only users:** If you only use CUDA backends (e.g., FlashInfer, TileLang) and do not need the C++ mllm runtime, you can skip the CMake build to speed up installation significantly:
+>
+> ```shell
+> SKBUILD_WHEEL_CMAKE=false pip install -e .
+> pip install pymllm[cuda]
+> ```
+>
+> This installs only the pure Python package without compiling the C++ components.
+
 **future:**
 
 Once PyPI approves the creation of the mllm organization, we will publish it there. Afterwards, you can use the command below to install it in the future.

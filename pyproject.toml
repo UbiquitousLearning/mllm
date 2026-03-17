@@ -54,6 +54,8 @@ first_party_detection = false
 target-version = ["py310", "py311", "py312"]
 
 [tool.scikit-build]
+# Set to false or use env var SKBUILD_WHEEL_CMAKE=false to skip CMake build
+wheel.cmake = true
 # ABI-agnostic wheel
 wheel.py-api = "py3"
 cmake.args = [
