@@ -82,8 +82,9 @@ class ServerConfig:
     # Feature switches
     # --------------------------------------------------------------------- #
     enable_shared_queue: bool = False  # Use shared memory queue for fast IPC
-    disable_radix_cache: bool = False  # Disable radix-tree prefix caching
+    disable_radix_cache: bool = False  # Disable radix-tree prefix caching (uses ChunkCache)
     radix_cache_page_size: int = 1  # Number of tokens per KV-pool page in RadixCache
+    enable_mamba_cache: bool = False  # Use MambaRadixCache for SSM state caching
 
     # CUDA IPC transport for multimodal GPU tensors.
     # Requires enable_shared_queue=True to take effect.

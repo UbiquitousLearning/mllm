@@ -24,7 +24,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
-from pymllm.mem_cache.radix_cache import RadixCache, RadixKey, TreeNode
+from pymllm.mem_cache.base_prefix_cache import BasePrefixCache, RadixKey
+from pymllm.mem_cache.chunk_cache import ChunkCache
+from pymllm.mem_cache.mamba_radix_cache import MambaRadixCache
+from pymllm.mem_cache.radix_cache import RadixCache
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +72,9 @@ class ModelRunnerProcess:
         # range [cache_protected_len, prefix_len) are duplicates that must
         # be freed from the allocator (the tree already holds cloned copies).
         self._rid_to_cache_protected_len: Dict[str, int] = {}
-        # Maps rid -> (last_node, swa_boundary_id) for radix cache lock tracking
-        self._rid_to_radix_lock: Dict[str, Tuple[TreeNode, Optional[int]]] = {}
+        # Maps rid -> (last_node, lock_token) for radix cache lock tracking.
+        # last_node type depends on the cache implementation (TreeNode, MambaTreeNode, etc.)
+        self._rid_to_radix_lock: Dict[str, Tuple[Any, Optional[Any]]] = {}
         # Maps rid -> mrope_position_delta (M-RoPE positional offset per request)
         # Populated during prefill; used to offset decode-step positions for
         # multimodal models (Qwen3-VL) that consume more position indices than
@@ -105,34 +109,63 @@ class ModelRunnerProcess:
         )
         self._runner.initialize()
 
-        # Initialise RadixCache after memory pools are ready.
+        # Initialise prefix cache after memory pools are ready.
+        self._radix_cache = self._create_prefix_cache()
+        logger.info("ModelRunnerProcess: ModelRunner ready")
+
+    def _create_prefix_cache(self) -> BasePrefixCache:
+        """Factory: create the appropriate prefix cache based on config."""
         disable_cache = getattr(self._server_config, "disable_radix_cache", False)
         self._is_hybrid = self._runner.num_gdn_layers > 0
-        if self._is_hybrid and not disable_cache:
+        enable_mamba_cache = getattr(self._server_config, "enable_mamba_cache", False)
+        sliding_window = self._runner.sliding_window_size
+        page_size = getattr(self._server_config, "radix_cache_page_size", 1)
+        allocator = self._runner.token_to_kv_pool_allocator
+
+        if disable_cache:
+            device = allocator.device if allocator is not None else torch.device("cpu")
+            logger.info("ModelRunnerProcess: using ChunkCache (radix cache disabled)")
+            return ChunkCache(
+                token_to_kv_pool_allocator=allocator,
+                device=device,
+            )
+
+        if enable_mamba_cache:
+            mamba_pool = getattr(self._runner, "gdn_pool", None)
+            logger.info(
+                "ModelRunnerProcess: using MambaRadixCache "
+                "(mamba_pool=%s, page_size=%d)",
+                "available" if mamba_pool is not None else "none",
+                page_size,
+            )
+            evict_cb = self._on_radix_node_evict if self._is_hybrid else None
+            return MambaRadixCache(
+                page_size=page_size,
+                token_to_kv_pool_allocator=allocator,
+                mamba_pool=mamba_pool,
+                on_node_evict=evict_cb,
+            )
+
+        # Standard RadixCache (with optional SWA)
+        if self._is_hybrid:
             logger.info(
                 "ModelRunnerProcess: prefix caching ENABLED with GDN state "
                 "tracking (%d GDN layers)",
                 self._runner.num_gdn_layers,
             )
-        sliding_window = self._runner.sliding_window_size
-        page_size = getattr(self._server_config, "radix_cache_page_size", 1)
-        # For hybrid models, register an eviction callback so that evicted
-        # radix nodes free their associated GDN track slots.
         evict_cb = self._on_radix_node_evict if self._is_hybrid else None
-        self._radix_cache = RadixCache(
+        logger.info(
+            "ModelRunnerProcess: using RadixCache "
+            "(sliding_window=%s, page_size=%d)",
+            sliding_window,
+            page_size,
+        )
+        return RadixCache(
             page_size=page_size,
             sliding_window_size=sliding_window,
-            disable=disable_cache,
-            token_to_kv_pool_allocator=self._runner.token_to_kv_pool_allocator,
+            token_to_kv_pool_allocator=allocator,
             on_node_evict=evict_cb,
         )
-        logger.info(
-            "ModelRunnerProcess: RadixCache initialized "
-            "(disable=%s, sliding_window=%s)",
-            disable_cache,
-            sliding_window,
-        )
-        logger.info("ModelRunnerProcess: ModelRunner ready")
 
     # ------------------------------------------------------------------
     # Forward pass
@@ -223,15 +256,49 @@ class ModelRunnerProcess:
         temperatures = []
         top_ps = []
         top_ks = []
+        repetition_penalties = []
+        frequency_penalties = []
+        presence_penalties = []
         for m in requests_meta:
             sp = m.get("sampling_params") or {}
             temperatures.append(sp.get("temperature", 1.0))
             top_ps.append(sp.get("top_p", 1.0))
             top_ks.append(sp.get("top_k", -1))
+            repetition_penalties.append(sp.get("repetition_penalty", 1.0))
+            frequency_penalties.append(sp.get("frequency_penalty", 0.0))
+            presence_penalties.append(sp.get("presence_penalty", 0.0))
 
         temps_tensor = torch.tensor(temperatures, dtype=torch.float32, device=device)
         top_ps_tensor = torch.tensor(top_ps, dtype=torch.float32, device=device)
         top_ks_tensor = torch.tensor(top_ks, dtype=torch.int32, device=device)
+
+        # Collect token histories for penalty computation.
+        # Each entry is (input_ids + output_ids_so_far) for the request.
+        has_penalties = (
+            any(p != 1.0 for p in repetition_penalties)
+            or any(p != 0.0 for p in frequency_penalties)
+            or any(p != 0.0 for p in presence_penalties)
+        )
+        penalty_params = None
+        if has_penalties:
+            token_histories = []
+            for m in requests_meta:
+                rid = m["rid"]
+                input_ids = self._rid_to_input_ids.get(rid, [])
+                output_ids = self._rid_to_output_ids.get(rid, [])
+                token_histories.append(list(input_ids) + list(output_ids))
+            penalty_params = {
+                "repetition_penalties": torch.tensor(
+                    repetition_penalties, dtype=torch.float32, device=device
+                ),
+                "frequency_penalties": torch.tensor(
+                    frequency_penalties, dtype=torch.float32, device=device
+                ),
+                "presence_penalties": torch.tensor(
+                    presence_penalties, dtype=torch.float32, device=device
+                ),
+                "token_histories": token_histories,
+            }
 
         if forward_mode == "extend":
             if extend_seq_lens_t is None:
@@ -325,6 +392,7 @@ class ModelRunnerProcess:
             temperatures=temps_tensor,
             top_ps=top_ps_tensor,
             top_ks=top_ks_tensor,
+            penalty_params=penalty_params,
         )
 
         # ==============================================================
@@ -427,7 +495,7 @@ class ModelRunnerProcess:
         """
         _dbg = logger.isEnabledFor(logging.DEBUG)
         cache = self._radix_cache
-        if cache is None or cache.disable:
+        if cache is None:
             return
 
         runner = self._runner
@@ -570,7 +638,7 @@ class ModelRunnerProcess:
         # --- Step 1: Radix cache prefix matching ---
         actual_prefix_lens: List[int] = []
         actual_extend_lens: List[int] = []
-        matched_nodes: List[Optional[TreeNode]] = []
+        matched_nodes: List[Optional[Any]] = []
         # Cache the match results so we don't call match_prefix twice
         cached_indices_list: List[Optional[torch.Tensor]] = []
         gdn_pool = getattr(runner, "gdn_pool", None)
@@ -582,7 +650,7 @@ class ModelRunnerProcess:
             # Store input_ids for later radix cache insert
             self._rid_to_input_ids[m["rid"]] = full_input_ids
 
-            if cache is not None and not cache.disable and len(full_input_ids) > 0:
+            if cache is not None and len(full_input_ids) > 0:
                 key = RadixKey(full_input_ids)
                 match_result = cache.match_prefix(key)
                 prefix_len = match_result.prefix_len
@@ -660,7 +728,7 @@ class ModelRunnerProcess:
         # Without locking first, _alloc_kv_with_eviction could evict the
         # matched nodes, freeing their KV pool slots and causing
         # use-after-free when we later read from cached_indices.
-        if cache is not None and not cache.disable:
+        if cache is not None:
             for i, m in enumerate(requests_meta):
                 node = matched_nodes[i]
                 if node is not None and actual_prefix_lens[i] > 0:
@@ -770,7 +838,7 @@ class ModelRunnerProcess:
                 # Allocate a track slot only when the radix cache is enabled;
                 # track slots are freed via the eviction callback so they must
                 # be associated with a node, which only happens when cache is on.
-                if cache is not None and not cache.disable:
+                if cache is not None:
                     ts = gdn_pool.alloc_track_slot()
                     if ts is not None:
                         self._rid_to_gdn_track_slot[rid] = ts
@@ -785,7 +853,7 @@ class ModelRunnerProcess:
         Called when allocation fails after locking matched nodes.
         """
         cache = self._radix_cache
-        if cache is None or cache.disable:
+        if cache is None:
             return
         for m in requests_meta:
             lock = self._rid_to_radix_lock.pop(m["rid"], None)
@@ -807,7 +875,7 @@ class ModelRunnerProcess:
             return result
 
         # Eviction loop: try evicting from radix cache to free space
-        if cache is None or cache.disable:
+        if cache is None:
             return None
 
         for attempt in range(_MAX_EVICT_RETRIES):
@@ -931,7 +999,7 @@ class ModelRunnerProcess:
         # and the eviction callback; here we just remove the rid mapping.
         self._rid_to_gdn_track_slot.pop(rid, None)
 
-        cache_enabled = cache is not None and not cache.disable
+        cache_enabled = cache is not None
 
         # ----------------------------------------------------------
         # Phase 1: Read all KV indices BEFORE freeing anything.

@@ -39,7 +39,7 @@ import gc
 import logging
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn
@@ -62,6 +62,14 @@ if TYPE_CHECKING:
     from pymllm.layers.attention.attention_backend import AttentionBackend
 
 logger = logging.getLogger(__name__)
+
+
+def _suppress_cpu_threads() -> None:
+    """Limit PyTorch intra-op threads to 1 for GPU inference.
+
+    Reference: sglang ``ModelRunner``.
+    """
+    torch.set_num_threads(1)
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +116,97 @@ class LogitsProcessorOutput:
 
     next_token_logits: torch.Tensor  # [batch_size, vocab_size]
     hidden_states: Optional[torch.Tensor] = None
+
+
+# ---------------------------------------------------------------------------
+# Penalty helpers
+# ---------------------------------------------------------------------------
+
+
+def _apply_penalties(
+    logits: torch.Tensor,
+    token_histories: List[List[int]],
+    repetition_penalties: torch.Tensor,
+    frequency_penalties: torch.Tensor,
+    presence_penalties: torch.Tensor,
+) -> torch.Tensor:
+    """Apply repetition, frequency, and presence penalties to logits in-place.
+
+    - **repetition_penalty** (multiplicative, default 1.0):
+      For each token that appeared in the history, if logit > 0 divide
+      by the penalty, else multiply by it.  Values > 1 discourage repetition.
+
+    - **frequency_penalty** (additive, default 0.0):
+      Subtract ``penalty * count(token)`` from the logit for each token
+      that appeared in the history.  The more a token appears, the
+      stronger the penalty.
+
+    - **presence_penalty** (additive, default 0.0):
+      Subtract ``penalty`` from the logit for each token that appeared
+      at least once in the history (binary, not count-based).
+
+    Parameters
+    ----------
+    logits : [batch_size, vocab_size]
+    token_histories : list of list of int, length batch_size
+    repetition_penalties : [batch_size]
+    frequency_penalties : [batch_size]
+    presence_penalties : [batch_size]
+    """
+    logits = logits.clone()
+    batch_size, vocab_size = logits.shape
+    device = logits.device
+
+    for i in range(batch_size):
+        history = token_histories[i]
+        if not history:
+            continue
+
+        rep_p = repetition_penalties[i].item()
+        freq_p = frequency_penalties[i].item()
+        pres_p = presence_penalties[i].item()
+
+        # Skip if all penalties are neutral
+        if rep_p == 1.0 and freq_p == 0.0 and pres_p == 0.0:
+            continue
+
+        # Count token occurrences
+        token_counts: Dict[int, int] = {}
+        for t in history:
+            if 0 <= t < vocab_size:
+                token_counts[t] = token_counts.get(t, 0) + 1
+
+        if not token_counts:
+            continue
+
+        token_ids = list(token_counts.keys())
+        token_ids_t = torch.tensor(token_ids, dtype=torch.long, device=device)
+        selected_logits = logits[i, token_ids_t]
+
+        # Repetition penalty (multiplicative)
+        if rep_p != 1.0:
+            selected_logits = torch.where(
+                selected_logits > 0,
+                selected_logits / rep_p,
+                selected_logits * rep_p,
+            )
+
+        # Frequency penalty (additive, proportional to count)
+        if freq_p != 0.0:
+            counts = torch.tensor(
+                [token_counts[t] for t in token_ids],
+                dtype=torch.float32,
+                device=device,
+            )
+            selected_logits = selected_logits - freq_p * counts
+
+        # Presence penalty (additive, binary)
+        if pres_p != 0.0:
+            selected_logits = selected_logits - pres_p
+
+        logits[i, token_ids_t] = selected_logits
+
+    return logits
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +292,13 @@ class ModelRunner:
         # Set device
         if self.device == "cuda":
             torch.cuda.set_device(self.gpu_id)
+
+        # Limit PyTorch CPU threads to 1 for GPU inference.
+        # PyTorch's default (= CPU core count) causes OpenMP thread pool
+        # spin-wait that wastes CPU.  GPU models don't benefit from CPU
+        # parallelism.  Reference: sglang ModelRunner.
+        if self.device != "cpu":
+            _suppress_cpu_threads()
 
         # Set default dtype
         torch.set_default_dtype(self.dtype)
@@ -1067,10 +1173,12 @@ class ModelRunner:
         temperatures: Optional[torch.Tensor] = None,
         top_ps: Optional[torch.Tensor] = None,
         top_ks: Optional[torch.Tensor] = None,
+        penalty_params: Optional[Dict[str, Any]] = None,
     ) -> torch.Tensor:
         """Sample next-token IDs from logits.
 
-        Supports per-request temperature, top-p, and top-k.
+        Supports per-request temperature, top-p, top-k, and penalties
+        (repetition, frequency, presence).
 
         Parameters
         ----------
@@ -1084,6 +1192,11 @@ class ModelRunner:
             Per-request top-p, shape ``[batch_size]``.
         top_ks
             Per-request top-k, shape ``[batch_size]``.
+        penalty_params
+            Optional dict with keys ``repetition_penalties``,
+            ``frequency_penalties``, ``presence_penalties`` (tensors of
+            shape ``[batch_size]``), and ``token_histories`` (list of
+            list of int).
 
         Returns
         -------
@@ -1100,6 +1213,16 @@ class ModelRunner:
 
         if logits.numel() == 0:
             return torch.empty(0, dtype=torch.int32, device=self.device)
+
+        # Apply penalties to logits before temperature/sampling.
+        if penalty_params is not None:
+            logits = _apply_penalties(
+                logits,
+                penalty_params["token_histories"],
+                penalty_params["repetition_penalties"],
+                penalty_params["frequency_penalties"],
+                penalty_params["presence_penalties"],
+            )
 
         # Greedy path: temperature=0 (or all zeros) → argmax, no sampling.
         if temperatures is not None:

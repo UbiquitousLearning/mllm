@@ -23,6 +23,8 @@ The main ``event_loop``::
         if batch:
             result = run_batch(batch)      # direct call to model runner
             process_batch_result(batch, result)
+        else:
+            idle_sleeper.sleep()           # block until ZMQ data or timeout
         stream_output()
 """
 
@@ -48,9 +50,36 @@ logger = logging.getLogger(__name__)
 
 # Default scheduling limits
 _DEFAULT_MAX_RUNNING_REQUESTS = 256
+_DEFAULT_IDLE_POLL_TIMEOUT_MS = 1000
 _DEFAULT_MAX_PREFILL_TOKENS = 8192
 _DEFAULT_MAX_TOTAL_TOKENS = 131072
 _DEFAULT_MAX_NEW_TOKENS = 32768
+
+
+# ======================================================================
+# IdleSleeper -- avoid busy-looping when no work is available
+# ======================================================================
+
+
+class IdleSleeper:
+    """Block the scheduler thread when idle using ZMQ Poller.
+
+    Avoids 100% CPU spinning when no requests are pending.  The poller
+    wakes immediately when data arrives on any registered socket, so
+    request latency is not affected.
+    """
+
+    def __init__(
+        self, sockets: list, poll_timeout_ms: int = _DEFAULT_IDLE_POLL_TIMEOUT_MS
+    ):
+        self.poller = zmq.Poller()
+        for s in sockets:
+            self.poller.register(s, zmq.POLLIN)
+        self.poll_timeout_ms = poll_timeout_ms
+
+    def sleep(self) -> None:
+        """Block until data arrives on any registered socket, or timeout."""
+        self.poller.poll(self.poll_timeout_ms)
 
 
 # ======================================================================
@@ -436,6 +465,10 @@ class SchedulerProcess:
         self._poller = zmq.Poller()
         self._poller.register(self._recv_from_tokenizer, zmq.POLLIN)
 
+        # Idle sleeper: blocks the event loop when no batch is ready,
+        # wakes immediately on incoming ZMQ messages.
+        self._idle_sleeper = IdleSleeper([self._recv_from_tokenizer])
+
     def init_model(self) -> None:
         """Create and initialise the in-process model runner.
 
@@ -466,6 +499,10 @@ class SchedulerProcess:
             if batch is not None:
                 result = self.run_batch(batch)
                 self.process_batch_result(batch, result)
+            else:
+                # No work available -- sleep until a new request arrives
+                # on the ZMQ socket (or timeout).  Avoids busy-looping.
+                self._idle_sleeper.sleep()
             self.stream_output()
 
     # ------------------------------------------------------------------
@@ -525,7 +562,7 @@ class SchedulerProcess:
         """
         while True:
             try:
-                rid, shm_name, mm_inputs = self._shared_queue.get(timeout=0.0001)
+                rid, shm_name, mm_inputs = self._shared_queue.get(timeout=0.002)
 
                 # Read metadata from shared memory (and unlink immediately)
                 metadata: TokenizedGenerateReqInput = SharedMemoryManager.read_metadata(
@@ -830,8 +867,10 @@ class SchedulerProcess:
         Produces :class:`~pymllm.engine.io_struct.BatchTokenIDOutput`-compatible
         dicts.  For streaming requests, intermediate tokens are also sent.
         """
-        # Collect streaming outputs from running requests
+        # Collect streaming outputs from running requests (skip aborted)
         for req in self._running_batch:
+            if req.finished_reason == "abort":
+                continue
             if req.stream and len(req.output_ids) > req.read_offset:
                 decode_ids = req.output_ids[req.read_offset :]
                 output = {
