@@ -17,6 +17,7 @@ Endpoints
 """
 
 import asyncio
+import contextlib
 import logging
 import os
 import time
@@ -37,6 +38,62 @@ from pymllm.engine.launch import Engine
 
 logger = logging.getLogger(__name__)
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+
+# ---------------------------------------------------------------------------
+# Disconnect-aware async generator wrapper
+# ---------------------------------------------------------------------------
+
+_DISCONNECT_CHECK_INTERVAL = 1.0  # seconds
+
+
+async def _iter_with_disconnect_check(
+    agen: AsyncIterator,
+    request: Request,
+    interval: float = _DISCONNECT_CHECK_INTERVAL,
+) -> AsyncIterator:
+    """Wrap an async generator, periodically checking for client disconnect.
+
+    The standard ``async for chunk in agen`` pattern only checks between
+    items.  If the generator blocks waiting for the next item (e.g. waiting
+    for a decode step), a client disconnect goes unnoticed.
+
+    This wrapper uses ``asyncio.wait`` with a timeout so that
+    ``request.is_disconnected()`` is polled every *interval* seconds even
+    while waiting for the next item.
+
+    When a disconnect is detected, the underlying generator is closed via
+    ``aclose()`` which triggers its ``finally`` cleanup (abort logic).
+    """
+    aiter = agen.__aiter__()
+    while True:
+        # Start fetching the next item without blocking indefinitely.
+        next_task = asyncio.ensure_future(aiter.__anext__())
+        try:
+            while True:
+                done, _ = await asyncio.wait({next_task}, timeout=interval)
+                if done:
+                    break
+                # Timeout: check if client is still connected.
+                if await request.is_disconnected():
+                    next_task.cancel()
+                    with contextlib.suppress(
+                        asyncio.CancelledError, StopAsyncIteration
+                    ):
+                        await next_task
+                    # Close the generator to trigger its finally block.
+                    await agen.aclose()
+                    return
+        except Exception:
+            next_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await next_task
+            raise
+
+        try:
+            yield next_task.result()
+        except StopAsyncIteration:
+            return
 
 # ---------------------------------------------------------------------------
 # Global handles (populated at startup)
@@ -471,10 +528,9 @@ async def generate(obj: GenerateRequest, request: Request):
     if obj.stream:
 
         async def _stream() -> AsyncIterator[bytes]:
+            gen = engine.generate_async(**kwargs)
             try:
-                async for chunk in engine.generate_async(**kwargs):
-                    if await request.is_disconnected():
-                        break
+                async for chunk in _iter_with_disconnect_check(gen, request):
                     # Skip empty intermediate chunks (e.g. special tokens
                     # stripped by the detokenizer)
                     if not chunk.get("delta") and not chunk.get("finished"):
@@ -483,19 +539,24 @@ async def generate(obj: GenerateRequest, request: Request):
             except Exception as e:
                 err = {"error": {"message": str(e)}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
+            finally:
+                await gen.aclose()
             yield b"data: [DONE]\n\n"
 
         return StreamingResponse(_stream(), media_type="text/event-stream")
 
+    gen = engine.generate_async(**kwargs)
     try:
         results = []
-        async for item in engine.generate_async(**kwargs):
+        async for item in _iter_with_disconnect_check(gen, request):
             results.append(item)
         result = results[0] if len(results) == 1 else results
         return ORJSONResponse(result)
     except Exception as e:
         logger.error("[generate] Error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await gen.aclose()
 
 
 # ---------------------------------------------------------------------------
@@ -530,12 +591,11 @@ async def openai_completions(obj: CompletionRequest, request: Request):
             comp_id = _make_completion_id()
             prompt_tokens = 0
             completion_tokens = 0
+            gen = engine.generate_async(
+                prompt=obj.prompt, sampling_params=sp, stream=True
+            )
             try:
-                async for chunk in engine.generate_async(
-                    prompt=obj.prompt, sampling_params=sp, stream=True
-                ):
-                    if await request.is_disconnected():
-                        break
+                async for chunk in _iter_with_disconnect_check(gen, request):
                     prompt_tokens = chunk.get("prompt_tokens", prompt_tokens)
                     completion_tokens = chunk.get("completion_tokens", completion_tokens)
                     delta_text = chunk.get("delta", "")
@@ -563,6 +623,8 @@ async def openai_completions(obj: CompletionRequest, request: Request):
             except Exception as e:
                 err = {"error": {"message": str(e)}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
+            finally:
+                await gen.aclose()
             # Final usage-only chunk (OpenAI stream_options.include_usage)
             if include_usage:
                 usage_chunk: Dict[str, Any] = {
@@ -582,11 +644,12 @@ async def openai_completions(obj: CompletionRequest, request: Request):
 
         return StreamingResponse(_stream(), media_type="text/event-stream")
 
+    gen = engine.generate_async(
+        prompt=obj.prompt, sampling_params=sp
+    )
     try:
         results = []
-        async for item in engine.generate_async(
-            prompt=obj.prompt, sampling_params=sp
-        ):
+        async for item in _iter_with_disconnect_check(gen, request):
             results.append(item)
         choices = []
         prompt_tokens = 0
@@ -622,6 +685,8 @@ async def openai_completions(obj: CompletionRequest, request: Request):
     except Exception as e:
         logger.error("[v1/completions] Error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await gen.aclose()
 
 
 # ---------------------------------------------------------------------------
@@ -714,10 +779,9 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
                 }
                 return b"data: " + orjson.dumps(sse) + b"\n\n"
 
+            gen = engine.generate_async(**gen_kwargs, stream=True)
             try:
-                async for chunk in engine.generate_async(**gen_kwargs, stream=True):
-                    if await request.is_disconnected():
-                        break
+                async for chunk in _iter_with_disconnect_check(gen, request):
                     prompt_tokens = chunk.get("prompt_tokens", prompt_tokens)
                     completion_tokens = chunk.get("completion_tokens", completion_tokens)
 
@@ -776,6 +840,8 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
             except Exception as e:
                 err = {"error": {"message": str(e)}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
+            finally:
+                await gen.aclose()
             # Final usage-only chunk
             if include_usage:
                 usage_chunk: Dict[str, Any] = {
@@ -796,11 +862,12 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
         return StreamingResponse(_stream(), media_type="text/event-stream")
 
     # -- Non-streaming --
+    gen = engine.generate_async(**gen_kwargs)
     try:
         from pymllm.parsers import ReasoningParser, ToolCallParser
 
         r = {}
-        async for item in engine.generate_async(**gen_kwargs):
+        async for item in _iter_with_disconnect_check(gen, request):
             r = item
         prompt_tokens = r.get("prompt_tokens", 0)
         completion_tokens = r.get("completion_tokens", 0)
@@ -853,6 +920,8 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
     except Exception as e:
         logger.error("[v1/chat/completions] Error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await gen.aclose()
 
 
 # ---------------------------------------------------------------------------

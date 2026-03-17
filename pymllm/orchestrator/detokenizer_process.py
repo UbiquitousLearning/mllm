@@ -175,6 +175,11 @@ def run_detokenizer_process(
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
     setup_subprocess_logging((tokenizer_cfg or {}).get("log_level", "info"))
+
+    # Limit CPU threads — detokenizer doesn't need PyTorch parallelism.
+    import torch
+    torch.set_num_threads(1)
+
     proc = DetokenizerProcess(
         recv_from_scheduler_addr,
         send_to_rr_addr,

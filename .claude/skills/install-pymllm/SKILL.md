@@ -35,32 +35,34 @@ Use `AskUserQuestion` to ask:
 - **Editable (`pip install -e .`)**: For active development. Python imports point to the source tree. Changes to `.py` files take effect immediately without reinstalling.
 - **Non-editable (wheel)**: For stable usage. Installs a wheel into site-packages.
 
-### Step 3: Execute the install
+### Step 3: Ask whether the user needs CUDA optional dependencies
 
-Based on user choices, run the appropriate command:
+Use `AskUserQuestion` to ask whether the user needs CUDA support (FlashInfer, TileLang, pyzmq, etc.).
 
-| Mode | Editable | Command |
-|------|----------|---------|
-| Full | Yes | `pip install -e -v .` |
-| Full | No | `pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall` |
-| Fast | Yes | `SKBUILD_WHEEL_CMAKE=false pip install -e .` |
-| Fast | No | `SKBUILD_WHEEL_CMAKE=false pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall` |
+This determines whether to append `[cuda]` to the install specifier (e.g. `pip install -e ".[cuda]"` instead of `pip install -e .`).
 
-### Step 4: Post-install for editable + full build
+**This applies to ALL install modes.** For fast-install users this is especially important since the CUDA packages are the primary compute backend.
+
+### Step 4: Execute the install
+
+Based on user choices, compose and run the appropriate command. The install specifier is either `.` or `".[cuda]"` depending on Step 3.
+
+| Mode | Editable | CUDA | Command |
+|------|----------|------|---------|
+| Full | Yes | No  | `pip install -e -v .` |
+| Full | Yes | Yes | `pip install -e -v ".[cuda]"` |
+| Full | No  | No  | `pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall` |
+| Full | No  | Yes | `pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall && pip install "pymllm[cuda]"` |
+| Fast | Yes | No  | `SKBUILD_WHEEL_CMAKE=false pip install -e .` |
+| Fast | Yes | Yes | `SKBUILD_WHEEL_CMAKE=false pip install -e ".[cuda]"` |
+| Fast | No  | No  | `SKBUILD_WHEEL_CMAKE=false pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall` |
+| Fast | No  | Yes | `SKBUILD_WHEEL_CMAKE=false pip wheel -v -w dist . && pip install dist/*.whl --force-reinstall && pip install "pymllm[cuda]"` |
+
+### Step 5: Post-install for editable + full build
 
 If the user chose **editable + full build**, the compiled `.so` files live in a build directory (e.g. `build/bin/`), not in the source tree. The Python code at `pymllm/__init__.py` looks for libraries at `pymllm/lib/MllmFFIExtension.so`. A symlink is needed to bridge this gap.
 
 **Invoke the `/link-pymllm-lib` skill** to help the user set up the symlink.
-
-### Step 5: Install optional CUDA dependencies
-
-If the user chose fast install, suggest installing CUDA extras:
-
-```bash
-pip install pymllm[cuda]
-```
-
-This pulls in `tilelang`, `flashinfer-python`, and `pyzmq`.
 
 ## Important Notes
 
@@ -68,3 +70,4 @@ This pulls in `tilelang`, `flashinfer-python`, and `pyzmq`.
 - The `wheel.cmake = true` flag in `pyproject.toml` controls whether CMake runs. The env var `SKBUILD_WHEEL_CMAKE=false` overrides it at install time without modifying the file.
 - For non-editable full builds, the `.so` files are bundled inside the wheel automatically — no symlink needed.
 - For fast installs, `pymllm.is_mobile_available()` will return `False` since no C++ libraries are present. This is expected.
+- The `[cuda]` optional dependencies are defined in `pyproject.toml` under `[project.optional-dependencies]`.

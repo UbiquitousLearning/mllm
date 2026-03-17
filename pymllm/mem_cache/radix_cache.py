@@ -1,5 +1,4 @@
-"""Lightweight radix-tree KV cache with SWA and multimodal support.
-
+"""Radix-tree KV cache with SWA and multimodal support.
 
 Supports:
     - Multi-batch serving on a single GPU
@@ -12,87 +11,29 @@ Supports:
 
 from __future__ import annotations
 
-import hashlib
 import heapq
 import logging
 import time
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
+
+from pymllm.mem_cache.base_prefix_cache import (
+    BasePrefixCache,
+    EvictResult,
+    InsertResult,
+    MatchResult,
+    RadixKey,
+    hash_token_ids,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def hash_token_ids(
-    token_ids: List[Union[int, Tuple[int, ...]]],
-    prior_hash: Optional[str] = None,
-) -> str:
-    """SHA-256 hash of a token-id page with optional chain-hash.
-
-    Each token is encoded as a 4-byte little-endian unsigned integer;
-    tuples (bigram / EAGLE) hash each element in order.  When *prior_hash*
-    is supplied the digest is seeded with the raw bytes of the previous
-    hash, making the result position-aware.
-    """
-    hasher = hashlib.sha256()
-    if prior_hash:
-        hasher.update(bytes.fromhex(prior_hash))
-    for t in token_ids:
-        if isinstance(t, tuple):
-            for elem in t:
-                hasher.update(elem.to_bytes(4, byteorder="little", signed=False))
-        else:
-            hasher.update(t.to_bytes(4, byteorder="little", signed=False))
-    return hasher.hexdigest()
-
-
-def hash_to_int64(hex_str: str) -> int:
-    """Convert a hex digest to a signed 64-bit integer (first 16 hex chars)."""
-    val = int(hex_str[:16], 16)
-    return val - (1 << 64) if val >= (1 << 63) else val
-
-
-def hash_bytes(data: bytes) -> int:
-    """SHA-256 → unsigned 64-bit int.  Useful for multimodal embedding keys."""
-    return int.from_bytes(hashlib.sha256(data).digest()[:8], "big", signed=False)
-
-
-class RadixKey:
-    """Compound lookup key: token-id sequence + optional namespace tag.
-
-    ``extra_key`` isolates independent namespaces so that sequences with
-    identical leading tokens but different adapters / LoRA ids / multimodal
-    context hashes never share prefix nodes.
-    """
-
-    __slots__ = ("token_ids", "extra_key")
-
-    def __init__(
-        self,
-        token_ids: List[Union[int, Tuple[int, ...]]],
-        extra_key: Optional[str] = None,
-    ):
-        self.token_ids = token_ids
-        self.extra_key = extra_key
-
-    def __len__(self) -> int:
-        return len(self.token_ids)
-
-    def __iter__(self) -> Iterator:
-        return iter(self.token_ids)
-
-    def __getitem__(self, idx: Union[int, slice]) -> RadixKey:
-        if isinstance(idx, slice):
-            return RadixKey(self.token_ids[idx], self.extra_key)
-        return RadixKey([self.token_ids[idx]], self.extra_key)
-
-    def __repr__(self) -> str:
-        preview = self.token_ids[:10]
-        tail = "..." if len(self.token_ids) > 10 else ""
-        return f"RadixKey(extra={self.extra_key!r}, toks={preview}{tail})"
-
+# ======================================================================
+# Tree node
+# ======================================================================
 
 _node_counter: int = 0
 
@@ -149,6 +90,11 @@ class TreeNode:
         return self.last_access_time < other.last_access_time
 
 
+# ======================================================================
+# Helper functions
+# ======================================================================
+
+
 def _key_match(key0: RadixKey, key1: RadixKey, page_size: int) -> int:
     """Return the length of the common prefix (page-aligned when *page_size* > 1)."""
     if key0.extra_key != key1.extra_key:
@@ -175,33 +121,13 @@ def _child_key(key: RadixKey, page_size: int) -> Any:
     return (key.extra_key, plain) if key.extra_key is not None else plain
 
 
-@dataclass
-class MatchResult:
-    """Returned by :meth:`RadixCache.match_prefix`."""
-
-    indices: torch.Tensor
-    last_node: TreeNode
-    prefix_len: int = 0
+# ======================================================================
+# RadixCache
+# ======================================================================
 
 
-@dataclass
-class InsertResult:
-    """Returned by :meth:`RadixCache.insert`."""
-
-    prefix_len: int = 0
-    last_node: Optional[TreeNode] = None
-
-
-@dataclass
-class EvictResult:
-    """Returned by :meth:`RadixCache.evict`."""
-
-    full_evicted: int = 0
-    swa_evicted: int = 0
-
-
-class RadixCache:
-    """Lightweight radix tree for KV-cache prefix sharing.
+class RadixCache(BasePrefixCache):
+    """Radix tree for KV-cache prefix sharing.
 
     Parameters
     ----------
@@ -212,24 +138,22 @@ class RadixCache:
         If set, enables SWA mode.  The cache tracks which nodes have had
         their SWA KV freed (tombstoned) and constrains prefix matching
         so that the sliding-window invariant is maintained.
-    disable:
-        When *True* every public method is a no-op (useful for ablation).
     token_to_kv_pool_allocator:
         Optional pool allocator with ``free(indices)`` (and ``free_swa`` for
         SWA mode).  When *None*, index tensors are simply discarded.
+    on_node_evict:
+        Optional callback invoked with the node id when a node is evicted.
     """
 
     def __init__(
         self,
         page_size: int = 1,
         sliding_window_size: Optional[int] = None,
-        disable: bool = False,
         token_to_kv_pool_allocator: Any = None,
         on_node_evict: Optional[Callable[[int], None]] = None,
     ):
         self.page_size = page_size
         self.sliding_window_size = sliding_window_size
-        self.disable = disable
         self.pool = token_to_kv_pool_allocator
         self.on_node_evict = on_node_evict
 
@@ -245,6 +169,10 @@ class RadixCache:
     def supports_swa(self) -> bool:
         return self.sliding_window_size is not None
 
+    # ------------------------------------------------------------------
+    # Size queries
+    # ------------------------------------------------------------------
+
     def evictable_size(self) -> int:
         return self._evictable_size
 
@@ -256,6 +184,21 @@ class RadixCache:
 
     def swa_protected_size(self) -> int:
         return self._swa_protected_size
+
+    def total_size(self) -> int:
+        """Total number of cached tokens (including tombstoned)."""
+        total = 0
+        stack: List[TreeNode] = [self.root_node]
+        while stack:
+            n = stack.pop()
+            if n.value is not None:
+                total += len(n.value)
+            stack.extend(c for c in n.children.values() if not c.evicted)
+        return total
+
+    # ------------------------------------------------------------------
+    # BasePrefixCache interface
+    # ------------------------------------------------------------------
 
     def reset(self) -> None:
         """Clear all cached state and re-initialise the root node."""
@@ -283,7 +226,7 @@ class RadixCache:
             indices=torch.empty(0, dtype=torch.int64, device=self.device),
             last_node=self.root_node,
         )
-        if self.disable or len(key) == 0:
+        if len(key) == 0:
             return empty
 
         key = self._page_align_key(key)
@@ -310,6 +253,7 @@ class RadixCache:
         *,
         prev_prefix_len: int = 0,
         swa_evicted_seqlen: int = 0,
+        **kwargs: Any,
     ) -> InsertResult:
         """Insert *key*/*value* into the tree.
 
@@ -327,8 +271,6 @@ class RadixCache:
             previously evicted.  Used to decide whether a tombstoned node can
             be un-tombstoned with the incoming value.
         """
-        if self.disable:
-            return InsertResult()
         if value is None:
             value = torch.tensor(key.token_ids, dtype=torch.int64)
         if self.supports_swa:
@@ -346,9 +288,6 @@ class RadixCache:
         Full eviction removes leaf nodes entirely; SWA eviction tombstones
         internal nodes (freeing SWA KV but retaining full-attn KV).
         """
-        if self.disable:
-            return EvictResult()
-
         full_evicted = 0
         swa_evicted = 0
 
@@ -415,7 +354,7 @@ class RadixCache:
         Returns ``swa_boundary_id`` that must be passed back to
         :meth:`dec_lock_ref`.  In non-SWA mode, returns ``None``.
         """
-        if self.disable or node is None:
+        if node is None:
             return None
 
         swa_locked = 0
@@ -447,10 +386,10 @@ class RadixCache:
         return swa_boundary_id
 
     def dec_lock_ref(
-        self, node: TreeNode, swa_boundary_id: Optional[int] = None
+        self, node: TreeNode, swa_boundary_id: Optional[int] = None, **kwargs: Any
     ) -> None:
         """Unlock nodes from *node* up to root."""
-        if self.disable or node is None:
+        if node is None:
             return
 
         dec_swa = True
@@ -471,16 +410,9 @@ class RadixCache:
 
             cur = cur.parent
 
-    def total_size(self) -> int:
-        """Total number of cached tokens (including tombstoned)."""
-        total = 0
-        stack: List[TreeNode] = [self.root_node]
-        while stack:
-            n = stack.pop()
-            if n.value is not None:
-                total += len(n.value)
-            stack.extend(c for c in n.children.values() if not c.evicted)
-        return total
+    # ------------------------------------------------------------------
+    # Hashing & pretty-print
+    # ------------------------------------------------------------------
 
     def compute_node_hash(self, node: TreeNode) -> List[str]:
         """Compute position-aware SHA-256 hashes for *node* (one per page).
@@ -522,6 +454,10 @@ class RadixCache:
                 else ""
             )
         )
+
+    # ------------------------------------------------------------------
+    # Internal: match
+    # ------------------------------------------------------------------
 
     def _match_normal(self, key: RadixKey) -> Tuple[List[torch.Tensor], TreeNode]:
         node = self.root_node
@@ -593,6 +529,10 @@ class RadixCache:
 
         return values, best_node, best_count
 
+    # ------------------------------------------------------------------
+    # Internal: insert
+    # ------------------------------------------------------------------
+
     def _insert_normal(
         self, node: TreeNode, key: RadixKey, value: torch.Tensor
     ) -> Tuple[int, TreeNode]:
@@ -613,9 +553,6 @@ class RadixCache:
             value = value[plen:]
 
             if plen < len(node.key):
-                # Partial match: split the node.  ``node`` must advance to
-                # the NEW parent so that any remaining key is added as a
-                # sibling of the tail, not a child of it.
                 node = self._split_node(node.key, node, plen)
             if len(key) > 0:
                 ck = _child_key(key, self.page_size)
@@ -691,6 +628,10 @@ class RadixCache:
 
         return total_prefix
 
+    # ------------------------------------------------------------------
+    # Internal: tree manipulation
+    # ------------------------------------------------------------------
+
     def _add_leaf(
         self,
         parent: TreeNode,
@@ -698,8 +639,6 @@ class RadixCache:
         value: torch.Tensor,
         swa_tombstone: bool = False,
     ) -> TreeNode:
-        # If parent was a childless (leaf) node, it will no longer be
-        # evictable after gaining a child.  Adjust the size counter.
         if (
             len(parent.children) == 0
             and parent != self.root_node
@@ -724,9 +663,15 @@ class RadixCache:
         logger.debug(
             "[SPLIT] node_id=%d key_len=%d split_len=%d "
             "parent_val[:4]=%s child_val[:4]=%s",
-            child.id, len(key), split_len,
-            child.value[:min(split_len, 4)].tolist() if child.value is not None else [],
-            child.value[split_len:split_len+4].tolist() if child.value is not None and len(child.value) > split_len else [],
+            child.id,
+            len(key),
+            split_len,
+            child.value[:min(split_len, 4)].tolist()
+            if child.value is not None
+            else [],
+            child.value[split_len : split_len + 4].tolist()
+            if child.value is not None and len(child.value) > split_len
+            else [],
         )
         new_node = TreeNode()
         new_node.children[_child_key(key[split_len:], self.page_size)] = child
@@ -759,7 +704,6 @@ class RadixCache:
         self._evictable_size -= len(node.key)
         if self.supports_swa and not node.swa_tombstone:
             self._swa_evictable_size -= len(node.key)
-        # Mark as evicted so node.evicted returns True.
         node.value = None
         if self.on_node_evict is not None:
             self.on_node_evict(node.id)
@@ -767,6 +711,10 @@ class RadixCache:
     def _tombstone_node(self, node: TreeNode) -> None:
         node.swa_tombstone = True
         self._swa_evictable_size -= len(node.key)
+
+    # ------------------------------------------------------------------
+    # Internal: collection helpers
+    # ------------------------------------------------------------------
 
     def _collect_evictable_leaves(self) -> List[TreeNode]:
         leaves: List[TreeNode] = []

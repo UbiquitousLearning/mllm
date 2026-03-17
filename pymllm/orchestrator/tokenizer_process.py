@@ -487,6 +487,11 @@ def run_tokenizer_process(
 ) -> None:
     """Entry point for ``torch.multiprocessing.Process(target=...)``."""
     setup_subprocess_logging(tokenizer_cfg.get("log_level", "info"))
+
+    # Limit CPU threads — tokenizer doesn't need PyTorch parallelism.
+    import torch
+    torch.set_num_threads(1)
+
     proc = TokenizerProcess(
         recv_from_rr_addr, send_to_scheduler_addr, tokenizer_cfg, shared_queue
     )
