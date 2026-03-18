@@ -105,6 +105,74 @@ output = self.quant_method.apply(self, x, self.bias)
 For unquantized layers this is just `F.linear`. For quantized layers it
 invokes a fused dequant+matmul kernel.
 
+## Server Usage
+
+### CLI flag
+
+```bash
+python -m pymllm.server --model_path /path/to/model --quantization.method awq_marlin
+```
+
+### Auto-detection
+
+If `--quantization.method` is not specified, pymllm probes the checkpoint
+directory for `quantize_config.json` (or the `quantization_config` section
+of `config.json`). When found, the `quant_method` field is used
+automatically.
+
+### Auto-upgrade: awq → awq_marlin
+
+On Ampere+ GPUs (SM80+), `"awq"` is automatically upgraded to
+`"awq_marlin"` for significantly faster inference via the Marlin GEMM
+kernel. No user action required.
+
+### Supported models
+
+| Model | Status |
+|-------|--------|
+| Qwen3VL (`Qwen3VLForConditionalGeneration`) | Supported |
+| Qwen3.5 (`Qwen3_5ForConditionalGeneration`, `Qwen3_5ForCausalLM`) | Supported |
+
+### End-to-end pipeline
+
+```
+CLI: --quantization.method awq_marlin  (or auto-detected)
+         │
+         ▼
+ModelRunner._resolve_quant_config()
+    reads quantize_config.json / config.json
+    auto-upgrades "awq" → "awq_marlin" on SM80+
+         │
+         ▼
+model_cls(hf_config, quant_config=AWQMarlinConfig(...))
+         │
+         ▼  propagates quant_config through sub-modules
+Qwen3VLForConditionalGeneration → Qwen3VLTextModel → decoder layers
+         │
+         ▼  each Linear() call gets quant_method
+quant_config.get_quant_method(layer, prefix) → AWQMarlinLinearMethod
+         │
+         ▼  Linear.__init__ calls quant_method.create_weights()
+registers qweight, scales, qzeros (instead of weight)
+         │
+         ▼  model.load_weights() loads checkpoint tensors
+         │
+         ▼  process_weights_after_loading()
+repacks AWQ int4 → Marlin kernel layout
+         │
+         ▼  inference via quant_method.apply()
+calls gptq_marlin_gemm kernel
+```
+
+### Notes
+
+- Vision encoder is **never quantized** — only text decoder layers
+- Fused QKV and gate_up projections are automatically split into separate
+  projections when quantized (AWQ checkpoints store them separately)
+- Embedding, layer norms, and lm_head remain in full precision
+
+---
+
 ## How to add a new quantization method
 
 ### Step 1: Implement `LinearMethodBase`

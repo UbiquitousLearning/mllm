@@ -36,6 +36,7 @@ import torch.nn.functional as F
 
 from pymllm.layers import RMSNorm, apply_mrope
 from pymllm.layers.attention.radix_attention import RadixAttention
+from pymllm.layers.linear import Linear
 from pymllm.layers.mlp import MLP
 
 if TYPE_CHECKING:
@@ -698,6 +699,8 @@ class Qwen3VLAttention(nn.Module):
         mrope_section: Tuple[int, int, int] = (24, 20, 20),
         mrope_interleaved: bool = True,
         max_position_embeddings: int = 32768,
+        quant_config=None,
+        prefix: str = "",
     ):
         super().__init__()
         self.num_heads = num_heads
@@ -709,13 +712,44 @@ class Qwen3VLAttention(nn.Module):
         self.mrope_section = list(mrope_section)
         self.mrope_interleaved = mrope_interleaved
 
-        # Fused QKV projection
-        self.qkv_proj = nn.Linear(
-            hidden_size, self.q_size + 2 * self.kv_size, bias=False
-        )
+        def _get_qm(suffix):
+            if quant_config is None:
+                return None
+            return quant_config.get_quant_method(
+                layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
+            )
+
+        # When quantized, AWQ checkpoints store q/k/v separately so we
+        # cannot fuse them into a single packed-int32 parameter.
+        self.use_fused_qkv = quant_config is None
+
+        if self.use_fused_qkv:
+            self.qkv_proj = Linear(
+                hidden_size, self.q_size + 2 * self.kv_size, bias=False,
+            )
+            self.q_proj = None
+            self.k_proj = None
+            self.v_proj = None
+        else:
+            self.qkv_proj = None
+            self.q_proj = Linear(
+                hidden_size, self.q_size, bias=False,
+                quant_method=_get_qm("q_proj"),
+            )
+            self.k_proj = Linear(
+                hidden_size, self.kv_size, bias=False,
+                quant_method=_get_qm("k_proj"),
+            )
+            self.v_proj = Linear(
+                hidden_size, self.kv_size, bias=False,
+                quant_method=_get_qm("v_proj"),
+            )
 
         # Output projection
-        self.o_proj = nn.Linear(num_heads * head_dim, hidden_size, bias=False)
+        self.o_proj = Linear(
+            num_heads * head_dim, hidden_size, bias=False,
+            quant_method=_get_qm("o_proj"),
+        )
 
         # QK normalization
         self.q_norm = RMSNorm(head_dim, eps=rms_norm_eps)
@@ -742,8 +776,13 @@ class Qwen3VLAttention(nn.Module):
         hidden_states: torch.Tensor,
         forward_batch: "ForwardBatch",
     ) -> torch.Tensor:
-        qkv = self.qkv_proj(hidden_states)
-        q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
+        if self.use_fused_qkv:
+            qkv = self.qkv_proj(hidden_states)
+            q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
+        else:
+            q = self.q_proj(hidden_states)
+            k = self.k_proj(hidden_states)
+            v = self.v_proj(hidden_states)
 
         # Per-head QK normalization
         q = self.q_norm(q.view(-1, self.num_heads, self.head_dim))
@@ -786,6 +825,8 @@ class Qwen3VLDecoderLayer(nn.Module):
         mrope_section: Tuple[int, int, int] = (24, 20, 20),
         mrope_interleaved: bool = True,
         max_position_embeddings: int = 32768,
+        quant_config=None,
+        prefix: str = "",
     ):
         super().__init__()
         self.self_attn = Qwen3VLAttention(
@@ -799,6 +840,8 @@ class Qwen3VLDecoderLayer(nn.Module):
             mrope_section=mrope_section,
             mrope_interleaved=mrope_interleaved,
             max_position_embeddings=max_position_embeddings,
+            quant_config=quant_config,
+            prefix=f"{prefix}.self_attn" if prefix else "self_attn",
         )
         self.mlp = MLP(
             hidden_size=hidden_size,
@@ -807,6 +850,8 @@ class Qwen3VLDecoderLayer(nn.Module):
             use_fused_gate_up_proj=True,
             use_bias_gate_up=False,
             use_bias_down=False,
+            quant_config=quant_config,
+            prefix=f"{prefix}.mlp" if prefix else "mlp",
         )
         self.input_layernorm = RMSNorm(hidden_size, eps=rms_norm_eps)
         self.post_attention_layernorm = RMSNorm(hidden_size, eps=rms_norm_eps)
@@ -854,6 +899,7 @@ class Qwen3VLTextModel(nn.Module):
         mrope_section: Tuple[int, int, int] = (24, 20, 20),
         mrope_interleaved: bool = True,
         max_position_embeddings: int = 32768,
+        quant_config=None,
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -875,6 +921,8 @@ class Qwen3VLTextModel(nn.Module):
                     mrope_section=mrope_section,
                     mrope_interleaved=mrope_interleaved,
                     max_position_embeddings=max_position_embeddings,
+                    quant_config=quant_config,
+                    prefix=f"model.layers.{layer_id}",
                 )
                 for layer_id in range(num_hidden_layers)
             ]
@@ -941,14 +989,15 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         logits = model.forward(input_ids, positions, forward_batch)
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, quant_config=None) -> None:
         super().__init__()
         self.config = config
+        self.quant_config = quant_config
 
         text_config = getattr(config, "text_config", config)
         vision_config = getattr(config, "vision_config", None)
 
-        # Vision encoder
+        # Vision encoder — NOT quantized
         if vision_config is not None:
             self.visual = Qwen3VLVisionModel(
                 depth=getattr(vision_config, "depth", 27),
@@ -1000,6 +1049,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             mrope_section=tuple(mrope_section),
             mrope_interleaved=bool(mrope_interleaved),
             max_position_embeddings=max_position_embeddings,
+            quant_config=quant_config,
         )
 
         # LM head — following sglang's pattern: always use lm_head.weight
@@ -1190,14 +1240,19 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         Handles weight name remapping between HuggingFace Qwen3-VL
         checkpoints and this model's parameter names.
         """
-        stacked_params_mapping = [
-            # (param_name, weight_name, shard_id)
-            (".qkv_proj", ".q_proj", "q"),
-            (".qkv_proj", ".k_proj", "k"),
-            (".qkv_proj", ".v_proj", "v"),
-            (".gate_up_proj", ".up_proj", 1),
-            (".gate_up_proj", ".gate_proj", 0),
-        ]
+        # When quantized, the model has separate q/k/v and gate/up projections
+        # (no fused qkv_proj / gate_up_proj), so skip the stacking logic.
+        if self.quant_config is not None:
+            stacked_params_mapping = []
+        else:
+            stacked_params_mapping = [
+                # (param_name, weight_name, shard_id)
+                (".qkv_proj", ".q_proj", "q"),
+                (".qkv_proj", ".k_proj", "k"),
+                (".qkv_proj", ".v_proj", "v"),
+                (".gate_up_proj", ".up_proj", 1),
+                (".gate_up_proj", ".gate_proj", 0),
+            ]
 
         params_dict = dict(self.named_parameters())
 
@@ -1249,7 +1304,10 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Direct parameter loading
             if name in params_dict:
                 param = params_dict[name]
-                if param.data.shape == loaded_weight.shape:
+                loader = getattr(param, "weight_loader", None)
+                if loader is not None:
+                    loader(param, loaded_weight)
+                elif param.data.shape == loaded_weight.shape:
                     param.data.copy_(loaded_weight)
                 else:
                     logger.warning(

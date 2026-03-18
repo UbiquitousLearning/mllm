@@ -70,7 +70,7 @@ def _get_layer_types(config) -> List[str]:
 class Qwen3_5FullAttention(nn.Module):
     """Standard multi-head attention with RoPE, QK-norm, and optional output gate."""
 
-    def __init__(self, config, layer_id: int):
+    def __init__(self, config, layer_id: int, quant_config=None, prefix: str = ""):
         super().__init__()
         tc = _get_text_config(config)
         self.hidden_size = tc.hidden_size
@@ -91,10 +91,17 @@ class Qwen3_5FullAttention(nn.Module):
         else:
             q_proj_size = self.q_size
 
-        self.q_proj = Linear(self.hidden_size, q_proj_size, bias=False)
-        self.k_proj = Linear(self.hidden_size, self.kv_size, bias=False)
-        self.v_proj = Linear(self.hidden_size, self.kv_size, bias=False)
-        self.o_proj = Linear(self.q_size, self.hidden_size, bias=False)
+        def _get_qm(suffix):
+            if quant_config is None:
+                return None
+            return quant_config.get_quant_method(
+                layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
+            )
+
+        self.q_proj = Linear(self.hidden_size, q_proj_size, bias=False, quant_method=_get_qm("q_proj"))
+        self.k_proj = Linear(self.hidden_size, self.kv_size, bias=False, quant_method=_get_qm("k_proj"))
+        self.v_proj = Linear(self.hidden_size, self.kv_size, bias=False, quant_method=_get_qm("v_proj"))
+        self.o_proj = Linear(self.q_size, self.hidden_size, bias=False, quant_method=_get_qm("o_proj"))
 
         # QK normalization
         self.q_norm = GemmaRMSNorm(self.head_dim, eps=tc.rms_norm_eps)
@@ -166,14 +173,20 @@ class Qwen3_5FullAttention(nn.Module):
 class Qwen3_5AttentionDecoderLayer(nn.Module):
     """Decoder layer with full attention + MLP."""
 
-    def __init__(self, config, layer_id: int):
+    def __init__(self, config, layer_id: int, quant_config=None, prefix: str = ""):
         super().__init__()
         tc = _get_text_config(config)
-        self.self_attn = Qwen3_5FullAttention(config, layer_id)
+        self.self_attn = Qwen3_5FullAttention(
+            config, layer_id,
+            quant_config=quant_config,
+            prefix=f"{prefix}.self_attn" if prefix else "self_attn",
+        )
         self.mlp = MLP(
             hidden_size=tc.hidden_size,
             intermediate_size=tc.intermediate_size,
             activation=tc.hidden_act,
+            quant_config=quant_config,
+            prefix=f"{prefix}.mlp" if prefix else "mlp",
         )
         self.input_layernorm = GemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
         self.post_attention_layernorm = GemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
@@ -209,7 +222,8 @@ class Qwen3_5AttentionDecoderLayer(nn.Module):
 class Qwen3_5LinearDecoderLayer(nn.Module):
     """Decoder layer with GDN linear attention + MLP."""
 
-    def __init__(self, config, layer_id: int, gdn_layer_idx: int = 0):
+    def __init__(self, config, layer_id: int, gdn_layer_idx: int = 0,
+                 quant_config=None, prefix: str = ""):
         super().__init__()
         tc = _get_text_config(config)
         self.linear_attn = GatedDeltaNet(
@@ -222,11 +236,15 @@ class Qwen3_5LinearDecoderLayer(nn.Module):
             layer_id=layer_id,
             gdn_layer_idx=gdn_layer_idx,
             rms_norm_eps=tc.rms_norm_eps,
+            quant_config=quant_config,
+            prefix=f"{prefix}.linear_attn" if prefix else "linear_attn",
         )
         self.mlp = MLP(
             hidden_size=tc.hidden_size,
             intermediate_size=tc.intermediate_size,
             activation=tc.hidden_act,
+            quant_config=quant_config,
+            prefix=f"{prefix}.mlp" if prefix else "mlp",
         )
         self.input_layernorm = GemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
         self.post_attention_layernorm = GemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
@@ -274,10 +292,11 @@ class Qwen3_5ForCausalLM(nn.Module):
     Dense (non-MoE) variant.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, quant_config=None):
         super().__init__()
         tc = _get_text_config(config)
         self.config = tc
+        self.quant_config = quant_config
         self.hidden_size = tc.hidden_size
         self.vocab_size = tc.vocab_size
 
@@ -292,14 +311,21 @@ class Qwen3_5ForCausalLM(nn.Module):
         self.full_attn_layer_ids = set()
         for idx in range(tc.num_hidden_layers):
             layer_type = layer_types[idx]
+            layer_prefix = f"layers.{idx}"
             if layer_type == "linear_attention":
                 self.layers.append(
-                    Qwen3_5LinearDecoderLayer(config, idx, gdn_layer_idx=gdn_count)
+                    Qwen3_5LinearDecoderLayer(
+                        config, idx, gdn_layer_idx=gdn_count,
+                        quant_config=quant_config, prefix=layer_prefix,
+                    )
                 )
                 gdn_count += 1
             else:
                 self.layers.append(
-                    Qwen3_5AttentionDecoderLayer(config, idx)
+                    Qwen3_5AttentionDecoderLayer(
+                        config, idx,
+                        quant_config=quant_config, prefix=layer_prefix,
+                    )
                 )
                 self.full_attn_layer_ids.add(idx)
         self.num_gdn_layers = gdn_count
@@ -346,10 +372,14 @@ class Qwen3_5ForCausalLM(nn.Module):
 
     def load_weights(self, weights: Iterable[Tuple[str, torch.Tensor]]):
         """Load HuggingFace checkpoint weights with name remapping."""
-        stacked_params_mapping = [
-            ("gate_up_proj", "gate_proj", 0),
-            ("gate_up_proj", "up_proj", 1),
-        ]
+        # When quantized, gate/up are separate projections — skip stacking.
+        if self.quant_config is not None:
+            stacked_params_mapping = []
+        else:
+            stacked_params_mapping = [
+                ("gate_up_proj", "gate_proj", 0),
+                ("gate_up_proj", "up_proj", 1),
+            ]
 
         params_dict = dict(self.named_parameters())
         loaded: Set[str] = set()
@@ -417,16 +447,17 @@ class Qwen3_5ForConditionalGeneration(nn.Module):
     language model.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, quant_config=None):
         super().__init__()
         from pymllm.models.qwen3_vl import (
             Qwen3VLVisionModel,
         )
 
         self.config = config
+        self.quant_config = quant_config
         tc = _get_text_config(config)
 
-        # Vision encoder (reuse Qwen3VL's vision model)
+        # Vision encoder — NOT quantized
         vision_config = getattr(config, "vision_config", None)
         if vision_config is not None:
             self.visual = Qwen3VLVisionModel(
@@ -452,7 +483,7 @@ class Qwen3_5ForConditionalGeneration(nn.Module):
             self.visual = None
 
         # Language model
-        self.model = Qwen3_5ForCausalLM(config)
+        self.model = Qwen3_5ForCausalLM(config, quant_config=quant_config)
 
         # Expose hybrid model metadata for ModelRunner
         self.num_gdn_layers = self.model.num_gdn_layers

@@ -67,9 +67,17 @@ class MLP(MllmBaseLayer):
         use_bias_gate_up: bool = False,
         use_bias_down: bool = False,
         enable_pdl: Optional[bool] = None,
+        quant_config=None,
+        prefix: str = "",
     ):
         super().__init__()
         _validate_mlp_args(hidden_size, intermediate_size, activation)
+
+        # Quantized checkpoints store gate_proj / up_proj separately;
+        # fusing them into a single packed-int32 parameter is impractical,
+        # so force the unfused path when quantisation is active.
+        if quant_config is not None:
+            use_fused_gate_up_proj = False
 
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
@@ -77,7 +85,14 @@ class MLP(MllmBaseLayer):
         self.use_fused_gate_up_proj = use_fused_gate_up_proj
         self.enable_pdl = enable_pdl
 
-        if not use_fused_gate_up_proj:
+        def _get_qm(suffix):
+            if quant_config is None:
+                return None
+            return quant_config.get_quant_method(
+                layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
+            )
+
+        if not use_fused_gate_up_proj and quant_config is None:
             logger.warning(
                 "MLP with use_fused_gate_up_proj=False uses a lower-efficiency path. "
                 "Use use_fused_gate_up_proj=True for better performance.",
@@ -86,6 +101,7 @@ class MLP(MllmBaseLayer):
         if use_fused_gate_up_proj:
             self.gate_up_proj = Linear(
                 hidden_size, 2 * intermediate_size, bias=use_bias_gate_up,
+                quant_method=_get_qm("gate_up_proj"),
             )
             self.gate_proj = None
             self.up_proj = None
@@ -93,13 +109,16 @@ class MLP(MllmBaseLayer):
             self.gate_up_proj = None
             self.gate_proj = Linear(
                 hidden_size, intermediate_size, bias=use_bias_gate_up,
+                quant_method=_get_qm("gate_proj"),
             )
             self.up_proj = Linear(
                 hidden_size, intermediate_size, bias=use_bias_gate_up,
+                quant_method=_get_qm("up_proj"),
             )
 
         self.down_proj = Linear(
             intermediate_size, hidden_size, bias=use_bias_down,
+            quant_method=_get_qm("down_proj"),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -160,6 +179,8 @@ class ParallelMLP(MllmBaseLayer):
         use_bias_gate_up: bool = False,
         use_bias_down: bool = False,
         enable_pdl: Optional[bool] = None,
+        quant_config=None,
+        prefix: str = "",
     ):
         super().__init__()
         _validate_mlp_args(hidden_size, intermediate_size, activation)
@@ -169,18 +190,28 @@ class ParallelMLP(MllmBaseLayer):
         self.activation = activation
         self.enable_pdl = enable_pdl
 
+        def _get_qm(suffix):
+            if quant_config is None:
+                return None
+            return quant_config.get_quant_method(
+                layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
+            )
+
         self.gate_proj = ColumnParallelLinear(
             hidden_size, intermediate_size,
             bias=use_bias_gate_up, gather_output=False,
+            quant_method=_get_qm("gate_proj"),
         )
         self.up_proj = ColumnParallelLinear(
             hidden_size, intermediate_size,
             bias=use_bias_gate_up, gather_output=False,
+            quant_method=_get_qm("up_proj"),
         )
 
         self.down_proj = RowParallelLinear(
             intermediate_size, hidden_size,
             bias=use_bias_down, reduce_output=True,
+            quant_method=_get_qm("down_proj"),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

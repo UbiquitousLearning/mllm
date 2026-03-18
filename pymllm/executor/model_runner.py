@@ -451,6 +451,102 @@ class ModelRunner:
         )
 
     # ------------------------------------------------------------------
+    # Quantization config resolution
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _load_quant_config_dict(model_path: str) -> dict:
+        """Probe checkpoint directory for quantization metadata.
+
+        Checks files listed by each registered ``QuantizationConfig``
+        (e.g. ``quantize_config.json``), then falls back to the
+        ``quantization_config`` section of ``config.json``.
+
+        Returns an empty dict when no quantization metadata is found.
+        """
+        import json
+        from pathlib import Path
+
+        from pymllm.quantization import QuantizationConfig
+
+        model_path = Path(model_path)
+
+        # Collect candidate filenames from all registered config classes
+        filenames: list[str] = []
+        for subcls in QuantizationConfig.__subclasses__():
+            filenames.extend(subcls.get_config_filenames())
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for f in filenames:
+            if f not in seen:
+                seen.add(f)
+                unique.append(f)
+
+        for fname in unique:
+            fpath = model_path / fname
+            if fpath.exists():
+                with open(fpath) as fp:
+                    return json.load(fp)
+
+        # Fallback: config.json → quantization_config section
+        config_path = model_path / "config.json"
+        if config_path.exists():
+            with open(config_path) as fp:
+                cfg = json.load(fp)
+            if "quantization_config" in cfg:
+                return cfg["quantization_config"]
+
+        return {}
+
+    def _resolve_quant_config(self):
+        """Resolve the quantization configuration for this model.
+
+        Priority:
+        1. CLI value from ``GlobalConfig.quantization.method``
+        2. Auto-detect from checkpoint's ``quantize_config.json``
+           or ``config.json`` → ``quantization_config.quant_method``
+        3. Auto-upgrade ``"awq"`` → ``"awq_marlin"`` on SM80+ GPUs
+
+        Returns ``None`` when quantization is not requested / detected.
+        """
+        from pymllm.quantization import get_quantization_config
+
+        global_cfg = get_global_config()
+        method = global_cfg.quantization.method
+        model_path = self.server_config.model_path
+
+        config_dict = self._load_quant_config_dict(model_path)
+
+        # Auto-detect from checkpoint if CLI didn't specify a method
+        if method is None and config_dict:
+            method = config_dict.get("quant_method")
+
+        if method is None:
+            return None
+
+        # Auto-upgrade awq → awq_marlin on Ampere+ GPUs
+        if method == "awq":
+            cap = torch.cuda.get_device_capability(self.gpu_id)
+            sm = cap[0] * 10 + cap[1]
+            if sm >= 80:
+                logger.info(
+                    "Auto-upgrading quantization: awq → awq_marlin (SM%d)",
+                    sm,
+                )
+                method = "awq_marlin"
+
+        config_cls = get_quantization_config(method)
+        quant_config = config_cls.from_config(config_dict)
+        logger.info(
+            "Quantization: %s (bits=%s, group_size=%s)",
+            quant_config.get_name(),
+            getattr(quant_config, "weight_bits", "?"),
+            getattr(quant_config, "group_size", "?"),
+        )
+        return quant_config
+
+    # ------------------------------------------------------------------
     # Model loading
     # ------------------------------------------------------------------
 
@@ -500,6 +596,9 @@ class ModelRunner:
             )
 
         logger.info("Using pymllm model class: %s", model_cls.__name__)
+
+        quant_config = self._resolve_quant_config()
+
         device_str = f"cuda:{self.gpu_id}" if self.device == "cuda" else self.device
         # Use set_default_dtype so parameters created without explicit dtype
         # get the target dtype, while parameters with explicit dtype=torch.float32
@@ -508,7 +607,10 @@ class ModelRunner:
         torch.set_default_dtype(self.dtype)
         try:
             with torch.device(device_str):
-                self.model = model_cls(hf_config)
+                if quant_config is not None:
+                    self.model = model_cls(hf_config, quant_config=quant_config)
+                else:
+                    self.model = model_cls(hf_config)
         finally:
             torch.set_default_dtype(old_dtype)
         self.model.load_weights(self._iter_weights(model_path))
