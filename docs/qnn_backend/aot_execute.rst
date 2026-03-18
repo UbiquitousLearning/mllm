@@ -60,6 +60,10 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
          pip install -e .
 
          # link lib to pymllm's dir, so that tvm ffi can find the lib
+         # 
+         # NOTE:! build x86 qualcomm aot first !
+         source <absolute path to where you install qnn>/bin/envsetup.sh
+         python task.py tasks/build_x86_qnn_aot.yaml
          ln -s <absolute path to where you build mllm>/bin/ mllm/pymllm/lib
 
 
@@ -82,6 +86,7 @@ Taking ``qwen3_qnn_aot`` as an example, the detailed steps are as follows.
    .. code-block:: shell
 
       # In the mllm-v2 project root directory
+      source <absolute path to where you install qnn>/bin/envsetup.sh
       python task.py tasks/build_x86_qnn_aot.yaml
 
       # Run the compiler program

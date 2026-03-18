@@ -100,6 +100,16 @@ class DetokenizerProcess:
         rids: List[str] = token_id_out.get("rids", [])
         output_ids: List[int] = token_id_out.get("output_ids", [])
         finished_reasons: List[Optional[str]] = token_id_out.get("finished_reasons", [])
+
+        # NOTE: The scheduler currently sends one rid per message.  The shared
+        # output_ids list is the complete output for that single rid.  If
+        # batched sending is ever added, each rid will need its own output_ids.
+        if len(rids) > 1:
+            logger.warning(
+                "Detokenizer received %d rids in one message; "
+                "output_ids are shared -- results may be incorrect",
+                len(rids),
+            )
         decode_ids: List[int] = token_id_out.get("decode_ids", [])
         skip_special_tokens_list: List[bool] = token_id_out.get(
             "skip_special_tokens", []

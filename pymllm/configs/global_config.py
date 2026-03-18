@@ -23,7 +23,7 @@ from pymllm.configs.model_config import ModelConfig
 from pymllm.configs.quantization_config import QuantizationConfig
 
 
-@dataclass
+@dataclass(init=False)
 class GlobalConfig:
     """Singleton that holds every sub-config pymllm needs.
 
@@ -36,22 +36,36 @@ class GlobalConfig:
         cfg.model.hidden_size
         cfg.quantization.method
         cfg.server.host
+
+    .. note::
+
+       Always use :meth:`get_instance` (or the module-level
+       :func:`get_global_config` shortcut) to obtain the singleton.
+       ``GlobalConfig()`` is safe to call multiple times — the second and
+       subsequent calls return the existing instance without re-initialising
+       fields.
     """
 
-    server: "ServerConfig" = field(default=None, repr=False)  # type: ignore[assignment]
-    model: ModelConfig = field(default_factory=ModelConfig)
-    quantization: QuantizationConfig = field(default_factory=QuantizationConfig)
-
-    _initialized: bool = field(default=False, repr=False)
+    server: "ServerConfig"
+    model: ModelConfig
+    quantization: QuantizationConfig
+    _initialized: bool
 
     def __new__(cls):
         if not hasattr(cls, "_instance") or cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __post_init__(self):
-        if self.server is None:
-            self.server = ServerConfig(model_path=None)
+    def __init__(self):
+        # Guard: skip re-initialisation on repeated GlobalConfig() calls.
+        # The dataclass auto-generated __init__ is disabled (init=False) so
+        # this custom __init__ has full control.
+        if getattr(self, "_initialized", False):
+            return
+        self.server = ServerConfig(model_path=None)
+        self.model = ModelConfig()
+        self.quantization = QuantizationConfig()
+        self._initialized = True
 
     @classmethod
     def get_instance(cls) -> "GlobalConfig":

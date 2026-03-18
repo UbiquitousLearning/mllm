@@ -65,10 +65,7 @@ logger = logging.getLogger(__name__)
 
 
 def _suppress_cpu_threads() -> None:
-    """Limit PyTorch intra-op threads to 1 for GPU inference.
-
-    Reference: sglang ``ModelRunner``.
-    """
+    """Limit PyTorch intra-op threads to 1 for GPU inference."""
     torch.set_num_threads(1)
 
 
@@ -296,7 +293,7 @@ class ModelRunner:
         # Limit PyTorch CPU threads to 1 for GPU inference.
         # PyTorch's default (= CPU core count) causes OpenMP thread pool
         # spin-wait that wastes CPU.  GPU models don't benefit from CPU
-        # parallelism.  Reference: sglang ModelRunner.
+        # parallelism.
         if self.device != "cpu":
             _suppress_cpu_threads()
 

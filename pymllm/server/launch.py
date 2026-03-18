@@ -274,13 +274,38 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# NOTE: CORS middleware is added in launch_server() after config is loaded,
+# so that cors_allow_origins from ServerConfig can be used.
+
+
+# ---------------------------------------------------------------------------
+# Authentication middleware
+# ---------------------------------------------------------------------------
+
+# Paths that are always accessible without an API key (liveness probes).
+_AUTH_EXEMPT_PATHS = frozenset({"/health", "/health_generate"})
+
+
+@app.middleware("http")
+async def _auth_middleware(request: Request, call_next):
+    """Enforce ``Authorization: Bearer <key>`` when ``api_key`` is configured."""
+    cfg = get_global_config()
+    api_key = cfg.server.api_key
+    if api_key is None:
+        # No key configured — open access.
+        return await call_next(request)
+    if request.url.path in _AUTH_EXEMPT_PATHS:
+        return await call_next(request)
+    auth = request.headers.get("Authorization", "")
+    if auth == f"Bearer {api_key}":
+        return await call_next(request)
+    admin_key = cfg.server.admin_api_key
+    if admin_key and auth == f"Bearer {admin_key}":
+        return await call_next(request)
+    return ORJSONResponse(
+        status_code=401,
+        content={"error": {"message": "Invalid or missing API key", "code": 401}},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +329,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.get("/health")
 @app.get("/health_generate")
 async def health():
-    """Liveness probe."""
+    """Liveness / readiness probe.  Returns 503 if subprocesses died."""
+    engine = _engine
+    if engine is None or not engine.is_healthy:
+        return Response(status_code=503)
     return Response(status_code=200)
 
 
@@ -322,13 +350,19 @@ async def model_info():
     }
 
 
+_SERVER_INFO_REDACT = frozenset({"api_key", "admin_api_key"})
+
+
 @app.get("/server_info")
 async def server_info():
-    """Dump runtime server configuration."""
+    """Dump runtime server configuration (sensitive fields redacted)."""
     import dataclasses as _dc
 
     cfg = get_global_config()
-    return _dc.asdict(cfg.server)
+    d = _dc.asdict(cfg.server)
+    for k in _SERVER_INFO_REDACT:
+        d.pop(k, None)
+    return d
 
 
 @app.get("/v1/models")
@@ -537,7 +571,8 @@ async def generate(obj: GenerateRequest, request: Request):
                         continue
                     yield b"data: " + orjson.dumps(chunk) + b"\n\n"
             except Exception as e:
-                err = {"error": {"message": str(e)}}
+                logger.error("[generate] stream error: %s", e, exc_info=True)
+                err = {"error": {"message": "Internal server error"}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
             finally:
                 await gen.aclose()
@@ -550,11 +585,22 @@ async def generate(obj: GenerateRequest, request: Request):
         results = []
         async for item in _iter_with_disconnect_check(gen, request):
             results.append(item)
+        if not results:
+            raise HTTPException(status_code=500, detail="No output from engine")
         result = results[0] if len(results) == 1 else results
         return ORJSONResponse(result)
-    except Exception as e:
-        logger.error("[generate] Error: %s", e)
+    except HTTPException:
+        raise
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        if "too many queued" in str(e):
+            raise HTTPException(status_code=429, detail=str(e))
+        logger.error("[generate] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        logger.error("[generate] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         await gen.aclose()
 
@@ -567,6 +613,12 @@ async def generate(obj: GenerateRequest, request: Request):
 @app.post("/v1/completions")
 async def openai_completions(obj: CompletionRequest, request: Request):
     """OpenAI-compatible text completion endpoint."""
+    if obj.n > 1:
+        raise HTTPException(status_code=400, detail="n > 1 is not supported")
+    if obj.echo:
+        raise HTTPException(status_code=400, detail="echo is not yet supported")
+    if obj.logprobs is not None and obj.logprobs > 0:
+        raise HTTPException(status_code=400, detail="logprobs is not yet supported")
     engine = _get_engine()
     sp = _build_sampling_params(
         temperature=obj.temperature,
@@ -621,7 +673,8 @@ async def openai_completions(obj: CompletionRequest, request: Request):
                     }
                     yield b"data: " + orjson.dumps(sse) + b"\n\n"
             except Exception as e:
-                err = {"error": {"message": str(e)}}
+                logger.error("[v1/completions] stream error: %s", e, exc_info=True)
+                err = {"error": {"message": "Internal server error"}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
             finally:
                 await gen.aclose()
@@ -682,9 +735,16 @@ async def openai_completions(obj: CompletionRequest, request: Request):
                 },
             }
         )
-    except Exception as e:
-        logger.error("[v1/completions] Error: %s", e)
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        if "too many queued" in str(e):
+            raise HTTPException(status_code=429, detail=str(e))
+        logger.error("[v1/completions] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        logger.error("[v1/completions] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         await gen.aclose()
 
@@ -697,6 +757,10 @@ async def openai_completions(obj: CompletionRequest, request: Request):
 @app.post("/v1/chat/completions")
 async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
     """OpenAI-compatible chat completion endpoint with reasoning & tool-call parsing."""
+    if obj.n > 1:
+        raise HTTPException(status_code=400, detail="n > 1 is not supported")
+    if obj.logprobs:
+        raise HTTPException(status_code=400, detail="logprobs is not yet supported")
     engine = _get_engine()
     cfg = get_global_config()
     # Auto-enable thinking when reasoning_parser is configured and the
@@ -721,7 +785,6 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
         repetition_penalty=obj.repetition_penalty,
         seed=obj.seed,
     )
-    cfg = get_global_config()
     model_name = obj.model or cfg.server.served_model_name or str(cfg.server.model_path)
     include_usage = (
         obj.stream_options is not None and obj.stream_options.include_usage
@@ -838,7 +901,8 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
                         yield _make_sse({}, finish=finish_reason)
 
             except Exception as e:
-                err = {"error": {"message": str(e)}}
+                logger.error("[v1/chat/completions] stream error: %s", e, exc_info=True)
+                err = {"error": {"message": "Internal server error"}}
                 yield b"data: " + orjson.dumps(err) + b"\n\n"
             finally:
                 await gen.aclose()
@@ -917,9 +981,16 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
                 },
             }
         )
-    except Exception as e:
-        logger.error("[v1/chat/completions] Error: %s", e)
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        if "too many queued" in str(e):
+            raise HTTPException(status_code=429, detail=str(e))
+        logger.error("[v1/chat/completions] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        logger.error("[v1/chat/completions] Error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         await gen.aclose()
 
@@ -931,8 +1002,8 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
 
 @app.api_route("/flush_cache", methods=["GET", "POST"])
 async def flush_cache():
-    """Placeholder cache flush."""
-    return Response(content="Cache flushed.\n", status_code=200)
+    """Cache flush (not yet implemented)."""
+    raise HTTPException(status_code=501, detail="Cache flush not implemented")
 
 
 @app.post("/abort_request")
@@ -964,11 +1035,21 @@ def _prepare_args():
 def launch_server():
     """Launch the pymllm Engine then start the uvicorn HTTP server.
 
-    It first boots all engine subprocesses (tokenizer, scheduler, model-runner, detokenizer) 
+    It first boots all engine subprocesses (tokenizer, scheduler, model-runner, detokenizer)
     and then hands off to uvicorn to serve HTTP traffic.
     """
     _prepare_args()
     cfg = get_global_config()
+
+    # Add CORS middleware (after config is loaded so origins are configurable).
+    origins = cfg.server.cors_allow_origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=(origins != ["*"]),
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     engine = Engine()
     engine.launch()

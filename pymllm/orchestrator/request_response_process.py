@@ -14,6 +14,7 @@ chunks) and one-shot responses are both supported.
 import asyncio
 import dataclasses
 import logging
+import time
 from typing import Any, Dict, List, Optional, Union
 
 import zmq
@@ -39,6 +40,7 @@ class ReqState:
     out_list: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
     finished: bool = False
     event: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
+    created_at: float = dataclasses.field(default_factory=time.time)
 
 
 class RequestResponseProcess:
@@ -100,7 +102,9 @@ class RequestResponseProcess:
         logger.debug("RequestResponseProcess: background tasks started")
 
     async def add_request(
-        self, request: GenerateReqInput
+        self,
+        request: GenerateReqInput,
+        max_queued: Optional[int] = None,
     ) -> Union[ReqState, List[ReqState]]:
         """Enqueue request(s) and return the corresponding :class:`ReqState`(s).
 
@@ -112,10 +116,15 @@ class RequestResponseProcess:
           independent messages.  Returns a ``List[ReqState]`` in the same order
           as the input rids.
 
-        Callers should ``await state.event.wait()`` in a loop, consuming
-        ``state.out_list`` entries until ``state.finished`` is ``True``.
+        Parameters
+        ----------
+        max_queued
+            If set, raise ``RuntimeError`` when the queue already has this many
+            items (back-pressure / overload protection).
         """
         self.listen()
+        if max_queued is not None and self._request_queue.qsize() >= max_queued:
+            raise RuntimeError("Server overloaded: too many queued requests")
 
         if request.is_single:
             rid = request.rid if isinstance(request.rid, str) else request.rid[0]
@@ -146,7 +155,8 @@ class RequestResponseProcess:
             state.finished = True
             state.out_list.append({"rid": rid, "error": "aborted", "finished": True})
             state.event.set()
-        await self._send_to_tokenizer.send_pyobj({"rid": rid, "abort": True})
+        if self._send_to_tokenizer is not None:
+            await self._send_to_tokenizer.send_pyobj({"rid": rid, "abort": True})
 
     async def shutdown(self) -> None:
         if self._loop_task is not None:
@@ -174,10 +184,26 @@ class RequestResponseProcess:
             request = await self._request_queue.get()
             await self._send_to_tokenizer.send_pyobj(request)
 
+    # Stale state cleanup constants
+    _STALE_TIMEOUT = 1800  # 30 minutes
+    _CLEANUP_INTERVAL = 60  # seconds
+
     async def _recv_loop(self) -> None:
         """Receive decoded results from DetokenizerProcess and dispatch to ReqStates."""
+        last_cleanup = time.time()
         while True:
-            result = await self._recv_from_detokenizer.recv_pyobj()
+            # Use a timeout so that stale-state cleanup runs even when no
+            # results are flowing back from the detokenizer.
+            try:
+                result = await asyncio.wait_for(
+                    self._recv_from_detokenizer.recv_pyobj(),
+                    timeout=self._CLEANUP_INTERVAL,
+                )
+            except asyncio.TimeoutError:
+                self._cleanup_stale_states()
+                last_cleanup = time.time()
+                continue
+
             rid = result.get("rid")
             state = self._rid_to_state.get(rid)
             if state is None:
@@ -187,3 +213,24 @@ class RequestResponseProcess:
             if result.get("finished", False):
                 state.finished = True
             state.event.set()
+
+            # Also run cleanup on the normal path when enough time has passed
+            now = time.time()
+            if now - last_cleanup > self._CLEANUP_INTERVAL:
+                last_cleanup = now
+                self._cleanup_stale_states()
+
+    def _cleanup_stale_states(self) -> None:
+        """Remove request states that have been pending longer than ``_STALE_TIMEOUT``."""
+        now = time.time()
+        stale = [
+            r
+            for r, s in self._rid_to_state.items()
+            if not s.finished and (now - s.created_at) > self._STALE_TIMEOUT
+        ]
+        for r in stale:
+            logger.warning("Cleaning stale request state: rid=%s", r)
+            s = self._rid_to_state.pop(r)
+            s.finished = True
+            s.out_list.append({"rid": r, "error": "timeout", "finished": True})
+            s.event.set()

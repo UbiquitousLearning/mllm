@@ -31,6 +31,7 @@ class ServerConfig:
     admin_api_key: Optional[str] = None
     served_model_name: Optional[str] = None
     file_storage_path: Path = Path("mllm_storage")
+    cors_allow_origins: list[str] = field(default_factory=lambda: ["*"])
 
     # --------------------------------------------------------------------- #
     # Scheduling and memory

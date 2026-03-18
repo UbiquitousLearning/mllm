@@ -71,6 +71,19 @@ def close_zmq_socket(sock: zmq.Socket) -> None:
         pass
 
 
+def cleanup_ipc_files(unique_id: Optional[str] = None) -> None:
+    """Remove IPC socket files for the given engine (or all if no id given)."""
+    import glob as _glob
+
+    suffix = f"_{unique_id}" if unique_id else ""
+    pattern = os.path.join(_IPC_DIR, f"pymllm_*{suffix}")
+    for f in _glob.glob(pattern):
+        try:
+            os.unlink(f)
+        except OSError:
+            pass
+
+
 def setup_subprocess_logging(log_level: str = "info") -> None:
     """Configure logging for a spawned subprocess.
 
