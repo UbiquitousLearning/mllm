@@ -175,12 +175,13 @@ class Req:
         # Prompt length
         self.prompt_len: int = len(input_ids)
 
-    def check_finished(self, eos_token_id: Optional[int] = None) -> bool:
+    def check_finished(self) -> bool:
         """Check if this request has reached a finish condition.
 
         Sets ``finished_reason`` and returns True if finished.
         Checks:
-        1. EOS token in the latest generated token
+        1. Stop token (EOS tokens are merged into stop_token_ids during
+           :meth:`SchedulerProcess.process_input_requests`)
         2. ``max_new_tokens`` reached
         """
         if self.finished_reason is not None:
@@ -188,11 +189,6 @@ class Req:
 
         if self.output_ids:
             last_token = self.output_ids[-1]
-            # Check model EOS token
-            if eos_token_id is not None and last_token == eos_token_id:
-                self.finished_reason = "eos"
-                return True
-            # Check stop token IDs from sampling params
             if last_token in self.stop_token_ids:
                 self.finished_reason = "eos"
                 return True
@@ -403,7 +399,7 @@ class SchedulerProcess:
         self._waiting_queue: Deque[TokenizedGenerateReqInput] = deque()
         self._pending_queue: List[Req] = []
         self._running_batch: List[Req] = []
-        self._finished: List[Dict[str, Any]] = []
+        self._finished: Deque[Dict[str, Any]] = deque()
 
         # Scheduling limits
         self._max_running_requests = max_running_requests
@@ -809,10 +805,8 @@ class SchedulerProcess:
             # Update token budget for newly generated tokens
             self._used_tokens += len(new_token_ids)
 
-            # Check finish conditions
-            req.check_finished(
-                eos_token_id=self._eos_token_ids[0] if self._eos_token_ids else None
-            )
+            # Check finish conditions (EOS tokens already in stop_token_ids)
+            req.check_finished()
 
         # Process batch requests based on forward mode
         if batch.forward_mode.is_extend():
@@ -888,7 +882,7 @@ class SchedulerProcess:
 
         # Send finished outputs
         while self._finished:
-            item = self._finished.pop(0)
+            item = self._finished.popleft()
             self._send_to_detokenizer.send_pyobj(item)
 
     # ------------------------------------------------------------------
@@ -1033,6 +1027,19 @@ def run_scheduler_process(
     so model initialisation happens here.
     """
     setup_subprocess_logging(log_level)
+
+    # Extract scheduling limits from server_config (fall back to defaults)
+    max_running = _DEFAULT_MAX_RUNNING_REQUESTS
+    max_prefill = _DEFAULT_MAX_PREFILL_TOKENS
+    max_total = _DEFAULT_MAX_TOTAL_TOKENS
+    if server_config is not None:
+        if getattr(server_config, "max_running_requests", None) is not None:
+            max_running = server_config.max_running_requests
+        if getattr(server_config, "max_prefill_tokens", None) is not None:
+            max_prefill = server_config.max_prefill_tokens
+        if getattr(server_config, "max_total_tokens", None) is not None:
+            max_total = server_config.max_total_tokens
+
     proc = SchedulerProcess(
         recv_from_tokenizer_addr,
         send_to_detokenizer_addr,
@@ -1042,6 +1049,9 @@ def run_scheduler_process(
         shared_queue=shared_queue,
         enable_shared_queue=enable_shared_queue,
         tensor_transport_mode=tensor_transport_mode,
+        max_running_requests=max_running,
+        max_prefill_tokens=max_prefill,
+        max_total_tokens=max_total,
         default_max_new_tokens=default_max_new_tokens,
         eos_token_ids=eos_token_ids,
     )

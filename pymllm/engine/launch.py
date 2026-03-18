@@ -2,6 +2,8 @@ import asyncio
 import atexit
 import logging
 import os
+import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional, Union
@@ -21,7 +23,7 @@ except ImportError:
 
 from pymllm.configs import get_global_config
 from pymllm.engine.io_struct import GenerateReqInput
-from pymllm.orchestrator.ipc_utils import make_ipc_address
+from pymllm.orchestrator.ipc_utils import cleanup_ipc_files, make_ipc_address
 from pymllm.orchestrator.request_response_process import (
     ReqState,
     RequestResponseProcess,
@@ -129,18 +131,46 @@ class Engine:
     def __init__(self):
         self._subprocesses: List[mp.Process] = []
         self._rr_process: Optional[RequestResponseProcess] = None
+        self._ipc_uid: Optional[str] = None
+        self._subprocess_healthy: bool = True
         self._config_logging()
         self._set_default_torch_dtype()
         self._check_model_and_tokenizer()
 
+    @property
+    def is_healthy(self) -> bool:
+        """True if engine and all subprocesses are alive."""
+        return self._subprocess_healthy
+
     def launch(self) -> None:
         self._launch_processes()
+        self._start_health_monitor()
         atexit.register(self.shutdown)
+
+    def _start_health_monitor(self) -> None:
+        """Start a daemon thread that checks subprocess liveness."""
+
+        def _monitor():
+            while self._subprocess_healthy:
+                for proc in self._subprocesses:
+                    if not proc.is_alive():
+                        logger.error(
+                            "Subprocess pid=%s died unexpectedly (exitcode=%s)",
+                            proc.pid,
+                            proc.exitcode,
+                        )
+                        self._subprocess_healthy = False
+                        return
+                time.sleep(5)
+
+        t = threading.Thread(target=_monitor, daemon=True, name="engine-health-monitor")
+        t.start()
 
     def _launch_processes(self) -> None:
         """Spawn all subprocess workers and wire up ZMQ IPC channels."""
         mp.set_start_method("spawn", force=True)
         uid = str(os.getpid())
+        self._ipc_uid = uid
 
         # IPC addresses for ZMQ communication between processes
         addr_request_response_to_tokenizer: str = make_ipc_address(
@@ -310,7 +340,7 @@ class Engine:
                     print(colored(line, "magenta", attrs=["bold"]))
                 print()
             except Exception as e:
-                logger.debug(f"Failed to print banner: {e}")
+                logger.debug("Failed to print banner: %s", e)
                 print("🚀 pymllm FIRED UP! 🚀\n")
         else:
             print("🚀 pymllm FIRED UP! 🚀\n")
@@ -358,7 +388,8 @@ class Engine:
         request.normalize_batch_and_arguments()
 
         async def _run() -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-            result = await self._rr_process.add_request(request)
+            max_queued = get_global_config().server.max_queued_requests
+            result = await self._rr_process.add_request(request, max_queued=max_queued)
             if request.is_single:
                 single_rid = rid if isinstance(rid, str) else rid[0]
                 return await self._wait_for_final_result(single_rid, result)  # type: ignore[arg-type]
@@ -370,12 +401,11 @@ class Engine:
             )
             return list(outputs)
 
+        loop = asyncio.new_event_loop()
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        return loop.run_until_complete(_run())
+            return loop.run_until_complete(_run())
+        finally:
+            loop.close()
 
     async def generate_async(
         self,
@@ -421,7 +451,8 @@ class Engine:
             extra_options=kwargs,
         )
         request.normalize_batch_and_arguments()
-        result = await self._rr_process.add_request(request)
+        max_queued = get_global_config().server.max_queued_requests
+        result = await self._rr_process.add_request(request, max_queued=max_queued)
 
         if request.is_single:
             single_rid = rid if isinstance(rid, str) else rid[0]  # type: ignore[index]
@@ -533,13 +564,17 @@ class Engine:
         """Terminate all subprocesses."""
         if self._rr_process is not None:
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self._rr_process.shutdown())
-                else:
+                loop = asyncio.get_running_loop()
+                # Loop is running (e.g. called from uvicorn shutdown) —
+                # schedule cleanup as a fire-and-forget task.
+                loop.create_task(self._rr_process.shutdown())
+            except RuntimeError:
+                # No running loop — create a temporary one for cleanup.
+                loop = asyncio.new_event_loop()
+                try:
                     loop.run_until_complete(self._rr_process.shutdown())
-            except Exception:
-                pass
+                finally:
+                    loop.close()
         for proc in self._subprocesses:
             if proc.is_alive():
                 proc.terminate()
@@ -547,6 +582,9 @@ class Engine:
                 if proc.is_alive():
                     proc.kill()
         self._subprocesses.clear()
+        # Clean up IPC socket files
+        if self._ipc_uid is not None:
+            cleanup_ipc_files(self._ipc_uid)
         logger.info("All subprocesses shut down")
 
     def _set_default_torch_dtype(self):
