@@ -512,6 +512,15 @@ class ModelRunner:
         finally:
             torch.set_default_dtype(old_dtype)
         self.model.load_weights(self._iter_weights(model_path))
+
+        # Post-load processing: let each quantization method repack/transform
+        # weights from checkpoint format to runtime format (e.g. AWQ → Marlin,
+        # GPTQ g_idx shuffling, FP8 calibration).
+        for _name, module in self.model.named_modules():
+            quant_method = getattr(module, "quant_method", None)
+            if quant_method is not None and hasattr(quant_method, "process_weights_after_loading"):
+                quant_method.process_weights_after_loading(module)
+
         self.model.eval()
 
         after_mem = get_available_gpu_memory(self.device, self.gpu_id)
