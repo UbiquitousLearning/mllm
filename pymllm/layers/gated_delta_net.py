@@ -92,6 +92,8 @@ class GatedDeltaNet(MllmBaseLayer):
         layer_id: int = 0,
         gdn_layer_idx: int = 0,
         rms_norm_eps: float = 1e-6,
+        quant_config=None,
+        prefix: str = "",
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -105,11 +107,32 @@ class GatedDeltaNet(MllmBaseLayer):
         self.layer_id = layer_id
         self.gdn_layer_idx = gdn_layer_idx
 
+        def _get_qm(suffix, out_features):
+            # Skip quantization for small projections — Marlin kernels
+            # require minimum thread tile sizes that exceed these dims.
+            if quant_config is None or out_features < 64:
+                return None
+            return quant_config.get_quant_method(
+                layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
+            )
+
         # Input projections
-        self.in_proj_qkv = Linear(hidden_size, self.key_dim * 2 + self.value_dim, bias=False)
-        self.in_proj_z = Linear(hidden_size, self.value_dim, bias=False)
-        self.in_proj_a = Linear(hidden_size, num_v_heads, bias=False)
-        self.in_proj_b = Linear(hidden_size, num_v_heads, bias=False)
+        self.in_proj_qkv = Linear(
+            hidden_size, self.key_dim * 2 + self.value_dim, bias=False,
+            quant_method=_get_qm("in_proj_qkv", self.key_dim * 2 + self.value_dim),
+        )
+        self.in_proj_z = Linear(
+            hidden_size, self.value_dim, bias=False,
+            quant_method=_get_qm("in_proj_z", self.value_dim),
+        )
+        self.in_proj_a = Linear(
+            hidden_size, num_v_heads, bias=False,
+            quant_method=_get_qm("in_proj_a", num_v_heads),
+        )
+        self.in_proj_b = Linear(
+            hidden_size, num_v_heads, bias=False,
+            quant_method=_get_qm("in_proj_b", num_v_heads),
+        )
 
         # Causal convolution (weight only — computation is in the backend)
         self.conv1d = GDNConv1d(self.key_dim * 2 + self.value_dim, conv_kernel_size)
@@ -125,7 +148,10 @@ class GatedDeltaNet(MllmBaseLayer):
         self.norm = RMSNormGated(head_v_dim, eps=rms_norm_eps, norm_before_gate=True)
 
         # Output projection
-        self.out_proj = Linear(self.value_dim, hidden_size, bias=False)
+        self.out_proj = Linear(
+            self.value_dim, hidden_size, bias=False,
+            quant_method=_get_qm("out_proj", hidden_size),
+        )
 
         # RadixLinearAttention — delegates to the attention backend
         from pymllm.layers.attention.radix_linear_attention import RadixLinearAttention
