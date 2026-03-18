@@ -401,7 +401,6 @@ class ConditionalChatTTS : public nn::Module {
 
       // Apply softmax to get probabilities: [num_vq, codebook_size]
       auto scores = nn::functional::softmax(logits.view({1, 1, logits.shape()[0], logits.shape()[1]}), -1).squeeze();
-      logits.delete_();  // Free memory
 
       // Sample from each VQ codebook independently using multinomial sampling
       // This matches PyTorch's torch.multinomial(scores, num_samples=1) behavior
@@ -418,7 +417,6 @@ class ConditionalChatTTS : public nn::Module {
         if (sampled_token == eos_token) { finished = true; }
       }
 
-      scores.delete_();  // Free memory
 
       progress++;
       audio_bos = false;

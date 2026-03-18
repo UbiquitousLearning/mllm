@@ -29,6 +29,7 @@ class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
 class SigmoidOp;
+class TanhOp;
 class CausalMaskOp;
 class CastTypeOp;
 class X2XOp;
@@ -38,6 +39,7 @@ class FlashAttention2Op;
 class RepeatOp;
 class PermuteOp;
 class Conv1DOp;
+class ConvTranspose1DOp;
 class Conv2DOp;
 class Conv3DOp;
 class GELUOp;
@@ -188,6 +190,7 @@ LINALG_AOPS_DEFINE(TransposeOp, TRANSPOSEOP);
 LINALG_AOPS_DEFINE(RMSNormOp, RMSNORMOP);
 LINALG_AOPS_DEFINE(SiLUOp, SILUOP);
 LINALG_AOPS_DEFINE(SigmoidOp, SIGMOIDOP);
+LINALG_AOPS_DEFINE(TanhOp, TANHOP);
 
 LINALG_AOPS_DEFINE(CastTypeOp, CASTTYPEOP);
 
@@ -201,6 +204,7 @@ LINALG_AOPS_DEFINE(RepeatOp, REPEATOP);
 LINALG_AOPS_DEFINE(PermuteOp, PERMUTEOP);
 
 LINALG_AOPS_DEFINE(Conv1DOp, CONV1DOP);
+LINALG_AOPS_DEFINE(ConvTranspose1DOp, CONVTRANSPOSE1DOP);
 LINALG_AOPS_DEFINE(Conv2DOp, CONV2DOP);
 LINALG_AOPS_DEFINE(Conv3DOp, CONV3DOP);
 
