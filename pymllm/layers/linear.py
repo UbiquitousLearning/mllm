@@ -1,10 +1,34 @@
+"""Linear layers with quantization method dispatch.
+
+Every linear layer holds a ``quant_method`` attribute (an instance of
+:class:`~pymllm.layers.quantize_base.LinearMethodBase`).  When no
+quantization is configured, :class:`UnquantizedLinearMethod` is used as the
+default — it creates a standard FP weight and forwards via ``F.linear``.
+
+Quantized checkpoints plug in a different ``LinearMethodBase`` (e.g.
+``AWQLinearMethod``) which creates packed int4 weights, scales, and
+zero-points, and overrides :meth:`apply` with a fused dequant+matmul kernel.
+
+Usage in model definitions::
+
+    # Non-quantized (default)
+    layer = ColumnParallelLinear(4096, 4096)
+
+    # Quantized — pass a quant_method from QuantizationConfig
+    qm = awq_config.get_quant_method(layer, prefix="model.layers.0.q_proj")
+    layer = ColumnParallelLinear(4096, 4096, quant_method=qm)
+"""
+
 from __future__ import annotations
+
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
 from torch.nn import Parameter
 
 from pymllm.layers.base import MllmBaseLayer
+from pymllm.layers.quantize_base import LinearMethodBase, UnquantizedLinearMethod
 from pymllm.layers.utils import set_weight_attrs
 from pymllm.orchestrator import (
     divide,
@@ -21,14 +45,20 @@ class ColumnParallelLinear(MllmBaseLayer):
     The weight matrix is split along the output dimension across TP ranks.
     Each rank holds ``out_features / tp_size`` rows of the weight.
 
-    Args:
-        in_features: Size of each input sample.
-        out_features: Size of each output sample (before sharding).
-        bias: If ``True``, adds a learnable bias.
-        gather_output: If ``True``, all-gather the output across TP ranks
-            so every rank gets the full ``out_features``.  Set to ``False``
-            when the next layer is a :class:`RowParallelLinear` that expects
-            a split input.
+    Parameters
+    ----------
+    in_features
+        Size of each input sample.
+    out_features
+        Size of each output sample (before sharding).
+    bias
+        If ``True``, adds a learnable bias.
+    gather_output
+        If ``True``, all-gather the output across TP ranks so every rank
+        gets the full ``out_features``.  Set to ``False`` when the next
+        layer is a :class:`RowParallelLinear` that expects a split input.
+    quant_method
+        Quantization method instance.  ``None`` → :class:`UnquantizedLinearMethod`.
     """
 
     def __init__(
@@ -37,6 +67,7 @@ class ColumnParallelLinear(MllmBaseLayer):
         out_features: int,
         bias: bool = True,
         gather_output: bool = True,
+        quant_method: Optional[LinearMethodBase] = None,
     ):
         super().__init__()
 
@@ -57,16 +88,20 @@ class ColumnParallelLinear(MllmBaseLayer):
         self.output_start_index = self.tp_rank * self.out_features_per_partition
         self.output_end_index = self.output_start_index + self.out_features_per_partition
 
-        self.weight = Parameter(
-            torch.empty(self.out_features_per_partition, in_features)
-        )
-        set_weight_attrs(
-            self.weight,
-            {
-                "output_dim": 0,
-                "input_dim": 1,
-                "weight_loader": self.weight_loader,
-            },
+        # --- Quantization method ---
+        # The quant_method creates the weight parameters on this layer via
+        # create_weights().  For UnquantizedLinearMethod this creates a
+        # standard FP Parameter named "weight".  For quantized methods it
+        # may instead create qweight, scales, qzeros, etc.
+        self.quant_method = quant_method or UnquantizedLinearMethod()
+        self.quant_method.create_weights(
+            layer=self,
+            input_size_per_partition=in_features,
+            output_partition_sizes=[self.out_features_per_partition],
+            input_size=in_features,
+            output_size=out_features,
+            params_dtype=torch.get_default_dtype(),
+            weight_loader=self.weight_loader,
         )
 
         if bias:
@@ -111,7 +146,9 @@ class ColumnParallelLinear(MllmBaseLayer):
             param.data.copy_(shard_weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = F.linear(x, self.weight, self.bias)
+        # Delegate computation to the quant_method.  For unquantized layers
+        # this is F.linear; for quantized layers it's a fused dequant+matmul.
+        output = self.quant_method.apply(self, x, self.bias)
 
         if self.gather_output and self.tp_size > 1:
             output = tensor_model_parallel_all_gather(output, dim=-1)
@@ -129,11 +166,18 @@ class RowParallelLinear(MllmBaseLayer):
     Typically placed after a :class:`ColumnParallelLinear` whose
     ``gather_output=False``, so the input is already split.
 
-    Args:
-        in_features: Size of each input sample (before sharding).
-        out_features: Size of each output sample.
-        bias: If ``True``, adds a learnable bias (applied after all-reduce).
-        reduce_output: If ``True``, all-reduce the output across TP ranks.
+    Parameters
+    ----------
+    in_features
+        Size of each input sample (before sharding).
+    out_features
+        Size of each output sample.
+    bias
+        If ``True``, adds a learnable bias (applied after all-reduce).
+    reduce_output
+        If ``True``, all-reduce the output across TP ranks.
+    quant_method
+        Quantization method instance.  ``None`` → :class:`UnquantizedLinearMethod`.
     """
 
     def __init__(
@@ -142,6 +186,7 @@ class RowParallelLinear(MllmBaseLayer):
         out_features: int,
         bias: bool = True,
         reduce_output: bool = True,
+        quant_method: Optional[LinearMethodBase] = None,
     ):
         super().__init__()
 
@@ -162,16 +207,16 @@ class RowParallelLinear(MllmBaseLayer):
         self.input_start_index = self.tp_rank * self.in_features_per_partition
         self.input_end_index = self.input_start_index + self.in_features_per_partition
 
-        self.weight = Parameter(
-            torch.empty(out_features, self.in_features_per_partition)
-        )
-        set_weight_attrs(
-            self.weight,
-            {
-                "output_dim": 0,
-                "input_dim": 1,
-                "weight_loader": self.weight_loader,
-            },
+        # --- Quantization method ---
+        self.quant_method = quant_method or UnquantizedLinearMethod()
+        self.quant_method.create_weights(
+            layer=self,
+            input_size_per_partition=self.in_features_per_partition,
+            output_partition_sizes=[out_features],
+            input_size=in_features,
+            output_size=out_features,
+            params_dtype=torch.get_default_dtype(),
+            weight_loader=self.weight_loader,
         )
 
         if bias:
@@ -210,7 +255,9 @@ class RowParallelLinear(MllmBaseLayer):
             param.data.copy_(shard_weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = F.linear(x, self.weight)
+        # Delegate computation to the quant_method (no bias here; bias is
+        # added after the all-reduce below).
+        output = self.quant_method.apply(self, x)
 
         if self.reduce_output and self.tp_size > 1:
             output = tensor_model_parallel_all_reduce(output)
@@ -222,26 +269,41 @@ class RowParallelLinear(MllmBaseLayer):
 
 
 class Linear(MllmBaseLayer):
-    """Linear layer with simple quant dispatch."""
+    """Non-parallel linear layer with quantization dispatch.
+
+    Parameters
+    ----------
+    in_features
+        Size of each input sample.
+    out_features
+        Size of each output sample.
+    bias
+        If ``True``, adds a learnable bias.
+    quant_method
+        Quantization method instance.  ``None`` → :class:`UnquantizedLinearMethod`.
+    """
 
     def __init__(
         self,
         in_features: int,
         out_features: int,
         bias: bool = True,
+        quant_method: Optional[LinearMethodBase] = None,
     ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
 
-        self.weight = Parameter(torch.empty(out_features, in_features))
-        set_weight_attrs(
-            self.weight,
-            {
-                "output_dim": 0,
-                "input_dim": 1,
-                "weight_loader": self.weight_loader,
-            },
+        # --- Quantization method ---
+        self.quant_method = quant_method or UnquantizedLinearMethod()
+        self.quant_method.create_weights(
+            layer=self,
+            input_size_per_partition=in_features,
+            output_partition_sizes=[out_features],
+            input_size=in_features,
+            output_size=out_features,
+            params_dtype=torch.get_default_dtype(),
+            weight_loader=self.weight_loader,
         )
 
         if bias:
@@ -250,14 +312,5 @@ class Linear(MllmBaseLayer):
         else:
             self.register_parameter("bias", None)
 
-    def _forward_torch_linear(self, x: torch.Tensor) -> torch.Tensor:
-        return F.linear(x, self.weight, self.bias)
-
-    def _forward_quant_linear(self, x: torch.Tensor) -> torch.Tensor:
-        # TODO(wch): Implement quantized linear path.
-        raise NotImplementedError("quant_linear is not implemented yet.")
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.quant_recipe is None:
-            return self._forward_torch_linear(x)
-        return self._forward_quant_linear(x)
+        return self.quant_method.apply(self, x, self.bias)
