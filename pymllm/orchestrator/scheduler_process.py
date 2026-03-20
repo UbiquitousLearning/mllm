@@ -29,6 +29,7 @@ The main ``event_loop``::
 """
 
 import logging
+import os
 import queue as stdlib_queue
 import time
 from collections import deque
@@ -58,7 +59,8 @@ _DEFAULT_MAX_NEW_TOKENS = 32768
 # Brief poll timeout (ms) used between decode batches to avoid 100% CPU spin.
 # 1 ms is enough to yield the CPU core to the OS scheduler while adding
 # negligible latency (decode steps typically take >1 ms on the GPU anyway).
-_DECODE_POLL_TIMEOUT_MS = 1
+# Override via MLLM_DECODE_POLL_TIMEOUT_MS env var for testing.
+_DECODE_POLL_TIMEOUT_MS = int(os.environ.get("MLLM_DECODE_POLL_TIMEOUT_MS", "1"))
 
 
 # ======================================================================
@@ -534,8 +536,8 @@ class SchedulerProcess:
 
         Messages are either:
         * A :class:`~pymllm.engine.io_struct.TokenizedGenerateReqInput`
-          dataclass – appended to ``_waiting_queue``.
-        * A plain abort sentinel dict ``{"rid": ..., "abort": True}`` – handled
+          dataclass - appended to ``_waiting_queue``.
+        * A plain abort sentinel dict ``{"rid": ..., "abort": True}`` - handled
           inline by removing the matching rid from the waiting queue.
         """
         if self._enable_shared_queue and self._shared_queue is not None:
