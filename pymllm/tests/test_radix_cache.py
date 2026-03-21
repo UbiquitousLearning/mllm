@@ -25,8 +25,12 @@ def _val(token_ids):
     return torch.tensor(list(token_ids), dtype=torch.int64)
 
 
-def _make_cache(pool_size=256, page_size=1, sliding_window_size=None, on_node_evict=None):
-    pool = TokenToKVPoolAllocator(size=pool_size, device="cpu", page_size=page_size)
+def _make_cache(pool_size=None, page_size=1, sliding_window_size=None, on_node_evict=None):
+    pool = (
+        TokenToKVPoolAllocator(size=pool_size, device="cpu", page_size=page_size)
+        if pool_size is not None
+        else None
+    )
     return RadixCache(
         page_size=page_size,
         token_to_kv_pool_allocator=pool,
@@ -405,9 +409,9 @@ class TestSWA:
         cache.insert(_key([1, 2, 3, 7, 8, 9]), _val([10, 20, 30, 70, 80, 90]))
         # Tree: root -> [1,2,3] -> {[4,5,6], [7,8,9]}
 
-        # SWA evict should tombstone internal nodes (free SWA KV but retain full-attn KV)
+        # SWA evict should tombstone or fully evict one 3-token node
         result = cache.evict(0, swa_num_tokens=3)
-        assert result.swa_evicted >= 0  # may or may not evict depending on lock state
+        assert result.swa_evicted == 3
 
     def test_swa_lock_ref_tracks_boundary(self):
         cache = _make_cache(sliding_window_size=4)
@@ -756,18 +760,29 @@ class TestSizeInvariant:
 
 
 class TestLockEdgeCases:
-    def test_dec_without_inc_goes_negative(self):
-        """Verify behavior when dec_lock_ref is called without matching inc.
-        This documents whether negative lock_ref causes issues."""
+    def test_dec_without_inc_corrupts_lock_semantics(self):
+        """Unmatched dec_lock_ref drives lock_ref negative.  Size accounting
+        happens to remain consistent (transfers only fire at the 0<->1
+        boundary), but lock pairing is corrupted: it takes an extra inc
+        to reach lock_ref==1, meaning the node appears evictable when it
+        should be protected.
+
+        This documents a known limitation — dec_lock_ref should guard
+        against underflow.  Hardening is a separate task."""
         cache = _make_cache()
         cache.insert(_key([1, 2, 3]), _val([10, 20, 30]))
         r = cache.match_prefix(_key([1, 2, 3]))
 
-        # dec without inc — lock_ref goes to -1
+        # Unmatched dec — lock_ref goes to -1
         cache.dec_lock_ref(r.last_node)
-        # lock_ref is now -1, evictable_size and protected_size may be inconsistent
-        # This is a potential bug: negative lock_ref means the node is "super evictable"
         assert r.last_node.lock_ref == -1
+
+        # A single inc_lock_ref should protect the node (lock_ref == 1),
+        # but because of the unmatched dec it only reaches 0 — the node
+        # is still evictable despite the caller believing it is locked.
+        cache.inc_lock_ref(r.last_node)
+        assert r.last_node.lock_ref == 0  # should be 1
+        assert cache.evictable_size() == 3  # should be 0 (protected)
 
     def test_split_preserves_lock_ref_across_both_halves(self):
         """When a locked node is split, both halves must inherit the lock count."""
