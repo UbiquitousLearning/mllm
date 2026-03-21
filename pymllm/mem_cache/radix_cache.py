@@ -639,13 +639,26 @@ class RadixCache(BasePrefixCache):
         value: torch.Tensor,
         swa_tombstone: bool = False,
     ) -> TreeNode:
-        if (
-            len(parent.children) == 0
-            and parent != self.root_node
-            and parent.lock_ref == 0
-            and not parent.evicted
-        ):
-            self._evictable_size -= len(parent.key)
+        # Note: we do NOT subtract parent's tokens from _evictable_size
+        # when a leaf gains its first child, even though the parent is no
+        # longer directly evictable as a leaf.  Reasons:
+        #
+        # 1. Internal nodes ARE reclaimable via cascade eviction: evict()
+        #    evicts all children first, then the childless parent cascades.
+        #    So _evictable_size correctly tracks "total reclaimable tokens".
+        #
+        # 2. _split_node (which also creates internal nodes) does not adjust
+        #    _evictable_size.  Subtracting here but not there would create
+        #    an inconsistency.
+        #
+        # 3. inc_lock_ref / dec_lock_ref assume ALL non-root tokens are
+        #    partitioned into evictable + protected.  Subtracting here
+        #    breaks that invariant, causing _evictable_size to go negative
+        #    when locks walk up through internal nodes whose tokens were
+        #    already removed.
+        #
+        # A safety guard in alloc_kv_with_eviction() breaks the eviction
+        # loop if evict() frees 0 tokens despite evictable_size > 0.
 
         new_node = TreeNode()
         new_node.parent = parent

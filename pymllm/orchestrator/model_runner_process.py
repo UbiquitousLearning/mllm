@@ -900,6 +900,15 @@ class ModelRunnerProcess:
                 evict_target,
             )
 
+            # Safety: if evict() freed nothing despite evictable_size > 0,
+            # the size accounting is stale — break to avoid spinning.
+            if evict_result.full_evicted == 0:
+                logger.warning(
+                    "KV allocation failed: evictable_size=%d but evict freed 0 tokens",
+                    evictable,
+                )
+                return None
+
             # Retry allocation
             result = runner.token_to_kv_pool_allocator.alloc(num_tokens)
             if result is not None:
