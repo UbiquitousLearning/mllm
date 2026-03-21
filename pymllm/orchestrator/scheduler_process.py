@@ -60,7 +60,22 @@ _DEFAULT_MAX_NEW_TOKENS = 32768
 # 1 ms is enough to yield the CPU core to the OS scheduler while adding
 # negligible latency (decode steps typically take >1 ms on the GPU anyway).
 # Override via MLLM_DECODE_POLL_TIMEOUT_MS env var for testing.
-_DECODE_POLL_TIMEOUT_MS = int(os.environ.get("MLLM_DECODE_POLL_TIMEOUT_MS", "1"))
+def _read_decode_poll_timeout_ms() -> int:
+    raw = os.environ.get("MLLM_DECODE_POLL_TIMEOUT_MS", "1")
+    try:
+        val = int(raw)
+    except ValueError:
+        raise ValueError(
+            f"MLLM_DECODE_POLL_TIMEOUT_MS must be a non-negative integer, got {raw!r}"
+        )
+    if val < 0:
+        raise ValueError(
+            f"MLLM_DECODE_POLL_TIMEOUT_MS must be >= 0, got {val}"
+        )
+    return val
+
+
+_DECODE_POLL_TIMEOUT_MS = _read_decode_poll_timeout_ms()
 
 
 # ======================================================================
