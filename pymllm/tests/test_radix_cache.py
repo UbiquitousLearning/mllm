@@ -888,3 +888,427 @@ class TestPoolLeaks:
         cache.evict(1000)
         pool.merge_and_sort_free()
         assert pool.available_size() == initial
+
+
+# ======================================================================
+# Realistic multi-request serving scenarios
+# ======================================================================
+
+
+# Simulate the model runner's insert-and-free-duplicates pattern
+def _model_runner_insert(cache, pool, token_ids, seq_kv_indices):
+    """Mimics ModelRunnerProcess._insert_into_radix_cache:
+    insert, free duplicate KV indices for the shared prefix, rematch."""
+    key = _key(token_ids)
+    result = cache.insert(key, seq_kv_indices)
+    if result.prefix_len > 0:
+        pool.free(seq_kv_indices[: result.prefix_len])
+    return result
+
+
+class TestConcurrentRequestsSharedPrefix:
+    """Simulate multiple in-flight requests sharing a system prompt,
+    each with different user messages, arriving and finishing at
+    different times."""
+
+    SYSTEM_PROMPT = list(range(1000, 1050))  # 50-token system prompt
+    SYSTEM_PROMPT_LEN = 50
+
+    def _make_user_msg(self, user_id, length=20):
+        return [2000 + user_id * 100 + j for j in range(length)]
+
+    def _full_seq(self, user_id, length=20):
+        return self.SYSTEM_PROMPT + self._make_user_msg(user_id, length)
+
+    def test_10_concurrent_requests_shared_system_prompt(self):
+        """10 requests share a 50-token system prompt, each with a unique
+        20-token user message. All active simultaneously."""
+        pool = TokenToKVPoolAllocator(size=2048, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+        initial_pool = pool.available_size()
+
+        locked_nodes = []
+        lock_ids = []
+
+        # Phase 1: all 10 requests arrive and get prefilled
+        for uid in range(10):
+            seq = self._full_seq(uid)
+            indices = pool.alloc(len(seq))
+            assert indices is not None
+            _model_runner_insert(cache, pool, seq, indices)
+
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq)
+            bid = cache.inc_lock_ref(r.last_node)
+            locked_nodes.append(r.last_node)
+            lock_ids.append(bid)
+
+        _assert_size_invariant(cache)
+
+        # All 10 requests share the system prompt → shared prefix node should
+        # have lock_ref == 10 (from all 10 inc_lock_ref walks)
+        r_check = cache.match_prefix(_key(self.SYSTEM_PROMPT))
+        assert r_check.prefix_len == self.SYSTEM_PROMPT_LEN
+
+        # Eviction should fail — everything is locked
+        result = cache.evict(1000)
+        assert result.full_evicted == 0
+
+        # Phase 2: requests finish one by one
+        for i in range(10):
+            cache.dec_lock_ref(locked_nodes[i], swa_boundary_id=lock_ids[i])
+            _assert_size_invariant(cache)
+
+        # Phase 3: evict everything
+        cache.evict(10000)
+        _assert_size_invariant(cache)
+        pool.merge_and_sort_free()
+        assert pool.available_size() == initial_pool
+
+    def test_staggered_arrival_and_departure(self):
+        """Requests arrive and finish in interleaved order, simulating
+        continuous batching where some requests are prefilling while
+        others are decoding."""
+        pool = TokenToKVPoolAllocator(size=2048, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+        initial_pool = pool.available_size()
+
+        active = {}  # uid -> (last_node, boundary_id)
+
+        # Wave 1: requests 0-4 arrive
+        for uid in range(5):
+            seq = self._full_seq(uid)
+            indices = pool.alloc(len(seq))
+            _model_runner_insert(cache, pool, seq, indices)
+            r = cache.match_prefix(_key(seq))
+            bid = cache.inc_lock_ref(r.last_node)
+            active[uid] = (r.last_node, bid)
+
+        _assert_size_invariant(cache)
+
+        # Request 0 and 2 finish (decode complete)
+        for uid in [0, 2]:
+            node, bid = active.pop(uid)
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+        _assert_size_invariant(cache)
+
+        # Wave 2: requests 5-9 arrive (while 1, 3, 4 are still decoding)
+        for uid in range(5, 10):
+            seq = self._full_seq(uid)
+            indices = pool.alloc(len(seq))
+            _model_runner_insert(cache, pool, seq, indices)
+            r = cache.match_prefix(_key(seq))
+            bid = cache.inc_lock_ref(r.last_node)
+            active[uid] = (r.last_node, bid)
+
+        _assert_size_invariant(cache)
+
+        # Request 1 finishes
+        node, bid = active.pop(1)
+        cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+        # Evict expired request data (0, 1, 2 are unlocked now)
+        cache.evict(100)
+        _assert_size_invariant(cache)
+
+        # Remaining requests (3, 4, 5-9) should still match
+        for uid in active:
+            seq = self._full_seq(uid)
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq), f"Request {uid} lost cache"
+
+        # Cleanup
+        for uid in list(active):
+            node, bid = active.pop(uid)
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+        cache.evict(10000)
+        pool.merge_and_sort_free()
+        assert pool.available_size() == initial_pool
+
+    def test_cache_hit_reuse_after_previous_request(self):
+        """Request B arrives with the same prompt as finished request A.
+        B should get a full cache hit on A's KV data."""
+        pool = TokenToKVPoolAllocator(size=2048, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        seq = self._full_seq(0)
+
+        # Request A: prefill, decode, finish
+        indices_a = pool.alloc(len(seq))
+        _model_runner_insert(cache, pool, seq, indices_a)
+        r_a = cache.match_prefix(_key(seq))
+        bid_a = cache.inc_lock_ref(r_a.last_node)
+        cache.dec_lock_ref(r_a.last_node, swa_boundary_id=bid_a)
+
+        # Request B: same prompt — should get full cache hit
+        r_b = cache.match_prefix(_key(seq))
+        assert r_b.prefix_len == len(seq)
+        # B's cached indices should match A's original values
+        assert r_b.indices.tolist() == indices_a.tolist()
+
+    def test_memory_pressure_eviction_during_serving(self):
+        """Small pool forces eviction while requests are active.
+        Only unlocked (finished) requests should be evicted."""
+        # Small pool: can hold ~3 requests of 70 tokens each
+        pool = TokenToKVPoolAllocator(size=220, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        active = {}
+
+        # Fill pool with 3 requests
+        for uid in range(3):
+            seq = self._full_seq(uid)
+            indices = pool.alloc(len(seq))
+            assert indices is not None, f"Pool exhausted at request {uid}"
+            _model_runner_insert(cache, pool, seq, indices)
+            r = cache.match_prefix(_key(seq))
+            bid = cache.inc_lock_ref(r.last_node)
+            active[uid] = (r.last_node, bid)
+
+        _assert_size_invariant(cache)
+
+        # Pool is nearly full. Request 0 finishes.
+        node, bid = active.pop(0)
+        cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+        # Evict to make room for new request
+        cache.evict(70)
+        pool.merge_and_sort_free()
+
+        # New request 3 should now fit
+        seq3 = self._full_seq(3)
+        indices3 = pool.alloc(len(seq3))
+        assert indices3 is not None, "Pool should have space after eviction"
+        _model_runner_insert(cache, pool, seq3, indices3)
+        r3 = cache.match_prefix(_key(seq3))
+        bid3 = cache.inc_lock_ref(r3.last_node)
+        active[3] = (r3.last_node, bid3)
+
+        # Requests 1 and 2 should still be intact
+        for uid in [1, 2]:
+            r = cache.match_prefix(_key(self._full_seq(uid)))
+            assert r.prefix_len == len(self._full_seq(uid))
+
+        _assert_size_invariant(cache)
+
+        for uid in list(active):
+            node, bid = active.pop(uid)
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+    def test_deep_branching_conversation_tree(self):
+        """Simulate a chat service: 5 users share a system prompt, each
+        has 3 conversation turns, each turn extends the previous.
+        Creates a deep tree with many branches."""
+        pool = TokenToKVPoolAllocator(size=8192, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        # For each user, simulate 3 turns of conversation
+        all_locks = []
+        for uid in range(5):
+            prefix = list(self.SYSTEM_PROMPT)
+            for turn in range(3):
+                # Each turn adds 15 tokens
+                turn_tokens = [3000 + uid * 1000 + turn * 100 + j for j in range(15)]
+                prefix = prefix + turn_tokens
+                indices = pool.alloc(len(prefix))
+                result = _model_runner_insert(cache, pool, prefix, indices)
+
+                r = cache.match_prefix(_key(prefix))
+                assert r.prefix_len == len(prefix)
+                bid = cache.inc_lock_ref(r.last_node)
+                all_locks.append((r.last_node, bid))
+
+            _assert_size_invariant(cache)
+
+        # 5 users * 3 turns = 15 active locks on various tree depths
+        # All sharing the 50-token system prompt
+        r_sys = cache.match_prefix(_key(self.SYSTEM_PROMPT))
+        assert r_sys.prefix_len == self.SYSTEM_PROMPT_LEN
+
+        # Nothing should be evictable (all locked)
+        assert cache.evict(10000).full_evicted == 0
+
+        # Unlock all
+        for node, bid in all_locks:
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+        _assert_size_invariant(cache)
+
+        # Evict everything — pool should be fully recovered
+        cache.evict(100000)
+        pool.merge_and_sort_free()
+        _assert_size_invariant(cache)
+
+    def test_prefix_divergence_at_multiple_depths(self):
+        """Requests diverge from the shared prefix at different positions,
+        creating a tree with branches at multiple depths."""
+        pool = TokenToKVPoolAllocator(size=4096, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        base = list(range(1000, 1100))  # 100-token shared prefix
+        active = {}
+
+        # 8 requests that diverge at positions 20, 40, 60, 80, ...
+        for i in range(8):
+            diverge_at = 20 + i * 10
+            seq = base[:diverge_at] + [5000 + i * 100 + j for j in range(30)]
+            indices = pool.alloc(len(seq))
+            _model_runner_insert(cache, pool, seq, indices)
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq)
+            bid = cache.inc_lock_ref(r.last_node)
+            active[i] = (seq, r.last_node, bid)
+
+        _assert_size_invariant(cache)
+
+        # Verify each request still matches fully
+        for i, (seq, node, bid) in active.items():
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq), f"Request {i} diverging at {20+i*10} lost"
+
+        # Unlock odd-numbered requests, evict, verify even ones survive
+        for i in [1, 3, 5, 7]:
+            seq, node, bid = active[i]
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+        cache.evict(500)
+        _assert_size_invariant(cache)
+
+        for i in [0, 2, 4, 6]:
+            seq, node, bid = active[i]
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq), f"Locked request {i} lost after eviction"
+
+        # Cleanup
+        for i in [0, 2, 4, 6]:
+            _, node, bid = active[i]
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+
+    def test_rapid_insert_evict_cycles_under_pressure(self):
+        """Tight loop: insert request, use it, finish, evict, repeat.
+        Simulates sustained high-throughput serving."""
+        pool = TokenToKVPoolAllocator(size=512, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+        initial_pool = pool.available_size()
+
+        for cycle in range(50):
+            uid = cycle % 10  # 10 distinct "users" cycling
+            seq = self.SYSTEM_PROMPT + [4000 + uid * 100 + cycle + j for j in range(20)]
+
+            indices = pool.alloc(len(seq))
+            if indices is None:
+                # Under pressure — evict and retry
+                cache.evict(len(seq))
+                pool.merge_and_sort_free()
+                indices = pool.alloc(len(seq))
+                assert indices is not None, f"Pool exhausted at cycle {cycle}"
+
+            result = _model_runner_insert(cache, pool, seq, indices)
+            r = cache.match_prefix(_key(seq))
+            bid = cache.inc_lock_ref(r.last_node)
+
+            # "Decode" (no-op) then finish
+            cache.dec_lock_ref(r.last_node, swa_boundary_id=bid)
+
+        _assert_size_invariant(cache)
+
+        # Final cleanup
+        cache.evict(100000)
+        pool.merge_and_sort_free()
+        assert pool.available_size() == initial_pool
+
+    def test_many_requests_same_exact_prompt(self):
+        """20 requests with the identical prompt. All should share the
+        same tree path and stack locks correctly."""
+        pool = TokenToKVPoolAllocator(size=2048, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        seq = self.SYSTEM_PROMPT + [9000 + j for j in range(30)]
+        locks = []
+
+        # First request inserts into the tree
+        indices = pool.alloc(len(seq))
+        _model_runner_insert(cache, pool, seq, indices)
+
+        # 20 concurrent requests all match the same path
+        for i in range(20):
+            r = cache.match_prefix(_key(seq))
+            assert r.prefix_len == len(seq)
+            bid = cache.inc_lock_ref(r.last_node)
+            locks.append((r.last_node, bid))
+
+        # The leaf should have lock_ref == 20
+        assert locks[0][0].lock_ref == 20
+
+        # Eviction must fail
+        assert cache.evict(10000).full_evicted == 0
+        _assert_size_invariant(cache)
+
+        # Unlock 19, one remains — still protected
+        for node, bid in locks[:-1]:
+            cache.dec_lock_ref(node, swa_boundary_id=bid)
+        assert locks[-1][0].lock_ref == 1
+        assert cache.evict(10000).full_evicted == 0
+
+        # Unlock last one
+        cache.dec_lock_ref(locks[-1][0], swa_boundary_id=locks[-1][1])
+        _assert_size_invariant(cache)
+
+        # Now everything is evictable
+        result = cache.evict(10000)
+        assert result.full_evicted > 0
+
+    def test_interleaved_prefill_and_decode_locks(self):
+        """Simulate continuous batching: while some requests are decoding
+        (locked), new requests arrive for prefill, causing tree splits
+        on locked nodes. Verify invariant throughout."""
+        pool = TokenToKVPoolAllocator(size=4096, device="cpu")
+        cache = RadixCache(page_size=1, token_to_kv_pool_allocator=pool)
+
+        # Decoding request: already inserted and locked
+        decode_seq = self.SYSTEM_PROMPT + [6000 + j for j in range(40)]
+        decode_idx = pool.alloc(len(decode_seq))
+        _model_runner_insert(cache, pool, decode_seq, decode_idx)
+        r_decode = cache.match_prefix(_key(decode_seq))
+        bid_decode = cache.inc_lock_ref(r_decode.last_node)
+        _assert_size_invariant(cache)
+
+        # New prefill request shares system prompt but diverges
+        prefill_seq = self.SYSTEM_PROMPT + [7000 + j for j in range(25)]
+        prefill_idx = pool.alloc(len(prefill_seq))
+        _model_runner_insert(cache, pool, prefill_seq, prefill_idx)
+        # This insert splits the tree at the system prompt boundary
+        # while the decode request's node is locked
+        _assert_size_invariant(cache)
+
+        r_prefill = cache.match_prefix(_key(prefill_seq))
+        assert r_prefill.prefix_len == len(prefill_seq)
+        bid_prefill = cache.inc_lock_ref(r_prefill.last_node)
+        _assert_size_invariant(cache)
+
+        # Another prefill that diverges even earlier (at token 30)
+        early_seq = list(self.SYSTEM_PROMPT[:30]) + [8000 + j for j in range(20)]
+        early_idx = pool.alloc(len(early_seq))
+        _model_runner_insert(cache, pool, early_seq, early_idx)
+        _assert_size_invariant(cache)
+
+        r_early = cache.match_prefix(_key(early_seq))
+        bid_early = cache.inc_lock_ref(r_early.last_node)
+        _assert_size_invariant(cache)
+
+        # Decode finishes
+        cache.dec_lock_ref(r_decode.last_node, swa_boundary_id=bid_decode)
+        _assert_size_invariant(cache)
+
+        # Evict decode's unique suffix — prefill requests must survive
+        cache.evict(40)
+
+        assert cache.match_prefix(_key(prefill_seq)).prefix_len == len(prefill_seq)
+        assert cache.match_prefix(_key(early_seq)).prefix_len == len(early_seq)
+        _assert_size_invariant(cache)
+
+        # Cleanup
+        cache.dec_lock_ref(r_prefill.last_node, swa_boundary_id=bid_prefill)
+        cache.dec_lock_ref(r_early.last_node, swa_boundary_id=bid_early)
+        _assert_size_invariant(cache)
