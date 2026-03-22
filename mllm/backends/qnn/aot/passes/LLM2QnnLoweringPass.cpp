@@ -27,6 +27,8 @@
 #include "mllm/backends/qnn/aot/visitor/Reduce.hpp"
 #include "mllm/backends/qnn/aot/visitor/Equal.hpp"
 #include "mllm/backends/qnn/aot/visitor/Sigmoid.hpp"
+#include "mllm/backends/qnn/aot/visitor/SiLU.hpp"
+#include "mllm/backends/qnn/aot/visitor/RoPE.hpp"
 #include "mllm/backends/qnn/aot/visitor/Matmul.hpp"
 #include "mllm/backends/qnn/aot/visitor/Repeat.hpp"
 #include "mllm/backends/qnn/aot/visitor/Softmax.hpp"
@@ -39,7 +41,8 @@ LLM2QnnLoweringPass::LLM2QnnLoweringPass() {
                    QnnAOTViewPattern, QnnAOTIndexPattern, QnnAOTGatherPattern, QnnAOTRMSNormPattern, QnnAOTLinearPattern,
                    QnnAOTTransposePattern, QnnAOTSlicePattern, QnnAOTConcatPattern, QnnAOTRepeatPattern, QnnAOTMatMulPattern,
                    QnnAOTReduceMaxPattern, QnnAOTReduceMinPattern, QnnAOTReduceMeanPattern, QnnAOTReduceSumPattern,
-                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern, QnnAOTConv2DPattern>();
+                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern, QnnAOTSiLUPattern,
+                   QnnAOTRoPEPattern, QnnAOTConv2DPattern>();
 }
 
 uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
