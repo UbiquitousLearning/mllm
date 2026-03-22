@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <cstring>
+
 #include "mllm/mllm.hpp"
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
@@ -254,12 +257,15 @@ class Qwen3_5GDNLayer final : public nn::Module {
   // Causal Conv1D for sequence mixing
   nn::Conv1D conv1d_;
 
+  // Learnable parameters for gating
+  nn::Param A_log_;    // [num_v_heads]
+  nn::Param dt_bias_;  // [num_v_heads]
+
   // Output
-  nn::RMSNorm norm_;  // gated RMSNorm (with add_unit_offset for Gemma style)
+  nn::RMSNorm norm_;  // standard RMSNorm (no add_unit_offset)
   nn::Linear out_proj_;
 
   nn::SiLU silu_;
-  nn::Sigmoid sigmoid_;
 
   int hidden_size_;
   int num_k_heads_;
@@ -269,6 +275,12 @@ class Qwen3_5GDNLayer final : public nn::Module {
   int key_dim_;
   int value_dim_;
   int conv_kernel_size_;
+
+  // Recurrent state: [num_v_heads, head_v_dim, head_k_dim] per batch element
+  // Conv state: [conv_dim, kernel_size-1] per batch element
+  // Allocated on first forward call.
+  Tensor recurrent_state_;  // [B, H, V, K]
+  Tensor conv_state_;       // [B, conv_dim, kernel_size-1]
 
  public:
   Qwen3_5GDNLayer() = default;
@@ -295,82 +307,220 @@ class Qwen3_5GDNLayer final : public nn::Module {
                               /*stride=*/1, /*padding=*/conv_kernel_size_ - 1, /*dilation=*/1,
                               /*groups=*/conv_channels, /*bias=*/false);
 
-    // Gated RMSNorm (GemmaRMSNorm: add_unit_offset=true)
-    norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps, /*add_unit_offset=*/true);
+    // Learnable gating parameters (loaded from weight file)
+    A_log_ = reg<nn::Param>("A_log", getModuleName() + ".A_log");
+    dt_bias_ = reg<nn::Param>("dt_bias", getModuleName() + ".dt_bias");
+
+    // Gated RMSNorm — standard (NOT GemmaRMSNorm, no add_unit_offset)
+    norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps, /*add_unit_offset=*/false);
 
     out_proj_ = reg<nn::Linear>("out_proj", value_dim_, hidden_size_, false, cfg.linear_impl_type);
 
     silu_ = reg<nn::SiLU>("silu");
-    sigmoid_ = reg<nn::Sigmoid>("sigmoid");
   }
 
-  // State parameters are registered as buffers by ForCausalLM
-  // A_log: [num_v_heads], dt_bias: [num_v_heads]
+  void resetState(int batch_size) {
+    int conv_dim = key_dim_ * 2 + value_dim_;
+    recurrent_state_ = Tensor::empty({batch_size, num_v_heads_, head_v_dim_, head_k_dim_}, kFloat32, kCPU).alloc();
+    conv_state_ = Tensor::empty({batch_size, conv_dim, conv_kernel_size_ - 1}, kFloat32, kCPU).alloc();
+    std::memset(recurrent_state_.ptr<float>(), 0,
+                batch_size * num_v_heads_ * head_v_dim_ * head_k_dim_ * sizeof(float));
+    std::memset(conv_state_.ptr<float>(), 0,
+                batch_size * conv_dim * (conv_kernel_size_ - 1) * sizeof(float));
+  }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];  // [B, S, H]
     int B = x.shape()[0];
     int S = x.shape()[1];
+    int conv_dim = key_dim_ * 2 + value_dim_;
+    int K = conv_kernel_size_;
+
+    // Lazy init recurrent + conv state
+    if (recurrent_state_.isNil()) { resetState(B); }
 
     // Input projections
     auto mixed_qkv = in_proj_qkv_(x);  // [B, S, key_dim*2 + value_dim]
     auto z = in_proj_z_(x);             // [B, S, value_dim]
-    auto a = in_proj_a_(x);             // [B, S, num_v_heads]
-    auto b = in_proj_b_(x);             // [B, S, num_v_heads]
+    auto a_proj = in_proj_a_(x);        // [B, S, num_v_heads]
+    auto b_proj = in_proj_b_(x);        // [B, S, num_v_heads]
 
-    // Causal Conv1D on mixed_qkv
-    // Conv1D expects [B, C, L] layout
-    mixed_qkv = mixed_qkv.transpose(1, 2);            // [B, C, S]
-    mixed_qkv = conv1d_(mixed_qkv);                   // [B, C, S + padding]
-    mixed_qkv = mixed_qkv[{kAll, kAll, {0, S}}];      // Causal trim to [B, C, S]
-    mixed_qkv = mixed_qkv.transpose(1, 2);            // [B, S, C]
+    // --- Causal Conv1D with state management ---
+    // mixed_qkv before conv: [B, S, C] where C = conv_dim
+    auto mixed_qkv_pre = mixed_qkv.contiguous();  // ensure contiguous for raw access
 
-    // Split into q, k, v and apply SiLU activation
-    // contiguous() needed because slice produces non-contiguous views
-    auto q = silu_(mixed_qkv[{kAll, kAll, {0, key_dim_}}].contiguous());
-    auto k = silu_(mixed_qkv[{kAll, kAll, {key_dim_, key_dim_ * 2}}].contiguous());
+    if (S == 1) {
+      // Decode mode: manual depthwise conv using conv_state_
+      // Conv weight: [C, 1, K] (depthwise)
+      auto conv_w = conv1d_.weight();
+      auto* conv_w_ptr = conv_w.ptr<float>();     // [C, 1, K] or [C*K] flat
+      auto* cs_ptr = conv_state_.ptr<float>();    // [B, C, K-1]
+      auto* mqkv_ptr = mixed_qkv_pre.ptr<float>(); // [B, 1, C]
+
+      // Output: [B, 1, C]
+      auto conv_out = Tensor::empty({B, 1, conv_dim}, kFloat32, kCPU).alloc();
+      auto* co_ptr = conv_out.ptr<float>();
+
+      for (int bi = 0; bi < B; ++bi) {
+        for (int ci = 0; ci < conv_dim; ++ci) {
+          // The K-1 previous values from conv_state + 1 current value
+          float result = 0.f;
+          for (int ki = 0; ki < K - 1; ++ki) {
+            result += cs_ptr[bi * conv_dim * (K - 1) + ci * (K - 1) + ki] * conv_w_ptr[ci * K + ki];
+          }
+          result += mqkv_ptr[bi * conv_dim + ci] * conv_w_ptr[ci * K + (K - 1)];
+          co_ptr[bi * conv_dim + ci] = result;
+
+          // Update conv state: shift left, append current token
+          for (int ki = 0; ki < K - 2; ++ki) {
+            cs_ptr[bi * conv_dim * (K - 1) + ci * (K - 1) + ki] =
+                cs_ptr[bi * conv_dim * (K - 1) + ci * (K - 1) + ki + 1];
+          }
+          cs_ptr[bi * conv_dim * (K - 1) + ci * (K - 1) + (K - 2)] = mqkv_ptr[bi * conv_dim + ci];
+        }
+      }
+      mixed_qkv = conv_out;
+    } else {
+      // Prefill mode: manual causal depthwise conv (left-pad with zeros)
+      auto conv_w = conv1d_.weight();
+      auto* conv_w_ptr = conv_w.ptr<float>();     // [C, 1, K]
+      auto* mqkv_ptr = mixed_qkv_pre.ptr<float>(); // [B, S, C]
+
+      auto conv_out = Tensor::empty({B, S, conv_dim}, kFloat32, kCPU).alloc();
+      auto* co_ptr = conv_out.ptr<float>();
+
+      for (int bi = 0; bi < B; ++bi) {
+        for (int si = 0; si < S; ++si) {
+          for (int ci = 0; ci < conv_dim; ++ci) {
+            float result = 0.f;
+            for (int ki = 0; ki < K; ++ki) {
+              int src_pos = si - (K - 1) + ki;  // left-padded: position in original sequence
+              if (src_pos >= 0) {
+                result += mqkv_ptr[bi * S * conv_dim + src_pos * conv_dim + ci] * conv_w_ptr[ci * K + ki];
+              }
+            }
+            co_ptr[bi * S * conv_dim + si * conv_dim + ci] = result;
+          }
+        }
+      }
+      mixed_qkv = conv_out;
+
+      // Save conv state: last K-1 tokens of pre-conv input
+      auto* cs_ptr = conv_state_.ptr<float>();          // [B, C, K-1]
+      for (int bi = 0; bi < B; ++bi) {
+        for (int ci = 0; ci < conv_dim; ++ci) {
+          int start = std::max(0, S - (K - 1));
+          for (int si = start; si < S; ++si) {
+            cs_ptr[bi * conv_dim * (K - 1) + ci * (K - 1) + (si - start)] =
+                mqkv_ptr[bi * S * conv_dim + si * conv_dim + ci];
+          }
+        }
+      }
+    }
+
+    // SiLU on entire conv output BEFORE splitting (matches Python reference)
+    mixed_qkv = silu_(mixed_qkv);
+
+    // Split into q, k, v
+    auto q = mixed_qkv[{kAll, kAll, {0, key_dim_}}].contiguous();
+    auto k = mixed_qkv[{kAll, kAll, {key_dim_, key_dim_ * 2}}].contiguous();
     auto v = mixed_qkv[{kAll, kAll, {key_dim_ * 2, key_dim_ * 2 + value_dim_}}].contiguous();
 
-    // Reshape to heads
-    q = q.view({B, S, num_k_heads_, head_k_dim_});    // [B, S, Hk, Dk]
-    k = k.view({B, S, num_k_heads_, head_k_dim_});    // [B, S, Hk, Dk]
-    v = v.view({B, S, num_v_heads_, head_v_dim_});    // [B, S, Hv, Dv]
+    // Reshape to heads: [B, S, H, D]
+    q = q.view({B, S, num_k_heads_, head_k_dim_});
+    k = k.view({B, S, num_k_heads_, head_k_dim_});
+    v = v.view({B, S, num_v_heads_, head_v_dim_});
 
-    // Full GDN recurrence (not yet implemented):
-    //   g_t = -exp(A_log) * softplus(a_t + dt_bias)
-    //   beta_t = sigmoid(b_t)
-    //   state_t = exp(g_t) * state_{t-1} + beta_t * (k_t outer v_t)
-    //   output_t = q_t @ state_t
-    // Simplified to standard linear attention for initial bringup.
-    (void)a;
-    (void)b;
+    // --- GDN sequential scan on raw float data ---
+    auto output = Tensor::empty({B, S, num_v_heads_, head_v_dim_}, kFloat32, kCPU).alloc();
 
-    // Transpose to [B, H, S, D] for batched matmul
-    q = q.transpose(1, 2);  // [B, Hk, S, Dk]
-    k = k.transpose(1, 2);  // [B, Hk, S, Dk]
-    v = v.transpose(1, 2);  // [B, Hv, S, Dv]
+    auto* A_log_ptr = A_log_.weight().ptr<float>();      // [num_v_heads]
+    auto* dt_bias_ptr = dt_bias_.weight().ptr<float>();   // [num_v_heads]
+    auto* a_ptr = a_proj.ptr<float>();                    // [B, S, num_v_heads]
+    auto* b_ptr = b_proj.ptr<float>();                    // [B, S, num_v_heads]
+    auto* q_ptr = q.ptr<float>();                         // [B, S, num_k_heads, head_k_dim]
+    auto* k_ptr = k.ptr<float>();                         // [B, S, num_k_heads, head_k_dim]
+    auto* v_ptr = v.ptr<float>();                         // [B, S, num_v_heads, head_v_dim]
+    auto* out_ptr = output.ptr<float>();                  // [B, S, num_v_heads, head_v_dim]
+    auto* state_ptr = recurrent_state_.ptr<float>();      // [B, num_v_heads, head_v_dim, head_k_dim]
 
-    // Simplified linear attention: O = softmax(Q K^T / sqrt(d)) V with causal mask
-    // NOTE: A full GDN implementation uses the recurrent state form:
-    //   g_t = -exp(A_log) * softplus(a_t + dt_bias)
-    //   state_t = exp(g_t) * state_{t-1} + beta_t * (k_t outer v_t)
-    //   output_t = q_t @ state_t
-    // This simplified form is for initial CPU bringup; the recurrent kernel
-    // will be implemented as a custom HTP op for QNN and as a fused CUDA kernel.
-    auto attn_weights = nn::functional::matmul(q, k, false, true);  // [B, H, S, S]
-    auto scale = 1.f / sqrtf(static_cast<float>(head_k_dim_));
-    attn_weights = attn_weights * scale;
-    auto output = nn::functional::matmul(attn_weights, v);  // [B, H, S, Dv]
+    int kv_repeat = num_v_heads_ / num_k_heads_;  // GQA ratio
 
-    // [B, H, S, Dv] -> [B, S, H, Dv] -> [B, S, H*Dv]
-    output = output.transpose(1, 2).view({B, S, value_dim_});
+    for (int bi = 0; bi < B; ++bi) {
+      for (int si = 0; si < S; ++si) {
+        for (int hi = 0; hi < num_v_heads_; ++hi) {
+          int k_hi = hi / kv_repeat;
+
+          // Gating
+          float a_val = a_ptr[bi * S * num_v_heads_ + si * num_v_heads_ + hi];
+          float b_val = b_ptr[bi * S * num_v_heads_ + si * num_v_heads_ + hi];
+          float x_sp = a_val + dt_bias_ptr[hi];
+          float softplus_val = (x_sp > 20.f) ? x_sp : std::log1p(std::exp(x_sp));
+          float g = -std::exp(A_log_ptr[hi]) * softplus_val;
+          float decay = std::exp(g);
+          float beta = 1.f / (1.f + std::exp(-b_val));
+
+          // Head pointers
+          float* q_head = q_ptr + bi * S * num_k_heads_ * head_k_dim_ + si * num_k_heads_ * head_k_dim_ + k_hi * head_k_dim_;
+          float* k_head = k_ptr + bi * S * num_k_heads_ * head_k_dim_ + si * num_k_heads_ * head_k_dim_ + k_hi * head_k_dim_;
+          float* v_head = v_ptr + bi * S * num_v_heads_ * head_v_dim_ + si * num_v_heads_ * head_v_dim_ + hi * head_v_dim_;
+
+          // L2 norm of q and k + query scale (1/sqrt(d_k))
+          float q_norm_sq = 0.f, k_norm_sq = 0.f;
+          for (int d = 0; d < head_k_dim_; ++d) {
+            q_norm_sq += q_head[d] * q_head[d];
+            k_norm_sq += k_head[d] * k_head[d];
+          }
+          float q_scale = 1.f / ((std::sqrt(q_norm_sq) + 1e-6f) * std::sqrt(static_cast<float>(head_k_dim_)));
+          float k_norm = std::sqrt(k_norm_sq) + 1e-6f;
+
+          // State pointer: [B, H, V, K]
+          float* state_head = state_ptr
+              + bi * num_v_heads_ * head_v_dim_ * head_k_dim_
+              + hi * head_v_dim_ * head_k_dim_;
+
+          // Decay state
+          for (int vi = 0; vi < head_v_dim_; ++vi) {
+            for (int ki = 0; ki < head_k_dim_; ++ki) {
+              state_head[vi * head_k_dim_ + ki] *= decay;
+            }
+          }
+
+          // Delta rule
+          float v_delta[256];
+          for (int vi = 0; vi < head_v_dim_; ++vi) {
+            float dot = 0.f;
+            for (int ki = 0; ki < head_k_dim_; ++ki) {
+              dot += state_head[vi * head_k_dim_ + ki] * (k_head[ki] / k_norm);
+            }
+            v_delta[vi] = (v_head[vi] - dot) * beta;
+          }
+          for (int vi = 0; vi < head_v_dim_; ++vi) {
+            for (int ki = 0; ki < head_k_dim_; ++ki) {
+              state_head[vi * head_k_dim_ + ki] += v_delta[vi] * (k_head[ki] / k_norm);
+            }
+          }
+
+          // Output: o = state @ (q_normalized * scale)
+          float* out_head = out_ptr + bi * S * num_v_heads_ * head_v_dim_ + si * num_v_heads_ * head_v_dim_ + hi * head_v_dim_;
+          for (int vi = 0; vi < head_v_dim_; ++vi) {
+            float dot = 0.f;
+            for (int ki = 0; ki < head_k_dim_; ++ki) {
+              dot += state_head[vi * head_k_dim_ + ki] * (q_head[ki] * q_scale);
+            }
+            out_head[vi] = dot;
+          }
+        }
+      }
+    }
+
+    // [B, S, num_v_heads, head_v_dim] -> [B, S, value_dim]
+    output = output.view({B, S, value_dim_});
 
     // Gated RMSNorm: norm(output) * silu(z)
-    // The norm operates per-head: reshape to [..., head_v_dim]
     output = output.view({B * S * num_v_heads_, head_v_dim_});
     z = z.view({B * S * num_v_heads_, head_v_dim_});
     output = norm_(output);
-    // Gate with z (SiLU gating)
     z = silu_(z);
     output = output * z;
     output = output.view({B, S, value_dim_});
@@ -490,6 +640,10 @@ class Qwen3_5Text final : public nn::Module {
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps, /*add_unit_offset=*/true);
   }
 
+  void resetGDNStates(int batch_size) {
+    for (auto& gdn : gdn_layers_) { gdn.linear_attn_.resetState(batch_size); }
+  }
+
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = embedding_(inputs[0]);
     auto llm_embedding_sin = inputs[1];
@@ -523,6 +677,8 @@ class Qwen3_5Model final : public nn::Module {
     language_model_ = reg<Qwen3_5Text>("language_model", cfg);
   }
 
+  void resetGDNStates(int batch_size) { language_model_.resetGDNStates(batch_size); }
+
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     return language_model_(inputs[0], inputs[1], inputs[2], args[0]);
   }
@@ -544,7 +700,7 @@ class Qwen3_5ForCausalLM : public ARGeneration, public nn::Module {
                                 kFloat32,
                                 kCPU,
                                 false);
-    eos_token_id_ = cfg.end_of_text_token_id;
+    eos_token_id_ = cfg.im_end_token_id;
     max_length_ = cfg.max_cache_length;
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
