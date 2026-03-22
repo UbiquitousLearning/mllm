@@ -18,6 +18,7 @@ import (
 
 func main() {
 	modelPath := flag.String("model-path", "", "Path to the MLLM model directory.")
+	probePath := flag.String("probe-path", "", "Path to the probes directory for Qwen3 probing session.")
 	ocrModelPath := flag.String("ocr-model-path", "", "Path to the DeepSeek-OCR model directory.")
 	flag.Parse()
 
@@ -35,7 +36,16 @@ func main() {
 
 	if *modelPath != "" {
 		log.Printf("Loading Qwen3 model and creating session from: %s", *modelPath)
-		session, err := mllm.NewSession(*modelPath)
+		var (
+			session *mllm.Session
+			err     error
+		)
+		if *probePath != "" {
+			log.Printf("Probing enabled. Loading probes from: %s", *probePath)
+			session, err = mllm.NewProbingSession(*modelPath, *probePath)
+		} else {
+			session, err = mllm.NewSession(*modelPath)
+		}
 		if err != nil {
 			log.Fatalf("FATAL: Failed to create Qwen3 session: %v", err)
 		}
