@@ -80,31 +80,30 @@ y = add_constant(x, 8)
 
 Use the helpers in `mllm_kernel.jit_utils`:
 
-- `load_cpu_jit`
-- `load_cuda_jit`
+- `jit`
 - `make_cpp_args`
-- `cache_once`
 
-Example pattern:
+Recommended pattern (CPU example):
 
 ```python
 import torch
-from mllm_kernel.jit_utils import cache_once, load_cpu_jit, make_cpp_args
+import mllm_kernel
 
-@cache_once
-def _jit_my_kernel_module(param: int):
-    args = make_cpp_args(param)
-    return load_cpu_jit(
-        "my_kernel",
-        *args,
-        cpp_files=["my_kernel.cpp"],
-        cpp_wrappers=[("my_kernel", f"my_namespace::my_kernel<{args}>")],
-    )
+@mllm_kernel.jit(
+    args=16,
+    device="cpu",
+    cpp_files=["my_kernel.cpp"],
+    cpp_wrappers=[("my_kernel", "my_namespace::my_kernel<16>")],
+    func_name="my_kernel",
+)
+def _my_kernel_16(compiled_module, dst: torch.Tensor, src: torch.Tensor) -> None:
+    compiled_module.my_kernel(dst, src)
 
 def my_kernel(src: torch.Tensor, param: int) -> torch.Tensor:
+    if param != 16:
+        raise ValueError("This demo only supports param=16.")
     dst = torch.empty_like(src)
-    module = _jit_my_kernel_module(param)
-    module.my_kernel(dst, src)
+    _my_kernel_16(dst, src)
     return dst
 ```
 

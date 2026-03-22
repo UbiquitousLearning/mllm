@@ -17,6 +17,7 @@ mllm
 
 ## Latest News
 
+- [2026 Mar 18] 🔥🔥🔥 `pymllm` now supports CUDA on Jetson Orin and Jetson Thor devices (experimental; still under active development).
 - [2026 Feb 03] 🔥🔥🔥 MLLM Qnn AOT Support for Full Graph Execution on NPU! [Quick Start](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
 - [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
 - [2025 Nov 23] MLLM v2 released!
@@ -76,6 +77,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 |-----------------------------------------------------------------------------|------|-----------------------|
 | [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
 | [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/) |
+| [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
 | [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||
@@ -307,6 +309,15 @@ mllm provides a set of model converters to convert models from other popular mod
 ```shell
 bash ./scripts/install_pymllm.sh
 ```
+
+> **Tip for CUDA-only users:** If you only use CUDA backends (e.g., FlashInfer, TileLang) and do not need the C++ mllm runtime, you can skip the CMake build to speed up installation significantly:
+>
+> ```shell
+> SKBUILD_WHEEL_CMAKE=false pip install -e .
+> pip install pymllm[cuda]
+> ```
+>
+> This installs only the pure Python package without compiling the C++ components.
 
 **future:**
 

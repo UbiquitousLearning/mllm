@@ -4,7 +4,7 @@
 .cache/
 .tmp/
 compile_commands.json
-.claude/
+settings.local.json
 
 # MLLM Team Specific
 tasks/mllmteam*
@@ -13,7 +13,7 @@ tasks/mllmteam*
 
 # Building files and binary
 build*/
-install*/
+/install*/
 mllm-sdk-*/
 mllm-install-*/
 
