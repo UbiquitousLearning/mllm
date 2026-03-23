@@ -69,6 +69,11 @@ void ARGenerationChatIterator::step() {
   }
 
   if (step_count_ >= max_length_) {
+    // Timing fallback is only enabled for selected models (e.g. qwen_ascend)
+    // and only after decode timing has started.
+    if (gen_->enableChatTimingFallbackFix() && step_count_ > 1) {
+      gen_->decodeEventEndTimePoint();
+    }
     finished_ = true;
     return;
   }
@@ -266,6 +271,12 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
 IROutput ARGeneration::trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args) { return {}; }
 
 void ARGeneration::perfSummary() {
+  // If decode end time was never set (e.g., chat loop was broken early),
+  // selected models can opt in to set it here.
+  if (enableChatTimingFallbackFix() && llm_decode_end_time_.time_since_epoch().count() == 0 && ar_steps_ > 1) {
+    llm_decode_end_time_ = std::chrono::high_resolution_clock::now();
+  }
+
   auto prefill_duration =
       std::chrono::duration_cast<std::chrono::microseconds>(llm_prefill_end_time_ - llm_prefill_start_time_).count();
 
