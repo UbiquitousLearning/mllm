@@ -16,7 +16,7 @@ void initAscendBackend() {
   auto& ctx = Context::instance();
 
   // 1. Create memory pool
-  size_t pool_size = 100 * 1024 * 1024;  // 100MB, can be adjusted as needed
+  size_t pool_size = 8ULL * 1024 * 1024 * 1024;  // 8GB, can be adjusted as needed
   ascend::getAscendMemoryManager().createMemoryPool(pool_size);
   MLLM_INFO("Ascend memory pool initialized");
 

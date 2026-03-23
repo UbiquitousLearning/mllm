@@ -23,6 +23,7 @@ aclDataType toAclDataType(DataTypes dtype) {
     case DataTypes::kFloat32: return ACL_FLOAT;
     case DataTypes::kFloat16: return ACL_FLOAT16;
     case DataTypes::kInt32: return ACL_INT32;
+    case DataTypes::kInt64: return ACL_INT64;
     case DataTypes::kInt8: return ACL_INT8;
     case DataTypes::kUInt8: return ACL_UINT8;
     default:
@@ -74,6 +75,16 @@ aclTensor* createAclTensor(const Tensor& tensor) {
 
 AscendEmbeddingOp::AscendEmbeddingOp(const aops::EmbeddingOpOptions& options) : aops::EmbeddingOp(options) {}
 
+void AscendEmbeddingOp::load(const ParameterFile::ptr_t& ploader) {
+  // First call parent's load to get weight from file (on CPU)
+  aops::EmbeddingOp::load(ploader);
+
+  // Convert weight to FP16 and move to Ascend NPU
+  if (!weight_.isNil()) {
+    weight_ = convertTensorToAscendFP16(weight_);
+  }
+}
+
 void AscendEmbeddingOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   aops::EmbeddingOp::reshape(inputs, outputs);
 }
@@ -124,7 +135,7 @@ void AscendEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   // Execute embedding
   aclrtStream stream = getGlobalAtbStream();
   {
-    ASCEND_TIME_SCOPE("AscendEmbeddingOp::forward");
+    //ASCEND_TIME_SCOPE("AscendEmbeddingOp::forward");
     ret = aclnnEmbedding(workspace, workspaceSize, executor, stream);
   }
 

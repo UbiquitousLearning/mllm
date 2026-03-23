@@ -40,7 +40,7 @@ void AscendX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       MLLM_ACL_CHECK(ret);
     }
 
-    syncGlobalAtbStream();
+    // Removed syncGlobalAtbStream() for better pipeline performance
     return;
   }
 
@@ -49,6 +49,9 @@ void AscendX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     const size_t data_size = input.bytes();
     const void* src_data = input.ptr<void>();
     void* dst_data = output.ptr<void>();
+
+    // CRITICAL: Sync BEFORE memcpy to ensure all NPU computations are complete
+    syncGlobalAtbStream();
 
     // Copy data from Ascend device to CPU
     auto ret = aclrtMemcpy(
@@ -60,7 +63,6 @@ void AscendX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       MLLM_ACL_CHECK(ret);
     }
 
-    syncGlobalAtbStream();
     return;
   }
 
@@ -86,9 +88,8 @@ void AscendX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   }
 
   MLLM_ERROR("AscendX2XOp only supports transform between CPU and Ascend devices. "
-             "Input device: {}, Output device: {}", 
+             "Input device: {}, Output device: {}",
              static_cast<int>(input_device), static_cast<int>(output_device));
 }
 
 }  // namespace mllm::ascend
-

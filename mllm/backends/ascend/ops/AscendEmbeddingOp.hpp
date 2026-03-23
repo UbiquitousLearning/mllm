@@ -15,6 +15,7 @@ class AscendEmbeddingOp final : public aops::EmbeddingOp {
  public:
   explicit AscendEmbeddingOp(const aops::EmbeddingOpOptions& options);
 
+  void load(const ParameterFile::ptr_t& ploader) override;
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;

@@ -8,6 +8,7 @@
 #include <atb/types.h>
 #include <atb/utils.h>
 #include <atb/infer_op_params.h>
+#include <cstdlib>
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
@@ -17,7 +18,47 @@
 
 namespace mllm::ascend {
 
+namespace {
+bool shouldDebugLinearStats() {
+  const char* debug = std::getenv("MLLM_DEBUG_LINEAR_STATS");
+  return debug != nullptr && debug[0] == '1';
+}
+
+void printTensorMeta(const char* tag, const Tensor& t) {
+  fmt::print("[LinearDbg] {} dtype={} device={} rank={} bytes={} ptr={}\n", tag, static_cast<int>(t.dtype()),
+             static_cast<int>(t.device()), t.shape().size(), t.bytes(), fmt::ptr(t.ptr<void>()));
+}
+
+void printAtbTensorMeta(const char* tag, const atb::Tensor& t) {
+  fmt::print("[LinearDbg] {} atb_dtype={} dimNum={} shape=[", tag, static_cast<int>(t.desc.dtype), t.desc.shape.dimNum);
+  for (size_t i = 0; i < t.desc.shape.dimNum; ++i) {
+    fmt::print("{}{}", i == 0 ? "" : ",", t.desc.shape.dims[i]);
+  }
+  fmt::print("] dataSize={} ptr={}\n", t.dataSize, fmt::ptr(t.deviceData));
+}
+}  // namespace
+
 AscendLinearOp::AscendLinearOp(const aops::LinearOpOptions& options) : aops::LinearOp(options) {}
+
+void AscendLinearOp::load(const ParameterFile::ptr_t& ploader) {
+  // First call parent's load to get weight/bias from file (on CPU)
+  aops::LinearOp::load(ploader);
+
+  // Convert weight to FP16 and move to Ascend NPU
+  if (!weight_.isNil()) {
+    weight_ = convertTensorToAscendFP16(weight_);
+  }
+
+  // Convert bias to FP16 and move to Ascend NPU (if exists)
+  // ATB Linear requires bias to be 2D [1, out_channels]
+  if (options_.bias && !bias_.isNil()) {
+    // Reshape bias from [out_channels] to [1, out_channels] for ATB
+    if (bias_.shape().size() == 1) {
+      bias_ = bias_.view({1, bias_.shape()[0]});
+    }
+    bias_ = convertTensorToAscendFP16(bias_);
+  }
+}
 
 void AscendLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   if (options().isRedirect()) {
@@ -116,6 +157,21 @@ void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   fillAtbTensor(x, atb_x);
   fillAtbTensor(*weight_ptr, atb_weight);
   fillAtbTensor(y, atb_y);
+  if (shouldDebugLinearStats()) {
+    static int linear_debug_count = 0;
+    if (linear_debug_count < 6) {
+      fmt::print("[LinearDbg] call={} hasBias={} transposeB={}\n", linear_debug_count, bias_ptr != nullptr ? 1 : 0,
+                 linearParam.transposeB ? 1 : 0);
+      printTensorMeta("x", x);
+      printTensorMeta("weight", *weight_ptr);
+      printTensorMeta("y", y);
+      printAtbTensorMeta("atb_x", atb_x);
+      printAtbTensorMeta("atb_weight", atb_weight);
+      printAtbTensorMeta("atb_y", atb_y);
+      if (bias_ptr != nullptr) { printTensorMeta("bias", *bias_ptr); }
+    }
+    ++linear_debug_count;
+  }
 
   atb::SVector<atb::Tensor> inTensors;
   atb::SVector<atb::Tensor> outTensors;
@@ -138,6 +194,11 @@ void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB LinearOp Setup failed, status={}", static_cast<int>(st));
   }
+  if (shouldDebugLinearStats()) {
+    static int workspace_debug_count = 0;
+    if (workspace_debug_count < 6) { fmt::print("[LinearDbg] workspaceSize={} bytes\n", workspaceSize); }
+    ++workspace_debug_count;
+  }
 
   void* workspace = nullptr;
   int workspace_block_id = -1;
@@ -148,7 +209,7 @@ void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendLinearOp::forward");
+    //ASCEND_TIME_SCOPE("AscendLinearOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
 

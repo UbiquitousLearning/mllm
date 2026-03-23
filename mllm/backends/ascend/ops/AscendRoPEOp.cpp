@@ -28,7 +28,7 @@ void AscendRoPEOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>&
 }
 
 void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // MLLM RoPE interface: 3 inputs (x, cos, sin)
+  // MLLM RoPE interface: 3 inputs (x, sin, cos)
   // ATB RoPE interface: 5 inputs (Q, K, cos, sin, position_ids)
   //
   // Input x should be in [B, S, H, D] format (caller should transpose if needed)
@@ -37,8 +37,9 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   MLLM_RT_ASSERT_EQ(outputs.size(), 1);
 
   const auto& x = inputs[0];
-  const auto& cos_in = inputs[1];
-  const auto& sin_in = inputs[2];
+  // MLLM RoPE canonical order is: [x, sin, cos]
+  const auto& sin_in = inputs[1];
+  const auto& cos_in = inputs[2];
   auto& y = outputs[0];
 
   // Validate that input tensors are FP16
@@ -47,15 +48,15 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
                     "AscendRoPEOp: Input tensor x must be FP16, but got dtype={}",
                     static_cast<int>(x.dtype()));
   }
-  if (cos_in.dtype() != MLLM_TYPE_F16) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                    "AscendRoPEOp: Input tensor cos must be FP16, but got dtype={}",
-                    static_cast<int>(cos_in.dtype()));
-  }
   if (sin_in.dtype() != MLLM_TYPE_F16) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError,
                     "AscendRoPEOp: Input tensor sin must be FP16, but got dtype={}",
                     static_cast<int>(sin_in.dtype()));
+  }
+  if (cos_in.dtype() != MLLM_TYPE_F16) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "AscendRoPEOp: Input tensor cos must be FP16, but got dtype={}",
+                    static_cast<int>(cos_in.dtype()));
   }
   if (y.dtype() != MLLM_TYPE_F16) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError,
@@ -100,12 +101,39 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   // K uses the same tensor as Q (we only care about Q output)
   atb::Tensor atb_k = atb_q;
 
-  // cos/sin tensor handling
-  // ATB RoPE uses token index directly to access cos/sin, NOT position_ids.
-  // So for multi-batch case, we need to expand cos/sin from [S, D] to [B*S, D]
-  // by repeating the values for each batch.
-  int64_t cos_S = (cos_in.shape().size() == 4) ? cos_in.shape()[1] : cos_in.shape()[0];
-  int64_t cos_D = (cos_in.shape().size() == 4) ? cos_in.shape()[3] : cos_in.shape()[1];
+  // cos/sin tensor handling:
+  // ATB RoPE expects 2D [ntokens, D], where ntokens = B*S.
+  // Supported input layouts:
+  //   - [S, D]
+  //   - [B, S, D]
+  //   - [B, S, 1, D]
+  const auto& cos_shape = cos_in.shape();
+  const auto& sin_shape = sin_in.shape();
+  bool has_batch_dim = false;
+  int64_t cos_S = 0;
+  int64_t cos_D = 0;
+  if (cos_shape.size() == 2) {
+    cos_S = cos_shape[0];
+    cos_D = cos_shape[1];
+  } else if (cos_shape.size() == 3) {
+    MLLM_RT_ASSERT_EQ(cos_shape[0], B);
+    cos_S = cos_shape[1];
+    cos_D = cos_shape[2];
+    has_batch_dim = true;
+  } else if (cos_shape.size() == 4) {
+    MLLM_RT_ASSERT_EQ(cos_shape[0], B);
+    MLLM_RT_ASSERT_EQ(cos_shape[2], 1);
+    cos_S = cos_shape[1];
+    cos_D = cos_shape[3];
+    has_batch_dim = true;
+  } else {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError, "AscendRoPEOp: Unsupported cos rank={}, expected 2/3/4",
+                    static_cast<int>(cos_shape.size()));
+  }
+  MLLM_RT_ASSERT_EQ(cos_S, S);
+  MLLM_RT_ASSERT_EQ(sin_shape.size(), cos_shape.size());
+  MLLM_RT_ASSERT_EQ(sin_shape.back(), cos_D);
+  const bool need_expand = (B > 1 && !has_batch_dim);
 
   // Allocate expanded cos/sin tensors on device if B > 1
   int cos_expanded_block_id = -1;
@@ -114,7 +142,7 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   void* sin_expanded_ptr = nullptr;
   size_t expanded_size = static_cast<size_t>(ntokens * cos_D) * sizeof(uint16_t);  // FP16
 
-  if (B > 1) {
+  if (need_expand) {
     // Need to expand cos/sin from [S, D] to [B*S, D]
     mem_mgr.allocateBlock(static_cast<uint32_t>(expanded_size), cos_expanded_block_id);
     mem_mgr.getBlockPtr(cos_expanded_block_id, cos_expanded_ptr);
@@ -131,38 +159,36 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
     }
   }
 
-  // cos tensor - ATB requires 2D [ntokens, headDim] (expanded for multi-batch)
+  const size_t rope_table_size = static_cast<size_t>(ntokens * cos_D) * sizeof(uint16_t);
+
+  // cos tensor - ATB requires 2D [ntokens, headDim]
   atb::Tensor atb_cos;
   atb_cos.desc.dtype = ACL_FLOAT16;
   atb_cos.desc.format = ACL_FORMAT_ND;
   atb_cos.desc.shape.dimNum = 2;
-  if (B > 1) {
-    atb_cos.desc.shape.dims[0] = ntokens;
-    atb_cos.desc.shape.dims[1] = cos_D;
+  atb_cos.desc.shape.dims[0] = ntokens;
+  atb_cos.desc.shape.dims[1] = cos_D;
+  if (need_expand) {
     atb_cos.deviceData = reinterpret_cast<uint8_t*>(cos_expanded_ptr);
-    atb_cos.dataSize = expanded_size;
+    atb_cos.dataSize = rope_table_size;
   } else {
-    atb_cos.desc.shape.dims[0] = cos_S;
-    atb_cos.desc.shape.dims[1] = cos_D;
     atb_cos.deviceData = reinterpret_cast<uint8_t*>(cos_in.ptr<void>());
-    atb_cos.dataSize = cos_in.bytes();
+    atb_cos.dataSize = rope_table_size;
   }
 
-  // sin tensor - ATB requires 2D [ntokens, headDim] (expanded for multi-batch)
+  // sin tensor - ATB requires 2D [ntokens, headDim]
   atb::Tensor atb_sin;
   atb_sin.desc.dtype = ACL_FLOAT16;
   atb_sin.desc.format = ACL_FORMAT_ND;
   atb_sin.desc.shape.dimNum = 2;
-  if (B > 1) {
-    atb_sin.desc.shape.dims[0] = ntokens;
-    atb_sin.desc.shape.dims[1] = cos_D;
+  atb_sin.desc.shape.dims[0] = ntokens;
+  atb_sin.desc.shape.dims[1] = cos_D;
+  if (need_expand) {
     atb_sin.deviceData = reinterpret_cast<uint8_t*>(sin_expanded_ptr);
-    atb_sin.dataSize = expanded_size;
+    atb_sin.dataSize = rope_table_size;
   } else {
-    atb_sin.desc.shape.dims[0] = cos_S;
-    atb_sin.desc.shape.dims[1] = cos_D;
     atb_sin.deviceData = reinterpret_cast<uint8_t*>(sin_in.ptr<void>());
-    atb_sin.dataSize = sin_in.bytes();
+    atb_sin.dataSize = rope_table_size;
   }
 
   // Create position_ids tensor on device
@@ -255,7 +281,7 @@ void AscendRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendRoPEOp::forward");
+    //ASCEND_TIME_SCOPE("AscendRoPEOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
 

@@ -13,6 +13,7 @@ class AscendLinearOp final : public aops::LinearOp {
  public:
   explicit AscendLinearOp(const aops::LinearOpOptions& options);
 
+  void load(const ParameterFile::ptr_t& ploader) override;
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;

@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <mutex>
 #include <vector>
@@ -282,6 +283,67 @@ AscendDeviceMetaInfo::AscendDeviceMetaInfo() {
   info.soc_version = "CPU_DEBUG";
   devices.push_back(info);
 #endif
+}
+
+Tensor convertTensorToAscendFP16(const Tensor& cpu_tensor) {
+  if (cpu_tensor.device() == kAscend) {
+    // Already on Ascend: no conversion needed if FP16.
+    if (cpu_tensor.dtype() == kFloat16) { return cpu_tensor; }
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "convertTensorToAscendFP16: Ascend tensor must be FP16, got dtype {}",
+                    static_cast<int>(cpu_tensor.dtype()));
+  }
+  MLLM_RT_ASSERT(cpu_tensor.device() == kCPU);
+
+  const auto& shape = cpu_tensor.shape();
+  const size_t numel = cpu_tensor.numel();
+
+  // Convert to FP16 on host
+  std::vector<half_float::half> fp16_data(numel);
+
+  if (cpu_tensor.dtype() == kFloat32) {
+    auto* src = cpu_tensor.ptr<float>();
+    for (size_t i = 0; i < numel; ++i) {
+      fp16_data[i] = half_float::half(src[i]);
+    }
+  } else if (cpu_tensor.dtype() == kFloat16) {
+    auto* src = cpu_tensor.ptr<mllm_fp16_t>();
+    for (size_t i = 0; i < numel; ++i) {
+      fp16_data[i] = half_float::half(static_cast<float>(src[i]));
+    }
+  } else if (cpu_tensor.dtype() == kBFloat16) {
+    // BFloat16: 1 sign + 8 exp + 7 mantissa
+    // Convert to float by left-shifting 16 bits
+    auto* src = cpu_tensor.ptr<uint16_t>();
+    for (size_t i = 0; i < numel; ++i) {
+      uint32_t bits = static_cast<uint32_t>(src[i]) << 16;
+      float f;
+      std::memcpy(&f, &bits, sizeof(f));
+      fp16_data[i] = half_float::half(f);
+    }
+  } else {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "convertTensorToAscendFP16: unsupported dtype {}",
+                    static_cast<int>(cpu_tensor.dtype()));
+  }
+
+  // Create Ascend tensor with same shape
+  auto ascend_tensor = Tensor::empty(shape, kFloat16, kAscend);
+  ascend_tensor.alloc();
+
+  void* device_ptr = ascend_tensor.ptr<void>();
+  const size_t bytes = ascend_tensor.bytes();
+
+  auto ret = aclrtMemcpy(
+      device_ptr, bytes,
+      fp16_data.data(), bytes,
+      ACL_MEMCPY_HOST_TO_DEVICE);
+
+  if (ret != ACL_SUCCESS) {
+    MLLM_ACL_CHECK(ret);
+  }
+
+  return ascend_tensor;
 }
 
 }  // namespace mllm::ascend

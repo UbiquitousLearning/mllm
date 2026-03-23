@@ -20,6 +20,16 @@ namespace mllm::ascend {
 
 AscendRMSNormOp::AscendRMSNormOp(const aops::RMSNormOpOptions& options) : aops::RMSNormOp(options) {}
 
+void AscendRMSNormOp::load(const ParameterFile::ptr_t& ploader) {
+  // First call parent's load to get weight from file (on CPU)
+  aops::RMSNormOp::load(ploader);
+
+  // Convert weight to FP16 and move to Ascend NPU
+  if (!weight_.isNil()) {
+    weight_ = convertTensorToAscendFP16(weight_);
+  }
+}
+
 void AscendRMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   BaseOp::setup(inputs, outputs);
 }
@@ -86,7 +96,7 @@ void AscendRMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendRMSNormOp::forward");
+    //ASCEND_TIME_SCOPE("AscendRMSNormOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {

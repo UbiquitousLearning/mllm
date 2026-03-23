@@ -102,7 +102,7 @@ void AscendTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendTransposeOp::forward");
+    //ASCEND_TIME_SCOPE("AscendTransposeOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
 

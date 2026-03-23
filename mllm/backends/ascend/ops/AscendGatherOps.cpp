@@ -123,7 +123,7 @@ void AscendGatherOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   // Execute embedding
   aclrtStream stream = getGlobalAtbStream();
   {
-    ASCEND_TIME_SCOPE("AscendGatherOp::forward");
+    //ASCEND_TIME_SCOPE("AscendGatherOp::forward");
     ret = aclnnEmbedding(workspace, workspaceSize, executor, stream);
   }
 
