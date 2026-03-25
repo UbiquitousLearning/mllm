@@ -413,7 +413,7 @@ class MiniCPMO45Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     input_ids_vec.reserve(sequence_str.size());
     for (const auto& str : sequence_str) { input_ids_vec.emplace_back(bpe_._lookup_vocab(str)); }
 
-    std::vector<std::pair<int, int>> image_bounds;
+    std::vector<std::pair<int, int>>image_bounds;
     std::vector<std::pair<int, int>> audio_bounds;
 
     if (has_image) {

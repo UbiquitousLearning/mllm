@@ -195,6 +195,7 @@ class MiniCPMO45TTS final : public nn::Module {
     }
 
     Tensor token_ids = Tensor::empty({1, static_cast<int32_t>(text_token_ids.size())}, kInt64, kCPU).alloc();
+    auto* token_ids_ptr = token_ids.ptr<int64_t>();
     for (size_t i = 0; i < text_token_ids.size(); ++i) {
       auto token_id = text_token_ids[i];
       if (token_id < 0 || token_id >= cfg_.tts_num_text_tokens) {
@@ -202,7 +203,7 @@ class MiniCPMO45TTS final : public nn::Module {
                    token_id, cfg_.tts_num_text_tokens);
         return Tensor::nil();
       }
-      token_ids.at<int64_t>({0, static_cast<int32_t>(i)}) = token_id;
+      token_ids_ptr[i] = token_id;
     }
 
     auto llm_embeds = emb_text_(token_ids);
@@ -214,9 +215,9 @@ class MiniCPMO45TTS final : public nn::Module {
     auto tts_embeds = llm_embeds + projected_hidden;
 
     Tensor text_eos = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
-    text_eos.at<int64_t>({0, 0}) = cfg_.tts_text_eos_token_id;
+    text_eos.ptr<int64_t>()[0] = cfg_.tts_text_eos_token_id;
     Tensor audio_bos = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
-    audio_bos.at<int64_t>({0, 0}) = cfg_.tts_audio_bos_token_id;
+    audio_bos.ptr<int64_t>()[0] = cfg_.tts_audio_bos_token_id;
     if (cfg_.tts_text_eos_token_id < 0 || cfg_.tts_text_eos_token_id >= cfg_.tts_num_text_tokens) {
       MLLM_ERROR("MiniCPM-o-4_5 TTS text_eos_token_id out of range: {} (vocab={}).",
                  cfg_.tts_text_eos_token_id, cfg_.tts_num_text_tokens);
@@ -269,7 +270,8 @@ class MiniCPMO45TTS final : public nn::Module {
       if (t == 0) {
         inputs_embeds = condition_embeds;
         position_ids = Tensor::empty({1, condition_length}, kInt64, kCPU).alloc();
-        for (int32_t i = 0; i < condition_length; ++i) { position_ids.at<int64_t>({0, i}) = i; }
+        auto* position_ids_ptr = position_ids.ptr<int64_t>();
+        for (int32_t i = 0; i < condition_length; ++i) { position_ids_ptr[i] = i; }
       } else {
         for (int32_t q = 0; q < cfg_.tts_num_vq; ++q) {
           auto code_ids = generated[{kAll, {t - 1, t}, {q, q + 1}}].contiguous().view({1, 1});
@@ -281,7 +283,7 @@ class MiniCPMO45TTS final : public nn::Module {
           }
         }
         position_ids = Tensor::empty({1, 1}, kInt64, kCPU).alloc();
-        position_ids.at<int64_t>({0, 0}) = condition_length + t - 1;
+        position_ids.ptr<int64_t>()[0] = condition_length + t - 1;
       }
 
       auto [llm_embedding_sin, llm_embedding_cos] = llama::makeRotaryPosEmbedding(position_ids, model_.getBuffer("inv_freq"), 1.0f);
@@ -319,7 +321,7 @@ class MiniCPMO45TTS final : public nn::Module {
         bool use_sampling = generation_cfg.do_sample || generation_cfg.top_k > 0 || generation_cfg.top_p > 0.0f
                             || std::abs(temp - 1.0f) > 1e-6f;
         auto token_id = sampleFromLogits(logits, use_sampling);
-        generated.at<int64_t>({0, t, q}) = token_id;
+        *generated.offsettedPtr<int64_t>({0, t, q}) = token_id;
         generated_history[q].push_back(token_id);
         step_tokens.push_back(token_id);
         has_eos = has_eos || token_id == eos_token;
@@ -793,10 +795,11 @@ class MiniCPMO45ForCausalLM : public models::ARGeneration {
     if (vision_embeddings.dtype() != text_embeddings.dtype()) { vision_embeddings = vision_embeddings.to(text_embeddings.dtype()); }
 
     for (int32_t b = 0; b < batch_size; ++b) {
+      auto image_bounds_ptr = image_bounds.ptr<int32_t>();
       for (int32_t bound_idx = 0; bound_idx < num_bounds; ++bound_idx) {
         int32_t vision_idx = 0;
-        auto start_pos = image_bounds.constAt<int32_t>({bound_idx, 0}) + 1;
-        auto end_pos = image_bounds.constAt<int32_t>({bound_idx, 1}) - 1;
+        auto start_pos = image_bounds_ptr[bound_idx * 2] + 1;
+        auto end_pos = image_bounds_ptr[bound_idx * 2 + 1] - 1;
 
         for (int32_t pos = start_pos; pos <= end_pos && vision_idx < vision_seq_len; ++pos, ++vision_idx) {
           if (text_embeddings.dtype() == kFloat32) {
@@ -826,10 +829,11 @@ class MiniCPMO45ForCausalLM : public models::ARGeneration {
     if (audio_embeddings.dtype() != text_embeddings.dtype()) { audio_embeddings = audio_embeddings.to(text_embeddings.dtype()); }
 
     for (int32_t b = 0; b < batch_size; ++b) {
+      auto audio_bounds_ptr = audio_bounds.ptr<int32_t>();
       for (int32_t bound_idx = 0; bound_idx < num_bounds; ++bound_idx) {
         int32_t audio_idx = 0;
-        auto start_pos = audio_bounds.constAt<int32_t>({bound_idx, 0});
-        auto end_pos = audio_bounds.constAt<int32_t>({bound_idx, 1}) - 1;
+        auto start_pos = audio_bounds_ptr[bound_idx * 2];
+        auto end_pos = audio_bounds_ptr[bound_idx * 2 + 1] - 1;
 
         for (int32_t pos = start_pos; pos <= end_pos && audio_idx < audio_seq_len; ++pos, ++audio_idx) {
           if (text_embeddings.dtype() == kFloat32) {
@@ -849,12 +853,14 @@ class MiniCPMO45ForCausalLM : public models::ARGeneration {
     Tensor position_ids = Tensor::empty({1, seq_len}, kInt64).alloc();
     if (!prev_position_ids.isNil()) {
       auto last_pos = *prev_position_ids.coffsettedPtr<int64_t>({0, prev_position_ids.shape()[1] - 1});
-      for (int32_t i = 0; i < seq_len; ++i) { position_ids.at<int64_t>({0, i}) = last_pos + i + 1; }
+      auto* position_ids_ptr = position_ids.ptr<int64_t>();
+      for (int32_t i = 0; i < seq_len; ++i) { position_ids_ptr[i] = last_pos + i + 1; }
       return position_ids;
     }
 
     auto last_seen_tokens = kv_cache_.getCurrentSeqCnt(0);
-    for (int32_t i = 0; i < seq_len; ++i) { position_ids.at<int64_t>({0, i}) = last_seen_tokens + i; }
+    auto* position_ids_ptr = position_ids.ptr<int64_t>();
+    for (int32_t i = 0; i < seq_len; ++i) { position_ids_ptr[i] = last_seen_tokens + i; }
     return position_ids;
   }
 

@@ -271,7 +271,10 @@ MLLM_MAIN({
 
       std::vector<int64_t> token_ids;
       token_ids.reserve(token_count);
-      for (int32_t i = 0; i < token_count; ++i) { token_ids.push_back(tts_out.new_ids.at<int64_t>({0, i, 0})); }
+      auto tts_ids = tts_out.new_ids.contiguous();
+      const auto* tts_ids_ptr = tts_ids.ptr<int64_t>();
+      auto num_vq = tts_ids.shape()[2];
+      for (int32_t i = 0; i < token_count; ++i) { token_ids.push_back(tts_ids_ptr[static_cast<size_t>(i) * num_vq]); }
 
       fmt::print("TTS token IDs:\n");
       for (size_t i = 0; i < token_ids.size(); ++i) {

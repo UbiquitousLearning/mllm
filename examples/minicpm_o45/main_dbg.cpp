@@ -36,6 +36,15 @@ int main(int argc, char** argv) {
   auto& prompt = Argparse::add<std::string>("-p|--prompt").help("Prompt text").def("Describe the input.");
   auto& image_path = Argparse::add<std::string>("-i|--image").help("Optional image path").def("");
   auto& audio_path = Argparse::add<std::string>("-a|--audio").help("Optional audio path (wav)").def("");
+  auto& ref_audio_path = Argparse::add<std::string>("--ref_audio")
+                             .help("Optional reference audio path for system voice-cloning prompt (wav).")
+                             .def("");
+  auto& ref_audio_prompt_prefix = Argparse::add<std::string>("--ref_audio_prompt_prefix")
+                                      .help("System prompt prefix placed before reference audio.")
+                                      .def("Clone the voice in the provided audio prompt.");
+  auto& ref_audio_prompt_suffix = Argparse::add<std::string>("--ref_audio_prompt_suffix")
+                                      .help("System prompt suffix placed after reference audio.")
+                                      .def("As an assistant, you will speak using this voice style.");
   auto& generate_tts_tokens = Argparse::add<bool>("-gt|--generate_tts_tokens")
                                   .help("Generate TTS tokens (text->tts-token stage, no waveform)")
                                   .def(false);
@@ -169,6 +178,9 @@ int main(int argc, char** argv) {
   message.prompt = prompt.get();
   message.img_file_path = image_path.get();
   message.audio_file_path = audio_path.get();
+  message.ref_audio_file_path = ref_audio_path.get();
+  message.ref_audio_prompt_prefix = ref_audio_prompt_prefix.get();
+  message.ref_audio_prompt_suffix = ref_audio_prompt_suffix.get();
 
   auto inputs = tokenizer.convertMessage(message, generate_tts_tokens.get());
   debug_log("Tokenizer convertMessage finished.");
@@ -177,6 +189,7 @@ int main(int argc, char** argv) {
   fmt::print("Prompt: {}\n", message.prompt);
   if (!message.img_file_path.empty()) { fmt::print("Image : {}\n", message.img_file_path); }
   if (!message.audio_file_path.empty()) { fmt::print("Audio : {}\n", message.audio_file_path); }
+  if (!message.ref_audio_file_path.empty()) { fmt::print("RefAudio : {}\n", message.ref_audio_file_path); }
 
   if (!generate_tts_tokens.get()) {
     fmt::print("\nResponse: ");
@@ -262,7 +275,10 @@ int main(int argc, char** argv) {
 
       std::vector<int64_t> token_ids;
       token_ids.reserve(token_count);
-      for (int32_t i = 0; i < token_count; ++i) { token_ids.push_back(tts_out.new_ids.at<int64_t>({0, i, 0})); }
+      auto tts_ids = tts_out.new_ids.contiguous();
+      const auto* tts_ids_ptr = tts_ids.ptr<int64_t>();
+      auto num_vq = tts_ids.shape()[2];
+      for (int32_t i = 0; i < token_count; ++i) { token_ids.push_back(tts_ids_ptr[static_cast<size_t>(i) * num_vq]); }
 
       fmt::print("TTS token IDs:\n");
       for (size_t i = 0; i < token_ids.size(); ++i) {
