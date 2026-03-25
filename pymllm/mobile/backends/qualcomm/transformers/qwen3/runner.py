@@ -215,6 +215,23 @@ class Qwen3Quantizer:
         self.model.apply(freeze_qwen3_embed_tokens_weight)
         print("All PTQ weights preparation done.")
 
+    def _build_model_inputs(self, prompt: str, max_length: int | None = None):
+        messages = [{"role": "user", "content": prompt}]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,  # Switches between thinking and non-thinking modes. Default is True.
+        )
+        tokenizer_kwargs = {"return_tensors": "pt"}
+        if max_length is not None:
+            tokenizer_kwargs.update(
+                max_length=max_length,
+                truncation=True,
+                padding=False,
+            )
+        return self.tokenizer([text], **tokenizer_kwargs).to(self.model.device)
+
     def freeze_activation(self):
         self.model.apply(disable_qdq_observer)
 
@@ -234,28 +251,24 @@ class Qwen3Quantizer:
         )
         print("Compile done.")
 
-    def infer(self, prompt: str):
-        messages = [{"role": "user", "content": prompt}]
-        text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,  # Switches between thinking and non-thinking modes. Default is True.
-        )
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+    def infer(self, prompt: str, max_new_tokens: int = 8):
+        model_inputs = self._build_model_inputs(prompt)
+        input_length = model_inputs.input_ids.shape[1]
+        available_tokens = self.mllm_qualcomm_max_length - input_length - 1
+        if available_tokens < 1:
+            raise ValueError("Prompt exceeds configured mllm_qualcomm_max_length")
+        max_new_tokens = min(max_new_tokens, available_tokens)
 
         # conduct text completion
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=self.mllm_qualcomm_max_length
-            - len(model_inputs.input_ids[0])
-            - 1,
+            max_new_tokens=max_new_tokens,
             do_sample=False,
             temperature=None,
             top_p=None,
             top_k=None,
         )
-        output_ids = generated_ids[0][len(model_inputs.input_ids[0]) :].tolist()
+        output_ids = generated_ids[0][input_length:].tolist()
 
         # parsing thinking content
         try:
@@ -310,20 +323,9 @@ class Qwen3Quantizer:
                 if len(entry["text"].strip()) < 1024:
                     continue
 
-                messages = [{"role": "user", "content": entry["text"]}]
-                text = self.tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                    enable_thinking=False,  # Switches between thinking and non-thinking modes. Default is True.
+                model_inputs = self._build_model_inputs(
+                    entry["text"], max_length=max_seq_length
                 )
-                model_inputs = self.tokenizer(
-                    [text],
-                    return_tensors="pt",
-                    max_length=max_seq_length,
-                    truncation=True,
-                    padding=False,
-                ).to(self.model.device)
 
                 # Only need Prefill stage: directly call forward
                 # This will trigger observer update statistics in ActivationQDQ

@@ -58,20 +58,41 @@ from pymllm.mobile.backends.qualcomm.transformers.core.embedding import QEmbeddi
 from pymllm.mobile.backends.qualcomm.transformers.core.observer import ConcatObserver
 
 
+def normalize_qwen3_lpbq_block_size(config: Qwen3Config) -> int:
+    block_size = getattr(config, "linear_block_size", None)
+    if isinstance(block_size, int) and block_size > 0:
+        config.linear_block_size = block_size
+        return block_size
+
+    raise ValueError(
+        "Qwen3 LPBQ requires a positive `linear_block_size` in model config"
+    )
+
+
 class Qwen3MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
+        self.block_size = config.linear_block_size
         self.gate_proj = QLinearLPBQ(
-            self.hidden_size, self.intermediate_size, bias=False, block_size=16
+            self.hidden_size,
+            self.intermediate_size,
+            bias=False,
+            block_size=self.block_size,
         )
         self.up_proj = QLinearLPBQ(
-            self.hidden_size, self.intermediate_size, bias=False, block_size=16
+            self.hidden_size,
+            self.intermediate_size,
+            bias=False,
+            block_size=self.block_size,
         )
         self.down_proj = QLinearLPBQ(
-            self.intermediate_size, self.hidden_size, bias=False, block_size=16
+            self.intermediate_size,
+            self.hidden_size,
+            bias=False,
+            block_size=self.block_size,
         )
 
         # QDQ
@@ -159,6 +180,7 @@ class Qwen3Attention(nn.Module):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
+        self.block_size = config.linear_block_size
         self.head_dim = getattr(
             config, "head_dim", config.hidden_size // config.num_attention_heads
         )
@@ -173,25 +195,25 @@ class Qwen3Attention(nn.Module):
             config.hidden_size,
             config.num_attention_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=16,
+            block_size=self.block_size,
         )
         self.k_proj = QLinearLPBQ(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=16,
+            block_size=self.block_size,
         )
         self.v_proj = QLinearLPBQ(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             bias=config.attention_bias,
-            block_size=16,
+            block_size=self.block_size,
         )
         self.o_proj = QLinearLPBQ(
             config.num_attention_heads * self.head_dim,
             config.hidden_size,
             bias=config.attention_bias,
-            block_size=16,
+            block_size=self.block_size,
         )
         self.q_norm = QRMSNorm(
             self.head_dim, eps=config.rms_norm_eps, quant_bits=16
@@ -514,6 +536,7 @@ class Qwen3RotaryEmbedding(nn.Module):
 class Qwen3Model(Qwen3PreTrainedModel):
     def __init__(self, config: Qwen3Config):
         super().__init__(config)
+        normalize_qwen3_lpbq_block_size(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
         self.embed_tokens = QEmbedding(
@@ -698,8 +721,12 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         self.config = config
         self.model = Qwen3Model(config)
         self.vocab_size = config.vocab_size
+        self.block_size = config.linear_block_size
         self.lm_head = QLinearLPBQ(
-            config.hidden_size, config.vocab_size, bias=False, block_size=16
+            config.hidden_size,
+            config.vocab_size,
+            bias=False,
+            block_size=self.block_size,
         )
         self.mllm_qualcomm_max_length = None
 
