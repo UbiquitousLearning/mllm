@@ -99,34 +99,43 @@ class ResamplerAttention : public nn::Module {
     q = q + q_bias;
     k = k + k_bias;
     v = v + v_bias;
+    q = q.contiguous();
+    k = k.contiguous();
+    v = v.contiguous();
 
     auto q_reshaped = Tensor::empty({num_heads_, num_queries, head_dim_}, kFloat32).alloc();
+    const auto* q_ptr = q.ptr<float>();
+    auto* q_reshaped_ptr = q_reshaped.ptr<float>();
     for (int nq = 0; nq < num_queries; nq++) {
+      auto q_row_ptr = q_ptr + static_cast<size_t>(nq) * embed_dim_;
       for (int h = 0; h < num_heads_; h++) {
-        for (int d = 0; d < head_dim_; d++) {
-          float val = q.at<float>({nq, h * head_dim_ + d});
-          *q_reshaped.offsettedPtr<float>({h, nq, d}) = val;
-        }
+        auto src_ptr = q_row_ptr + h * head_dim_;
+        auto dst_ptr = q_reshaped_ptr + (static_cast<size_t>(h) * num_queries + nq) * head_dim_;
+        std::memcpy(dst_ptr, src_ptr, static_cast<size_t>(head_dim_) * sizeof(float));
       }
     }
     q = q_reshaped;  // [num_heads, num_queries, head_dim]
     auto k_reshaped = Tensor::empty({num_heads_, seq_len, head_dim_}, kFloat32).alloc();
+    const auto* k_ptr = k.ptr<float>();
+    auto* k_reshaped_ptr = k_reshaped.ptr<float>();
     for (int s = 0; s < seq_len; s++) {
+      auto k_row_ptr = k_ptr + static_cast<size_t>(s) * embed_dim_;
       for (int h = 0; h < num_heads_; h++) {
-        for (int d = 0; d < head_dim_; d++) {
-          float val = k.at<float>({s, h * head_dim_ + d});
-          *k_reshaped.offsettedPtr<float>({h, s, d}) = val;
-        }
+        auto src_ptr = k_row_ptr + h * head_dim_;
+        auto dst_ptr = k_reshaped_ptr + (static_cast<size_t>(h) * seq_len + s) * head_dim_;
+        std::memcpy(dst_ptr, src_ptr, static_cast<size_t>(head_dim_) * sizeof(float));
       }
     }
     k = k_reshaped;
     auto v_reshaped = Tensor::empty({num_heads_, seq_len, head_dim_}, kFloat32).alloc();
+    const auto* v_ptr = v.ptr<float>();
+    auto* v_reshaped_ptr = v_reshaped.ptr<float>();
     for (int s = 0; s < seq_len; s++) {
+      auto v_row_ptr = v_ptr + static_cast<size_t>(s) * embed_dim_;
       for (int h = 0; h < num_heads_; h++) {
-        for (int d = 0; d < head_dim_; d++) {
-          float val = v.at<float>({s, h * head_dim_ + d});
-          *v_reshaped.offsettedPtr<float>({h, s, d}) = val;
-        }
+        auto src_ptr = v_row_ptr + h * head_dim_;
+        auto dst_ptr = v_reshaped_ptr + (static_cast<size_t>(h) * seq_len + s) * head_dim_;
+        std::memcpy(dst_ptr, src_ptr, static_cast<size_t>(head_dim_) * sizeof(float));
       }
     }
     v = v_reshaped;
@@ -140,10 +149,12 @@ class ResamplerAttention : public nn::Module {
 
     if (has_key_padding_mask && key_padding_mask.numel() > 0) {
       auto mask_value = -std::numeric_limits<float>::infinity();
+      auto key_padding_mask_contiguous = key_padding_mask.isContiguous() ? key_padding_mask : key_padding_mask.contiguous();
+      const auto* key_padding_mask_ptr = key_padding_mask_contiguous.ptr<uint8_t>();
       for (int32_t h = 0; h < num_heads_; ++h) {
         for (int32_t q_idx = 0; q_idx < num_queries; ++q_idx) {
           for (int32_t s = 0; s < seq_len; ++s) {
-            if (key_padding_mask.at<uint8_t>({s}) == 1) { *attn_weights.offsettedPtr<float>({h, q_idx, s}) = mask_value; }
+            if (key_padding_mask_ptr[s] == 1) { *attn_weights.offsettedPtr<float>({h, q_idx, s}) = mask_value; }
           }
         }
       }
@@ -152,14 +163,16 @@ class ResamplerAttention : public nn::Module {
     attn_weights = nn::functional::softmax(attn_weights.unsqueeze(0), -1).squeeze(0);
 
     auto attn_output = nn::functional::matmul(attn_weights, v);  // [num_heads, num_queries, head_dim]
+    attn_output = attn_output.contiguous();
 
     auto attn_output_reshaped = Tensor::empty({num_queries, embed_dim_}, kFloat32).alloc();
+    const auto* attn_output_ptr = attn_output.ptr<float>();
+    auto* attn_output_reshaped_ptr = attn_output_reshaped.ptr<float>();
     for (int h = 0; h < num_heads_; h++) {
       for (int nq = 0; nq < num_queries; nq++) {
-        for (int d = 0; d < head_dim_; d++) {
-          float val = attn_output.at<float>({h, nq, d});
-          *attn_output_reshaped.offsettedPtr<float>({nq, h * head_dim_ + d}) = val;
-        }
+        auto src_ptr = attn_output_ptr + (static_cast<size_t>(h) * num_queries + nq) * head_dim_;
+        auto dst_ptr = attn_output_reshaped_ptr + static_cast<size_t>(nq) * embed_dim_ + h * head_dim_;
+        std::memcpy(dst_ptr, src_ptr, static_cast<size_t>(head_dim_) * sizeof(float));
       }
     }
     attn_output = attn_output_reshaped;
@@ -224,11 +237,15 @@ class Resampler : public nn::Module {
 
     std::vector<int> patch_len(batch_size);
     int max_h = 0, max_w = 0, max_patch_len = 0;
+    auto tgt_sizes_contiguous = tgt_sizes.isContiguous() ? tgt_sizes : tgt_sizes.contiguous();
+    const auto* tgt_sizes_ptr = tgt_sizes_contiguous.ptr<int32_t>();
     for (int i = 0; i < batch_size; i++) {
-      patch_len[i] = tgt_sizes.at<int>({i, 0}) * tgt_sizes.at<int>({i, 1});
+      auto tgt_h = tgt_sizes_ptr[i * 2];
+      auto tgt_w = tgt_sizes_ptr[i * 2 + 1];
+      patch_len[i] = tgt_h * tgt_w;
       if (patch_len[i] > max_patch_len) max_patch_len = patch_len[i];
-      if (tgt_sizes.at<int>({i, 0}) > max_h) max_h = tgt_sizes.at<int>({i, 0});
-      if (tgt_sizes.at<int>({i, 1}) > max_w) max_w = tgt_sizes.at<int>({i, 1});
+      if (tgt_h > max_h) max_h = tgt_h;
+      if (tgt_w > max_w) max_w = tgt_w;
     }
 
     if (max_h > max_size_[0] || max_w > max_size_[1]) {
@@ -238,30 +255,35 @@ class Resampler : public nn::Module {
       registerBuffer("pos_embed", new_pos_embed);
     }
 
-    auto pos_embed = getBuffer("pos_embed");  // [max_h, max_w, embed_dim]
+    auto pos_embed = getBuffer("pos_embed").contiguous();  // [max_h, max_w, embed_dim]
+    const auto* pos_embed_ptr = pos_embed.ptr<float>();
 
     auto key_padding_mask = Tensor::empty({batch_size, max_patch_len}, kUInt8).alloc();
+    auto* key_padding_mask_ptr = key_padding_mask.ptr<uint8_t>();
     for (int i = 0; i < batch_size; i++) {
-      for (int j = 0; j < max_patch_len; j++) { key_padding_mask.at<uint8_t>({i, j}) = 1; }
-      for (int j = 0; j < patch_len[i] && j < max_patch_len; j++) { key_padding_mask.at<uint8_t>({i, j}) = 0; }
+      auto* key_padding_mask_row_ptr = key_padding_mask_ptr + static_cast<size_t>(i) * max_patch_len;
+      std::memset(key_padding_mask_row_ptr, 1, static_cast<size_t>(max_patch_len));
+      if (patch_len[i] > 0) {
+        std::memset(key_padding_mask_row_ptr, 0, static_cast<size_t>(std::min(patch_len[i], max_patch_len)));
+      }
     }
 
     std::vector<Tensor> pos_embed_list;
 
     for (int i = 0; i < batch_size; i++) {
-      int32_t tgt_h = tgt_sizes.at<int32_t>({i, 0});
-      int32_t tgt_w = tgt_sizes.at<int32_t>({i, 1});
+      int32_t tgt_h = tgt_sizes_ptr[i * 2];
+      int32_t tgt_w = tgt_sizes_ptr[i * 2 + 1];
       int32_t patch_count = tgt_h * tgt_w;
 
       Tensor pos_embed_i = Tensor::empty({patch_count, embed_dim_}, kFloat32).alloc();
+      auto* pos_embed_i_ptr = pos_embed_i.ptr<float>();
 
       int patch_idx = 0;
       for (int h = 0; h < tgt_h; h++) {
         for (int w = 0; w < tgt_w; w++) {
-          for (int d = 0; d < embed_dim_; d++) {
-            float value = pos_embed.at<float>({h, w, d});
-            *pos_embed_i.offsettedPtr<float>({patch_idx, d}) = value;
-          }
+          auto src_ptr = pos_embed_ptr + (static_cast<size_t>(h) * max_w + w) * embed_dim_;
+          auto dst_ptr = pos_embed_i_ptr + static_cast<size_t>(patch_idx) * embed_dim_;
+          std::memcpy(dst_ptr, src_ptr, static_cast<size_t>(embed_dim_) * sizeof(float));
           patch_idx++;
         }
       }
@@ -270,18 +292,22 @@ class Resampler : public nn::Module {
     }
 
     Tensor pos_embed_padded = Tensor::empty({batch_size, max_patch_len, embed_dim_}, kFloat32).alloc();
+    auto* pos_embed_padded_ptr = pos_embed_padded.ptr<float>();
     for (int i = 0; i < batch_size; i++) {
-      auto& pos_embed_i = pos_embed_list[i];
+      auto pos_embed_i = pos_embed_list[i].contiguous();
       int actual_len = pos_embed_i.shape()[0];
+      const auto* pos_embed_i_ptr = pos_embed_i.ptr<float>();
+      auto* pos_embed_padded_batch_ptr = pos_embed_padded_ptr + static_cast<size_t>(i) * max_patch_len * embed_dim_;
 
-      for (int j = 0; j < actual_len && j < max_patch_len; j++) {
-        for (int k = 0; k < embed_dim_; k++) {
-          *pos_embed_padded.offsettedPtr<float>({i, j, k}) = pos_embed_i.at<float>({j, k});
-        }
+      auto rows_to_copy = std::min(actual_len, max_patch_len);
+      if (rows_to_copy > 0) {
+        std::memcpy(pos_embed_padded_batch_ptr, pos_embed_i_ptr,
+                    static_cast<size_t>(rows_to_copy) * embed_dim_ * sizeof(float));
       }
 
-      for (int j = actual_len; j < max_patch_len; j++) {
-        for (int k = 0; k < embed_dim_; k++) { *pos_embed_padded.offsettedPtr<float>({i, j, k}) = 0.0f; }
+      if (rows_to_copy < max_patch_len) {
+        std::memset(pos_embed_padded_batch_ptr + static_cast<size_t>(rows_to_copy) * embed_dim_, 0,
+                    static_cast<size_t>(max_patch_len - rows_to_copy) * embed_dim_ * sizeof(float));
       }
     }
 
@@ -315,13 +341,7 @@ class Resampler : public nn::Module {
       // key_padding_mask for this batch
       Tensor key_padding_mask_b = key_padding_mask[{b, kAll}].view({max_patch_len});
 
-      bool has_padding = false;
-      for (int i = 0; i < seq_len; i++) {
-        if (key_padding_mask_b.at<uint8_t>({i}) == 1) {
-          has_padding = true;
-          break;
-        }
-      }
+      bool has_padding = patch_len[b] < seq_len;
 
       auto attn_output = has_padding ? attn_(q, kv_input, x_b, key_padding_mask_b)[0] : attn_(q, kv_input, x_b)[0];
 

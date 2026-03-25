@@ -50,10 +50,14 @@ class SiglipVisionEmbeddings final : public nn::Module {
 
     // Create position embeddings
     if (!tgt_sizes.isNil() && !patch_attention_mask.isNil()) {
+      if (!tgt_sizes.isContiguous()) { tgt_sizes = tgt_sizes.contiguous(); }
+      if (!patch_attention_mask.isContiguous()) { patch_attention_mask = patch_attention_mask.contiguous(); }
       auto max_im_h = pixel_values.shape()[2];
       auto max_im_w = pixel_values.shape()[3];
       auto max_nb_patches_h = max_im_h / patch_size_;
       auto max_nb_patches_w = max_im_w / patch_size_;
+      const auto* tgt_sizes_ptr = tgt_sizes.ptr<int32_t>();
+      const auto* patch_mask_ptr = patch_attention_mask.ptr<uint8_t>();
 
       // Create boundaries like torch.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side)
       std::vector<float> boundaries;
@@ -63,10 +67,8 @@ class SiglipVisionEmbeddings final : public nn::Module {
       // Create position_ids tensor - using the max_patches from patch_attention_mask shape
       auto max_patches = patch_attention_mask.shape()[2];
       auto position_ids = Tensor::empty({batch_size, max_patches}, kInt64).alloc();
-      // Initialize to zeros
-      for (int b = 0; b < batch_size; b++) {
-        for (int p = 0; p < max_patches; p++) { position_ids.at<int64_t>({b, p}) = 0; }
-      }
+      std::memset(position_ids.ptr<int64_t>(), 0, static_cast<size_t>(batch_size) * max_patches * sizeof(int64_t));
+      auto* position_ids_ptr = position_ids.ptr<int64_t>();
 
       // Fill position ids based on patch grid and attention mask
       for (int batch_idx = 0; batch_idx < batch_size; batch_idx++) {
@@ -74,8 +76,8 @@ class SiglipVisionEmbeddings final : public nn::Module {
         int nb_patches_w = max_nb_patches_w;
 
         if (tgt_sizes.shape().size() == 2 && batch_idx < tgt_sizes.shape()[0]) {
-          nb_patches_h = tgt_sizes.at<int32_t>({batch_idx, 0});
-          nb_patches_w = tgt_sizes.at<int32_t>({batch_idx, 1});
+          nb_patches_h = tgt_sizes_ptr[batch_idx * 2];
+          nb_patches_w = tgt_sizes_ptr[batch_idx * 2 + 1];
         }
 
         // Create fractional coordinates like torch.arange(0, 1 - 1e-6, 1 / nb_patches_h/w)
@@ -132,10 +134,11 @@ class SiglipVisionEmbeddings final : public nn::Module {
         // Apply pos_ids only where patch_attention_mask is True (now it's 1D)
         // position_ids[batch_idx][p_attn_mask.view(-1).cpu()] = pos_ids
         int pos_ids_idx = 0;
+        auto patch_mask_batch_ptr = patch_mask_ptr + static_cast<size_t>(batch_idx) * max_patches;
+        auto position_ids_batch_ptr = position_ids_ptr + static_cast<size_t>(batch_idx) * max_patches;
         for (int flat_idx = 0; flat_idx < max_patches; ++flat_idx) {
-          uint8_t mask_val = patch_attention_mask.at<uint8_t>({batch_idx, 0, flat_idx});
-          if (mask_val && pos_ids_idx < pos_ids.size()) {
-            position_ids.at<int64_t>({batch_idx, flat_idx}) = pos_ids[pos_ids_idx];
+          if (patch_mask_batch_ptr[flat_idx] && pos_ids_idx < pos_ids.size()) {
+            position_ids_batch_ptr[flat_idx] = pos_ids[pos_ids_idx];
             pos_ids_idx++;
           }
         }
@@ -350,20 +353,28 @@ class SiglipVisionModel final : public nn::Module {
     auto batch_size = pixel_values.shape()[0];
     int max_patches = 0;
     // Calculate max_patches based on tgt_sizes
+    if (!tgt_sizes.isContiguous()) { tgt_sizes = tgt_sizes.contiguous(); }
+    const auto* tgt_sizes_ptr = tgt_sizes.ptr<int32_t>();
     for (int i = 0; i < tgt_sizes.shape()[0]; i++) {
-      if (tgt_sizes.at<int32_t>({i, 0}) > 0 && tgt_sizes.at<int32_t>({i, 1}) > 0) {
-        int patches = (tgt_sizes.at<int32_t>({i, 0})) * (tgt_sizes.at<int32_t>({i, 1}));
+      auto tgt_h = tgt_sizes_ptr[i * 2];
+      auto tgt_w = tgt_sizes_ptr[i * 2 + 1];
+      if (tgt_h > 0 && tgt_w > 0) {
+        int patches = tgt_h * tgt_w;
         if (patches > max_patches) max_patches = patches;
       }
     }
     auto patch_attention_mask = Tensor::empty({batch_size, 1, max_patches}, kUInt8).alloc();
+    auto* patch_attention_mask_ptr = patch_attention_mask.ptr<uint8_t>();
     for (int i = 0; i < batch_size; i++) {
-      for (int j = 0; j < max_patches; j++) { patch_attention_mask.at<uint8_t>({i, 0, j}) = 0; }
+      auto* patch_attention_mask_batch_ptr = patch_attention_mask_ptr + static_cast<size_t>(i) * max_patches;
+      std::memset(patch_attention_mask_batch_ptr, 0, static_cast<size_t>(max_patches));
       if (!tgt_sizes.isNil() && i < tgt_sizes.shape()[0]) {
-        int nb_patches_h = tgt_sizes.at<int32_t>({i, 0});
-        int nb_patches_w = tgt_sizes.at<int32_t>({i, 1});
+        int nb_patches_h = tgt_sizes_ptr[i * 2];
+        int nb_patches_w = tgt_sizes_ptr[i * 2 + 1];
         int valid_patches = nb_patches_h * nb_patches_w;
-        for (int j = 0; j < valid_patches && j < max_patches; j++) { patch_attention_mask.at<uint8_t>({i, 0, j}) = 1; }
+        if (valid_patches > 0) {
+          std::memset(patch_attention_mask_batch_ptr, 1, static_cast<size_t>(std::min(valid_patches, max_patches)));
+        }
       }
     }
     std::vector<Tensor> hidden_states_result;
@@ -374,7 +385,7 @@ class SiglipVisionModel final : public nn::Module {
     }
     auto hidden_states = hidden_states_result[0];  // [B, num_patches, embed_dim]
 
-    patch_attention_mask = patch_attention_mask.squeeze(1);  // [B, max_patches]
+    patch_attention_mask = patch_attention_mask.squeeze(1).contiguous();  // [B, max_patches]
 
     // Create attention mask for encoder (4D mask for multi-head attention)
     // TODO: this will take about 100ms, optimize it
@@ -382,42 +393,38 @@ class SiglipVisionModel final : public nn::Module {
     if (!patch_attention_mask.isNil()) {
       auto batch_size = patch_attention_mask.shape()[0];
       auto max_patches = patch_attention_mask.shape()[1];
+      const auto* patch_mask_ptr = patch_attention_mask.ptr<uint8_t>();
 
       bool all_valid = true;
       for (int i = 0; i < batch_size && all_valid; i++) {
+        auto patch_mask_batch_ptr = patch_mask_ptr + static_cast<size_t>(i) * max_patches;
         for (int j = 0; j < max_patches && all_valid; j++) {
-          uint8_t mask_val = patch_attention_mask.at<uint8_t>({i, j});
-          if (mask_val == 0) { all_valid = false; }
+          if (patch_mask_batch_ptr[j] == 0) { all_valid = false; }
         }
       }
       if (!all_valid) {
-        // Convert patch_attention_mask to float and create 4D attention mask
-        auto patch_mask_float = Tensor::empty({batch_size, max_patches}, kFloat32).alloc();
-        for (int i = 0; i < batch_size; i++) {
-          for (int j = 0; j < max_patches; j++) {
-            uint8_t mask_val = patch_attention_mask.at<uint8_t>({i, j});
-            patch_mask_float.at<float>({i, j}) = mask_val ? 1.0f : 0.0f;
-          }
-        }
-
         // Create 4D attention mask: [B, 1, max_patches, max_patches]
         attention_mask = Tensor::empty({batch_size, 1, max_patches, max_patches}, kFloat32).alloc();
+        auto* attention_mask_ptr = attention_mask.ptr<float>();
 
         // Optimize with cache-friendly access patterns and reduced redundant accesses
         for (int b = 0; b < batch_size; b++) {
           // Pre-fetch mask values for this batch to improve cache locality
-          std::vector<float> batch_mask(max_patches);
-          for (int p = 0; p < max_patches; p++) { batch_mask[p] = patch_mask_float.at<float>({b, p}); }
+          std::vector<uint8_t> batch_mask(max_patches);
+          std::memcpy(batch_mask.data(), patch_mask_ptr + static_cast<size_t>(b) * max_patches, static_cast<size_t>(max_patches));
 
           // Compute attention mask for this batch with optimized memory access
+          auto* attention_mask_batch_ptr =
+              attention_mask_ptr + static_cast<size_t>(b) * max_patches * max_patches;
           for (int i = 0; i < max_patches; i++) {
-            float mask_i = batch_mask[i];
+            uint8_t mask_i = batch_mask[i];
+            auto* attention_mask_row_ptr = attention_mask_batch_ptr + static_cast<size_t>(i) * max_patches;
             // Process row in chunks for better cache utilization
             for (int j = 0; j < max_patches; j++) {
-              float mask_j = batch_mask[j];
+              uint8_t mask_j = batch_mask[j];
               // Both positions must be valid (branchless computation)
               float final_mask = (mask_i > 0.0f && mask_j > 0.0f) ? 0.0f : -1e9f;
-              attention_mask.at<float>({b, 0, i, j}) = final_mask;
+              attention_mask_row_ptr[j] = final_mask;
             }
           }
         }

@@ -1,0 +1,359 @@
+{
+  "^llm\\.model\\.embed_tokens\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        151748,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.self_attn\\.q_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.self_attn\\.k_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1024,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.self_attn\\.v_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1024,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.self_attn\\.o_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.mlp\\.gate_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        12288,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.mlp\\.up_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        12288,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.model\\.layers\\.\\d+\\.mlp\\.down_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        12288
+      ],
+      "replace": true
+    }
+  },
+  "^llm\\.lm_head\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        151748,
+        4096
+      ],
+      "replace": true
+    }
+  },
+
+  "^vpm\\.embeddings\\.position_embedding\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4900,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.self_attn\\.q_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1152,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.self_attn\\.k_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1152,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.self_attn\\.v_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1152,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.self_attn\\.out_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1152,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.mlp\\.fc1\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4304,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^vpm\\.encoder\\.layers\\.\\d+\\.mlp\\.fc2\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        1152,
+        4304
+      ],
+      "replace": true
+    }
+  },
+
+  "^resampler\\.kv_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        1152
+      ],
+      "replace": true
+    }
+  },
+  "^resampler\\.attn\\.out_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        4096
+      ],
+      "replace": true
+    }
+  },
+
+  "^audio_projection_layer\\.linear1\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        1024
+      ],
+      "replace": true
+    }
+  },
+  "^audio_projection_layer\\.linear2\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        4096,
+        4096
+      ],
+      "replace": true
+    }
+  },
+
+  "^tts\\.projector_spk\\.linear1\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.projector_spk\\.linear2\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.projector_semantic\\.linear1\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        4096
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.projector_semantic\\.linear2\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+
+  "^tts\\.model\\.layers\\.\\d+\\.self_attn\\.q_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.self_attn\\.k_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.self_attn\\.v_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.self_attn\\.o_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.mlp\\.gate_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        3072,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.mlp\\.up_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        3072,
+        768
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.model\\.layers\\.\\d+\\.mlp\\.down_proj\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        768,
+        3072
+      ],
+      "replace": true
+    }
+  },
+  "^tts\\.emb_text\\.weight$": {
+    "hints": {
+      "quant_method": "gguf",
+      "gguf_type": "Q4_0",
+      "shape": [
+        152064,
+        768
+      ],
+      "replace": true
+    }
+  }
+}
