@@ -25,7 +25,9 @@ void initAscendBackend() {
   ctx.registerBackend(backend);
 
   // 3. Register allocator
-  ctx.memoryManager()->registerAllocator(kAscend, backend->allocator(), MemoryManagerOptions());
+  MemoryManagerOptions mem_options;
+  mem_options.using_buddy_mem_pool = false;
+  ctx.memoryManager()->registerAllocator(kAscend, backend->allocator(), mem_options);
 
   // 4. Register dispatcher
   auto dispatcher = ascend::createAscendDispatcher(ctx.dispatcherManager()->getExecutor(), 

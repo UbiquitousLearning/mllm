@@ -37,8 +37,23 @@ void AscendCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<
   const int64_t S = shape[2];  // query sequence length
   const int64_t D = shape[3];  // key sequence length
 
-  const size_t numel = x.numel();
   const size_t bytes = x.bytes();
+
+  // ===== Optimization: Decode fast path =====
+  // When S==1 (decode phase), no masking is needed because:
+  // - Single query token is at position current_seq_len-1
+  // - All key tokens (including current) are at positions <= current_seq_len-1
+  // - Query can attend to all keys (no "future" tokens exist)
+  // Use device-to-device copy to avoid expensive D2H + H2D transfers
+  if (S == 1) {
+    auto ret = aclrtMemcpy(y.ptr<void>(), bytes, x.ptr<void>(), bytes, ACL_MEMCPY_DEVICE_TO_DEVICE);
+    MLLM_ACL_CHECK(ret);
+    syncGlobalAtbStream();
+    return;  // Early exit - skip host processing
+  }
+
+  // Prefill phase (S > 1): apply causal mask on host
+  const size_t numel = x.numel();
   const DataTypes dtype = x.dtype();
 
   if (dtype == kFloat16) {
@@ -50,10 +65,7 @@ void AscendCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<
     // Apply causal mask on host
     const half_float::half mask_val(-65500.0f);
 
-    if (S == 1) {
-      // When sequence length is 1, no masking needed - just copy
-      // Data is already in host_data, will be copied to output
-    } else if (!options_.sliding_window) {
+    if (!options_.sliding_window) {
       // Standard causal mask
       for (int64_t b = 0; b < B; ++b) {
         for (int64_t h = 0; h < H; ++h) {
@@ -110,9 +122,7 @@ void AscendCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<
     // Apply causal mask on host
     const float mask_val = -1e10f;
 
-    if (S == 1) {
-      // When sequence length is 1, no masking needed
-    } else if (!options_.sliding_window) {
+    if (!options_.sliding_window) {
       // Standard causal mask
       for (int64_t b = 0; b < B; ++b) {
         for (int64_t h = 0; h < H; ++h) {

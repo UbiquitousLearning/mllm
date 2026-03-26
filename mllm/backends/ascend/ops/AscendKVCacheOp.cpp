@@ -108,14 +108,24 @@ std::array<Tensor, 2> AscendKVCache::updateKVCache(int32_t layer_idx, const Tens
   // CRITICAL: Sync required for long sequences to ensure KV cache is updated before next layer
   syncGlobalAtbStream();
 
+  // Save old sequence count before updating (for incremental GQA repeat)
+  const int32_t old_seq_cnt = current_seq_cnt_[layer_idx];
+
   // Update sequence count
   current_seq_cnt_[layer_idx] += inputs_seq_len;
 
+  // ===== Optimization: GQA Incremental Update =====
   // If GQA is enabled, update repeated cache and return it
   if (num_key_value_groups_ > 1) {
-    // Copy each KV head to multiple Q head positions in the repeated cache
+    // Only copy the newly added tokens, not the entire history
+    // This changes complexity from O(N²) to O(N) for generating N tokens
     const size_t element_size = bytesOfType(dtype_) / lanesOfType(dtype_);
-    const size_t head_size = current_seq_cnt_[layer_idx] * head_dim_ * element_size;
+
+    // NEW: Calculate size of only the new sequence portion
+    const size_t new_seq_bytes = inputs_seq_len * head_dim_ * element_size;
+
+    // NEW: Calculate offset to the new sequence portion in cache
+    const size_t cache_seq_offset = old_seq_cnt * head_dim_ * element_size;
 
     const char* k_src_base = static_cast<const char*>(k_cache_[layer_idx].ptr<void>());
     const char* v_src_base = static_cast<const char*>(v_cache_[layer_idx].ptr<void>());
@@ -126,20 +136,23 @@ std::array<Tensor, 2> AscendKVCache::updateKVCache(int32_t layer_idx, const Tens
     const size_t dst_head_stride = max_cache_length_ * head_dim_ * element_size;
 
     for (int32_t h = 0; h < kv_heads_; ++h) {
-      const void* k_src = k_src_base + h * src_head_stride;
-      const void* v_src = v_src_base + h * src_head_stride;
+      // NEW: Source pointer now points to the new sequence portion (with offset)
+      const void* k_src = k_src_base + h * src_head_stride + cache_seq_offset;
+      const void* v_src = v_src_base + h * src_head_stride + cache_seq_offset;
 
       // Repeat this KV head to num_key_value_groups_ Q head positions
       for (int32_t r = 0; r < num_key_value_groups_; ++r) {
-        void* k_dst = k_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride;
-        void* v_dst = v_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride;
+        // NEW: Destination pointer also points to the new sequence portion (with offset)
+        void* k_dst = k_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride + cache_seq_offset;
+        void* v_dst = v_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride + cache_seq_offset;
 
-        auto ret = aclrtMemcpy(k_dst, head_size, k_src, head_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
+        // NEW: Only copy new_seq_bytes (not entire history)
+        auto ret = aclrtMemcpy(k_dst, new_seq_bytes, k_src, new_seq_bytes, ACL_MEMCPY_DEVICE_TO_DEVICE);
         if (ret != ACL_SUCCESS) {
           MLLM_ACL_CHECK(ret);
         }
 
-        ret = aclrtMemcpy(v_dst, head_size, v_src, head_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
+        ret = aclrtMemcpy(v_dst, new_seq_bytes, v_src, new_seq_bytes, ACL_MEMCPY_DEVICE_TO_DEVICE);
         if (ret != ACL_SUCCESS) {
           MLLM_ACL_CHECK(ret);
         }

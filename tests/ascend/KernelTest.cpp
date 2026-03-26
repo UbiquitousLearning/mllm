@@ -9,6 +9,24 @@
 #include "AscendKernelTest.hpp"
 
 //===----------------------------------------------------------------------===//
+// Graph Builder tests.
+//
+// Tests for ATB graph construction and execution
+//===----------------------------------------------------------------------===//
+#include "AscendGraphBuilderTest.hpp"
+TEST_F(AscendGraphBuilderTest, LinearGraph) {
+  EXPECT_EQ(LinearGraphTest(), true);
+}
+
+TEST_F(AscendGraphBuilderTest, LinearGraphAccuracy) {
+  EXPECT_EQ(LinearGraphAccuracyTest(), true);
+}
+
+TEST_F(AscendGraphBuilderTest, BasicCreation) {
+  EXPECT_EQ(BasicCreationTest(), true);
+}
+
+//===----------------------------------------------------------------------===//
 // Element wise ADD.
 //
 // FP16 (Ascend currently uses FP16)
@@ -271,6 +289,8 @@ TEST_F(AscendSliceKernelTest, SliceFloat16) {
   EXPECT_EQ(SliceFloat16Test({5, 4}, {SliceIndicesPair(-3, -1), SliceIndicesPair(0, 4)}), true);
   EXPECT_EQ(SliceFloat16Test({3, 4, 5}, {SliceIndicesPair(kAll, kAll), SliceIndicesPair(1, 3), SliceIndicesPair(0, 5)}), true);
 }
+
+//===----------------------------------------------------------------------===//
 // Embedding operation.
 //
 // FP16 (Ascend currently uses FP16)
