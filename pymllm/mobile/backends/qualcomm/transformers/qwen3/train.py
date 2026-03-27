@@ -30,7 +30,7 @@ def main():
     parser.add_argument(
         "--infer_max_new_tokens",
         type=int,
-        default=8,
+        default=1024,
         help="Maximum new tokens for post-calibration inference sanity check",
     )
     parser.add_argument(
