@@ -1,6 +1,7 @@
 import torch
 from tqdm import tqdm
-from modelscope.msdatasets import MsDataset
+from importlib.metadata import PackageNotFoundError, version
+from packaging.version import Version
 from transformers import AutoTokenizer
 from pymllm.mobile.backends.qualcomm.transformers.core.qdq import (
     ActivationQDQ,
@@ -193,7 +194,22 @@ def convert_weight(m):
     if isinstance(m, QEmbedding):
         m.convert_to_deploy()
 
+def _check_datasets_compatibility():
+    try:
+        ds_ver = version("datasets")
+    except PackageNotFoundError as e:
+        raise RuntimeError(
+            "datasets is required for calibration. "
+            "Please install a compatible version such as datasets==2.21.0."
+        ) from e
 
+    if Version(ds_ver) >= Version("3.0.0"):
+        raise RuntimeError(
+            f"Incompatible datasets version detected: {ds_ver}. "
+            "Current Qualcomm calibration depends on a modelscope-compatible "
+            "datasets version. Please use datasets==2.21.0."
+        )
+        
 class Qwen3Quantizer:
     def __init__(self, model_path: str, mllm_qualcomm_max_length=2048):
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -290,6 +306,9 @@ class Qwen3Quantizer:
 
         # 2. Load Wikipedia dataset (English version example)
         # Use streaming=True to download and process on the fly, without downloading the full几十G dataset
+        _check_datasets_compatibility()
+        from modelscope.msdatasets import MsDataset
+        
         dataset = MsDataset.load(
             "modelscope/wikitext",
             subset_name="wikitext-103-v1",
