@@ -1,5 +1,4 @@
 import os
-import torch
 import argparse
 from safetensors.torch import save_model
 from pymllm.mobile.backends.qualcomm.transformers.qwen3.runner import Qwen3Quantizer
@@ -29,6 +28,12 @@ def main():
         help="Text to run inference on",
     )
     parser.add_argument(
+        "--infer_max_new_tokens",
+        type=int,
+        default=1024,
+        help="Maximum new tokens for post-calibration inference sanity check",
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         help="Directory to save the quantized model",
@@ -36,15 +41,17 @@ def main():
 
     args = parser.parse_args()
 
-    m = Qwen3Quantizer(args.model_path, mllm_qualcomm_max_length=args.max_length)
+    m = Qwen3Quantizer(
+        args.model_path,
+        mllm_qualcomm_max_length=args.max_length,
+    )
 
-    # FIXME: Should disable or not.
     m.disable_fake_quant()
     m.calibrate(num_samples=args.num_samples, max_seq_length=args.max_length)
     m.enable_fake_quant()
     m.recompute_scale_zp()
     m.validate_concat_observer()
-    m.infer(args.infer_text)
+    m.infer(args.infer_text, max_new_tokens=args.infer_max_new_tokens)
     m.convert()
 
     os.makedirs(args.output_dir, exist_ok=True)

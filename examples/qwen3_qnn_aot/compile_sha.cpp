@@ -9,13 +9,13 @@
 // Usage:
 //   ./compile_sha -m /path/to/model.mllm -c /path/to/config.json -aot_cfg /path/to/qnn_aot_cfg.json
 
-#include <unordered_map>
 #include <mllm/mllm.hpp>
 #include <mllm/compile/PassManager.hpp>
 #include <mllm/backends/qnn/aot/QnnWrappersAPI.hpp>
 #include <mllm/backends/qnn/aot/passes/AOTPipeline.hpp>
 #include <mllm/backends/qnn/aot/QnnTargetMachineParser.hpp>
 
+#include "compile_common.hpp"
 #include "modeling_qwen_qnn_aot_sha.hpp"
 
 using mllm::Argparse;
@@ -28,11 +28,11 @@ MLLM_MAIN({
   auto& qnn_env_path = Argparse::add<std::string>("-qnn_env|--qnn_env_path")
                            .def("/opt/qcom/aistack/qairt/2.41.0.251128/lib/x86_64-linux-clang/")
                            .help("QNN AOT Environment path.");
+  auto& output_context_path = Argparse::add<std::string>("-o|--output_context_name").help("Output QNN context path.");
 
   Argparse::parse(argc, argv);
 
-  int N = 32;
-  int CL = 1024;
+  constexpr int kContextLength = 1024;
 
   if (help.isSet()) {
     Argparse::printHelp();
@@ -41,6 +41,11 @@ MLLM_MAIN({
 
   if (!qnn_aot_cfg_files.isSet()) {
     MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "No input aot config file path provided");
+    Argparse::printHelp();
+    return -1;
+  }
+  if (!output_context_path.isSet()) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "No output context path provided");
     Argparse::printHelp();
     return -1;
   }
@@ -66,130 +71,32 @@ MLLM_MAIN({
   // Create SHA model
   auto model = mllm::models::qwen3::sha::Qwen3ForCausalLM_SHA(model_cfg);
 
-  // Add params for causal mask
-  {
-    params->push("causal_mask.scale", mllm::Tensor::constant(0.001 / 65535.f, mllm::kFloat32));
-    params->push("causal_mask.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
-    params->push("constant_zero.scale", mllm::Tensor::constant(0.001 / 65535.f, mllm::kFloat32));
-    params->push("constant_zero.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
-  }
+  qwen3_qnn_aot::addCausalMaskParams(params);
   model.load(params);
 
   // Create Qnn AOT Model
   auto qnn_aot_env = mllm::qnn::aot::QnnAOTEnv(qnn_env_path.get(),
                                                mllm::qnn::aot::parseQcomTargetMachineFromJSONFile(qnn_aot_cfg_files.get()));
 
-  // Model length 32.
-
-  {
-    // Sequence: [B, N]
-    // past_key_i: [B, H, D, CL-N] for each layer i
-    // past_value_i: [B, H, CL-N, D] for each layer i
-    // causal_mask: [B, 1, N, CL]
-    auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
-    auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
-
-    // NOTE: force set causal mask to UInt16Asy
-    // NOTE: Attach scale and zero point to causal mask
-    {
-      causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
-      causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
-      causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
-    }
-
-    // Create KV cache inputs for all layers
-    std::unordered_map<std::string, mllm::Tensor> trace_inputs;
-    trace_inputs["sequence"] = sequence;
-    trace_inputs["causal_mask"] = causal_mask;
-
-    for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
-      auto past_key_name = "past_key_" + std::to_string(i);
-      auto past_value_name = "past_value_" + std::to_string(i);
-
-      // clang-format off
-    trace_inputs[past_key_name] = mllm::Tensor::empty({
-        1,
-        model_cfg.num_key_value_heads,
-        model_cfg.head_dim,
-        CL - N,
-    }, mllm::kUInt8PerTensorSym);
-    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
-    
-    trace_inputs[past_key_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-    trace_inputs[past_key_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
-
-    trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-    trace_inputs[past_value_name].attach("zero_point", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.zero_point").impl(), true);
-      // clang-format on
-    }
-
-    mllm::print("Tracing SHA model (seq=32)...");
+  auto trace_and_dump = [&](int seq_len, const std::string& mir_path) {
+    auto trace_inputs = qwen3_qnn_aot::makeTraceInputs(seq_len, kContextLength, model_cfg, params);
+    mllm::print("Tracing SHA model (seq=" + std::to_string(seq_len) + ")...");
     auto ir = model.trace(trace_inputs, {});
     mllm::print("SHA model traced successfully.");
-
     mllm::ir::PassManager pm(ir["model"]);
     pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
     pm.run();
+    mllm::redirect(mir_path, [&]() { mllm::print(ir["model"]); });
+  };
 
-    mllm::redirect("qwen3_qnn_aot_sha_32.mir", [&]() { mllm::print(ir["model"]); });
-  }
+  trace_and_dump(32, "qwen3_qnn_aot_sha_32.mir");
+  trace_and_dump(1, "qwen3_qnn_aot_sha_1.mir");
 
-  // Model length 1.
-  {
-    N = 1;
-
-    // Sequence: [B, N]
-    // past_key_i: [B, H, D, CL-N] for each layer i
-    // past_value_i: [B, H, CL-N, D] for each layer i
-    // causal_mask: [B, 1, N, CL]
-    auto sequence = mllm::Tensor::zeros({1, N}, mllm::kInt32);
-    auto causal_mask = mllm::Tensor::zeros({1, 1, N, CL}, mllm::kUInt16);
-
-    // NOTE: force set causal mask to UInt16Asy
-    // NOTE: Attach scale and zero point to causal mask
-    {
-      causal_mask = causal_mask.__unsafeSetDType(mllm::kUInt16PerTensorAsy);
-      causal_mask.attach("scale", params->pull("causal_mask.scale").impl(), true);
-      causal_mask.attach("zero_point", params->pull("causal_mask.zero_point").impl(), true);
-    }
-
-    // Create KV cache inputs for all layers
-    std::unordered_map<std::string, mllm::Tensor> trace_inputs;
-    trace_inputs["sequence"] = sequence;
-    trace_inputs["causal_mask"] = causal_mask;
-    for (int i = 0; i < model_cfg.num_hidden_layers; ++i) {
-      auto past_key_name = "past_key_" + std::to_string(i);
-      auto past_value_name = "past_value_" + std::to_string(i);
-
-      // clang-format off
-    trace_inputs[past_key_name] = mllm::Tensor::empty({
-        1,
-        model_cfg.num_key_value_heads,
-        model_cfg.head_dim,
-        CL - N,
-    }, mllm::kUInt8PerTensorSym);
-    trace_inputs[past_value_name] = mllm::Tensor::empty({1, model_cfg.num_key_value_heads, CL - N, model_cfg.head_dim}, mllm::kUInt8PerTensorSym);
-    trace_inputs[past_key_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.k_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-    trace_inputs[past_value_name].attach("scale", params->pull("model.layers." + std::to_string(i) + ".self_attn.v_cast_to_int8_qdq.fake_quant.scale").impl(), true);
-      // clang-format on
-    }
-
-    mllm::print("Tracing SHA model (seq=1)...");
-    auto ir = model.trace(trace_inputs, {});
-    mllm::print("SHA model traced successfully.");
-
-    mllm::ir::PassManager pm(ir["model"]);
-    pm.reg(mllm::qnn::aot::createQnnAOTLoweringPipeline(&qnn_aot_env, qnn_aot_cfg_files.get(), params));
-    pm.run();
-
-    mllm::redirect("qwen3_qnn_aot_sha_1.mir", [&]() { mllm::print(ir["model"]); });
-  }
-
-  qnn_aot_env.saveContext("context.0", "qwen3-1.7B-lpbq-sha.bin");
+  qnn_aot_env.saveContext("context.0", output_context_path.get());
 
   mllm::print("SHA compilation completed successfully!");
   mllm::print("Output files:");
   mllm::print("  - qwen3_qnn_aot_sha_32.mir (IR dump for seq=32)");
   mllm::print("  - qwen3_qnn_aot_sha_1.mir (IR dump for seq=1)");
-  mllm::print("  - qwen3-1.7B-lpbq-sha.bin (QNN context)");
+  mllm::print("  - " + output_context_path.get() + " (QNN context)");
 });
