@@ -470,14 +470,21 @@ def _messages_to_prompt(
         Extra keyword arguments forwarded to ``apply_chat_template``
         (e.g. ``enable_thinking=True`` for Qwen3).
     """
-    # Flatten each message into a plain dict for the tokenizer.
+    # Preserve multimodal message structure for tokenizer.apply_chat_template.
     msg_dicts: List[Dict[str, Any]] = []
     for msg in messages:
         content = msg.content
         if isinstance(content, list):
-            # Multimodal: extract only text parts for the prompt string.
-            text_parts = [p.text for p in content if p.type == "text" and p.text]
-            content = "\n".join(text_parts) if text_parts else ""
+            mm_parts: List[Dict[str, Any]] = []
+            for part in content:
+                if part.type == "text" and part.text is not None:
+                    mm_parts.append({"type": "text", "text": part.text})
+                elif part.type == "image_url" and part.image_url is not None:
+                    # Keep image content so chat template can emit vision tokens.
+                    mm_parts.append(
+                        {"type": "image", "image": part.image_url.url}
+                    )
+            content = mm_parts
         elif content is None:
             content = ""
         d: Dict[str, Any] = {"role": msg.role, "content": content}
@@ -978,6 +985,11 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": prompt_tokens + completion_tokens,
+                },
+                "timing": {
+                    "vit_prefill_ms": r.get("vit_prefill_ms"),
+                    "llm_prefill_ms": r.get("llm_prefill_ms"),
+                    "llm_decode_ms": r.get("llm_decode_ms"),
                 },
             }
         )

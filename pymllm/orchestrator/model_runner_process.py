@@ -375,6 +375,11 @@ class ModelRunnerProcess:
 
         logits_output = runner.forward(fb)
 
+        # Extract timing info written by multimodal models onto ForwardBatch.
+        vit_prefill_ms = getattr(fb, "vit_prefill_ms", None)
+        llm_prefill_ms = getattr(fb, "llm_prefill_ms", None)
+        llm_decode_ms = getattr(fb, "llm_decode_ms", None)
+
         # Persist M-RoPE position deltas for multimodal models (Qwen3-VL).
         # The model sets mrope_position_deltas on the ForwardBatch during
         # prefill; we store them here so decode steps can retrieve them.
@@ -424,6 +429,13 @@ class ModelRunnerProcess:
                 "rid": rid,
                 "output_token_ids": [token_id],
             }
+
+            if vit_prefill_ms is not None:
+                out["vit_prefill_ms"] = float(vit_prefill_ms)
+            if llm_prefill_ms is not None:
+                out["llm_prefill_ms"] = float(llm_prefill_ms)
+            if llm_decode_ms is not None:
+                out["llm_decode_ms"] = float(llm_decode_ms)
             # Report actual prefix_len back to the scheduler so it can
             # update its token budget tracking accurately.
             if actual_prefix_lens is not None:
@@ -565,6 +577,11 @@ class ModelRunnerProcess:
                     len(new_indices),
                     new_indices[: min(len(new_indices), 8)].tolist(),
                 )
+            if not hasattr(cache, "page_size"):
+                # ChunkCache / no-op cache when disable_radix_cache=True.
+                self._rid_to_cache_protected_len[rid] = 0
+                continue
+
             if cache.page_size == 1:
                 assert len(new_indices) == seq_len, (
                     f"Re-match length mismatch after insert: "

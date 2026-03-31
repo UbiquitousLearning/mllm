@@ -371,6 +371,20 @@ class TokenizerProcess:
         # ------------------------------------------------------------------ #
         mm_inputs = self._collect_mm_inputs(raw_request, text=input_text)
 
+        # If AutoProcessor produced multimodal input_ids, they must override
+        # the plain tokenizer result. Otherwise the prompt contains only a
+        # single image placeholder token and won't match the visual features.
+        if mm_inputs is not None:
+            image_inputs = mm_inputs.get("image_inputs")
+            if image_inputs is not None and "input_ids" in image_inputs:
+                proc_input_ids = image_inputs["input_ids"]
+                if hasattr(proc_input_ids, "ndim") and proc_input_ids.ndim > 1:
+                    proc_input_ids = proc_input_ids[0]
+                if hasattr(proc_input_ids, "tolist"):
+                    input_ids = proc_input_ids.tolist()
+                else:
+                    input_ids = list(proc_input_ids)
+
         # ------------------------------------------------------------------ #
         # 3. Pack into the typed dataclass
         # ------------------------------------------------------------------ #
