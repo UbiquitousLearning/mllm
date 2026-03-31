@@ -162,8 +162,8 @@ class Qwen3VisionAttention(nn.Module):
             cos = torch.cat([cos, cos], dim=-1)
             sin = torch.cat([sin, sin], dim=-1)
 
-        cos = cos.unsqueeze(1)  # [seq, 1, head_dim]
-        sin = sin.unsqueeze(1)  # [seq, 1, head_dim]
+        cos = cos.unsqueeze(1).to(dtype=q.dtype, device=q.device)  # [seq, 1, head_dim]
+        sin = sin.unsqueeze(1).to(dtype=q.dtype, device=q.device)  # [seq, 1, head_dim]
 
         q = q * cos + _rotate_half(q) * sin
         k = k * cos + _rotate_half(k) * sin
@@ -977,6 +977,22 @@ def _get_deepstack_embeds(
 # ---------------------------------------------------------------------------
 
 
+def _cuda_timed_run(fn):
+    if torch.cuda.is_available():
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+        out = fn()
+        end.record()
+        torch.cuda.synchronize()
+        return out, float(start.elapsed_time(end))
+    else:
+        import time
+        t0 = time.perf_counter()
+        out = fn()
+        t1 = time.perf_counter()
+        return out, float((t1 - t0) * 1000.0)
+
 class Qwen3VLForConditionalGeneration(nn.Module):
     """Qwen3-VL multimodal model for conditional generation.
 
@@ -996,8 +1012,11 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         text_config = getattr(config, "text_config", config)
         vision_config = getattr(config, "vision_config", None)
+        logger.warning("INIT DEBUG: enter Qwen3VLForConditionalGeneration.__init__")
+        logger.warning("INIT DEBUG: text_config=%s vision_config_is_none=%s", type(text_config).__name__, vision_config is None)
 
         # Vision encoder — NOT quantized
+        logger.warning("INIT DEBUG: before build visual")
         if vision_config is not None:
             self.visual = Qwen3VLVisionModel(
                 depth=getattr(vision_config, "depth", 27),
@@ -1020,6 +1039,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             )
         else:
             self.visual = None
+        logger.warning("INIT DEBUG: after build visual visual_is_none=%s", self.visual is None)
 
         # Text decoder
         hidden_size = getattr(text_config, "hidden_size", 4096)
@@ -1036,6 +1056,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             mrope_interleaved = getattr(rope_scaling, "mrope_interleaved", True)
         max_position_embeddings = getattr(text_config, "max_position_embeddings", 32768)
 
+        logger.warning("INIT DEBUG: before build text model")
         self.model = Qwen3VLTextModel(
             vocab_size=vocab_size,
             hidden_size=hidden_size,
@@ -1051,6 +1072,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             max_position_embeddings=max_position_embeddings,
             quant_config=quant_config,
         )
+        logger.warning("INIT DEBUG: after build text model")
 
         # LM head — following sglang's pattern: always use lm_head.weight
         # for matmul in forward(), so it works whether lm_head is nn.Embedding
@@ -1081,6 +1103,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             self.num_deepstack_embeddings = 0
 
         self._hidden_size = hidden_size
+        logger.warning("INIT DEBUG: __init__ finished")
 
     def get_input_embeddings(self) -> nn.Module:
         return self.model.embed_tokens
@@ -1158,6 +1181,8 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         input_embeds = None
         input_deepstack_embeds = None
+        vit_prefill_ms = 0.0
+        llm_prefill_ms = 0.0
 
         if (
             pixel_values is not None
@@ -1166,7 +1191,9 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             and not forward_batch.forward_mode.is_decode()
         ):
             # Run vision encoder
-            vision_features = self.visual(pixel_values, grid_thw=image_grid_thw)
+            vision_features, vit_prefill_ms = _cuda_timed_run(
+                lambda: self.visual(pixel_values, grid_thw=image_grid_thw)
+            )
 
             # Separate main embeddings and deepstack embeddings
             if self.num_deepstack_embeddings > 0:
@@ -1179,6 +1206,20 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Get text embeddings and replace image tokens with vision features
             input_embeds = self.model.embed_tokens(input_ids)
             image_mask = input_ids == self.image_token_id
+            logger.warning(
+                "VISION DEBUG: pixel_values=%s image_grid_thw=%s vision_features=%s image_token_id=%s image_mask_sum=%s input_ids_head=%s",
+                None if pixel_values is None else tuple(pixel_values.shape),
+                None if image_grid_thw is None else image_grid_thw.tolist(),
+                tuple(vision_features.shape),
+                self.image_token_id,
+                int(image_mask.sum().item()),
+                input_ids[:40].tolist(),
+            )
+            forward_batch.vit_prefill_ms = float(vit_prefill_ms)
+            logger.warning(
+                "TIMING DEBUG: vit_prefill_ms=%.3f",
+                vit_prefill_ms,
+            )
             if image_mask.any():
                 input_embeds[image_mask] = vision_embeds.to(input_embeds.dtype)
 
@@ -1195,13 +1236,28 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 )
 
         # Text decoder
-        hidden_states = self.model(
-            input_ids,
-            positions,
-            forward_batch,
-            input_embeds=input_embeds,
-            input_deepstack_embeds=input_deepstack_embeds,
+        hidden_states, llm_ms = _cuda_timed_run(
+            lambda: self.model(
+                input_ids,
+                positions,
+                forward_batch,
+                input_embeds=input_embeds,
+                input_deepstack_embeds=input_deepstack_embeds,
+            )
         )
+
+        if forward_batch.forward_mode.is_extend():
+            forward_batch.llm_prefill_ms = float(llm_ms)
+            logger.warning(
+                "TIMING DEBUG: llm_prefill_ms=%.3f",
+                llm_ms,
+            )
+        else:
+            forward_batch.llm_decode_ms = float(llm_ms)
+            logger.warning(
+                "TIMING DEBUG: llm_decode_ms=%.3f",
+                llm_ms,
+            )
 
         # Prune hidden_states before lm_head to avoid a wasteful
         # [total_tokens, vocab] matmul during prefill.
@@ -1240,6 +1296,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         Handles weight name remapping between HuggingFace Qwen3-VL
         checkpoints and this model's parameter names.
         """
+        # logger.warning("LOAD DEBUG: enter load_weights")
         # When quantized, the model has separate q/k/v and gate/up projections
         # (no fused qkv_proj / gate_up_proj), so skip the stacking logic.
         if self.quant_config is not None:
@@ -1259,6 +1316,8 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         tie_word_embeddings = getattr(self.config, "tie_word_embeddings", False)
 
         for name, loaded_weight in weights:
+            # logger.warning("LOAD DEBUG: weight=%s shape=%s", name, tuple(loaded_weight.shape))
+            # logger.warning("LOAD DEBUG: before remap raw_name=%s", name)
             if "rotary_emb.inv_freq" in name:
                 continue
 
@@ -1304,11 +1363,16 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Direct parameter loading
             if name in params_dict:
                 param = params_dict[name]
+                # logger.warning("LOAD DEBUG: resolved_name=%s param_shape=%s loaded_shape=%s", name, tuple(param.data.shape), tuple(loaded_weight.shape))
                 loader = getattr(param, "weight_loader", None)
                 if loader is not None:
+                    # logger.warning("LOAD DEBUG: before custom loader name=%s", name)
                     loader(param, loaded_weight)
+                    # logger.warning("LOAD DEBUG: after custom loader name=%s", name)
                 elif param.data.shape == loaded_weight.shape:
+                    # logger.warning("LOAD DEBUG: before copy_ name=%s", name)
                     param.data.copy_(loaded_weight)
+                    # logger.warning("LOAD DEBUG: after copy_ name=%s", name)
                 else:
                     logger.warning(
                         "Shape mismatch: param %s (%s) vs loaded (%s), skipping.",
@@ -1332,9 +1396,10 @@ def _remap_weight_name(name: str) -> str:
     elif name.startswith("model.visual."):
         name = name.replace("model.visual.", "visual.", 1)
 
-    # Vision attention QKV renaming (fused weights in checkpoint)
+    # Vision attention param renaming (checkpoint -> pymllm names)
     if "visual" in name:
         name = name.replace("attn.qkv.", "attn.qkv_proj.")
+        name = name.replace("attn.proj.", "attn.out_proj.")
 
     return name
 
