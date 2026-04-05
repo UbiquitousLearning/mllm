@@ -1,12 +1,9 @@
 #pragma once
 
 #include <mllm_kernel/utils.cuh>
+#include <mllm_kernel/scalar_type.hpp>
 
 #include <iostream>
-
-// Bridge the mllm_kernel::host namespace to the `host` namespace expected by
-// Marlin code (originally from sglang).
-namespace host = ::mllm_kernel::host;
 
 namespace device::marlin {
 // Marlin params
