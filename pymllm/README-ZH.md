@@ -2,33 +2,31 @@
 
 ![pymllm-arch](../assets/pymllm-arch.png)
 
-## Environment TODO
+## 环境配置 ToDo
 
-The items below are intentionally left blank for a teammate to fill in for the
-current Jetson Orin environment:
+以下内容暂时留白，留给另一位同学按当前 Jetson Orin 实际环境补充：
 
-- [ ] JetPack / L4T version
-- [ ] CUDA / cuDNN / TensorRT versions
-- [ ] Python / pip / venv or conda environment details
-- [ ] PyTorch / torchvision / transformers / safetensors versions
-- [ ] flashinfer version and installation method
-- [ ] Extra system dependencies and apt packages
-- [ ] Memory and VRAM tuning notes
-- [ ] Required environment variables
+- [ ] JetPack / L4T 版本
+- [ ] CUDA / cuDNN / TensorRT 版本
+- [ ] Python / pip / venv 或 conda 环境信息
+- [ ] PyTorch / torchvision / transformers / safetensors 版本
+- [ ] flashinfer 版本与安装方式
+- [ ] 其他系统依赖与 apt 包
+- [ ] 显存与内存相关建议配置
+- [ ] 需要的环境变量
 
-## Scope
+## 适用范围
 
-This document covers `pymllm` usage on Jetson Orin based on the workflows
-validated in this repository.
+本文档面向 Jetson Orin 上的 `pymllm` 使用，内容基于当前仓库内已验证流程整理。
 
-The current validated paths are:
+当前只覆盖两条已验证路径：
 
-- Base model: `Qwen3-VL-2B-Instruct`
-- Quantized model: `Qwen3-VL-2B-Instruct-AWQ-4bit` with `compressed-tensors`
+- 原生模型：`Qwen3-VL-2B-Instruct`
+- 量化模型：`Qwen3-VL-2B-Instruct-AWQ-4bit` + `compressed-tensors`
 
-## Install the editable development environment
+## 安装 editable 开发环境
 
-Run the following from the repository root:
+在仓库根目录执行：
 
 ```bash
 cd <repo-root>
@@ -36,7 +34,7 @@ SKBUILD_WHEEL_CMAKE=false python3 -m pip install -e .
 python3 -m pip install -e <repo-root>/mllm-kernel --no-deps --no-build-isolation
 ```
 
-After installation, run a minimal import check:
+安装完成后，可以用下面的命令做最小检查：
 
 ```bash
 python3 - <<'PY'
@@ -48,11 +46,11 @@ print("mllm_kernel import ok")
 PY
 ```
 
-## Launch the pymllm server
+## 启动 pymllm server
 
-### Launch the quantized model
+### 启动量化模型服务
 
-The following `compressed-tensors` command has been validated on Jetson Orin:
+当前 Jetson Orin 上已验证的 `compressed-tensors` 启动命令如下：
 
 ```bash
 python3 -m pymllm.server.launch \
@@ -76,15 +74,14 @@ python3 -m pymllm.server.launch \
   2>&1 | tee /tmp/pymllm_qwen3_vl_awq_ct.log
 ```
 
-Notes:
+说明：
 
-- If port `30000` is already in use, switch to another free port such as
-  `30001`.
-- This validated quantized path uses `float16`.
+- 若 `30000` 已被占用，可改成其他空闲端口，例如 `30001`。
+- 当前这条量化路径按已验证配置使用 `float16`。
 
-### Launch the base model
+### 启动原生模型服务
 
-To run the base `Qwen3-VL-2B-Instruct` model:
+如果要运行原生 `Qwen3-VL-2B-Instruct`，可使用：
 
 ```bash
 python3 -m pymllm.server.launch \
@@ -107,34 +104,33 @@ python3 -m pymllm.server.launch \
   2>&1 | tee /tmp/pymllm_server.log
 ```
 
-## Request examples
+## 调用示例
 
-The examples below use the OpenAI-compatible API and work with `curl` or any
-SGLang/OpenAI-compatible client:
+以下示例使用 OpenAI-compatible 接口，适合直接用 `curl` 或兼容 SGLang/OpenAI API 的客户端访问：
 
 ```text
 /v1/chat/completions
 ```
 
-### Text inference
+### 文本推理示例
 
-Use the following minimal text request as a smoke test:
+服务启动后，可以用下面的最小文本请求做 smoke test：
 
 ```bash
 curl -s --noproxy '*' http://127.0.0.1:30000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "<served-model-name-or-path>",
-    "messages": [{"role": "user", "content": "Reply with: ok"}],
+    "messages": [{"role": "user", "content": "你好，只回复：ok"}],
     "max_tokens": 8,
     "temperature": 0.0,
     "stream": false
   }' ; echo
 ```
 
-### Image inference
+### 图片推理示例
 
-First, prepare a request payload that references a local image path:
+先构造一个包含本地图片路径的请求：
 
 ```bash
 python3 - <<'PY'
@@ -146,7 +142,7 @@ payload = {
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Please describe this image in detail."},
+                {"type": "text", "text": "请详细描述这张图片。"},
                 {
                     "type": "image_url",
                     "image_url": {"url": "<image-path>"},
@@ -166,7 +162,7 @@ print("saved /tmp/mm_req_path.json")
 PY
 ```
 
-Then send the request:
+然后发送请求：
 
 ```bash
 curl -s --noproxy '*' \
@@ -175,15 +171,13 @@ curl -s --noproxy '*' \
   --data @/tmp/mm_req_path.json ; echo
 ```
 
-## Validated configuration
+## 当前已验证配置
 
-The validated quantized setup described in this document uses:
+当前文档对应的量化路径，已验证的是下面这组模型与配置：
 
-- Model family: `Qwen3-VL-2B-Instruct-AWQ-4bit`
-- Quantization method: `compressed-tensors`
-- Load format: `safetensors`
-- Dtype: `float16`
+- 模型类型：`Qwen3-VL-2B-Instruct-AWQ-4bit`
+- quantization method：`compressed-tensors`
+- load format：`safetensors`
+- dtype：`float16`
 
-If this repository later adds validated instructions for other models,
-precisions, or quantization variants, extend this README with the new commands
-and notes.
+如果后续扩展到其他模型、精度或量化变体，建议继续补充新的实测命令与说明。
