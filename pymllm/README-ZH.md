@@ -2,18 +2,20 @@
 
 ![pymllm-arch](../assets/pymllm-arch.png)
 
-## 环境配置 ToDo
+## 已验证环境
 
-以下内容暂时留白，留给另一位同学按当前 Jetson Orin 实际环境补充：
+本文档中的命令基于 Jetson Orin 上已验证通过的如下环境整理：
 
-- [ ] JetPack / L4T 版本
-- [ ] CUDA / cuDNN / TensorRT 版本
-- [ ] Python / pip / venv 或 conda 环境信息
-- [ ] PyTorch / torchvision / transformers / safetensors 版本
-- [ ] flashinfer 版本与安装方式
-- [ ] 其他系统依赖与 apt 包
-- [ ] 显存与内存相关建议配置
-- [ ] 需要的环境变量
+- JetPack / L4T：`R36.4.4`（来自 `/etc/nv_tegra_release`）
+- Python：`3.10.12`
+- pip：`26.0.1`
+- PyTorch：`2.4.0`
+- torchvision：`0.19.0a0+48b1edf`
+- transformers：`5.3.0`
+- safetensors：`0.7.0`
+- flashinfer：`0.6.7`
+- CUDA：`12.6`
+- `torch.cuda.is_available()`：`True`
 
 ## 适用范围
 

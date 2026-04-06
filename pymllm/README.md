@@ -2,19 +2,21 @@
 
 ![pymllm-arch](../assets/pymllm-arch.png)
 
-## Environment TODO
+## Validated environment
 
-The items below are intentionally left blank for a teammate to fill in for the
-current Jetson Orin environment:
+The commands in this document were validated on Jetson Orin with the following
+environment baseline:
 
-- [ ] JetPack / L4T version
-- [ ] CUDA / cuDNN / TensorRT versions
-- [ ] Python / pip / venv or conda environment details
-- [ ] PyTorch / torchvision / transformers / safetensors versions
-- [ ] flashinfer version and installation method
-- [ ] Extra system dependencies and apt packages
-- [ ] Memory and VRAM tuning notes
-- [ ] Required environment variables
+- JetPack / L4T: `R36.4.4` (`/etc/nv_tegra_release`)
+- Python: `3.10.12`
+- pip: `26.0.1`
+- PyTorch: `2.4.0`
+- torchvision: `0.19.0a0+48b1edf`
+- transformers: `5.3.0`
+- safetensors: `0.7.0`
+- flashinfer: `0.6.7`
+- CUDA: `12.6`
+- `torch.cuda.is_available()`: `True`
 
 ## Scope
 
