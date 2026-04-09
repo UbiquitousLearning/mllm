@@ -33,16 +33,19 @@ class AscendKVCache {
   /// @param layer_idx Layer index
   /// @param k New key states [B, kv_heads, S, D]
   /// @param v New value states [B, kv_heads, S, D]
-  /// @return Pair of (k_cached, v_cached) with full cached sequence
-  ///         If GQA is enabled, returns repeated version [B, q_heads, S, D]
-  ///         Otherwise returns [B, kv_heads, S, D]
+  /// @return Pair of (k_cached, v_cached) with full cached sequence [B, kv_heads, S, D]
   std::array<Tensor, 2> updateKVCache(int32_t layer_idx, const Tensor& k, const Tensor& v);
 
   /// Get current cached sequence length for a layer
   [[nodiscard]] int32_t getCurrentSeqCnt(int32_t layer_idx) const { return current_seq_cnt_[layer_idx]; }
 
+  /// Advance cached sequence length after a graph/plugin has updated the cache buffers.
+  void advanceSeqCnt(int32_t layer_idx, int32_t append_seq_len);
+
   /// Get number of layers
   [[nodiscard]] int32_t getLayerNums() const { return layer_nums_; }
+
+  [[nodiscard]] int32_t getMaxCacheLength() const { return max_cache_length_; }
 
   /// Clear all cached data
   void clearCache();
@@ -58,18 +61,12 @@ class AscendKVCache {
   int32_t layer_nums_{0};
   int32_t kv_heads_{0};
   int32_t head_dim_{0};
-  int32_t num_key_value_groups_{1};  // Number of query head groups per KV head
   DataTypes dtype_{kFloat16};
 
   // k_cache_[layer]: [1, kv_heads, max_cache_length, head_dim] - contiguous on Ascend
   std::vector<Tensor> k_cache_;
   // v_cache_[layer]: [1, kv_heads, max_cache_length, head_dim] - contiguous on Ascend
   std::vector<Tensor> v_cache_;
-
-  // For GQA: repeated versions [1, q_heads, max_cache_length, head_dim]
-  // Only allocated if num_key_value_groups_ > 1
-  std::vector<Tensor> k_cache_repeated_;
-  std::vector<Tensor> v_cache_repeated_;
 
   // Current sequence count per layer
   std::vector<int32_t> current_seq_cnt_;

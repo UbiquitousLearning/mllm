@@ -91,6 +91,18 @@ void AscendGraphBuilder::addOperation(
   }
 }
 
+void AscendGraphBuilder::reshape(
+    const std::string& src_tensor_name,
+    atb::ReshapeFunc reshape_func,
+    const std::string& view_tensor_name) {
+  auto ret = builder_->Reshape(src_tensor_name, reshape_func, view_tensor_name);
+  if (ret != atb::NO_ERROR) {
+    MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                    "Reshape failed for graph '{}', src='{}', view='{}', status={}",
+                    current_graph_name_, src_tensor_name, view_tensor_name, static_cast<int>(ret));
+  }
+}
+
 atb::Operation* AscendGraphBuilder::build() {
   atb::Operation* graphOp = builder_->Build();
 

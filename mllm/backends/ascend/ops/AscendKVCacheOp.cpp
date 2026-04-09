@@ -17,8 +17,8 @@ AscendKVCache::AscendKVCache(int32_t max_cache_length, int32_t layer_nums, int32
       layer_nums_(layer_nums),
       kv_heads_(kv_heads),
       head_dim_(head_dim),
-      num_key_value_groups_(num_key_value_groups),
       dtype_(dtype) {
+  (void)num_key_value_groups;
   // Allocate contiguous cache tensors for each layer
   // Shape: [1, kv_heads, max_cache_length, head_dim]
   for (int i = 0; i < layer_nums_; ++i) {
@@ -28,23 +28,23 @@ AscendKVCache::AscendKVCache(int32_t max_cache_length, int32_t layer_nums, int32
         Tensor::zeros({1, kv_heads_, max_cache_length_, head_dim_}, dtype_, kAscend));
     current_seq_cnt_.push_back(0);
   }
-
-  // For GQA: allocate repeated cache tensors
-  if (num_key_value_groups_ > 1) {
-    int32_t q_heads = kv_heads_ * num_key_value_groups_;
-    for (int i = 0; i < layer_nums_; ++i) {
-      k_cache_repeated_.emplace_back(
-          Tensor::zeros({1, q_heads, max_cache_length_, head_dim_}, dtype_, kAscend));
-      v_cache_repeated_.emplace_back(
-          Tensor::zeros({1, q_heads, max_cache_length_, head_dim_}, dtype_, kAscend));
-    }
-  }
 }
 
 void AscendKVCache::clearCache() {
   for (int32_t layer_idx = 0; layer_idx < layer_nums_; ++layer_idx) {
     current_seq_cnt_[layer_idx] = 0;
   }
+}
+
+void AscendKVCache::advanceSeqCnt(int32_t layer_idx, int32_t append_seq_len) {
+  MLLM_RT_ASSERT(layer_idx >= 0 && layer_idx < layer_nums_);
+  MLLM_RT_ASSERT(append_seq_len >= 0);
+  if (current_seq_cnt_[layer_idx] + append_seq_len > max_cache_length_) {
+    MLLM_ERROR_EXIT(ExitCode::kCoreError,
+                    "AscendKVCache: sequence length {} + {} exceeds max_cache_length {}",
+                    current_seq_cnt_[layer_idx], append_seq_len, max_cache_length_);
+  }
+  current_seq_cnt_[layer_idx] += append_seq_len;
 }
 
 std::array<Tensor, 2> AscendKVCache::updateKVCache(int32_t layer_idx, const Tensor& k, const Tensor& v) {
@@ -54,8 +54,6 @@ std::array<Tensor, 2> AscendKVCache::updateKVCache(int32_t layer_idx, const Tens
   MLLM_RT_ASSERT(k.device() == kAscend && v.device() == kAscend);
 
   auto inputs_seq_len = k.shape()[2];
-  auto batch_size = k.shape()[0];
-
   // Check if we have enough space
   if (current_seq_cnt_[layer_idx] + inputs_seq_len > max_cache_length_) {
     MLLM_ERROR_EXIT(ExitCode::kCoreError,
@@ -108,68 +106,8 @@ std::array<Tensor, 2> AscendKVCache::updateKVCache(int32_t layer_idx, const Tens
   // CRITICAL: Sync required for long sequences to ensure KV cache is updated before next layer
   syncGlobalAtbStream();
 
-  // Save old sequence count before updating (for incremental GQA repeat)
-  const int32_t old_seq_cnt = current_seq_cnt_[layer_idx];
-
   // Update sequence count
   current_seq_cnt_[layer_idx] += inputs_seq_len;
-
-  // ===== Optimization: GQA Incremental Update =====
-  // If GQA is enabled, update repeated cache and return it
-  if (num_key_value_groups_ > 1) {
-    // Only copy the newly added tokens, not the entire history
-    // This changes complexity from O(N²) to O(N) for generating N tokens
-    const size_t element_size = bytesOfType(dtype_) / lanesOfType(dtype_);
-
-    // NEW: Calculate size of only the new sequence portion
-    const size_t new_seq_bytes = inputs_seq_len * head_dim_ * element_size;
-
-    // NEW: Calculate offset to the new sequence portion in cache
-    const size_t cache_seq_offset = old_seq_cnt * head_dim_ * element_size;
-
-    const char* k_src_base = static_cast<const char*>(k_cache_[layer_idx].ptr<void>());
-    const char* v_src_base = static_cast<const char*>(v_cache_[layer_idx].ptr<void>());
-    char* k_dst_base = static_cast<char*>(k_cache_repeated_[layer_idx].ptr<void>());
-    char* v_dst_base = static_cast<char*>(v_cache_repeated_[layer_idx].ptr<void>());
-
-    const size_t src_head_stride = max_cache_length_ * head_dim_ * element_size;
-    const size_t dst_head_stride = max_cache_length_ * head_dim_ * element_size;
-
-    for (int32_t h = 0; h < kv_heads_; ++h) {
-      // NEW: Source pointer now points to the new sequence portion (with offset)
-      const void* k_src = k_src_base + h * src_head_stride + cache_seq_offset;
-      const void* v_src = v_src_base + h * src_head_stride + cache_seq_offset;
-
-      // Repeat this KV head to num_key_value_groups_ Q head positions
-      for (int32_t r = 0; r < num_key_value_groups_; ++r) {
-        // NEW: Destination pointer also points to the new sequence portion (with offset)
-        void* k_dst = k_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride + cache_seq_offset;
-        void* v_dst = v_dst_base + (h * num_key_value_groups_ + r) * dst_head_stride + cache_seq_offset;
-
-        // NEW: Only copy new_seq_bytes (not entire history)
-        auto ret = aclrtMemcpy(k_dst, new_seq_bytes, k_src, new_seq_bytes, ACL_MEMCPY_DEVICE_TO_DEVICE);
-        if (ret != ACL_SUCCESS) {
-          MLLM_ACL_CHECK(ret);
-        }
-
-        ret = aclrtMemcpy(v_dst, new_seq_bytes, v_src, new_seq_bytes, ACL_MEMCPY_DEVICE_TO_DEVICE);
-        if (ret != ACL_SUCCESS) {
-          MLLM_ACL_CHECK(ret);
-        }
-      }
-    }
-
-    // CRITICAL: Sync required for GQA repeated cache update
-    syncGlobalAtbStream();
-
-    // Return sliced repeated cache [1, q_heads, current_seq, head_dim]
-    return {
-        k_cache_repeated_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],
-        v_cache_repeated_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],
-    };
-  }
-
-  // MHA case: return sliced cache tensors [1, kv_heads, current_seq, head_dim]
   return {
       k_cache_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],
       v_cache_[layer_idx][{kAll, kAll, {kAll, current_seq_cnt_[layer_idx]}, kAll}],

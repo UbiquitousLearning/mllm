@@ -15,6 +15,28 @@
 namespace mllm::ascend {
 
 namespace {
+aclDataType toAclDataType(DataTypes dtype) {
+  switch (dtype) {
+    case kFloat32: return ACL_FLOAT;
+    case kFloat16: return ACL_FLOAT16;
+    case kBFloat16: return ACL_BF16;
+    case kInt8: return ACL_INT8;
+    case kInt16: return ACL_INT16;
+    case kInt32: return ACL_INT32;
+    case kInt64: return ACL_INT64;
+    case kUInt8:
+    case kByte:
+    case kBool: return ACL_UINT8;
+    case kUInt16: return ACL_UINT16;
+    case kUInt32: return ACL_UINT32;
+    case kUInt64: return ACL_UINT64;
+    default:
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "Unsupported tensor dtype {} for ATB tensor descriptor",
+                      static_cast<int>(dtype));
+  }
+}
+
 aclrtStream& globalAtbStream() {
   static aclrtStream stream = nullptr;
   return stream;
@@ -208,7 +230,7 @@ void syncGlobalAtbStream() {
 }
 
 void fillAtbTensorDesc(const Tensor& t, atb::TensorDesc& desc) {
-  desc.dtype = ACL_FLOAT16; // Currently hardcoded as per demo, can be expanded later
+  desc.dtype = toAclDataType(t.dtype());
   desc.format = ACL_FORMAT_ND;
 
   auto shape = t.shape();

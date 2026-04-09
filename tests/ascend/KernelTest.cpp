@@ -14,6 +14,8 @@
 // Tests for ATB graph construction and execution
 //===----------------------------------------------------------------------===//
 #include "AscendGraphBuilderTest.hpp"
+#include "AscendCausalMaskGraphTest.hpp"
+#include "AscendLinearSoftmaxGraphTest.hpp"
 TEST_F(AscendGraphBuilderTest, LinearGraph) {
   EXPECT_EQ(LinearGraphTest(), true);
 }
@@ -22,7 +24,28 @@ TEST_F(AscendGraphBuilderTest, LinearGraphAccuracy) {
   EXPECT_EQ(LinearGraphAccuracyTest(), true);
 }
 
+TEST_F(AscendLinearSoftmaxGraphTest, LinearSoftmaxGraph) {
+  EXPECT_EQ(LinearSoftmaxGraphPassTest(), true);
+}
+
+TEST_F(AscendLinearSoftmaxGraphTest, LinearSoftmaxGraphAccuracy) {
+  EXPECT_EQ(LinearSoftmaxGraphAccuracyTest(), true);
+}
+
+TEST_F(AscendCausalMaskGraphTest, CausalMaskPluginGraphAccuracy) {
+  EXPECT_EQ(CausalMaskPluginGraphAccuracyTest(), true);
+}
+
+TEST_F(AscendCausalMaskGraphTest, CausalMaskPluginGraphPrefill) {
+  EXPECT_EQ(CausalMaskPluginGraphPrefillTest(), true);
+}
+
+TEST_F(AscendCausalMaskGraphTest, CausalMaskPluginGraphDecode) {
+  EXPECT_EQ(CausalMaskPluginGraphDecodeTest(), true);
+}
+
 TEST_F(AscendGraphBuilderTest, BasicCreation) {
+
   EXPECT_EQ(BasicCreationTest(), true);
 }
 
@@ -345,4 +368,3 @@ int main(int argc, char** argv) {
   
   return ret;
 }
-

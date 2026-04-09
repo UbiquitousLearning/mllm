@@ -56,6 +56,16 @@ class AscendGraphBuilder {
                     const std::vector<std::string>& output_names);
 
   /**
+   * @brief Create a reshaped tensor view inside the graph
+   *
+   * This only changes tensor metadata for downstream graph nodes and does not
+   * trigger device-side data movement.
+   */
+  void reshape(const std::string& src_tensor_name,
+               atb::ReshapeFunc reshape_func,
+               const std::string& view_tensor_name);
+
+  /**
    * @brief Build and return the final graph operation
    *
    * @return Pointer to the constructed graph operation
