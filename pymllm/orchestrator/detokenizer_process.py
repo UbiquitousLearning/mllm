@@ -117,6 +117,7 @@ class DetokenizerProcess:
         prompt_tokens_list: List[int] = token_id_out.get("prompt_tokens", [])
         completion_tokens_list: List[int] = token_id_out.get("completion_tokens", [])
         vit_prefill_ms_list = token_id_out.get("vit_prefill_ms", [])
+        vit_prefill_tokens_list = token_id_out.get("vit_prefill_tokens", [])
         llm_prefill_ms_list = token_id_out.get("llm_prefill_ms", [])
         llm_decode_ms_list = token_id_out.get("llm_decode_ms", [])
 
@@ -136,6 +137,9 @@ class DetokenizerProcess:
             )
             vit_prefill_ms = (
                 vit_prefill_ms_list[i] if i < len(vit_prefill_ms_list) else None
+            )
+            vit_prefill_tokens = (
+                vit_prefill_tokens_list[i] if i < len(vit_prefill_tokens_list) else None
             )
             llm_prefill_ms = (
                 llm_prefill_ms_list[i] if i < len(llm_prefill_ms_list) else None
@@ -174,6 +178,8 @@ class DetokenizerProcess:
             }
             if vit_prefill_ms is not None:
                 result["vit_prefill_ms"] = vit_prefill_ms
+            if vit_prefill_tokens is not None:
+                result["vit_prefill_tokens"] = vit_prefill_tokens
             if llm_prefill_ms is not None:
                 result["llm_prefill_ms"] = llm_prefill_ms
             if llm_decode_ms is not None:
