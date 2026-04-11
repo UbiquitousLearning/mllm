@@ -20,6 +20,7 @@ RadixCache lifecycle
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -373,12 +374,21 @@ class ModelRunnerProcess:
                 mrope_position_deltas=mrope_deltas_tensor,
             )
 
+        _forward_t0 = time.perf_counter()
         logits_output = runner.forward(fb)
+        _forward_ms = (time.perf_counter() - _forward_t0) * 1000.0
 
         # Extract timing info written by multimodal models onto ForwardBatch.
         vit_prefill_ms = getattr(fb, "vit_prefill_ms", None)
+        vit_prefill_tokens = getattr(fb, "vit_prefill_tokens", None)
         llm_prefill_ms = getattr(fb, "llm_prefill_ms", None)
         llm_decode_ms = getattr(fb, "llm_decode_ms", None)
+
+        # Decode may run through CUDA graph / non-Python execution paths where
+        # model-level Python timing hooks do not fire. Fall back to the outer
+        # runner.forward wall-clock time for decode batches.
+        if forward_mode == "decode" and llm_decode_ms is None:
+            llm_decode_ms = _forward_ms
 
         # Persist M-RoPE position deltas for multimodal models (Qwen3-VL).
         # The model sets mrope_position_deltas on the ForwardBatch during
@@ -432,6 +442,8 @@ class ModelRunnerProcess:
 
             if vit_prefill_ms is not None:
                 out["vit_prefill_ms"] = float(vit_prefill_ms)
+            if vit_prefill_tokens is not None:
+                out["vit_prefill_tokens"] = int(vit_prefill_tokens)
             if llm_prefill_ms is not None:
                 out["llm_prefill_ms"] = float(llm_prefill_ms)
             if llm_decode_ms is not None:
