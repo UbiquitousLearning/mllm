@@ -27,6 +27,7 @@ Designed for a single accelerator card — no tensor / pipeline parallelism.
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple
 
 import numpy as np
@@ -977,22 +978,6 @@ def _get_deepstack_embeds(
 # ---------------------------------------------------------------------------
 
 
-def _cuda_timed_run(fn):
-    if torch.cuda.is_available():
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
-        start.record()
-        out = fn()
-        end.record()
-        torch.cuda.synchronize()
-        return out, float(start.elapsed_time(end))
-    else:
-        import time
-        t0 = time.perf_counter()
-        out = fn()
-        t1 = time.perf_counter()
-        return out, float((t1 - t0) * 1000.0)
-
 class Qwen3VLForConditionalGeneration(nn.Module):
     """Qwen3-VL multimodal model for conditional generation.
 
@@ -1172,6 +1157,10 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         input_embeds = None
         input_deepstack_embeds = None
+        vit_prefill_ms = None
+        vit_prefill_tokens = None
+        llm_prefill_ms = None
+        llm_decode_ms = None
 
         if (
             pixel_values is not None
@@ -1180,9 +1169,11 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             and not forward_batch.forward_mode.is_decode()
         ):
             # Run vision encoder
-            vision_features, vit_prefill_ms = _cuda_timed_run(
-                lambda: self.visual(pixel_values, grid_thw=image_grid_thw)
+            _vit_t0 = time.perf_counter()
+            vision_features = (
+                self.visual(pixel_values, grid_thw=image_grid_thw)
             )
+            vit_prefill_ms = (time.perf_counter() - _vit_t0) * 1000.0
 
             # Separate main embeddings and deepstack embeddings
             if self.num_deepstack_embeddings > 0:
@@ -1195,8 +1186,8 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Get text embeddings and replace image tokens with vision features
             input_embeds = self.model.embed_tokens(input_ids)
             image_mask = input_ids == self.image_token_id
-            forward_batch.vit_prefill_ms = float(vit_prefill_ms)
             if image_mask.any():
+                vit_prefill_tokens = int(image_mask.sum().item())
                 input_embeds[image_mask] = vision_embeds.to(input_embeds.dtype)
 
             # Build per-token deepstack embeddings
@@ -1212,8 +1203,9 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 )
 
         # Text decoder
-        hidden_states, llm_ms = _cuda_timed_run(
-            lambda: self.model(
+        _llm_t0 = time.perf_counter()
+        hidden_states = (
+            self.model(
                 input_ids,
                 positions,
                 forward_batch,
@@ -1221,11 +1213,17 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 input_deepstack_embeds=input_deepstack_embeds,
             )
         )
+        _llm_ms = (time.perf_counter() - _llm_t0) * 1000.0
 
         if forward_batch.forward_mode.is_extend():
-            forward_batch.llm_prefill_ms = float(llm_ms)
+            llm_prefill_ms = _llm_ms
+            forward_batch.vit_prefill_ms = vit_prefill_ms
+            forward_batch.vit_prefill_tokens = vit_prefill_tokens
+            forward_batch.llm_prefill_ms = llm_prefill_ms
+            forward_batch.llm_decode_ms = None
         else:
-            forward_batch.llm_decode_ms = float(llm_ms)
+            llm_decode_ms = _llm_ms
+            forward_batch.llm_decode_ms = llm_decode_ms
 
         # Prune hidden_states before lm_head to avoid a wasteful
         # [total_tokens, vocab] matmul during prefill.

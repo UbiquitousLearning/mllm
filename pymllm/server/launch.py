@@ -740,6 +740,31 @@ async def openai_completions(obj: CompletionRequest, request: Request):
                     "completion_tokens": completion_tokens,
                     "total_tokens": prompt_tokens + completion_tokens,
                 },
+                "timing": {
+                    "vit_prefill_ms": r.get("vit_prefill_ms"),
+                    "llm_prefill_ms": r.get("llm_prefill_ms"),
+                    "llm_decode_ms": r.get("llm_decode_ms"),
+                    "prefill_tokens": prompt_tokens,
+                    "vit_prefill_tps": (
+                        None
+                        if r.get("vit_prefill_ms") is None
+                        or r.get("vit_prefill_ms") <= 0
+                        or r.get("vit_prefill_tokens") is None
+                        else r.get("vit_prefill_tokens") / (r.get("vit_prefill_ms") / 1000.0)
+                    ),
+                    "llm_prefill_tps": (
+                        None
+                        if r.get("llm_prefill_ms") is None
+                        or r.get("llm_prefill_ms") <= 0
+                        else prompt_tokens / (r.get("llm_prefill_ms") / 1000.0)
+                    ),
+                    "llm_decode_tps": (
+                        None
+                        if r.get("llm_decode_ms") is None
+                        or r.get("llm_decode_ms") <= 0
+                        else completion_tokens / (r.get("llm_decode_ms") / 1000.0)
+                    ),
+                },
             }
         )
     except ValueError as e:
@@ -990,6 +1015,26 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
                     "vit_prefill_ms": r.get("vit_prefill_ms"),
                     "llm_prefill_ms": r.get("llm_prefill_ms"),
                     "llm_decode_ms": r.get("llm_decode_ms"),
+                    "prefill_tokens": prompt_tokens,
+                    "vit_prefill_tps": (
+                        None
+                        if r.get("vit_prefill_ms") is None
+                        or r.get("vit_prefill_ms") <= 0
+                        or r.get("vit_prefill_tokens") is None
+                        else r.get("vit_prefill_tokens") / (r.get("vit_prefill_ms") / 1000.0)
+                    ),
+                    "llm_prefill_tps": (
+                        None
+                        if r.get("llm_prefill_ms") is None
+                        or r.get("llm_prefill_ms") <= 0
+                        else prompt_tokens / (r.get("llm_prefill_ms") / 1000.0)
+                    ),
+                    "llm_decode_tps": (
+                        None
+                        if r.get("llm_decode_ms") is None
+                        or r.get("llm_decode_ms") <= 0
+                        else completion_tokens / (r.get("llm_decode_ms") / 1000.0)
+                    ),
                 },
             }
         )

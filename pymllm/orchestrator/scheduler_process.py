@@ -125,8 +125,10 @@ class Req:
         "prompt_len",
         # Timing stats
         "vit_prefill_ms",
+        "vit_prefill_tokens",
         "llm_prefill_ms",
         "llm_decode_ms",
+        "decode_start_tic",
     )
 
     def __init__(
@@ -181,8 +183,10 @@ class Req:
 
         # Timing stats
         self.vit_prefill_ms = None
+        self.vit_prefill_tokens = None
         self.llm_prefill_ms = None
         self.llm_decode_ms = None
+        self.decode_start_tic = None
 
     def check_finished(self) -> bool:
         """Check if this request has reached a finish condition.
@@ -787,10 +791,12 @@ class SchedulerProcess:
             # get_next_batch_to_run; correct the over-reservation now.
             if "vit_prefill_ms" in out:
                 req.vit_prefill_ms = out["vit_prefill_ms"]
+            if "vit_prefill_tokens" in out:
+                req.vit_prefill_tokens = out["vit_prefill_tokens"]
             if "llm_prefill_ms" in out:
                 req.llm_prefill_ms = out["llm_prefill_ms"]
             if "llm_decode_ms" in out:
-                req.llm_decode_ms = out["llm_decode_ms"]
+                req.llm_decode_ms = (req.llm_decode_ms or 0.0) + out["llm_decode_ms"]
 
             if "prefix_len" in out and batch.forward_mode.is_extend():
                 actual_prefix_len = out["prefix_len"]
@@ -824,6 +830,12 @@ class SchedulerProcess:
             # Check finish conditions (EOS tokens already in stop_token_ids)
             req.check_finished()
 
+        if batch.forward_mode.is_decode():
+            _decode_now = time.perf_counter()
+            for req in batch.reqs:
+                if req.decode_start_tic is not None:
+                    req.llm_decode_ms = (_decode_now - req.decode_start_tic) * 1000.0
+
         # Process batch requests based on forward mode
         if batch.forward_mode.is_extend():
             # Prefill batch: mark as prefilled and route
@@ -834,6 +846,9 @@ class SchedulerProcess:
                     self._model_runner._free_rid_resources(req.rid)
                     self._free_req_resources(req)
                 else:
+                    if req.decode_start_tic is None:
+                        req.decode_start_tic = time.perf_counter()
+                        req.llm_decode_ms = 0.0
                     self._running_batch.append(req)
 
             # --- Accumulate prefill metrics ---
@@ -893,6 +908,7 @@ class SchedulerProcess:
                     "prompt_tokens": [req.prompt_len],
                     "completion_tokens": [len(req.output_ids)],
                     "vit_prefill_ms": [req.vit_prefill_ms],
+                    "vit_prefill_tokens": [req.vit_prefill_tokens],
                     "llm_prefill_ms": [req.llm_prefill_ms],
                     "llm_decode_ms": [req.llm_decode_ms],
                 }
@@ -972,6 +988,7 @@ class SchedulerProcess:
             "prompt_tokens": [req.prompt_len],
             "completion_tokens": [len(req.output_ids)],
             "vit_prefill_ms": [req.vit_prefill_ms],
+            "vit_prefill_tokens": [req.vit_prefill_tokens],
             "llm_prefill_ms": [req.llm_prefill_ms],
             "llm_decode_ms": [req.llm_decode_ms],
         }
