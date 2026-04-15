@@ -28,6 +28,11 @@ The current validated paths are:
 - Base model: `Qwen3-VL-2B-Instruct`
 - Quantized model: `Qwen3-VL-2B-Instruct-AWQ-4bit` with `compressed-tensors`
 
+The current implemented (code-level) but not yet end-to-end validated path is:
+
+- Quantized model: `Qwen3-VL-2B-Instruct-quantized.w8a8` with
+  `compressed-tensors` (`format: int-quantized`)
+
 ## Install the editable development environment
 
 Run the following from the repository root:
@@ -83,6 +88,34 @@ Notes:
 - If port `30000` is already in use, switch to another free port such as
   `30001`.
 - This validated quantized path uses `float16`.
+
+### Bring up W8A8 `int-quantized` (implementation status)
+
+`pymllm` now includes a W8A8 correctness backend in
+`quantization/methods/compressed_tensors.py`:
+
+- dynamic per-token int8 activation quantization
+- int8xint8 matmul via `torch._int_mm` when available
+- auto padding for small `M` (`M <= 16`) before `torch._int_mm`
+
+Suggested launch command for a W8A8 model:
+
+```bash
+python3 -m pymllm.server.launch \
+  --server.model_path <qwen3-vl-w8a8-model-path> \
+  --server.tokenizer_path <qwen3-vl-w8a8-model-path> \
+  --server.load_format safetensors \
+  --server.dtype float16 \
+  --quantization.method compressed-tensors \
+  --server.host 0.0.0.0 \
+  --server.port 30000
+```
+
+Current limitations:
+
+- this path is focused on correctness first (not peak performance yet)
+- `mllm-kernel` native `int8_scaled_mm` path is not integrated yet
+- full model smoke results depend on model availability
 
 ### Launch the base model
 

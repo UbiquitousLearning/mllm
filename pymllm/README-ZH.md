@@ -26,6 +26,11 @@
 - 原生模型：`Qwen3-VL-2B-Instruct`
 - 量化模型：`Qwen3-VL-2B-Instruct-AWQ-4bit` + `compressed-tensors`
 
+当前还有一条“代码已支持、但尚未完成端到端实测”的路径：
+
+- 量化模型：`Qwen3-VL-2B-Instruct-quantized.w8a8` +
+  `compressed-tensors`（`format: int-quantized`）
+
 ## 安装 editable 开发环境
 
 在仓库根目录执行：
@@ -80,6 +85,34 @@ python3 -m pymllm.server.launch \
 
 - 若 `30000` 已被占用，可改成其他空闲端口，例如 `30001`。
 - 当前这条量化路径按已验证配置使用 `float16`。
+
+### W8A8 `int-quantized` 启动说明（实现状态）
+
+当前 `pymllm` 已在 `quantization/methods/compressed_tensors.py` 中接入
+W8A8 的正确性优先后端，包含：
+
+- 动态 per-token INT8 激活量化
+- 优先使用 `torch._int_mm` 执行 INT8xINT8 矩阵乘法
+- 对小 batch（`M <= 16`）自动 padding 后再调用 `torch._int_mm`
+
+建议启动命令：
+
+```bash
+python3 -m pymllm.server.launch \
+  --server.model_path <qwen3-vl-w8a8-model-path> \
+  --server.tokenizer_path <qwen3-vl-w8a8-model-path> \
+  --server.load_format safetensors \
+  --server.dtype float16 \
+  --quantization.method compressed-tensors \
+  --server.host 0.0.0.0 \
+  --server.port 30000
+```
+
+当前限制：
+
+- 该路径目标是先保证正确性，暂未针对性能极致优化
+- `mllm-kernel` 原生 `int8_scaled_mm` 高性能路径尚未接入
+- 端到端 smoke 结果仍依赖目标模型文件是否可用
 
 ### 启动原生模型服务
 
