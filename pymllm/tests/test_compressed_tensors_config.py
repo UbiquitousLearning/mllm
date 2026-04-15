@@ -30,6 +30,35 @@ def _current_ct_config():
     }
 
 
+def _current_ct_w8a8_config():
+    return {
+        "quant_method": "compressed-tensors",
+        "format": "int-quantized",
+        "config_groups": {
+            "group_0": {
+                "targets": ["Linear"],
+                "weights": {
+                    "num_bits": 8,
+                    "group_size": None,
+                    "strategy": "channel",
+                    "symmetric": True,
+                    "dynamic": False,
+                    "actorder": None,
+                    "type": "int",
+                },
+                "input_activations": {
+                    "num_bits": 8,
+                    "strategy": "token",
+                    "symmetric": True,
+                    "dynamic": True,
+                    "type": "int",
+                },
+            },
+        },
+        "ignore": ["ignore_prefix"],
+    }
+
+
 def test_compressed_tensors_is_registered():
     assert "compressed-tensors" in list_quantization_methods()
     assert get_quantization_config("compressed-tensors") is CompressedTensorsConfig
@@ -45,6 +74,23 @@ def test_from_config_parses_current_signature():
     assert config.group_size == 32
     assert config.symmetric is True
     assert config.actorder is None
+    assert config.ignore == ["ignore_prefix"]
+
+
+def test_from_config_parses_w8a8_signature():
+    config = CompressedTensorsConfig.from_config(
+        copy.deepcopy(_current_ct_w8a8_config())
+    )
+
+    assert config.quant_format == "int-quantized"
+    assert config.weight_bits == 8
+    assert config.group_size is None
+    assert config.weight_strategy == "channel"
+    assert config.weight_type == "int"
+    assert config.symmetric is True
+    assert config.input_bits == 8
+    assert config.input_strategy == "token"
+    assert config.input_dynamic is True
     assert config.ignore == ["ignore_prefix"]
 
 
@@ -85,3 +131,14 @@ def test_get_quant_method_rejects_unsupported_signature():
             layer=None,
             prefix="model.language_model.layers.0.self_attn.q_proj",
         )
+
+
+def test_get_quant_method_accepts_w8a8_signature():
+    config = CompressedTensorsConfig.from_config(
+        copy.deepcopy(_current_ct_w8a8_config())
+    )
+    method = config.get_quant_method(
+        layer=None,
+        prefix="model.language_model.layers.0.self_attn.q_proj",
+    )
+    assert isinstance(method, CompressedTensorsLinearMethod)

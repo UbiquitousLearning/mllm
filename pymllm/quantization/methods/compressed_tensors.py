@@ -58,6 +58,10 @@ def _weights_cfg(config: Dict[str, Any]) -> Dict[str, Any]:
     return config["config_groups"]["group_0"]["weights"]
 
 
+def _input_activations_cfg(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    return config["config_groups"]["group_0"].get("input_activations")
+
+
 def verify_marlin_supported(group_size: int) -> None:
     if group_size not in MARLIN_SUPPORTED_GROUP_SIZES:
         raise ValueError(
@@ -126,26 +130,73 @@ def replace_parameter(
     layer.register_parameter(name, Parameter(new_data, requires_grad=False))
 
 
-def _validate_supported_signature(config: "CompressedTensorsConfig") -> None:
-    if config.quant_format != "pack-quantized":
-        raise ValueError(
-            f"Unsupported compressed-tensors format: {config.quant_format}"
-        )
-    if config.weight_bits != 4:
-        raise ValueError(
-            f"Unsupported compressed-tensors num_bits: {config.weight_bits}"
-        )
-    if config.group_size != 32:
-        raise ValueError(
-            f"Unsupported compressed-tensors group_size: {config.group_size}"
-        )
-    if not config.symmetric:
-        raise ValueError("v1 only supports symmetric compressed-tensors")
-    if config.actorder is not None:
-        raise ValueError(
-            f"Unsupported compressed-tensors actorder: {config.actorder}"
-        )
-    verify_marlin_supported(config.group_size)
+def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
+    if config.quant_format == "pack-quantized":
+        if config.weight_bits != 4:
+            raise ValueError(
+                f"Unsupported compressed-tensors num_bits: {config.weight_bits}"
+            )
+        if config.group_size != 32:
+            raise ValueError(
+                f"Unsupported compressed-tensors group_size: {config.group_size}"
+            )
+        if not config.symmetric:
+            raise ValueError("v1 only supports symmetric compressed-tensors")
+        if config.actorder is not None:
+            raise ValueError(
+                f"Unsupported compressed-tensors actorder: {config.actorder}"
+            )
+        verify_marlin_supported(config.group_size)
+        return "w4a16"
+
+    if config.quant_format == "int-quantized":
+        if config.weight_bits != 8:
+            raise ValueError(
+                f"Unsupported compressed-tensors num_bits: {config.weight_bits}"
+            )
+        if config.group_size is not None:
+            raise ValueError(
+                f"Unsupported compressed-tensors group_size: {config.group_size}"
+            )
+        if config.weight_strategy != "channel":
+            raise ValueError(
+                f"Unsupported compressed-tensors weight strategy: "
+                f"{config.weight_strategy}"
+            )
+        if config.weight_type != "int":
+            raise ValueError(
+                f"Unsupported compressed-tensors weight type: {config.weight_type}"
+            )
+        if config.weight_dynamic:
+            raise ValueError("compressed-tensors int8 weights must be static")
+        if not config.symmetric:
+            raise ValueError("v1 only supports symmetric compressed-tensors")
+        if config.actorder is not None:
+            raise ValueError(
+                f"Unsupported compressed-tensors actorder: {config.actorder}"
+            )
+        if config.input_bits != 8:
+            raise ValueError(
+                f"Unsupported compressed-tensors input num_bits: {config.input_bits}"
+            )
+        if config.input_strategy != "token":
+            raise ValueError(
+                f"Unsupported compressed-tensors input strategy: "
+                f"{config.input_strategy}"
+            )
+        if config.input_type != "int":
+            raise ValueError(
+                f"Unsupported compressed-tensors input type: {config.input_type}"
+            )
+        if not config.input_dynamic:
+            raise ValueError("compressed-tensors int8 inputs must be dynamic")
+        if not config.input_symmetric:
+            raise ValueError("v1 only supports symmetric compressed-tensors input")
+        return "w8a8"
+
+    raise ValueError(
+        f"Unsupported compressed-tensors format: {config.quant_format}"
+    )
 
 
 class CompressedTensorsWNA16Scheme:
@@ -280,15 +331,67 @@ class CompressedTensorsWNA16Scheme:
         return output.reshape(out_shape)
 
 
-class CompressedTensorsLinearMethod(LinearMethodBase):
-    def __init__(self, quant_config: "CompressedTensorsConfig") -> None:
-        self.quant_config = quant_config
-        self.scheme = CompressedTensorsWNA16Scheme(
-            weight_bits=quant_config.weight_bits,
-            group_size=quant_config.group_size,
-            symmetric=quant_config.symmetric,
-            actorder=quant_config.actorder,
+class CompressedTensorsW8A8Scheme:
+    def __init__(self, *, weight_bits: int) -> None:
+        self.weight_bits = weight_bits
+
+    def create_weights(
+        self,
+        layer: torch.nn.Module,
+        input_size_per_partition: int,
+        output_partition_sizes: List[int],
+        input_size: int,
+        output_size: int,
+        params_dtype: torch.dtype,
+        **extra_weight_attrs: Any,
+    ) -> None:
+        del layer
+        del input_size_per_partition
+        del output_partition_sizes
+        del input_size
+        del output_size
+        del params_dtype
+        del extra_weight_attrs
+        raise NotImplementedError(
+            "compressed-tensors int8 runtime scheme is not implemented yet"
         )
+
+    def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
+        del layer
+        raise NotImplementedError(
+            "compressed-tensors int8 runtime scheme is not implemented yet"
+        )
+
+    def apply(
+        self,
+        layer: torch.nn.Module,
+        x: torch.Tensor,
+        bias: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        del layer
+        del x
+        del bias
+        raise NotImplementedError(
+            "compressed-tensors int8 runtime scheme is not implemented yet"
+        )
+
+
+class CompressedTensorsLinearMethod(LinearMethodBase):
+    def __init__(
+        self,
+        quant_config: "CompressedTensorsConfig",
+        signature: str,
+    ) -> None:
+        self.quant_config = quant_config
+        if signature == "w4a16":
+            self.scheme = CompressedTensorsWNA16Scheme(
+                weight_bits=quant_config.weight_bits,
+                group_size=quant_config.group_size,
+                symmetric=quant_config.symmetric,
+                actorder=quant_config.actorder,
+            )
+            return
+        self.scheme = CompressedTensorsW8A8Scheme(weight_bits=quant_config.weight_bits)
 
     def create_weights(self, *args: Any, **kwargs: Any) -> None:
         self.scheme.create_weights(*args, **kwargs)
@@ -313,17 +416,33 @@ class CompressedTensorsConfig(QuantizationConfig):
         quant_format: str,
         ignore: List[str],
         weight_bits: int,
-        group_size: int,
+        group_size: Optional[int],
+        weight_strategy: Optional[str],
+        weight_type: Optional[str],
+        weight_dynamic: bool,
         symmetric: bool,
         actorder: Optional[str],
+        input_bits: Optional[int],
+        input_strategy: Optional[str],
+        input_type: Optional[str],
+        input_dynamic: bool,
+        input_symmetric: bool,
     ) -> None:
         super().__init__()
         self.quant_format = quant_format
         self.ignore = ignore
         self.weight_bits = weight_bits
         self.group_size = group_size
+        self.weight_strategy = weight_strategy
+        self.weight_type = weight_type
+        self.weight_dynamic = weight_dynamic
         self.symmetric = symmetric
         self.actorder = actorder
+        self.input_bits = input_bits
+        self.input_strategy = input_strategy
+        self.input_type = input_type
+        self.input_dynamic = input_dynamic
+        self.input_symmetric = input_symmetric
 
     def get_name(self) -> str:
         return "compressed-tensors"
@@ -342,19 +461,48 @@ class CompressedTensorsConfig(QuantizationConfig):
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "CompressedTensorsConfig":
         weights = _weights_cfg(config)
+        input_activations = _input_activations_cfg(config)
         return cls(
             quant_format=config["format"],
             ignore=list(config.get("ignore", [])),
             weight_bits=weights["num_bits"],
             group_size=weights["group_size"],
+            weight_strategy=weights.get("strategy"),
+            weight_type=weights.get("type"),
+            weight_dynamic=bool(weights.get("dynamic", False)),
             symmetric=weights["symmetric"],
             actorder=weights.get("actorder"),
+            input_bits=(
+                input_activations.get("num_bits")
+                if input_activations is not None
+                else None
+            ),
+            input_strategy=(
+                input_activations.get("strategy")
+                if input_activations is not None
+                else None
+            ),
+            input_type=(
+                input_activations.get("type")
+                if input_activations is not None
+                else None
+            ),
+            input_dynamic=bool(
+                input_activations.get("dynamic", False)
+                if input_activations is not None
+                else False
+            ),
+            input_symmetric=bool(
+                input_activations.get("symmetric", False)
+                if input_activations is not None
+                else False
+            ),
         )
 
     def get_quant_method(
         self, layer: torch.nn.Module, prefix: str = ""
     ) -> Optional[CompressedTensorsLinearMethod]:
-        _validate_supported_signature(self)
+        signature = _validate_supported_signature(self)
         if any(ignored and prefix.startswith(ignored) for ignored in self.ignore):
             return None
-        return CompressedTensorsLinearMethod(self)
+        return CompressedTensorsLinearMethod(self, signature)
