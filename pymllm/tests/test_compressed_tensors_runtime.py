@@ -28,12 +28,51 @@ def _current_ct_config() -> dict:
     }
 
 
+def _current_ct_w8a8_config() -> dict:
+    return {
+        "quant_method": "compressed-tensors",
+        "format": "int-quantized",
+        "ignore": ["lm_head"],
+        "config_groups": {
+            "group_0": {
+                "targets": ["Linear"],
+                "weights": {
+                    "num_bits": 8,
+                    "group_size": None,
+                    "strategy": "channel",
+                    "symmetric": True,
+                    "dynamic": False,
+                    "actorder": None,
+                    "type": "int",
+                },
+                "input_activations": {
+                    "num_bits": 8,
+                    "strategy": "token",
+                    "symmetric": True,
+                    "dynamic": True,
+                    "type": "int",
+                },
+            }
+        },
+    }
+
+
 class _DummyLayer(nn.Module):
     pass
 
 
 def _build_quant_method() -> ct.CompressedTensorsLinearMethod:
     cfg = ct.CompressedTensorsConfig.from_config(_current_ct_config())
+    qm = cfg.get_quant_method(
+        layer=None,
+        prefix="model.language_model.layers.0.self_attn.q_proj",
+    )
+    assert isinstance(qm, ct.CompressedTensorsLinearMethod)
+    return qm
+
+
+def _build_quant_method_w8a8() -> ct.CompressedTensorsLinearMethod:
+    cfg = ct.CompressedTensorsConfig.from_config(_current_ct_w8a8_config())
     qm = cfg.get_quant_method(
         layer=None,
         prefix="model.language_model.layers.0.self_attn.q_proj",
@@ -186,3 +225,119 @@ def test_process_and_apply_use_gptq_repack_and_uint4b8(
     assert calls["perm"] is layer.g_idx_sort_indices
     assert calls["b_q_type_id"] == ct.SCALAR_TYPE_UINT4B8.id
     assert calls["b_q_weight"] is layer.weight_packed
+
+
+def test_w8a8_create_weights_registers_weight_and_scale():
+    layer = _DummyLayer()
+    qm = _build_quant_method_w8a8()
+
+    qm.create_weights(
+        layer=layer,
+        input_size_per_partition=64,
+        output_partition_sizes=[96],
+        input_size=64,
+        output_size=96,
+        params_dtype=torch.float16,
+        weight_loader=_weight_loader,
+    )
+
+    assert {"weight", "weight_scale"} <= set(layer._parameters)
+    assert tuple(layer.weight.shape) == (96, 64)
+    assert layer.weight.dtype == torch.int8
+    assert tuple(layer.weight_scale.shape) == (96, 1)
+    assert layer.weight_scale.dtype == torch.float32
+
+
+def test_w8a8_process_weights_transposes_and_flattens_scales():
+    layer = _DummyLayer()
+    qm = _build_quant_method_w8a8()
+    qm.create_weights(
+        layer=layer,
+        input_size_per_partition=32,
+        output_partition_sizes=[48],
+        input_size=32,
+        output_size=48,
+        params_dtype=torch.float16,
+        weight_loader=_weight_loader,
+    )
+
+    with torch.no_grad():
+        layer.weight.copy_(
+            torch.arange(layer.weight.numel(), dtype=torch.int8).reshape_as(layer.weight)
+        )
+        layer.weight_scale.copy_(
+            torch.arange(1, 49, dtype=torch.float32).reshape(48, 1) / 100.0
+        )
+
+    qm.process_weights_after_loading(layer)
+
+    assert tuple(layer.weight.shape) == (32, 48)
+    assert layer.weight.is_contiguous()
+    assert tuple(layer.weight_scale.shape) == (48,)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
+def test_w8a8_apply_matches_reference_for_large_m():
+    layer = _DummyLayer()
+    qm = _build_quant_method_w8a8()
+
+    with torch.device("cuda"):
+        qm.create_weights(
+            layer=layer,
+            input_size_per_partition=64,
+            output_partition_sizes=[128],
+            input_size=64,
+            output_size=128,
+            params_dtype=torch.float16,
+            weight_loader=_weight_loader,
+        )
+
+    with torch.no_grad():
+        layer.weight.copy_(
+            torch.randint(-127, 128, layer.weight.shape, device="cuda", dtype=torch.int8)
+        )
+        layer.weight_scale.copy_(
+            torch.rand(layer.weight_scale.shape, device="cuda", dtype=torch.float32)
+            + 1e-3
+        )
+    qm.process_weights_after_loading(layer)
+
+    x = torch.randn(32, 64, device="cuda", dtype=torch.float16)
+    bias = torch.randn(128, device="cuda", dtype=torch.float16)
+    out = qm.apply(layer, x, bias)
+
+    x_q, x_scale = ct._per_token_quant_int8(x)
+    ref_i32 = torch._int_mm(x_q, layer.weight).to(torch.float32)
+    ref = (ref_i32 * x_scale * layer.weight_scale.view(1, -1)).to(x.dtype) + bias
+
+    assert out.shape == (32, 128)
+    assert torch.allclose(out, ref, atol=2e-1, rtol=2e-1)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
+def test_w8a8_apply_supports_small_m_by_padding():
+    layer = _DummyLayer()
+    qm = _build_quant_method_w8a8()
+
+    with torch.device("cuda"):
+        qm.create_weights(
+            layer=layer,
+            input_size_per_partition=64,
+            output_partition_sizes=[64],
+            input_size=64,
+            output_size=64,
+            params_dtype=torch.float16,
+            weight_loader=_weight_loader,
+        )
+
+    with torch.no_grad():
+        layer.weight.copy_(
+            torch.randint(-127, 128, layer.weight.shape, device="cuda", dtype=torch.int8)
+        )
+        layer.weight_scale.fill_(0.01)
+    qm.process_weights_after_loading(layer)
+
+    x = torch.randn(2, 64, device="cuda", dtype=torch.float16)
+    out = qm.apply(layer, x)
+
+    assert out.shape == (2, 64)

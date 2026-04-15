@@ -130,6 +130,32 @@ def replace_parameter(
     layer.register_parameter(name, Parameter(new_data, requires_grad=False))
 
 
+def _per_token_quant_int8(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    # Dynamic per-token quantization for W8A8 INT8 activation path.
+    x_fp32 = x.to(torch.float32)
+    absmax = torch.clamp(x_fp32.abs().amax(dim=-1, keepdim=True), min=1e-10)
+    x_scale = absmax / 127.0
+    x_q = torch.round(x_fp32 / x_scale).clamp(-128, 127).to(torch.int8)
+    return x_q.contiguous(), x_scale.contiguous()
+
+
+def _int8_matmul(x_q: torch.Tensor, w_q_t: torch.Tensor) -> torch.Tensor:
+    if hasattr(torch, "_int_mm"):
+        try:
+            m = x_q.shape[0]
+            if m <= 16:
+                # torch._int_mm on CUDA requires M > 16 for this path.
+                padded = torch.zeros(
+                    (17, x_q.shape[1]), device=x_q.device, dtype=torch.int8
+                )
+                padded[:m].copy_(x_q)
+                return torch._int_mm(padded, w_q_t)[:m]
+            return torch._int_mm(x_q, w_q_t)
+        except RuntimeError:
+            pass
+    return x_q.to(torch.float32).matmul(w_q_t.to(torch.float32))
+
+
 def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
     if config.quant_format == "pack-quantized":
         if config.weight_bits != 4:
@@ -345,22 +371,57 @@ class CompressedTensorsW8A8Scheme:
         params_dtype: torch.dtype,
         **extra_weight_attrs: Any,
     ) -> None:
-        del layer
-        del input_size_per_partition
-        del output_partition_sizes
-        del input_size
         del output_size
         del params_dtype
-        del extra_weight_attrs
-        raise NotImplementedError(
-            "compressed-tensors int8 runtime scheme is not implemented yet"
+
+        output_size_per_partition = sum(output_partition_sizes)
+
+        weight = Parameter(
+            torch.empty(
+                output_size_per_partition,
+                input_size_per_partition,
+                dtype=torch.int8,
+            ),
+            requires_grad=False,
         )
+        set_weight_attrs(
+            weight, {"input_dim": 1, "output_dim": 0, **extra_weight_attrs}
+        )
+        layer.register_parameter("weight", weight)
+
+        weight_scale = Parameter(
+            torch.empty(
+                output_size_per_partition,
+                1,
+                dtype=torch.float32,
+            ),
+            requires_grad=False,
+        )
+        set_weight_attrs(weight_scale, {"output_dim": 0, **extra_weight_attrs})
+        layer.register_parameter("weight_scale", weight_scale)
+
+        layer.input_size_per_partition = input_size_per_partition
+        layer.output_size_per_partition = output_size_per_partition
+
+        del input_size
 
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
-        del layer
-        raise NotImplementedError(
-            "compressed-tensors int8 runtime scheme is not implemented yet"
-        )
+        if layer.weight.dtype != torch.int8:
+            raise ValueError(
+                f"compressed-tensors int8 expects weight dtype int8, got "
+                f"{layer.weight.dtype}"
+            )
+
+        replace_parameter(layer, "weight", layer.weight.data.t().contiguous())
+
+        scales = layer.weight_scale.data
+        if scales.dim() == 2 and scales.shape[1] == 1:
+            scales = scales[:, 0]
+        elif scales.dim() != 1:
+            raise ValueError(
+                "compressed-tensors int8 expects weight_scale shape [N,1] or [N]"
+            )
+        replace_parameter(layer, "weight_scale", scales.to(torch.float32).contiguous())
 
     def apply(
         self,
@@ -368,13 +429,18 @@ class CompressedTensorsW8A8Scheme:
         x: torch.Tensor,
         bias: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        del layer
-        del x
-        del bias
-        raise NotImplementedError(
-            "compressed-tensors int8 runtime scheme is not implemented yet"
-        )
+        reshaped_x = x.reshape(-1, x.shape[-1]).contiguous()
+        out_shape = x.shape[:-1] + (layer.output_size_per_partition,)
 
+        x_q, x_scale = _per_token_quant_int8(reshaped_x)
+        output_i32 = _int8_matmul(x_q, layer.weight)
+        output = output_i32.to(torch.float32)
+        output.mul_(x_scale)
+        output.mul_(layer.weight_scale.view(1, -1))
+        output = output.to(x.dtype)
+        if bias is not None:
+            output.add_(bias)
+        return output.reshape(out_shape)
 
 class CompressedTensorsLinearMethod(LinearMethodBase):
     def __init__(
