@@ -357,7 +357,7 @@ class CompressedTensorsWNA16Scheme:
         return output.reshape(out_shape)
 
 
-class CompressedTensorsW8A8Scheme:
+class CompressedTensorsW8A8Int8Scheme:
     def __init__(self, *, weight_bits: int) -> None:
         self.weight_bits = weight_bits
 
@@ -457,7 +457,9 @@ class CompressedTensorsLinearMethod(LinearMethodBase):
                 actorder=quant_config.actorder,
             )
             return
-        self.scheme = CompressedTensorsW8A8Scheme(weight_bits=quant_config.weight_bits)
+        self.scheme = CompressedTensorsW8A8Int8Scheme(
+            weight_bits=quant_config.weight_bits
+        )
 
     def create_weights(self, *args: Any, **kwargs: Any) -> None:
         self.scheme.create_weights(*args, **kwargs)
