@@ -341,3 +341,69 @@ def test_w8a8_apply_supports_small_m_by_padding():
     out = qm.apply(layer, x)
 
     assert out.shape == (2, 64)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
+def test_w8a8_apply_prefers_mllm_int8_scaled_mm_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    layer = _DummyLayer()
+    qm = _build_quant_method_w8a8()
+
+    with torch.device("cuda"):
+        qm.create_weights(
+            layer=layer,
+            input_size_per_partition=64,
+            output_partition_sizes=[64],
+            input_size=64,
+            output_size=64,
+            params_dtype=torch.float16,
+            weight_loader=_weight_loader,
+        )
+
+    with torch.no_grad():
+        layer.weight.copy_(
+            torch.randint(-127, 128, layer.weight.shape, device="cuda", dtype=torch.int8)
+        )
+        layer.weight_scale.fill_(0.01)
+    qm.process_weights_after_loading(layer)
+
+    calls: dict[str, object] = {}
+
+    def fake_int8_scaled_mm(
+        mat_a: torch.Tensor,
+        mat_b: torch.Tensor,
+        scales_a: torch.Tensor,
+        scales_b: torch.Tensor,
+        out_dtype: torch.dtype,
+        bias: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        calls["shape_a"] = tuple(mat_a.shape)
+        calls["shape_b"] = tuple(mat_b.shape)
+        calls["shape_sa"] = tuple(scales_a.shape)
+        calls["shape_sb"] = tuple(scales_b.shape)
+        calls["out_dtype"] = out_dtype
+        calls["bias"] = bias
+        out = torch.full(
+            (mat_a.shape[0], mat_b.shape[1]),
+            3,
+            device=mat_a.device,
+            dtype=out_dtype,
+        )
+        if bias is not None:
+            out = out + bias
+        return out
+
+    monkeypatch.setattr(ct, "mllm_int8_scaled_mm", fake_int8_scaled_mm)
+
+    x = torch.randn(2, 64, device="cuda", dtype=torch.float16)
+    bias = torch.randn(64, device="cuda", dtype=torch.float16)
+    out = qm.apply(layer, x, bias)
+
+    assert out.shape == (2, 64)
+    assert calls["shape_a"] == (2, 64)
+    assert calls["shape_b"] == (64, 64)
+    assert calls["shape_sa"] == (2, 1)
+    assert calls["shape_sb"] == (64,)
+    assert calls["out_dtype"] == torch.float16
+    assert torch.allclose(out, torch.full_like(out, 3) + bias)

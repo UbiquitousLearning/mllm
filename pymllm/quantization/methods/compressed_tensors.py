@@ -6,6 +6,11 @@ import torch
 from torch.nn import Parameter
 
 from mllm_kernel.cuda.jit import gptq_marlin_gemm, gptq_marlin_repack
+
+try:
+    from mllm_kernel.cuda.jit import int8_scaled_mm as mllm_int8_scaled_mm
+except Exception:  # pragma: no cover - import may fail on non-CUDA build envs.
+    mllm_int8_scaled_mm = None
 from pymllm.layers.quantize_base import LinearMethodBase
 from pymllm.layers.utils import set_weight_attrs
 from pymllm.quantization.quant_config import QuantizationConfig, register_quantization
@@ -154,6 +159,43 @@ def _int8_matmul(x_q: torch.Tensor, w_q_t: torch.Tensor) -> torch.Tensor:
         except RuntimeError:
             pass
     return x_q.to(torch.float32).matmul(w_q_t.to(torch.float32))
+
+
+def _int8_scaled_mm(
+    x_q: torch.Tensor,
+    w_q_t: torch.Tensor,
+    x_scale: torch.Tensor,
+    w_scale: torch.Tensor,
+    out_dtype: torch.dtype,
+    bias: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    if (
+        mllm_int8_scaled_mm is not None
+        and x_q.is_cuda
+        and w_q_t.is_cuda
+        and x_scale.is_cuda
+        and w_scale.is_cuda
+    ):
+        try:
+            return mllm_int8_scaled_mm(
+                x_q,
+                w_q_t,
+                x_scale,
+                w_scale,
+                out_dtype=out_dtype,
+                bias=bias,
+            )
+        except Exception:
+            pass
+
+    output_i32 = _int8_matmul(x_q, w_q_t)
+    output = output_i32.to(torch.float32)
+    output.mul_(x_scale)
+    output.mul_(w_scale.view(1, -1))
+    output = output.to(out_dtype)
+    if bias is not None:
+        output.add_(bias)
+    return output
 
 
 def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
@@ -433,13 +475,14 @@ class CompressedTensorsW8A8Int8Scheme:
         out_shape = x.shape[:-1] + (layer.output_size_per_partition,)
 
         x_q, x_scale = _per_token_quant_int8(reshaped_x)
-        output_i32 = _int8_matmul(x_q, layer.weight)
-        output = output_i32.to(torch.float32)
-        output.mul_(x_scale)
-        output.mul_(layer.weight_scale.view(1, -1))
-        output = output.to(x.dtype)
-        if bias is not None:
-            output.add_(bias)
+        output = _int8_scaled_mm(
+            x_q,
+            layer.weight,
+            x_scale,
+            layer.weight_scale,
+            out_dtype=x.dtype,
+            bias=bias,
+        )
         return output.reshape(out_shape)
 
 class CompressedTensorsLinearMethod(LinearMethodBase):
