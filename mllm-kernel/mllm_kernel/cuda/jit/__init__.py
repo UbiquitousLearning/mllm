@@ -3,6 +3,7 @@ from .awq_marlin_repack import awq_marlin_repack
 from .gdn_decode import gdn_decode
 from .gptq_marlin import gptq_marlin_gemm
 from .gptq_marlin_repack import gptq_marlin_repack
+from .int8_scaled_mm import int8_scaled_mm
 from .store_cache import can_use_store_cache, store_cache
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     "gdn_decode",
     "gptq_marlin_gemm",
     "store_cache",
+    "int8_scaled_mm",
 ]
