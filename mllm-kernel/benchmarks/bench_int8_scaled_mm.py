@@ -51,6 +51,14 @@ def _try_load_mllm_jit_kernel():
         return None
 
 
+def _try_load_cutlass_kernel():
+    try:
+        from mllm_kernel.cuda.jit.int8_scaled_mm_cutlass import int8_scaled_mm
+        return int8_scaled_mm
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Benchmark runner
 # ---------------------------------------------------------------------------
@@ -101,10 +109,15 @@ def run_benchmarks():
     # Backend: torch._int_mm
     backends["torch._int_mm"] = _torch_int_mm_scaled
 
-    # Backend: mllm JIT kernel
+    # Backend: mllm JIT kernel (old naive)
     mllm_jit = _try_load_mllm_jit_kernel()
     if mllm_jit is not None:
         backends["mllm_jit"] = mllm_jit
+
+    # Backend: CUTLASS
+    cutlass_fn = _try_load_cutlass_kernel()
+    if cutlass_fn is not None:
+        backends["cutlass"] = cutlass_fn
 
     print(f"{'Shape':>20s}", end="")
     for name in backends:
@@ -120,15 +133,19 @@ def run_benchmarks():
         scales_a = torch.rand(M, dtype=torch.float32, device=device) + 0.01
         scales_b = torch.rand(N, dtype=torch.float32, device=device) + 0.01
 
+        # CUTLASS needs col-major B
+        mat_b_colmaj = mat_b.t().contiguous().t()
+
         row = {"shape": f"({M},{K},{N})"}
         print(f"{row['shape']:>20s}", end="")
 
         for name, fn in backends.items():
             kwargs = dict(out_dtype=out_dtype)
+            b_arg = mat_b_colmaj if name == "cutlass" else mat_b
             if name == "mllm_jit":
                 kwargs["bias"] = None
             try:
-                ms = bench_fn(fn, (mat_a, mat_b, scales_a, scales_b), kwargs)
+                ms = bench_fn(fn, (mat_a, b_arg, scales_a, scales_b), kwargs)
                 row[name] = f"{ms:.3f}"
                 print(f"  {ms:>13.3f} ms", end="")
             except Exception as e:

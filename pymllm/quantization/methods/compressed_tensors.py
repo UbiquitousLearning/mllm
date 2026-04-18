@@ -140,23 +140,6 @@ def _per_token_quant_int8(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return per_token_quant_int8(x)
 
 
-def _int8_matmul(x_q: torch.Tensor, w_q_t: torch.Tensor) -> torch.Tensor:
-    if hasattr(torch, "_int_mm"):
-        try:
-            m = x_q.shape[0]
-            if m <= 16:
-                # torch._int_mm on CUDA requires M > 16 for this path.
-                padded = torch.zeros(
-                    (17, x_q.shape[1]), device=x_q.device, dtype=torch.int8
-                )
-                padded[:m].copy_(x_q)
-                return torch._int_mm(padded, w_q_t)[:m]
-            return torch._int_mm(x_q, w_q_t)
-        except RuntimeError:
-            pass
-    return x_q.to(torch.float32).matmul(w_q_t.to(torch.float32))
-
-
 def _int8_scaled_mm(
     x_q: torch.Tensor,
     w_q_t: torch.Tensor,
@@ -165,19 +148,18 @@ def _int8_scaled_mm(
     out_dtype: torch.dtype,
     bias: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """INT8 scaled matmul: x_q @ w_q_t * x_scale * w_scale + bias.
+    """INT8 scaled matmul using CUTLASS kernel.
 
-    Current implementation uses torch._int_mm as the GEMM backend.
-    Phase 2 will replace this with CUTLASS int8_scaled_mm for higher performance.
+    Computes: out = (x_q @ w_q_t) * x_scale * w_scale + bias
+    Uses CUTLASS with per-row/col scaling epilogue fused into the GEMM.
     """
-    output_i32 = _int8_matmul(x_q, w_q_t)
-    output = output_i32.to(torch.float32)
-    output.mul_(x_scale)
-    output.mul_(w_scale.view(1, -1))
-    output = output.to(out_dtype)
-    if bias is not None:
-        output.add_(bias)
-    return output
+    from mllm_kernel.cuda.jit.int8_scaled_mm_cutlass import (
+        int8_scaled_mm as cutlass_int8_scaled_mm,
+    )
+
+    return cutlass_int8_scaled_mm(
+        x_q, w_q_t, x_scale, w_scale, out_dtype=out_dtype, bias=bias,
+    )
 
 
 def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
