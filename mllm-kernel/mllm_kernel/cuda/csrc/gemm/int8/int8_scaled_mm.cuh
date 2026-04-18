@@ -1,3 +1,5 @@
+// DEPRECATED: Replaced by int8_scaled_mm_cutlass.cu (CUTLASS-based kernel).
+// Kept for reference and regression testing only.
 #pragma once
 
 #include <mllm_kernel/tensor.hpp>

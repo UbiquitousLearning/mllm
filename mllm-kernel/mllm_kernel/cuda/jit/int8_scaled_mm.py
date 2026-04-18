@@ -1,3 +1,6 @@
+# DEPRECATED: This naive int8_scaled_mm kernel has been replaced by
+# int8_scaled_mm_cutlass.py which uses CUTLASS with SM-optimized tile shapes.
+# Kept for reference and regression testing only.
 from __future__ import annotations
 
 from typing import Optional
