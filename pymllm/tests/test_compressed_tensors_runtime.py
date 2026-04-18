@@ -272,7 +272,8 @@ def test_w8a8_process_weights_transposes_and_flattens_scales():
     qm.process_weights_after_loading(layer)
 
     assert tuple(layer.weight.shape) == (32, 48)
-    assert layer.weight.is_contiguous()
+    # Weight is stored as (K, N) column-major for CUTLASS: stride(0)==1
+    assert layer.weight.stride(0) == 1, "weight should be column-major for CUTLASS"
     assert tuple(layer.weight_scale.shape) == (48,)
 
 

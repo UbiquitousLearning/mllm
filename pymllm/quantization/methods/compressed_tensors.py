@@ -418,7 +418,10 @@ class CompressedTensorsW8A8Int8Scheme:
                 f"{layer.weight.dtype}"
             )
 
-        replace_parameter(layer, "weight", layer.weight.data.t().contiguous())
+        # Store weight as (K, N) column-major for CUTLASS: stride(0)==1.
+        # Original weight is (N, K) row-major. .contiguous() ensures owned memory,
+        # .t() gives (K, N) with strides (1, K) = column-major.
+        replace_parameter(layer, "weight", layer.weight.data.contiguous().t())
 
         scales = layer.weight_scale.data
         if scales.dim() == 2 and scales.shape[1] == 1:
