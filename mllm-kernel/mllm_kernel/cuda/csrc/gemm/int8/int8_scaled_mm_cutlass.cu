@@ -217,6 +217,55 @@ void sm89_dispatch_shape(
 }
 
 // ---------------------------------------------------------------------------
+// SM80 dispatch (160K shared memory, for SM80/SM87)
+// ---------------------------------------------------------------------------
+
+template <typename ElementOutput, typename ArchTag, typename InstructionShape>
+void sm80_dispatch_shape(
+    torch::Tensor& out,
+    const torch::Tensor& mat_a,
+    const torch::Tensor& mat_b,
+    const torch::Tensor& scales_a,
+    const torch::Tensor& scales_b,
+    const c10::optional<torch::Tensor>& bias) {
+  int m = mat_a.size(0);
+  int n = mat_b.size(1);
+  if (m <= 16) {
+    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+        cutlass::gemm::GemmShape<16, 64, 128>,
+        cutlass::gemm::GemmShape<16, 64, 64>,
+        InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+  } else if (m <= 32) {
+    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+        cutlass::gemm::GemmShape<32, 64, 128>,
+        cutlass::gemm::GemmShape<32, 64, 64>,
+        InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+  } else if (m <= 64) {
+    if (n <= 4096) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<64, 64, 128>,
+          cutlass::gemm::GemmShape<32, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<64, 128, 128>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
+  } else if (m <= 128 && n < 8192) {
+    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+        cutlass::gemm::GemmShape<64, 128, 128>,
+        cutlass::gemm::GemmShape<64, 64, 64>,
+        InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+  } else {
+    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+        cutlass::gemm::GemmShape<128, 128, 64>,
+        cutlass::gemm::GemmShape<64, 64, 64>,
+        InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -261,16 +310,26 @@ torch::Tensor int8_scaled_mm(
       {mat_a.size(0), mat_b.size(1)},
       mat_a.options().dtype(out_dtype));
 
-  // SM87 (Jetson Orin) uses SM89 tile shapes (100K shared memory)
   using InstructionShape = cutlass::gemm::GemmShape<16, 8, 32>;
   using ArchTag = cutlass::arch::Sm80;
 
-  if (out_dtype == torch::kBFloat16) {
-    sm89_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
-        out, mat_a, mat_b, scales_a, scales_b, bias);
+  // SM87 (Jetson Orin) has 164K smem (same as SM80 hardware), but with
+  // the per-row/col scale epilogue visitor, SM89's 3-stage tiles outperform
+  // SM80's 5-stage tiles at large M due to lower smem pressure and better
+  // occupancy. Use SM89 dispatch for SM80-SM89 range; add SM80 dispatch
+  // only if a future device truly benefits from larger tiles with this epilogue.
+  int sm_version = getSMVersion();
+
+  if (sm_version >= 80 && sm_version < 90) {
+    if (out_dtype == torch::kBFloat16) {
+      sm89_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
+          out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      sm89_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
+          out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
   } else {
-    sm89_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
-        out, mat_a, mat_b, scales_a, scales_b, bias);
+    TORCH_CHECK(false, "Unsupported SM version: ", sm_version, ". Requires SM80-SM89.");
   }
 
   return out;
