@@ -344,9 +344,10 @@ def test_w8a8_apply_supports_small_m_by_padding():
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
-def test_w8a8_apply_prefers_mllm_int8_scaled_mm_kernel(
+def test_w8a8_apply_uses_triton_quant_and_torch_int_mm(
     monkeypatch: pytest.MonkeyPatch,
 ):
+    """Verify the W8A8 forward path uses Triton activation quant + torch._int_mm."""
     layer = _DummyLayer()
     qm = _build_quant_method_w8a8()
 
@@ -368,42 +369,28 @@ def test_w8a8_apply_prefers_mllm_int8_scaled_mm_kernel(
         layer.weight_scale.fill_(0.01)
     qm.process_weights_after_loading(layer)
 
-    calls: dict[str, object] = {}
-
-    def fake_int8_scaled_mm(
-        mat_a: torch.Tensor,
-        mat_b: torch.Tensor,
-        scales_a: torch.Tensor,
-        scales_b: torch.Tensor,
-        out_dtype: torch.dtype,
-        bias: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        calls["shape_a"] = tuple(mat_a.shape)
-        calls["shape_b"] = tuple(mat_b.shape)
-        calls["shape_sa"] = tuple(scales_a.shape)
-        calls["shape_sb"] = tuple(scales_b.shape)
-        calls["out_dtype"] = out_dtype
-        calls["bias"] = bias
-        out = torch.full(
-            (mat_a.shape[0], mat_b.shape[1]),
-            3,
-            device=mat_a.device,
-            dtype=out_dtype,
+    # Track that Triton quantization is called
+    triton_quant_calls: list[tuple] = []
+    original_triton_quant = None
+    try:
+        from pymllm.quantization.kernels.int8_activation_triton import (
+            per_token_quant_int8 as _original,
         )
-        if bias is not None:
-            out = out + bias
-        return out
+        original_triton_quant = _original
+    except ImportError:
+        pass
 
-    monkeypatch.setattr(ct, "mllm_int8_scaled_mm", fake_int8_scaled_mm)
+    def tracked_triton_quant(x, **kwargs):
+        triton_quant_calls.append(tuple(x.shape))
+        return original_triton_quant(x, **kwargs)
+
+    import pymllm.quantization.kernels.int8_activation_triton as triton_mod
+    monkeypatch.setattr(triton_mod, "per_token_quant_int8", tracked_triton_quant)
 
     x = torch.randn(2, 64, device="cuda", dtype=torch.float16)
     bias = torch.randn(64, device="cuda", dtype=torch.float16)
     out = qm.apply(layer, x, bias)
 
     assert out.shape == (2, 64)
-    assert calls["shape_a"] == (2, 64)
-    assert calls["shape_b"] == (64, 64)
-    assert calls["shape_sa"] == (2, 1)
-    assert calls["shape_sb"] == (64,)
-    assert calls["out_dtype"] == torch.float16
-    assert torch.allclose(out, torch.full_like(out, 3) + bias)
+    assert len(triton_quant_calls) == 1, "Triton quant should be called exactly once"
+    assert triton_quant_calls[0] == (2, 64)

@@ -7,10 +7,6 @@ from torch.nn import Parameter
 
 from mllm_kernel.cuda.jit import gptq_marlin_gemm, gptq_marlin_repack
 
-try:
-    from mllm_kernel.cuda.jit import int8_scaled_mm as mllm_int8_scaled_mm
-except Exception:  # pragma: no cover - import may fail on non-CUDA build envs.
-    mllm_int8_scaled_mm = None
 from pymllm.layers.quantize_base import LinearMethodBase
 from pymllm.layers.utils import set_weight_attrs
 from pymllm.quantization.quant_config import QuantizationConfig, register_quantization
@@ -136,12 +132,12 @@ def replace_parameter(
 
 
 def _per_token_quant_int8(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    # Dynamic per-token quantization for W8A8 INT8 activation path.
-    x_fp32 = x.to(torch.float32)
-    absmax = torch.clamp(x_fp32.abs().amax(dim=-1, keepdim=True), min=1e-10)
-    x_scale = absmax / 127.0
-    x_q = torch.round(x_fp32 / x_scale).clamp(-128, 127).to(torch.int8)
-    return x_q.contiguous(), x_scale.contiguous()
+    """Dynamic per-token INT8 quantization using Triton kernel."""
+    from pymllm.quantization.kernels.int8_activation_triton import (
+        per_token_quant_int8,
+    )
+
+    return per_token_quant_int8(x)
 
 
 def _int8_matmul(x_q: torch.Tensor, w_q_t: torch.Tensor) -> torch.Tensor:
@@ -169,25 +165,11 @@ def _int8_scaled_mm(
     out_dtype: torch.dtype,
     bias: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    if (
-        mllm_int8_scaled_mm is not None
-        and x_q.is_cuda
-        and w_q_t.is_cuda
-        and x_scale.is_cuda
-        and w_scale.is_cuda
-    ):
-        try:
-            return mllm_int8_scaled_mm(
-                x_q,
-                w_q_t,
-                x_scale,
-                w_scale,
-                out_dtype=out_dtype,
-                bias=bias,
-            )
-        except Exception:
-            pass
+    """INT8 scaled matmul: x_q @ w_q_t * x_scale * w_scale + bias.
 
+    Current implementation uses torch._int_mm as the GEMM backend.
+    Phase 2 will replace this with CUTLASS int8_scaled_mm for higher performance.
+    """
     output_i32 = _int8_matmul(x_q, w_q_t)
     output = output_i32.to(torch.float32)
     output.mul_(x_scale)
