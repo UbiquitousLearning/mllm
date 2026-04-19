@@ -109,12 +109,9 @@ def int8_scaled_mm(
     """
     mod = _load_module()
 
-    # Ensure correct layouts
-    mat_a = mat_a.contiguous()
-    if mat_b.stride(0) != 1:
-        mat_b = mat_b.t().contiguous().t()
-    scales_a = scales_a.reshape(-1).contiguous().to(torch.float32)
-    scales_b = scales_b.reshape(-1).contiguous().to(torch.float32)
+    # scales_a from Triton quant is (M,1) float32 — flatten to (M,)
+    if scales_a.dim() == 2:
+        scales_a = scales_a.squeeze(-1)
 
     dtype_str = "float16" if out_dtype == torch.float16 else "bfloat16"
 

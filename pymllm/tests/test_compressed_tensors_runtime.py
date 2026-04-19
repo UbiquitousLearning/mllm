@@ -370,23 +370,15 @@ def test_w8a8_apply_uses_triton_quant_and_torch_int_mm(
         layer.weight_scale.fill_(0.01)
     qm.process_weights_after_loading(layer)
 
-    # Track that Triton quantization is called
+    # Track that Triton quantization is called via the cached function ref
     triton_quant_calls: list[tuple] = []
-    original_triton_quant = None
-    try:
-        from pymllm.quantization.kernels.int8_activation_triton import (
-            per_token_quant_int8 as _original,
-        )
-        original_triton_quant = _original
-    except ImportError:
-        pass
+    original_triton_quant = ct._get_triton_quant()
 
     def tracked_triton_quant(x, **kwargs):
         triton_quant_calls.append(tuple(x.shape))
         return original_triton_quant(x, **kwargs)
 
-    import pymllm.quantization.kernels.int8_activation_triton as triton_mod
-    monkeypatch.setattr(triton_mod, "per_token_quant_int8", tracked_triton_quant)
+    monkeypatch.setattr(ct, "_triton_quant_fn", tracked_triton_quant)
 
     x = torch.randn(2, 64, device="cuda", dtype=torch.float16)
     bias = torch.randn(64, device="cuda", dtype=torch.float16)

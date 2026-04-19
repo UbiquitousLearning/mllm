@@ -133,11 +133,7 @@ def replace_parameter(
 
 def _per_token_quant_int8(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Dynamic per-token INT8 quantization using Triton kernel."""
-    from pymllm.quantization.kernels.int8_activation_triton import (
-        per_token_quant_int8,
-    )
-
-    return per_token_quant_int8(x)
+    return _get_triton_quant()(x)
 
 
 def _int8_scaled_mm(
@@ -148,18 +144,33 @@ def _int8_scaled_mm(
     out_dtype: torch.dtype,
     bias: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """INT8 scaled matmul using CUTLASS kernel.
+    """INT8 scaled matmul using CUTLASS kernel."""
+    return _get_cutlass_mm()(x_q, w_q_t, x_scale, w_scale, out_dtype, bias)
 
-    Computes: out = (x_q @ w_q_t) * x_scale * w_scale + bias
-    Uses CUTLASS with per-row/col scaling epilogue fused into the GEMM.
-    """
-    from mllm_kernel.cuda.jit.int8_scaled_mm_cutlass import (
-        int8_scaled_mm as cutlass_int8_scaled_mm,
-    )
 
-    return cutlass_int8_scaled_mm(
-        x_q, w_q_t, x_scale, w_scale, out_dtype=out_dtype, bias=bias,
-    )
+# Lazy-loaded kernel references (populated on first call, reused after)
+_triton_quant_fn = None
+_cutlass_mm_fn = None
+
+
+def _get_triton_quant():
+    global _triton_quant_fn
+    if _triton_quant_fn is None:
+        from pymllm.quantization.kernels.int8_activation_triton import (
+            per_token_quant_int8,
+        )
+        _triton_quant_fn = per_token_quant_int8
+    return _triton_quant_fn
+
+
+def _get_cutlass_mm():
+    global _cutlass_mm_fn
+    if _cutlass_mm_fn is None:
+        from mllm_kernel.cuda.jit.int8_scaled_mm_cutlass import (
+            int8_scaled_mm,
+        )
+        _cutlass_mm_fn = int8_scaled_mm
+    return _cutlass_mm_fn
 
 
 def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
