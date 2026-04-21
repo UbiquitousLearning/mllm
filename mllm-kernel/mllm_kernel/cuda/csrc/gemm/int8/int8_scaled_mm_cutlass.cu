@@ -313,19 +313,18 @@ torch::Tensor int8_scaled_mm(
   using InstructionShape = cutlass::gemm::GemmShape<16, 8, 32>;
   using ArchTag = cutlass::arch::Sm80;
 
-  // SM87 (Jetson Orin) has 164K smem (same as SM80 hardware), but with
-  // the per-row/col scale epilogue visitor, SM89's 3-stage tiles outperform
-  // SM80's 5-stage tiles at large M due to lower smem pressure and better
-  // occupancy. Use SM89 dispatch for SM80-SM89 range; add SM80 dispatch
-  // only if a future device truly benefits from larger tiles with this epilogue.
+  // SM87 (Jetson Orin) has 164K smem — same as SM80, NOT 100K like SM86/SM89.
+  // Both sglang and vllm route SM87 to SM80 dispatch (deeper pipeline stages).
+  // E2E benchmark confirms SM80 ≈ SM89 tiles on SM87 (<2% diff), so we align
+  // with upstream. SM89 dispatch is kept for reference only.
   int sm_version = getSMVersion();
 
   if (sm_version >= 80 && sm_version < 90) {
     if (out_dtype == torch::kBFloat16) {
-      sm89_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
+      sm80_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
           out, mat_a, mat_b, scales_a, scales_b, bias);
     } else {
-      sm89_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
+      sm80_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
           out, mat_a, mat_b, scales_a, scales_b, bias);
     }
   } else {
