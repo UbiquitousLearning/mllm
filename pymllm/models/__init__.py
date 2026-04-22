@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 # (module_path, class_name)
 _MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
+    "Qwen3ForCausalLM": (
+        "pymllm.models.qwen3",
+        "Qwen3ForCausalLM",
+    ),
     "Qwen3VLForConditionalGeneration": (
         "pymllm.models.qwen3_vl",
         "Qwen3VLForConditionalGeneration",
