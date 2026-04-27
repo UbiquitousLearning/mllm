@@ -1,7 +1,6 @@
 """Benchmark int8_scaled_mm implementations.
 
-Covers: mllm JIT kernel, torch._int_mm fallback, and (future) CUTLASS kernel.
-This script is reusable across phases — add new rows by adding new backends.
+Covers torch._int_mm and the CUTLASS W8A8 kernel.
 
 Usage:
     python benchmarks/bench_int8_scaled_mm.py
@@ -26,7 +25,7 @@ def _torch_int_mm_scaled(
     out_dtype: torch.dtype,
     bias: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """torch._int_mm + scale dequant (the current fallback path)."""
+    """torch._int_mm + scale dequant reference backend."""
     m = mat_a.shape[0]
     if m <= 16:
         padded = torch.zeros((17, mat_a.shape[1]), device=mat_a.device, dtype=torch.int8)
@@ -41,14 +40,6 @@ def _torch_int_mm_scaled(
     if bias is not None:
         out.add_(bias)
     return out
-
-
-def _try_load_mllm_jit_kernel():
-    try:
-        from mllm_kernel.cuda.jit import int8_scaled_mm
-        return int8_scaled_mm
-    except Exception:
-        return None
 
 
 def _try_load_cutlass_kernel():
@@ -109,11 +100,6 @@ def run_benchmarks():
     # Backend: torch._int_mm
     backends["torch._int_mm"] = _torch_int_mm_scaled
 
-    # Backend: mllm JIT kernel (old naive)
-    mllm_jit = _try_load_mllm_jit_kernel()
-    if mllm_jit is not None:
-        backends["mllm_jit"] = mllm_jit
-
     # Backend: CUTLASS
     cutlass_fn = _try_load_cutlass_kernel()
     if cutlass_fn is not None:
@@ -142,8 +128,6 @@ def run_benchmarks():
         for name, fn in backends.items():
             kwargs = dict(out_dtype=out_dtype)
             b_arg = mat_b_colmaj if name == "cutlass" else mat_b
-            if name == "mllm_jit":
-                kwargs["bias"] = None
             try:
                 ms = bench_fn(fn, (mat_a, b_arg, scales_a, scales_b), kwargs)
                 row[name] = f"{ms:.3f}"
