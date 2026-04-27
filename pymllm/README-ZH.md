@@ -2,36 +2,77 @@
 
 ![pymllm-arch](../assets/pymllm-arch.png)
 
+`pymllm` 是 `mllm` 的 Python 推理服务入口。本目录当前重点覆盖
+Jetson Orin 上的 Qwen3 / Qwen3-VL 推理、OpenAI-compatible server、
+`compressed-tensors` 量化加载，以及 W8A8 INT8 kernel 路径。
+
+本文档按 2026-04-27 的开发状态整理，适用于当前集成分支：
+
+```text
+feature/jetson-qwen3-family-bf16-w4a16-w8a8
+```
+
+## 当前状态
+
+已验证路径：
+
+- `Qwen3-VL-2B-Instruct`：BF16 原生模型服务可用。
+- `Qwen3-VL-2B-Instruct-AWQ-4bit`：`compressed-tensors`
+  W4A16 / AWQ Marlin 路径可用。
+- `Qwen3-VL-2B-Instruct-quantized.w8a8`：`compressed-tensors`
+  W8A8 `int-quantized` 路径端到端可用。
+
+已实现并纳入单元测试的模型/组件：
+
+- `Qwen3VLForConditionalGeneration`：图文模型服务主路径。
+- `Qwen3ForCausalLM`：文本模型骨架、权重加载与 timing 字段测试。
+- `compressed-tensors`：
+  - `pack-quantized` 4-bit 权重路径，使用 GPTQ Marlin。
+  - `int-quantized` W8A8 路径，使用 Triton 激活量化 + CUTLASS
+    `int8_scaled_mm`。
+
+W8A8 当前前向链路：
+
+```text
+x(fp16/bf16)
+  -> per_token_quant_int8        [Triton, dynamic per-token activation quant]
+  -> int8_scaled_mm              [CUTLASS, INT8 Tensor Core, fused scales]
+  -> output(fp16/bf16)
+```
+
 ## 已验证环境
 
-本文档中的命令基于 Jetson Orin 上已验证通过的如下环境整理：
+以下命令基于 Jetson Orin 环境整理：
 
 - JetPack / L4T：`R36.4.4`（来自 `/etc/nv_tegra_release`）
 - Python：`3.10.12`
-- pip：`26.0.1`
 - PyTorch：`2.4.0`
 - torchvision：`0.19.0a0+48b1edf`
 - transformers：`5.3.0`
 - safetensors：`0.7.0`
 - flashinfer：`0.6.7`
+- Triton Language：官方 PyPI `triton==3.6.0` manylinux aarch64 wheel
 - CUDA：`12.6`
-- `torch.cuda.is_available()`：`True`
+- GPU：Jetson Orin NX，SM87
 
-## 适用范围
+这里的 Triton 指 GPU kernel DSL，不是 Triton Inference Server。Jetson-AI-Lab
+源也提供 `3.4.0`、`3.5.1`、`3.6.0`，但实测中可能需要额外设置
+`TRITON_PTXAS_PATH` 和 `CPATH`。当前建议优先使用官方 PyPI 的
+`triton==3.6.0`，并用最小 CUDA kernel 或 `per_token_quant_int8` 做 smoke test。
 
-本文档面向 Jetson Orin 上的 `pymllm` 使用，内容基于当前仓库内已验证流程整理。
+W8A8 CUTLASS JIT 需要能找到 CUTLASS 头文件。当前查找顺序为：
 
-当前只覆盖两条已验证路径：
+1. `CUTLASS_HOME/include`
+2. `flashinfer` 内置的 `data/cutlass/include`
+3. `/usr/local/include`、`/usr/include`、`/usr/local/cuda/include`
 
-- 原生模型：`Qwen3-VL-2B-Instruct`
-- 量化模型：`Qwen3-VL-2B-Instruct-AWQ-4bit` + `compressed-tensors`
+首次调用 CUTLASS kernel 会触发 JIT 编译，耗时约 100 秒；后续会复用：
 
-当前还有一条“代码已支持、但尚未完成端到端实测”的路径：
+```text
+~/.cache/mllm_kernel/cutlass_int8_scaled_mm/
+```
 
-- 量化模型：`Qwen3-VL-2B-Instruct-quantized.w8a8` +
-  `compressed-tensors`（`format: int-quantized`）
-
-## 安装 editable 开发环境
+## 安装开发环境
 
 在仓库根目录执行：
 
@@ -41,7 +82,7 @@ SKBUILD_WHEEL_CMAKE=false python3 -m pip install -e .
 python3 -m pip install -e <repo-root>/mllm-kernel --no-deps --no-build-isolation
 ```
 
-安装完成后，可以用下面的命令做最小检查：
+最小导入检查：
 
 ```bash
 python3 - <<'PY'
@@ -53,13 +94,13 @@ print("mllm_kernel import ok")
 PY
 ```
 
-## 启动 pymllm server
+## 启动服务
 
-### 启动量化模型服务
-
-当前 Jetson Orin 上已验证的 `compressed-tensors` 启动命令如下：
+### 量化模型（W4A16 / W8A8）
 
 ```bash
+cd <repo-root>
+
 python3 -m pymllm.server.launch \
   --server.model_path <quantized-model-path> \
   --server.tokenizer_path <quantized-model-path> \
@@ -77,48 +118,23 @@ python3 -m pymllm.server.launch \
   --server.chunked_prefill_size 128 \
   --server.disable_radix_cache \
   --server.disable_cuda_graph \
-  --server.log_level debug \
-  2>&1 | tee /tmp/pymllm_qwen3_vl_awq_ct.log
+  --server.log_level debug
 ```
 
 说明：
 
-- 若 `30000` 已被占用，可改成其他空闲端口，例如 `30001`。
-- 当前这条量化路径按已验证配置使用 `float16`。
+- `--quantization.method compressed-tensors` 会按模型 `config.json`
+  自动识别 W4A16 或 W8A8 签名。
+- W8A8 路径要求 GPU capability 不低于 SM80。
+- `--server.disable_radix_cache` 会使用 `ChunkCache`，当前已修复该模式下的
+  KV slot 泄漏问题。
+- 若 `30000` 已被占用，可改成其他空闲端口。
 
-### W8A8 `int-quantized` 启动说明（实现状态）
-
-当前 `pymllm` 已在 `quantization/methods/compressed_tensors.py` 中接入
-W8A8 的正确性优先后端，包含：
-
-- 动态 per-token INT8 激活量化
-- 优先使用 `torch._int_mm` 执行 INT8xINT8 矩阵乘法
-- 对小 batch（`M <= 16`）自动 padding 后再调用 `torch._int_mm`
-
-建议启动命令：
+### BF16 原生模型
 
 ```bash
-python3 -m pymllm.server.launch \
-  --server.model_path <qwen3-vl-w8a8-model-path> \
-  --server.tokenizer_path <qwen3-vl-w8a8-model-path> \
-  --server.load_format safetensors \
-  --server.dtype float16 \
-  --quantization.method compressed-tensors \
-  --server.host 0.0.0.0 \
-  --server.port 30000
-```
+cd <repo-root>
 
-当前限制：
-
-- 该路径目标是先保证正确性，暂未针对性能极致优化
-- `mllm-kernel` 原生 `int8_scaled_mm` 高性能路径尚未接入
-- 端到端 smoke 结果仍依赖目标模型文件是否可用
-
-### 启动原生模型服务
-
-如果要运行原生 `Qwen3-VL-2B-Instruct`，可使用：
-
-```bash
 python3 -m pymllm.server.launch \
   --server.model_path <model-path> \
   --server.tokenizer_path <model-path> \
@@ -135,27 +151,30 @@ python3 -m pymllm.server.launch \
   --server.chunked_prefill_size 128 \
   --server.disable_radix_cache \
   --server.disable_cuda_graph \
-  --server.log_level debug \
-  2>&1 | tee /tmp/pymllm_server.log
+  --server.log_level debug
 ```
 
 ## 调用示例
 
-以下示例使用 OpenAI-compatible 接口，适合直接用 `curl` 或兼容 SGLang/OpenAI API 的客户端访问：
+### 健康检查
 
-```text
-/v1/chat/completions
+```bash
+curl -s --noproxy '*' http://127.0.0.1:30000/v1/models ; echo
 ```
 
-### 文本推理示例
+期望返回中包含：
 
-服务启动后，可以用下面的最小文本请求做 smoke test：
+```text
+"owned_by":"pymllm"
+```
+
+### 文本请求
 
 ```bash
 curl -s --noproxy '*' http://127.0.0.1:30000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "<served-model-name-or-path>",
+    "model": "None",
     "messages": [{"role": "user", "content": "你好，只回复：ok"}],
     "max_tokens": 8,
     "temperature": 0.0,
@@ -163,25 +182,22 @@ curl -s --noproxy '*' http://127.0.0.1:30000/v1/chat/completions \
   }' ; echo
 ```
 
-### 图片推理示例
+### 图文请求
 
-先构造一个包含本地图片路径的请求：
+图片路径请使用容器内可访问的绝对路径，不要使用 `file://...` 前缀。
 
 ```bash
 python3 - <<'PY'
 import json
 
 payload = {
-    "model": "<served-model-name-or-path>",
+    "model": "None",
     "messages": [
         {
             "role": "user",
             "content": [
                 {"type": "text", "text": "请详细描述这张图片。"},
-                {
-                    "type": "image_url",
-                    "image_url": {"url": "<image-path>"},
-                },
+                {"type": "image_url", "image_url": {"url": "/workspace/xcd_mllm/test.png"}},
             ],
         }
     ],
@@ -195,24 +211,43 @@ with open("/tmp/mm_req_path.json", "w", encoding="utf-8") as f:
 
 print("saved /tmp/mm_req_path.json")
 PY
-```
 
-然后发送请求：
-
-```bash
-curl -s --noproxy '*' \
-  http://127.0.0.1:30000/v1/chat/completions \
+curl -s --noproxy '*' http://127.0.0.1:30000/v1/chat/completions \
   -H "Content-Type: application/json" \
   --data @/tmp/mm_req_path.json ; echo
 ```
 
-## 当前已验证配置
+## 开发与测试
 
-当前文档对应的量化路径，已验证的是下面这组模型与配置：
+常用单元测试：
 
-- 模型类型：`Qwen3-VL-2B-Instruct-AWQ-4bit`
-- quantization method：`compressed-tensors`
-- load format：`safetensors`
-- dtype：`float16`
+```bash
+pytest pymllm/tests/test_compressed_tensors_config.py -q
+pytest pymllm/tests/test_compressed_tensors_runtime.py -q
+pytest pymllm/tests/test_qwen3_model_registry.py -q
+pytest pymllm/tests/test_qwen3_weight_loading.py -q
+pytest pymllm/tests/test_qwen3_forward_timing.py -q
+pytest mllm-kernel/tests/test_int8_scaled_mm_cutlass.py -q
+```
 
-如果后续扩展到其他模型、精度或量化变体，建议继续补充新的实测命令与说明。
+常用 microbench：
+
+```bash
+python3 pymllm/tests/bench_w8a8_activation_quant.py
+python3 mllm-kernel/benchmarks/bench_int8_scaled_mm.py
+python3 mllm-kernel/benchmarks/bench_w4a16_vs_w8a8.py
+```
+
+如果需要重新测 CUTLASS 首次编译，可先清理 JIT 缓存：
+
+```bash
+rm -rf ~/.cache/mllm_kernel/cutlass_int8_scaled_mm/
+```
+
+## 已知限制
+
+- W8A8 CUTLASS 当前通过 JIT 编译，首次启动存在约 100 秒编译开销。
+- W8A8 激活量化使用 Triton kernel；decode 下固定量化开销仍是后续优化点。
+- Qwen3-VL 的 ViT、`lm_head`、embedding 和 LayerNorm 不在当前 W8A8 量化范围内。
+- 其他 GPU 需要重新验证 tile dispatch、JIT 编译和性能。
+- 服务侧 timing 字段适合观察整体请求链路；严格模型级计时应使用专用 benchmark。
