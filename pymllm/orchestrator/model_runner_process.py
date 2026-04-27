@@ -1028,7 +1028,7 @@ class ModelRunnerProcess:
         # and the eviction callback; here we just remove the rid mapping.
         self._rid_to_gdn_track_slot.pop(rid, None)
 
-        cache_enabled = cache is not None
+        cache_enabled = cache is not None and not isinstance(cache, ChunkCache)
 
         # ----------------------------------------------------------
         # Phase 1: Read all KV indices BEFORE freeing anything.
