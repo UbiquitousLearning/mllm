@@ -50,8 +50,8 @@ class RMSNorm(MllmBaseLayer):
                 )
                 return x, residual
             except Exception:
-                x = x + residual
-                return _torch_rmsnorm(x, self.weight, self.eps), residual
+                residual = x + residual
+                return _torch_rmsnorm(residual, self.weight, self.eps), residual
 
         try:
             # FlashInfer rmsnorm accepts 2D/3D input; flatten higher-rank tensors to 2D.
