@@ -20,6 +20,19 @@ namespace mllm::ascend {
 
 AscendRMSNormOp::AscendRMSNormOp(const aops::RMSNormOpOptions& options) : aops::RMSNormOp(options) {}
 
+void AscendRMSNormOp::load(const ParameterFile::ptr_t& ploader) {
+  // Guard: during LayerImpl::to() the temp ploader may be empty.
+  if (!ploader->has(getName() + ".weight")) { return; }
+
+  // First call parent's load to get weight from file (on CPU)
+  aops::RMSNormOp::load(ploader);
+
+  // Convert weight to FP16 and move to Ascend NPU
+  if (!weight_.isNil()) {
+    weight_ = convertTensorToAscendFP16(weight_);
+  }
+}
+
 void AscendRMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   BaseOp::setup(inputs, outputs);
 }
@@ -62,32 +75,32 @@ void AscendRMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
   fillAtbTensor(weight_for_atb, atb_weight);
   fillAtbTensor(y, atb_y);
 
-  atb::SVector<atb::Tensor> inTensors;
-  atb::SVector<atb::Tensor> outTensors;
-  inTensors.push_back(atb_x);
-  inTensors.push_back(atb_weight);
-  outTensors.push_back(atb_y);
+  atb::SVector<atb::Tensor> in_tensors;
+  atb::SVector<atb::Tensor> out_tensors;
+  in_tensors.push_back(atb_x);
+  in_tensors.push_back(atb_weight);
+  out_tensors.push_back(atb_y);
 
   atb::VariantPack vp;
-  vp.inTensors = inTensors;
-  vp.outTensors = outTensors;
+  vp.inTensors = in_tensors;
+  vp.outTensors = out_tensors;
 
-  uint64_t workspaceSize = 0;
-  st = op->Setup(vp, workspaceSize, atb_ctx);
+  uint64_t workspace_size = 0;
+  st = op->Setup(vp, workspace_size, atb_ctx);
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB RMSNormOp Setup failed, status={}", static_cast<int>(st));
   }
 
   void* workspace = nullptr;
   int workspace_block_id = -1;
-  if (workspaceSize > 0) {
+  if (workspace_size > 0) {
     auto& mem_mgr = getAscendMemoryManager();
-    mem_mgr.allocateBlock(static_cast<uint32_t>(workspaceSize), workspace_block_id);
+    mem_mgr.allocateBlock(static_cast<uint32_t>(workspace_size), workspace_block_id);
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendRMSNormOp::forward");
-    st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
+    //ASCEND_TIME_SCOPE("AscendRMSNormOp::forward");
+    st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspace_size, atb_ctx);
   }
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB RMSNormOp Execute failed, status={}", static_cast<int>(st));

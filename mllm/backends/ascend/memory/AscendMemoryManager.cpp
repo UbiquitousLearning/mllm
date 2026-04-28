@@ -63,4 +63,9 @@ void AscendMemoryManager::getBlockPtr(int block_id, void *&addr)
 {
     getMemoryPool()->getBlockPtr(block_id, addr);
 }
+
+void AscendMemoryManager::printStats()
+{
+    getMemoryPool()->printStats();
+}
 }  // namespace mllm::ascend

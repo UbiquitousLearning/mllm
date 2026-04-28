@@ -115,10 +115,10 @@ void AscendSliceOp::forward(const std::vector<Tensor>& inputs, std::vector<Tenso
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendSliceOp::forward");
+    //ASCEND_TIME_SCOPE("AscendSliceOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
-  
+
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB SliceOp Execute failed, status={}", static_cast<int>(st));
   }

@@ -50,7 +50,7 @@ Unlike traditional JNI integration, we introduce an **In-App Server** layer buil
 ## Key Features
 
 1. **Pythonic eager execution** – Rapid model development  
-2. **Unified hardware support** – Arm CPU, OpenCL GPU, QNN NPU  
+2. **Unified hardware support** – Arm CPU, OpenCL GPU, QNN NPU, Ascend NPU  
 3. **Advanced optimizations** – Quantization, pruning, speculative execution  
 4. **NPU-ready IR** – Seamless integration with NPU frameworks  
 5. **Deployment toolkit** – SDK + CLI inference tool
@@ -73,17 +73,17 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 
 ### mllm v2
 
-| Model(v1)                                                                   | CPU  | Hexagon NPU <br> INT8 |
-|-----------------------------------------------------------------------------|------|-----------------------|
-| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
-| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/) |
-| [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |
-| [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
-| [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
-| [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||
-| [Qwen2-VL-7B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-7B-Instruct-w4a32kai)||
-| [Qwen2.5-VL-3B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-3B-Instruct-w4a32kai)||
-| [Qwen2.5-VL-7B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-7B-Instruct-w4a32kai)||
+| Model(v2)                                                                   | CPU  | Hexagon NPU <br> INT8 | Ascend NPU |
+|-----------------------------------------------------------------------------|------|-----------------------|------------|
+| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | ✔️ W8A8 |
+| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/) | |
+| [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  | |
+| [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  | |
+| [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  | |
+| [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) || |
+| [Qwen2-VL-7B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-7B-Instruct-w4a32kai)|| |
+| [Qwen2.5-VL-3B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-3B-Instruct-w4a32kai)|| |
+| [Qwen2.5-VL-7B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-7B-Instruct-w4a32kai)|| |
 
 ### mllm v1
 
@@ -132,7 +132,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | Xiaomi14-8Elite   | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-passing](https://img.shields.io/badge/build-passing-green) |
 | OnePlus13-8Elite  | Android 15    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | ![build-passing](https://img.shields.io/badge/build-passing-green) |
 | MacMini-M4        | MacOS 15.5    | ![build-passing](https://img.shields.io/badge/build-passing-green) | - | - |
-| OrangePi AI Pro(310B)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
+| OrangePi AI Pro(310B)        | Ubuntu 22.04    | - | - | ![build-passing](https://img.shields.io/badge/build-passing-green) |
 | OrangePi AI Studio(310P)        | Ubuntu 22.04    | - | - | ![build-pending](https://img.shields.io/badge/build-pending-gray) |
 
 ## Quick Starts

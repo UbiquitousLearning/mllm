@@ -5,6 +5,11 @@ if(DEFINED ENV{ASCEND_HOME_PATH})
   target_link_directories(Mllm-Test-AscendKernel PRIVATE $ENV{ASCEND_HOME_PATH}/lib64)
 endif()
 
+if(DEFINED ENV{ATB_HOME_PATH})
+  target_include_directories(Mllm-Test-AscendKernel PRIVATE $ENV{ATB_HOME_PATH}/include)
+  target_link_directories(Mllm-Test-AscendKernel PRIVATE $ENV{ATB_HOME_PATH}/lib)
+endif()
+
 target_link_libraries(Mllm-Test-AscendKernel PRIVATE
   gtest_main
   MllmRT
@@ -22,4 +27,3 @@ set_target_properties(Mllm-Test-AscendKernel PROPERTIES
 )
 
 include(GoogleTest)
-

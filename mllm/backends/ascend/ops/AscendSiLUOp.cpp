@@ -94,7 +94,7 @@ void AscendSiLUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendSiLUOp::forward");
+    //ASCEND_TIME_SCOPE("AscendSiLUOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {

@@ -13,6 +13,7 @@ class AscendRMSNormOp final : public aops::RMSNormOp {
  public:
   explicit AscendRMSNormOp(const aops::RMSNormOpOptions& options);
 
+  void load(const ParameterFile::ptr_t& ploader) override;
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 };
