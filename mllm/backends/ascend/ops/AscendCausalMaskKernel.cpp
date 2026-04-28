@@ -123,6 +123,13 @@ atb::Status executeAscendCausalMaskKernel(const atb::Tensor& input,
   }
 
   const int64_t S = input.desc.shape.dims[2];
+  const int64_t D = input.desc.shape.dims[3];
+  if (S <= 0 || D <= 0 || D < S) {
+    return atb::ERROR_INVALID_TENSOR_DIM;
+  }
+  if (sliding_window && window_size <= 0) {
+    return atb::ERROR_INVALID_PARAM;
+  }
   if (S == 1) {
     auto ret = aclrtMemcpy(output.deviceData,
                            output.dataSize,
