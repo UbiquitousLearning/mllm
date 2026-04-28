@@ -400,10 +400,12 @@ class Qwen3VLVisionModel(nn.Module):
     # -- Position embedding interpolation --
 
     def _get_interpolation_indices(self, dim_size: int) -> np.ndarray:
-        indices = (np.arange(dim_size, dtype=np.float32) + 0.5) * (
-            self.num_grid_per_side / dim_size
-        ) - 0.5
-        return np.clip(indices, 0, self.num_grid_per_side - 1)
+        return np.linspace(
+            0,
+            self.num_grid_per_side - 1,
+            dim_size,
+            dtype=np.float32,
+        )
 
     def _calculate_indices_and_weights(
         self, h_idxs: np.ndarray, w_idxs: np.ndarray
@@ -549,7 +551,9 @@ class Qwen3VLVisionModel(nn.Module):
 def _compute_cu_seqlens_from_grid(grid_thw: torch.Tensor) -> torch.Tensor:
     """Compute cumulative sequence lengths from grid dimensions."""
     grid_np = grid_thw.cpu().numpy()
-    seq_lens = (grid_np[:, 0] * grid_np[:, 1] * grid_np[:, 2]).astype(np.int32)
+    seq_lens = np.repeat(grid_np[:, 1] * grid_np[:, 2], grid_np[:, 0]).astype(
+        np.int32
+    )
     cu_seqlens = np.concatenate([[0], np.cumsum(seq_lens)])
     return torch.tensor(cu_seqlens, dtype=torch.int32)
 
@@ -862,17 +866,12 @@ class Qwen3VLDecoderLayer(nn.Module):
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         forward_batch: "ForwardBatch",
-        deepstack_embeds: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         # Self-attention
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         hidden_states = self.self_attn(positions, hidden_states, forward_batch)
         hidden_states = residual + hidden_states
-
-        # Add deepstack embeddings after residual (matches HF ordering)
-        if deepstack_embeds is not None:
-            hidden_states = hidden_states + deepstack_embeds
 
         # MLP
         residual = hidden_states
@@ -945,15 +944,16 @@ class Qwen3VLTextModel(nn.Module):
             hidden_states = input_embeds
 
         for layer_idx, layer in enumerate(self.layers):
-            ds_embeds = _get_deepstack_embeds(
-                layer_idx, input_deepstack_embeds, self.hidden_size
-            )
             hidden_states = layer(
                 positions,
                 hidden_states,
                 forward_batch,
-                deepstack_embeds=ds_embeds,
             )
+            ds_embeds = _get_deepstack_embeds(
+                layer_idx, input_deepstack_embeds, self.hidden_size
+            )
+            if ds_embeds is not None:
+                hidden_states = hidden_states + ds_embeds
 
         return self.norm(hidden_states)
 
@@ -1186,8 +1186,14 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Get text embeddings and replace image tokens with vision features
             input_embeds = self.model.embed_tokens(input_ids)
             image_mask = input_ids == self.image_token_id
+            vit_prefill_tokens = int(image_mask.sum().item())
+            if vit_prefill_tokens != int(vision_embeds.shape[0]):
+                raise ValueError(
+                    "Image features and image tokens do not match, "
+                    f"tokens: {vit_prefill_tokens}, "
+                    f"features: {vision_embeds.shape[0]}"
+                )
             if image_mask.any():
-                vit_prefill_tokens = int(image_mask.sum().item())
                 input_embeds[image_mask] = vision_embeds.to(input_embeds.dtype)
 
             # Build per-token deepstack embeddings
