@@ -15,7 +15,9 @@ MLLM_MAIN({
   auto& model_path = Argparse::add<std::string>("-m|--model_path").help("Model path").required(true);
   auto& model_version = Argparse::add<std::string>("-mv|--model_version").help("Model version").required(false);
   auto& config_path = Argparse::add<std::string>("-c|--config_path").help("Config path").required(true);
-  auto& seq_len = Argparse::add<int>("-s|--seq_len").help("Input sequence length for test").required(false);
+  auto& seq_len = Argparse::add<int>("-s|--seq_len").help("Input sequence length for forward smoke test").required(false);
+  auto& forward_smoke_test =
+      Argparse::add<bool>("--forward_smoke_test").help("Run synthetic forward smoke test instead of QA generation");
   auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer_path").help("Tokenizer json path for QA test").required(false);
   auto& prompt = Argparse::add<std::string>("-p|--prompt")
                      .help("Question prompt for QA generation test")
@@ -34,7 +36,14 @@ MLLM_MAIN({
     return 0;
   }
 
-  mllm::ModelFileVersion file_version = mllm::ModelFileVersion::kV1;
+  if (!forward_smoke_test.isSet() && !tokenizer_path.isSet()) {
+    fmt::print("Error: -t|--tokenizer_path is required unless --forward_smoke_test is set.\n");
+    Argparse::printHelp();
+    mllm::shutdownContext();
+    return 1;
+  }
+
+  mllm::ModelFileVersion file_version = mllm::ModelFileVersion::kV2;
   if (model_version.isSet()) {
     if (model_version.get() == "v1") {
       file_version = mllm::ModelFileVersion::kV1;
@@ -50,7 +59,14 @@ MLLM_MAIN({
   fmt::print("\n{:*^60}\n", " Qwen Ascend Backend Test ");
   fmt::print("Config: {}\n", config_path.get());
   fmt::print("Model: {}\n", model_path.get());
-  fmt::print("Test sequence length: {}\n\n", test_seq_len);
+  fmt::print("Model file version: {}\n", model_version.isSet() ? model_version.get() : "v2");
+  fmt::print("Mode: {}\n", forward_smoke_test.isSet() ? "forward smoke test" : "QA generation");
+  if (forward_smoke_test.isSet()) {
+    fmt::print("Test sequence length: {}\n\n", test_seq_len);
+  } else {
+    fmt::print("Tokenizer: {}\n", tokenizer_path.get());
+    fmt::print("Max new tokens: {}\n\n", gen_max_new_tokens);
+  }
   std::setlocale(LC_ALL, "");
 
 #ifdef MLLM_BUILD_ASCEND_BACKEND
@@ -75,131 +91,99 @@ MLLM_MAIN({
     auto model = mllm::models::qwen_ascend::QwenAscendForCausalLM(cfg);
     fmt::print("Model created.\n");
 
-    // Load weights
-    fmt::print("\nLoading weights from {}...\n", model_path.get());
+#ifdef MLLM_BUILD_ASCEND_BACKEND
+    // Move to Ascend BEFORE loading weights so that AscendLinearOp::load() is
+    // called directly with the full model file. This lets W8A8 ops see the
+    // .scale / .scale_x tensors that the CPU LinearOp would otherwise discard.
+    fmt::print("\nMoving model to Ascend backend...\n");
+    model.to(mllm::kAscend);
+    fmt::print("Model moved to Ascend.\n\n");
+#endif
+
+    // Load weights. At this point instanced_op_ is already the Ascend op, so
+    // AscendLinearOp::load() is called directly with the real model file.
+    fmt::print("Loading weights from {}...\n", model_path.get());
     auto param = mllm::load(model_path.get(), file_version);
     model.load(param);
     fmt::print("Weights loaded.\n");
 
-    // DEBUG: Verify embedding weights on CPU before moving to Ascend
-    {
-      auto embed_weight = model.debugEmbeddingWeight();
-      fmt::print("[DEBUG] Embedding weight (CPU): shape=[{},{}], dtype={}, device={}\n",
-                 embed_weight.shape()[0], embed_weight.shape()[1],
-                 static_cast<int>(embed_weight.dtype()), static_cast<int>(embed_weight.device()));
+    if (forward_smoke_test.isSet()) {
+      // Create test input (simple token sequence)
+      fmt::print("\nCreating test input (seq_len={})...\n", test_seq_len);
+      auto input_ids = mllm::Tensor::empty({1, test_seq_len}, mllm::kInt64, mllm::kCPU).alloc();
+      auto input_ptr = input_ids.ptr<int64_t>();
+      // Fill with some token IDs (e.g., 1, 2, 3, ...)
+      for (int i = 0; i < test_seq_len; ++i) {
+        input_ptr[i] = i + 1;
+      }
+      fmt::print("Input created: shape=[1, {}]\n", test_seq_len);
 
-      if (embed_weight.device() == mllm::kCPU) {
-        float min_v = 0, max_v = 0, sum_v = 0;
-        int64_t numel = embed_weight.numel();
-        int64_t count = numel > 10000 ? 10000 : numel;
-        if (embed_weight.dtype() == mllm::kFloat32) {
-          auto* ptr = embed_weight.ptr<float>();
-          min_v = ptr[0]; max_v = ptr[0];
-          for (int64_t i = 0; i < count; ++i) {
-            sum_v += ptr[i];
-            if (ptr[i] < min_v) min_v = ptr[i];
-            if (ptr[i] > max_v) max_v = ptr[i];
-          }
-        } else if (embed_weight.dtype() == mllm::kFloat16) {
-          auto* ptr = embed_weight.ptr<mllm::mllm_fp16_t>();
-          min_v = static_cast<float>(ptr[0]); max_v = min_v;
-          for (int64_t i = 0; i < count; ++i) {
-            float v = static_cast<float>(ptr[i]);
-            sum_v += v;
-            if (v < min_v) min_v = v;
-            if (v > max_v) max_v = v;
+      // Clear KV cache before tests
+      model.clearCache();
+
+      // Run forward pass
+      fmt::print("\n{:*^60}\n", " Running Forward Pass ");
+      auto start_time = std::chrono::high_resolution_clock::now();
+
+      auto logits = model.forward(input_ids);
+
+      auto end_time = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+      fmt::print("Forward pass completed in {} ms\n", duration.count());
+      fmt::print("Output logits shape: [{}, {}, {}]\n",
+                 logits.shape()[0], logits.shape()[1], logits.shape()[2]);
+      fmt::print("logits dtype/device(before to CPU): {}/{}\n",
+                 static_cast<int>(logits.dtype()), mllm::deviceTypes2Str(logits.device()));
+
+      // Move logits to CPU if on Ascend
+      if (logits.device() != mllm::kCPU) {
+        logits = logits.to(mllm::kCPU);
+      }
+      fmt::print("logits dtype/device(after to CPU): {}/{}\n",
+                 static_cast<int>(logits.dtype()), mllm::deviceTypes2Str(logits.device()));
+
+      // Print some output statistics
+      int vocab_size = cfg.vocab_size;
+      float min_val = 0, max_val = 0, sum = 0;
+      int64_t argmax_idx = 0;
+
+      // Handle FP16 data type
+      if (logits.dtype() == mllm::kFloat16) {
+        auto logits_ptr = logits.ptr<mllm::mllm_fp16_t>();
+        min_val = static_cast<float>(logits_ptr[0]);
+        max_val = min_val;
+        for (int i = 0; i < vocab_size; ++i) {
+          float val = static_cast<float>(logits_ptr[i]);
+          sum += val;
+          if (val < min_val) min_val = val;
+          if (val > max_val) {
+            max_val = val;
+            argmax_idx = i;
           }
         }
-        fmt::print("[DEBUG] Embedding weight stats (first {}): min={:.6f}, max={:.6f}, mean={:.6f}\n",
-                   count, min_v, max_v, sum_v / count);
-      }
-    }
-
-#ifdef MLLM_BUILD_ASCEND_BACKEND
-    // Move model to Ascend backend AFTER loading weights so layer ops are recreated on Ascend.
-    fmt::print("\nMoving model to Ascend backend...\n");
-    model.to(mllm::kAscend);
-    fmt::print("Model moved to Ascend.\n");
-#endif
-
-    // Create test input (simple token sequence)
-    fmt::print("\nCreating test input (seq_len={})...\n", test_seq_len);
-    auto input_ids = mllm::Tensor::empty({1, test_seq_len}, mllm::kInt64, mllm::kCPU).alloc();
-    auto input_ptr = input_ids.ptr<int64_t>();
-    // Fill with some token IDs (e.g., 1, 2, 3, ...)
-    for (int i = 0; i < test_seq_len; ++i) {
-      input_ptr[i] = i + 1;
-    }
-    fmt::print("Input created: shape=[1, {}]\n", test_seq_len);
-
-    // Clear KV cache before tests
-    model.clearCache();
-
-    // Run forward pass
-    fmt::print("\n{:*^60}\n", " Running Forward Pass ");
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    auto logits = model.forward(input_ids);
-
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-    fmt::print("Forward pass completed in {} ms\n", duration.count());
-    fmt::print("Output logits shape: [{}, {}, {}]\n",
-               logits.shape()[0], logits.shape()[1], logits.shape()[2]);
-    fmt::print("logits dtype/device(before to CPU): {}/{}\n",
-               static_cast<int>(logits.dtype()), mllm::deviceTypes2Str(logits.device()));
-
-    // Move logits to CPU if on Ascend
-    if (logits.device() != mllm::kCPU) {
-      logits = logits.to(mllm::kCPU);
-    }
-    fmt::print("logits dtype/device(after to CPU): {}/{}\n",
-               static_cast<int>(logits.dtype()), mllm::deviceTypes2Str(logits.device()));
-
-    // Print some output statistics
-    int vocab_size = cfg.vocab_size;
-    float min_val = 0, max_val = 0, sum = 0;
-    int64_t argmax_idx = 0;
-
-    // Handle FP16 data type
-    if (logits.dtype() == mllm::kFloat16) {
-      auto logits_ptr = logits.ptr<mllm::mllm_fp16_t>();
-      min_val = static_cast<float>(logits_ptr[0]);
-      max_val = min_val;
-      for (int i = 0; i < vocab_size; ++i) {
-        float val = static_cast<float>(logits_ptr[i]);
-        sum += val;
-        if (val < min_val) min_val = val;
-        if (val > max_val) {
-          max_val = val;
-          argmax_idx = i;
+      } else {
+        auto logits_ptr = logits.ptr<float>();
+        min_val = logits_ptr[0];
+        max_val = min_val;
+        for (int i = 0; i < vocab_size; ++i) {
+          float val = logits_ptr[i];
+          sum += val;
+          if (val < min_val) min_val = val;
+          if (val > max_val) {
+            max_val = val;
+            argmax_idx = i;
+          }
         }
       }
+      float mean = sum / vocab_size;
+
+      fmt::print("\nLogits statistics:\n");
+      fmt::print("  Min: {:.4f}\n", min_val);
+      fmt::print("  Max: {:.4f}\n", max_val);
+      fmt::print("  Mean: {:.4f}\n", mean);
+      fmt::print("  Argmax token ID: {}\n", argmax_idx);
     } else {
-      auto logits_ptr = logits.ptr<float>();
-      min_val = logits_ptr[0];
-      max_val = min_val;
-      for (int i = 0; i < vocab_size; ++i) {
-        float val = logits_ptr[i];
-        sum += val;
-        if (val < min_val) min_val = val;
-        if (val > max_val) {
-          max_val = val;
-          argmax_idx = i;
-        }
-      }
-    }
-    float mean = sum / vocab_size;
-
-    fmt::print("\nLogits statistics:\n");
-    fmt::print("  Min: {:.4f}\n", min_val);
-    fmt::print("  Max: {:.4f}\n", max_val);
-    fmt::print("  Mean: {:.4f}\n", mean);
-    fmt::print("  Argmax token ID: {}\n", argmax_idx);
-
-    // Optional QA test with tokenizer + streaming generation.
-    if (tokenizer_path.isSet()) {
       fmt::print("\n{:*^60}\n", " QA Generation Test ");
       fmt::print("Tokenizer: {}\n", tokenizer_path.get());
       fmt::print("Prompt: {}\n", prompt_text);
@@ -223,6 +207,9 @@ MLLM_MAIN({
         std::wcout << tokenizer.detokenize(step.cur_token_id) << std::flush;
         // Stop if we've reached max_new_tokens
         if (static_cast<int>(generated_ids.size()) >= gen_max_new_tokens) {
+          if (step.current_step > 0) {
+            model.decodeEventEndTimePoint();
+          }
           break;
         }
       }
@@ -235,8 +222,6 @@ MLLM_MAIN({
 
       // Print performance summary
       model.perfSummary();
-    } else {
-      fmt::print("\nTip: Add -t tokenizer.json and -p \"你的问题\" to run a real QA generation test.\n");
     }
 
     fmt::print("\n{:*^60}\n", " Test Completed ");

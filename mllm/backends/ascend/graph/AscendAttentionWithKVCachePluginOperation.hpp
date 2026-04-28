@@ -17,7 +17,9 @@ class AscendAttentionWithKVCachePluginOperation final : public atb::OperationInf
                                             int32_t head_dim,
                                             int32_t max_cache_length,
                                             bool sliding_window = false,
-                                            int32_t window_size = 0);
+                                            int32_t window_size = 0,
+                                            std::string name_suffix = "",
+                                            int32_t setup_bucket_size = 0);
   ~AscendAttentionWithKVCachePluginOperation() override;
 
   std::string GetName() const override;
@@ -25,10 +27,10 @@ class AscendAttentionWithKVCachePluginOperation final : public atb::OperationInf
                          atb::SVector<atb::TensorDesc>& outTensorDescs) const override;
   uint32_t GetInputNum() const override;
   uint32_t GetOutputNum() const override;
-  atb::Status Setup(const atb::VariantPack& variantPack, uint64_t& workspaceSize, atb::Context* context) override;
+  atb::Status Setup(const atb::VariantPack& variantPack, uint64_t& workspace_size, atb::Context* context) override;
   atb::Status Execute(const atb::VariantPack& variantPack,
                       uint8_t* workspace,
-                      uint64_t workspaceSize,
+                      uint64_t workspace_size,
                       atb::Context* context) override;
 
  private:
@@ -39,6 +41,8 @@ class AscendAttentionWithKVCachePluginOperation final : public atb::OperationInf
   int32_t max_cache_length_;
   bool sliding_window_;
   int32_t window_size_;
+  std::string name_suffix_;
+  int32_t setup_bucket_size_{0};
 
   atb::Operation* prefill_subgraph_op_{nullptr};
   atb::Operation* decode_subgraph_op_{nullptr};
@@ -50,11 +54,14 @@ class AscendAttentionWithKVCachePluginOperation final : public atb::OperationInf
   atb::Operation* matmul_av_op_{nullptr};
   atb::Operation* decode_matmul_qk_op_{nullptr};
   atb::Operation* decode_scale_mul_op_{nullptr};
+  atb::Operation* decode_mask_tensor_op_{nullptr};
+  atb::Operation* decode_mask_add_op_{nullptr};
   atb::Operation* decode_softmax_op_{nullptr};
   atb::Operation* decode_matmul_av_op_{nullptr};
   uint64_t prefill_subgraph_workspace_bytes_{0};
   uint64_t decode_subgraph_workspace_bytes_{0};
 
+  int32_t bucketedTotalSeq(int32_t total_seq) const;
   void buildAttentionSubgraph();
 };
 
@@ -63,6 +70,8 @@ atb::Operation* createAttentionWithKVCachePluginGraphOp(int32_t num_attention_he
                                                         int32_t head_dim,
                                                         int32_t max_cache_length,
                                                         bool sliding_window = false,
-                                                        int32_t window_size = 0);
+                                                        int32_t window_size = 0,
+                                                        std::string name_suffix = "",
+                                                        int32_t setup_bucket_size = 0);
 
 }  // namespace mllm::ascend

@@ -24,7 +24,7 @@ public:
 
     void getBlockPtr(int block_id, void*& addr);
 
-    // 打印内存分配统计信息
+    // Print memory allocation statistics.
     void printStats() const;
 
 private:
@@ -36,23 +36,23 @@ private:
     void* base_mem_ptr_ = nullptr;
     void* cur_mem_ptr_ = nullptr;
     int64_t remain_size_ = 0;
-    size_t pool_size_ = 0;  // 记录总大小
+    size_t pool_size_ = 0;  // Total pool size.
 
     std::unordered_map<int, MemoryBlock> used_blocks_;
     std::unordered_map<int, MemoryBlock> free_blocks_;
 
-    // === 调试统计 ===
-    size_t total_alloc_count_ = 0;      // 总分配次数
-    size_t total_free_count_ = 0;       // 总释放次数
-    size_t total_reuse_count_ = 0;      // 重用次数
-    size_t total_new_alloc_count_ = 0;  // 新分配次数(从remain)
-    std::map<size_t, size_t> alloc_size_histogram_;  // 按大小分类的分配次数
+    // === Debug statistics ===
+    size_t total_alloc_count_ = 0;
+    size_t total_free_count_ = 0;
+    size_t total_reuse_count_ = 0;
+    size_t total_new_alloc_count_ = 0;
+    std::map<size_t, size_t> alloc_size_histogram_;
 
-    // === 新增：内存利用率统计 ===
-    size_t total_requested_bytes_ = 0;   // 累计请求的字节数
-    size_t total_allocated_bytes_ = 0;   // 累计实际分配的字节数
-    size_t large_block_waste_count_ = 0; // 大block被小请求占用的次数
-    size_t large_block_waste_bytes_ = 0; // 因大block被小请求占用浪费的字节数
+    // === Memory utilization statistics ===
+    size_t total_requested_bytes_ = 0;
+    size_t total_allocated_bytes_ = 0;
+    size_t large_block_waste_count_ = 0;
+    size_t large_block_waste_bytes_ = 0;
 };
 
 }  // namespace mllm::ascend

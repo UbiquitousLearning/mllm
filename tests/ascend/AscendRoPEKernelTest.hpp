@@ -4,8 +4,9 @@
 #pragma once
 
 #include "mllm/mllm.hpp"
+#include "mllm/core/aops/RoPEOp.hpp"
 #include "mllm/core/Tensor.hpp"
-#include "mllm/nn/Functional.hpp"
+#include "mllm/engine/Context.hpp"
 #include "KernelTestHelper.hpp"
 #include "mllm/backends/cpu/kernels/common/ggml/quantize/quantize.hpp"
 #include <vector>
@@ -22,21 +23,21 @@ class AscendRoPEKernelTest : public KernelTest {
     using namespace mllm;  // NOLINT
     for (auto& shape : shapes) {
       MLLM_RT_ASSERT(shape.size() == 4);
-      int B = shape[0];
-      int H = shape[1];
-      int S = shape[2];
-      int D = shape[3];
-      MLLM_RT_ASSERT(D % 2 == 0);
+      int batch_size = shape[0];
+      int num_heads = shape[1];
+      int seq_len = shape[2];
+      int head_dim = shape[3];
+      MLLM_RT_ASSERT(head_dim % 2 == 0);
 
-      int half_D = D / 2;
+      int half_head_dim = head_dim / 2;
 
       // 1. Construct random FP16 inputs on CPU
       Tensor x_cpu = Tensor::random(shape, -2.0f, 2.0f, kFloat16, kCPU);
 
       // 2. Generate cos and sin tables
       // Shape: [1, S, 1, D] to broadcast correctly
-      Tensor cos_cpu = Tensor::zeros({1, S, 1, D}, kFloat16, kCPU);
-      Tensor sin_cpu = Tensor::zeros({1, S, 1, D}, kFloat16, kCPU);
+      Tensor cos_cpu = Tensor::zeros({1, seq_len, 1, head_dim}, kFloat16, kCPU);
+      Tensor sin_cpu = Tensor::zeros({1, seq_len, 1, head_dim}, kFloat16, kCPU);
 
       {
         auto* cos_ptr = cos_cpu.ptr<mllm_fp16_t>();
@@ -45,17 +46,17 @@ class AscendRoPEKernelTest : public KernelTest {
         // Generate RoPE frequencies
         // freq_i = 1 / (theta^(2i/D)) where theta = 10000
         float theta = 10000.0f;
-        for (int s = 0; s < S; ++s) {
-          for (int d = 0; d < half_D; ++d) {
-            float freq = 1.0f / std::pow(theta, (2.0f * d) / D);
+        for (int s = 0; s < seq_len; ++s) {
+          for (int d = 0; d < half_head_dim; ++d) {
+            float freq = 1.0f / std::pow(theta, (2.0f * d) / head_dim);
             float angle = s * freq;
             float cos_val = std::cos(angle);
             float sin_val = std::sin(angle);
 
             // Store cos/sin for both halves (interleaved or split depending on implementation)
             // ATB RoPE with rotaryCoeff=2 expects: [cos, cos] pattern for D dimension
-            int idx = s * D + d;
-            int idx2 = s * D + d + half_D;
+            int idx = s * head_dim + d;
+            int idx2 = s * head_dim + d + half_head_dim;
             cos_ptr[idx] = MLLM_FP32_TO_FP16(cos_val);
             cos_ptr[idx2] = MLLM_FP32_TO_FP16(cos_val);
             sin_ptr[idx] = MLLM_FP32_TO_FP16(sin_val);
@@ -76,16 +77,16 @@ class AscendRoPEKernelTest : public KernelTest {
         auto* sin_ptr = sin_cpu.ptr<mllm_fp16_t>();
         auto* r_ptr = ref_cpu.ptr<mllm_fp16_t>();
 
-        for (int b = 0; b < B; ++b) {
-          for (int h = 0; h < H; ++h) {
-            for (int s = 0; s < S; ++s) {
-              for (int d = 0; d < half_D; ++d) {
-                // Index into x: [b, h, s, d] and [b, h, s, d + half_D]
-                int idx1 = ((b * H + h) * S + s) * D + d;
-                int idx2 = ((b * H + h) * S + s) * D + d + half_D;
+        for (int b = 0; b < batch_size; ++b) {
+          for (int h = 0; h < num_heads; ++h) {
+            for (int s = 0; s < seq_len; ++s) {
+              for (int d = 0; d < half_head_dim; ++d) {
+                // Index into x: [b, h, s, d] and [b, h, s, d + half_head_dim]
+                int idx1 = ((b * num_heads + h) * seq_len + s) * head_dim + d;
+                int idx2 = ((b * num_heads + h) * seq_len + s) * head_dim + d + half_head_dim;
 
                 // Index into cos/sin: [0, s, 0, d]
-                int cs_idx = s * D + d;
+                int cs_idx = s * head_dim + d;
 
                 float x1 = MLLM_FP16_TO_FP32(x_ptr[idx1]);
                 float x2 = MLLM_FP16_TO_FP32(x_ptr[idx2]);
@@ -115,7 +116,11 @@ class AscendRoPEKernelTest : public KernelTest {
       // Transpose [B, H, S, D] -> [B, S, H, D] before RoPE
       auto x_transposed = x_ascend.transpose(1, 2);
 
-      auto y_transposed = mllm::nn::functional::rope(x_transposed, cos_ascend, sin_ascend);
+      auto y_transposed = mllm::Context::instance()
+                              .buildOpAndSubmitTask(
+                                  OpTypes::kRoPE,
+                                  aops::RoPEOpOptions{.input_type = aops::RoPEOpOptionsInputType::kBSHD},
+                                  {x_transposed, sin_ascend, cos_ascend})[0];
 
       // Transpose [B, S, H, D] -> [B, H, S, D] after RoPE
       auto y_ascend = y_transposed.transpose(1, 2);
@@ -124,21 +129,21 @@ class AscendRoPEKernelTest : public KernelTest {
       auto y_cpu = y_ascend.to(kCPU);
       auto result = mllm::test::allClose(y_cpu, ref_cpu, 1e-2f, 1e-2f);
       if (!result.is_close) {
-        MLLM_ERROR("RoPE test failed for shape [{}, {}, {}, {}]", B, H, S, D);
+        MLLM_ERROR("RoPE test failed for shape [{}, {}, {}, {}]", batch_size, num_heads, seq_len, head_dim);
 
         // Debug: print first few mismatched values
         auto* y_ptr = y_cpu.ptr<mllm_fp16_t>();
         auto* r_ptr = ref_cpu.ptr<mllm_fp16_t>();
         auto* x_ptr = x_cpu.ptr<mllm_fp16_t>();
         int mismatch_count = 0;
-        const int max_print = 10;
+        constexpr int MAX_PRINT = 10;
 
-        std::cout << "\n=== Debug: First " << max_print << " mismatches ===" << std::endl;
-        for (int b = 0; b < B && mismatch_count < max_print; ++b) {
-          for (int h = 0; h < H && mismatch_count < max_print; ++h) {
-            for (int s = 0; s < S && mismatch_count < max_print; ++s) {
-              for (int d = 0; d < D && mismatch_count < max_print; ++d) {
-                int idx = ((b * H + h) * S + s) * D + d;
+        std::cout << "\n=== Debug: First " << MAX_PRINT << " mismatches ===" << std::endl;
+        for (int b = 0; b < batch_size && mismatch_count < MAX_PRINT; ++b) {
+          for (int h = 0; h < num_heads && mismatch_count < MAX_PRINT; ++h) {
+            for (int s = 0; s < seq_len && mismatch_count < MAX_PRINT; ++s) {
+              for (int d = 0; d < head_dim && mismatch_count < MAX_PRINT; ++d) {
+                int idx = ((b * num_heads + h) * seq_len + s) * head_dim + d;
                 float actual = MLLM_FP16_TO_FP32(y_ptr[idx]);
                 float expected = MLLM_FP16_TO_FP32(r_ptr[idx]);
                 float input = MLLM_FP16_TO_FP32(x_ptr[idx]);
@@ -157,7 +162,7 @@ class AscendRoPEKernelTest : public KernelTest {
 
         return false;
       }
-      MLLM_INFO("RoPE test passed for shape [{}, {}, {}, {}]", B, H, S, D);
+      MLLM_INFO("RoPE test passed for shape [{}, {}, {}, {}]", batch_size, num_heads, seq_len, head_dim);
     }
     return true;
   }

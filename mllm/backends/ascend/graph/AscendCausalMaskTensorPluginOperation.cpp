@@ -13,7 +13,13 @@
 
 namespace mllm::ascend {
 
-namespace {
+namespace MLLM_ANONYMOUS_NAMESPACE {
+
+constexpr uint32_t INPUT_NUM = 2;
+constexpr uint32_t OUTPUT_NUM = 1;
+constexpr uint32_t SCORES_INPUT_INDEX = 0;
+constexpr uint32_t CURRENT_SEQ_LEN_INPUT_INDEX = 1;
+constexpr uint32_t MASK_OUTPUT_INDEX = 0;
 
 template <typename T>
 void fillMaskBuffer(T* ptr,
@@ -21,6 +27,7 @@ void fillMaskBuffer(T* ptr,
                     int64_t heads,
                     int64_t seq_q,
                     int64_t seq_kv,
+                    int32_t current_seq_len,
                     bool sliding_window,
                     int32_t window_size,
                     T mask_val) {
@@ -31,7 +38,7 @@ void fillMaskBuffer(T* ptr,
     for (int64_t h = 0; h < heads; ++h) {
       for (int64_t s_q = 0; s_q < seq_q; ++s_q) {
         const int64_t base_idx = b * heads * seq_q * seq_kv + h * seq_q * seq_kv + s_q * seq_kv;
-        const int64_t current_kv_pos = seq_kv - seq_q + s_q;
+        const int64_t current_kv_pos = static_cast<int64_t>(current_seq_len) + s_q;
 
         if (!sliding_window) {
           for (int64_t s_kv = current_kv_pos + 1; s_kv < seq_kv; ++s_kv) {
@@ -52,7 +59,7 @@ void fillMaskBuffer(T* ptr,
   }
 }
 
-}  // namespace
+}  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 AscendCausalMaskTensorPluginOperation::AscendCausalMaskTensorPluginOperation(bool sliding_window, int32_t window_size)
     : sliding_window_(sliding_window), window_size_(window_size) {}
@@ -72,29 +79,29 @@ std::string AscendCausalMaskTensorPluginOperation::GetName() const {
 
 atb::Status AscendCausalMaskTensorPluginOperation::InferShape(const atb::SVector<atb::TensorDesc>& inTensorDescs,
                                                               atb::SVector<atb::TensorDesc>& outTensorDescs) const {
-  if (inTensorDescs.size() != 1 || outTensorDescs.size() != 1) {
+  if (inTensorDescs.size() != INPUT_NUM || outTensorDescs.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
-  outTensorDescs.at(0) = inTensorDescs.at(0);
+  outTensorDescs.at(MASK_OUTPUT_INDEX) = inTensorDescs.at(SCORES_INPUT_INDEX);
   return atb::NO_ERROR;
 }
 
 uint32_t AscendCausalMaskTensorPluginOperation::GetInputNum() const {
-  return 1;
+  return INPUT_NUM;
 }
 
 uint32_t AscendCausalMaskTensorPluginOperation::GetOutputNum() const {
-  return 1;
+  return OUTPUT_NUM;
 }
 
 atb::Status AscendCausalMaskTensorPluginOperation::Setup(const atb::VariantPack& variantPack,
-                                                         uint64_t& workspaceSize,
+                                                         uint64_t& workspace_size,
                                                          atb::Context* context) {
   (void)context;
-  if (variantPack.inTensors.size() != 1 || variantPack.outTensors.size() != 1) {
+  if (variantPack.inTensors.size() != INPUT_NUM || variantPack.outTensors.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
-  workspaceSize = 0;
+  workspace_size = 0;
   return atb::NO_ERROR;
 }
 
@@ -122,18 +129,19 @@ atb::Status AscendCausalMaskTensorPluginOperation::ensureHostMaskBuffer(uint64_t
 
 atb::Status AscendCausalMaskTensorPluginOperation::Execute(const atb::VariantPack& variantPack,
                                                            uint8_t* workspace,
-                                                           uint64_t workspaceSize,
+                                                           uint64_t workspace_size,
                                                            atb::Context* context) {
   (void)workspace;
-  (void)workspaceSize;
+  (void)workspace_size;
   (void)context;
 
-  if (variantPack.inTensors.size() != 1 || variantPack.outTensors.size() != 1) {
+  if (variantPack.inTensors.size() != INPUT_NUM || variantPack.outTensors.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
 
-  const auto& input = variantPack.inTensors.at(0);
-  auto output = variantPack.outTensors.at(0);
+  const auto& input = variantPack.inTensors.at(SCORES_INPUT_INDEX);
+  const auto& seq_len_tensor = variantPack.inTensors.at(CURRENT_SEQ_LEN_INPUT_INDEX);
+  auto output = variantPack.outTensors.at(MASK_OUTPUT_INDEX);
   if (input.desc.shape.dimNum != 4 || output.desc.shape.dimNum != 4) {
     return atb::ERROR_INVALID_TENSOR_DIM_NUM;
   }
@@ -150,6 +158,20 @@ atb::Status AscendCausalMaskTensorPluginOperation::Execute(const atb::VariantPac
   const int64_t seq_kv = input.desc.shape.dims[3];
   const size_t elem_size = aclDataTypeSize(input.desc.dtype);
   const uint64_t total_bytes = static_cast<uint64_t>(batch * heads * seq_q * seq_kv) * elem_size;
+  if (seq_len_tensor.desc.dtype != ACL_INT32
+      || seq_len_tensor.dataSize < sizeof(int32_t)
+      || seq_len_tensor.deviceData == nullptr) {
+    return atb::ERROR_INVALID_TENSOR_DTYPE;
+  }
+  int32_t current_seq_len = 0;
+  auto seq_ret = aclrtMemcpy(&current_seq_len,
+                             sizeof(int32_t),
+                             seq_len_tensor.deviceData,
+                             sizeof(int32_t),
+                             ACL_MEMCPY_DEVICE_TO_HOST);
+  if (seq_ret != ACL_SUCCESS) {
+    return atb::ERROR_RT_FAIL;
+  }
 
   auto st = ensureHostMaskBuffer(total_bytes);
   if (st != atb::NO_ERROR) {
@@ -162,6 +184,7 @@ atb::Status AscendCausalMaskTensorPluginOperation::Execute(const atb::VariantPac
                    heads,
                    seq_q,
                    seq_kv,
+                   current_seq_len,
                    sliding_window_,
                    window_size_,
                    half_float::half(-65500.0f));
@@ -171,6 +194,7 @@ atb::Status AscendCausalMaskTensorPluginOperation::Execute(const atb::VariantPac
                    heads,
                    seq_q,
                    seq_kv,
+                   current_seq_len,
                    sliding_window_,
                    window_size_,
                    -1e10f);

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "mllm/backends/ascend/AscendCommon.hpp"
@@ -17,10 +18,18 @@
 
 namespace mllm::ascend {
 
-namespace {
+namespace MLLM_ANONYMOUS_NAMESPACE {
 
-constexpr uint32_t kBaseInputNum = 7;
-constexpr uint32_t kOutputNum = 1;
+constexpr uint32_t INPUT_NUM = 7;
+constexpr uint32_t OUTPUT_NUM = 1;
+constexpr uint32_t QUERY_INPUT_INDEX = 0;
+constexpr uint32_t KEY_NEW_INPUT_INDEX = 1;
+constexpr uint32_t VALUE_NEW_INPUT_INDEX = 2;
+constexpr uint32_t KEY_CACHE_INPUT_INDEX = 3;
+constexpr uint32_t VALUE_CACHE_INPUT_INDEX = 4;
+constexpr uint32_t CURRENT_SEQ_LEN_INPUT_INDEX = 5;
+constexpr uint32_t ATTN_SCALE_INPUT_INDEX = 6;
+constexpr uint32_t OUTPUT_INDEX = 0;
 
 struct WorkspacePlan {
   uint64_t key_history_bytes{0};
@@ -132,7 +141,7 @@ inline atb::Status copyCachePrefixToContiguous(const atb::Tensor& src_full_cache
   const int64_t dst_heads = src_heads * repeat_times;
   if (batch != 1
       || dst_shape.dims[0] != dst_heads
-      || dst_shape.dims[1] != total_seq
+      || dst_shape.dims[1] < total_seq
       || dst_shape.dims[2] != head_dim
       || total_seq > max_cache_length) {
     return atb::ERROR_INVALID_TENSOR_NUM;
@@ -140,8 +149,8 @@ inline atb::Status copyCachePrefixToContiguous(const atb::Tensor& src_full_cache
 
   const size_t elem_size = aclDataTypeSize(src_full_cache.desc.dtype);
   const size_t src_head_stride = static_cast<size_t>(max_cache_length) * head_dim * elem_size;
-  const size_t dst_head_stride = static_cast<size_t>(total_seq) * head_dim * elem_size;
-  const size_t copy_bytes = dst_head_stride;
+  const size_t dst_head_stride = static_cast<size_t>(dst_shape.dims[1]) * head_dim * elem_size;
+  const size_t copy_bytes = static_cast<size_t>(total_seq) * head_dim * elem_size;
 
   const auto* src_base = static_cast<const uint8_t*>(src_full_cache.deviceData);
   auto* dst_base = static_cast<uint8_t*>(dst_history_contiguous.deviceData);
@@ -219,21 +228,25 @@ inline atb::Operation* createSoftmaxOp(int axis) {
   return op;
 }
 
-}  // namespace
+}  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 AscendAttentionWithKVCachePluginOperation::AscendAttentionWithKVCachePluginOperation(int32_t num_attention_heads,
                                                                                       int32_t num_key_value_heads,
                                                                                       int32_t head_dim,
                                                                                       int32_t max_cache_length,
                                                                                       bool sliding_window,
-                                                                                      int32_t window_size)
+                                                                                      int32_t window_size,
+                                                                                      std::string name_suffix,
+                                                                                      int32_t setup_bucket_size)
     : num_attention_heads_(num_attention_heads),
       num_key_value_heads_(num_key_value_heads),
       num_key_value_groups_(num_attention_heads / num_key_value_heads),
       head_dim_(head_dim),
       max_cache_length_(max_cache_length),
       sliding_window_(sliding_window),
-      window_size_(window_size) {
+      window_size_(window_size),
+      name_suffix_(std::move(name_suffix)),
+      setup_bucket_size_(setup_bucket_size) {
   buildAttentionSubgraph();
 }
 
@@ -257,22 +270,32 @@ AscendAttentionWithKVCachePluginOperation::~AscendAttentionWithKVCachePluginOper
   matmul_av_op_ = nullptr;
   decode_matmul_qk_op_ = nullptr;
   decode_scale_mul_op_ = nullptr;
+  decode_mask_tensor_op_ = nullptr;
+  decode_mask_add_op_ = nullptr;
   decode_softmax_op_ = nullptr;
   decode_matmul_av_op_ = nullptr;
+}
+
+int32_t AscendAttentionWithKVCachePluginOperation::bucketedTotalSeq(int32_t total_seq) const {
+  if (setup_bucket_size_ <= 0) {
+    return total_seq;
+  }
+  const int32_t rounded = ((total_seq + setup_bucket_size_ - 1) / setup_bucket_size_) * setup_bucket_size_;
+  return std::min(max_cache_length_, rounded);
 }
 
 void AscendAttentionWithKVCachePluginOperation::buildAttentionSubgraph() {
   AscendGraphBuilder builder;
   builder.beginGraph(
-      "AscendAttentionWithKVCacheSubGraph",
-      {"query_3d", "key_history_3d", "value_history_3d", "attn_scale"},
+      "AscendAttentionWithKVCacheSubGraph" + name_suffix_,
+      {"query_3d", "key_history_3d", "value_history_3d", "attn_scale", "current_seq_len"},
       {"output_3d"},
       [](const atb::SVector<atb::TensorDesc>& inTensorDescs,
          atb::SVector<atb::TensorDesc>& outTensorDescs) -> atb::Status {
         if (inTensorDescs.empty() || outTensorDescs.empty()) {
           return atb::NO_ERROR;
         }
-        outTensorDescs.at(0) = inTensorDescs.at(0);
+        outTensorDescs.at(OUTPUT_INDEX) = inTensorDescs.at(QUERY_INPUT_INDEX);
         return atb::NO_ERROR;
       });
 
@@ -295,7 +318,7 @@ void AscendAttentionWithKVCachePluginOperation::buildAttentionSubgraph() {
       },
       "scores_4d");
   builder.addOperation(scale_mul_op_, {"scores_4d", "attn_scale"}, {"scaled_scores_4d"});
-  builder.addOperation(mask_tensor_op_, {"scaled_scores_4d"}, {"mask_tensor_4d"});
+  builder.addOperation(mask_tensor_op_, {"scaled_scores_4d", "current_seq_len"}, {"mask_tensor_4d"});
   builder.addOperation(mask_add_op_, {"scaled_scores_4d", "mask_tensor_4d"}, {"masked_scores_4d"});
   builder.addOperation(softmax_op_, {"masked_scores_4d"}, {"probs_4d"});
   builder.reshape(
@@ -313,20 +336,24 @@ void AscendAttentionWithKVCachePluginOperation::buildAttentionSubgraph() {
 
   AscendGraphBuilder decode_builder;
   decode_builder.beginGraph(
-      "AscendAttentionWithKVCacheDecodeSubGraph",
-      {"query_3d", "key_history_3d", "value_history_3d", "attn_scale"},
+      "AscendAttentionWithKVCacheDecodeSubGraph" + name_suffix_,
+      {"query_3d", "key_history_3d", "value_history_3d", "attn_scale", "current_seq_len"},
       {"output_3d"},
       [](const atb::SVector<atb::TensorDesc>& inTensorDescs,
          atb::SVector<atb::TensorDesc>& outTensorDescs) -> atb::Status {
         if (inTensorDescs.empty() || outTensorDescs.empty()) {
           return atb::NO_ERROR;
         }
-        outTensorDescs.at(0) = inTensorDescs.at(0);
+        outTensorDescs.at(OUTPUT_INDEX) = inTensorDescs.at(QUERY_INPUT_INDEX);
         return atb::NO_ERROR;
       });
 
   decode_matmul_qk_op_ = createMatMulOp(false, true);
   decode_scale_mul_op_ = createMulOp();
+  if (setup_bucket_size_ > 0) {
+    decode_mask_tensor_op_ = createCausalMaskTensorPluginGraphOp(sliding_window_, window_size_);
+    decode_mask_add_op_ = createAddOp();
+  }
   decode_softmax_op_ = createSoftmaxOp(3);
   decode_matmul_av_op_ = createMatMulOp(false, false);
 
@@ -342,7 +369,13 @@ void AscendAttentionWithKVCachePluginOperation::buildAttentionSubgraph() {
       },
       "scores_4d");
   decode_builder.addOperation(decode_scale_mul_op_, {"scores_4d", "attn_scale"}, {"scaled_scores_4d"});
-  decode_builder.addOperation(decode_softmax_op_, {"scaled_scores_4d"}, {"probs_4d"});
+  if (setup_bucket_size_ > 0) {
+    decode_builder.addOperation(decode_mask_tensor_op_, {"scaled_scores_4d", "current_seq_len"}, {"decode_mask_tensor_4d"});
+    decode_builder.addOperation(decode_mask_add_op_, {"scaled_scores_4d", "decode_mask_tensor_4d"}, {"decode_masked_scores_4d"});
+    decode_builder.addOperation(decode_softmax_op_, {"decode_masked_scores_4d"}, {"probs_4d"});
+  } else {
+    decode_builder.addOperation(decode_softmax_op_, {"scaled_scores_4d"}, {"probs_4d"});
+  }
   decode_builder.reshape(
       "probs_4d",
       [this](const atb::Dims& oldShape, atb::Dims& newShape) {
@@ -358,31 +391,31 @@ void AscendAttentionWithKVCachePluginOperation::buildAttentionSubgraph() {
 }
 
 std::string AscendAttentionWithKVCachePluginOperation::GetName() const {
-  return "AscendAttentionWithKVCachePluginOperation";
+  return "AscendAttentionWithKVCachePluginOperation" + name_suffix_;
 }
 
 uint32_t AscendAttentionWithKVCachePluginOperation::GetInputNum() const {
-  return kBaseInputNum;
+  return INPUT_NUM;
 }
 
 uint32_t AscendAttentionWithKVCachePluginOperation::GetOutputNum() const {
-  return kOutputNum;
+  return OUTPUT_NUM;
 }
 
 atb::Status AscendAttentionWithKVCachePluginOperation::InferShape(
     const atb::SVector<atb::TensorDesc>& inTensorDescs,
     atb::SVector<atb::TensorDesc>& outTensorDescs) const {
-  if (inTensorDescs.size() != GetInputNum() || outTensorDescs.size() != kOutputNum) {
+  if (inTensorDescs.size() != GetInputNum() || outTensorDescs.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
-  outTensorDescs.at(0) = inTensorDescs.at(0);
+  outTensorDescs.at(OUTPUT_INDEX) = inTensorDescs.at(QUERY_INPUT_INDEX);
   return atb::NO_ERROR;
 }
 
 atb::Status AscendAttentionWithKVCachePluginOperation::Setup(const atb::VariantPack& variantPack,
-                                                             uint64_t& workspaceSize,
+                                                             uint64_t& workspace_size,
                                                              atb::Context* context) {
-  if (variantPack.inTensors.size() != GetInputNum() || variantPack.outTensors.size() != kOutputNum) {
+  if (variantPack.inTensors.size() != GetInputNum() || variantPack.outTensors.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
   if (context == nullptr || prefill_subgraph_op_ == nullptr || decode_subgraph_op_ == nullptr) {
@@ -390,21 +423,23 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Setup(const atb::VariantP
   }
 
   int32_t current_seq_len = 0;
-  auto st = readCurrentSeqLen(variantPack.inTensors.at(5), current_seq_len);
+  auto st = readCurrentSeqLen(variantPack.inTensors.at(CURRENT_SEQ_LEN_INPUT_INDEX), current_seq_len);
   if (st != atb::NO_ERROR) {
     return st;
   }
 
-  const auto& query = variantPack.inTensors.at(0);
+  const auto& query = variantPack.inTensors.at(QUERY_INPUT_INDEX);
   const int64_t batch = query.desc.shape.dims[0];
   const int64_t q_heads = query.desc.shape.dims[1];
   const int64_t seq_q = query.desc.shape.dims[2];
   const int64_t total_seq = current_seq_len + seq_q;
-  if (batch != 1 || q_heads != num_attention_heads_ || query.desc.shape.dims[3] != head_dim_ || total_seq > max_cache_length_) {
+  const int64_t bucket_total_seq = bucketedTotalSeq(static_cast<int32_t>(total_seq));
+  if (batch != 1 || q_heads != num_attention_heads_ || query.desc.shape.dims[3] != head_dim_
+      || total_seq > max_cache_length_ || bucket_total_seq > max_cache_length_) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
 
-  const auto history_shape_3d = std::vector<int64_t>{batch * num_key_value_heads_, total_seq, head_dim_};
+  const auto history_shape_3d = std::vector<int64_t>{batch * num_key_value_heads_, bucket_total_seq, head_dim_};
   WorkspacePlan plan;
   plan.key_history_bytes = alignUp(makeTensorWithShape(query.desc.dtype, history_shape_3d).dataSize);
   plan.value_history_bytes = alignUp(makeTensorWithShape(query.desc.dtype, history_shape_3d).dataSize);
@@ -415,7 +450,8 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Setup(const atb::VariantP
       {makeTensorView(query, {batch * num_key_value_heads_, num_key_value_groups_ * seq_q, head_dim_}),
        makeTensorWithShape(query.desc.dtype, history_shape_3d),
        makeTensorWithShape(query.desc.dtype, history_shape_3d),
-       variantPack.inTensors.at(6)},
+       variantPack.inTensors.at(ATTN_SCALE_INPUT_INDEX),
+       variantPack.inTensors.at(CURRENT_SEQ_LEN_INPUT_INDEX)},
       {makeTensorWithShape(query.desc.dtype,
                            {batch * num_key_value_heads_, num_key_value_groups_ * seq_q, head_dim_})});
 
@@ -433,15 +469,15 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Setup(const atb::VariantP
     plan.subgraph_workspace_bytes = decode_subgraph_workspace_bytes_;
   }
 
-  workspaceSize = plan.totalBytes();
+  workspace_size = plan.totalBytes();
   return atb::NO_ERROR;
 }
 
 atb::Status AscendAttentionWithKVCachePluginOperation::Execute(const atb::VariantPack& variantPack,
                                                                uint8_t* workspace,
-                                                               uint64_t workspaceSize,
+                                                               uint64_t workspace_size,
                                                                atb::Context* context) {
-  if (variantPack.inTensors.size() != GetInputNum() || variantPack.outTensors.size() != kOutputNum) {
+  if (variantPack.inTensors.size() != GetInputNum() || variantPack.outTensors.size() != OUTPUT_NUM) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
   if (context == nullptr || prefill_subgraph_op_ == nullptr || decode_subgraph_op_ == nullptr) {
@@ -449,24 +485,26 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Execute(const atb::Varian
   }
 
   int32_t current_seq_len = 0;
-  auto st = readCurrentSeqLen(variantPack.inTensors.at(5), current_seq_len);
+  auto st = readCurrentSeqLen(variantPack.inTensors.at(CURRENT_SEQ_LEN_INPUT_INDEX), current_seq_len);
   if (st != atb::NO_ERROR) {
     return st;
   }
 
-  const auto& query = variantPack.inTensors.at(0);
-  const auto& key_new = variantPack.inTensors.at(1);
-  const auto& value_new = variantPack.inTensors.at(2);
-  const auto& k_cache = variantPack.inTensors.at(3);
-  const auto& v_cache = variantPack.inTensors.at(4);
-  const auto& attn_scale = variantPack.inTensors.at(6);
-  const auto& output = variantPack.outTensors.at(0);
+  const auto& query = variantPack.inTensors.at(QUERY_INPUT_INDEX);
+  const auto& key_new = variantPack.inTensors.at(KEY_NEW_INPUT_INDEX);
+  const auto& value_new = variantPack.inTensors.at(VALUE_NEW_INPUT_INDEX);
+  const auto& k_cache = variantPack.inTensors.at(KEY_CACHE_INPUT_INDEX);
+  const auto& v_cache = variantPack.inTensors.at(VALUE_CACHE_INPUT_INDEX);
+  const auto& attn_scale = variantPack.inTensors.at(ATTN_SCALE_INPUT_INDEX);
+  const auto& output = variantPack.outTensors.at(OUTPUT_INDEX);
 
   const int64_t batch = query.desc.shape.dims[0];
   const int64_t q_heads = query.desc.shape.dims[1];
   const int64_t seq_q = query.desc.shape.dims[2];
   const int64_t total_seq = current_seq_len + seq_q;
-  if (batch != 1 || q_heads != num_attention_heads_ || query.desc.shape.dims[3] != head_dim_ || total_seq > max_cache_length_) {
+  const int64_t bucket_total_seq = bucketedTotalSeq(static_cast<int32_t>(total_seq));
+  if (batch != 1 || q_heads != num_attention_heads_ || query.desc.shape.dims[3] != head_dim_
+      || total_seq > max_cache_length_ || bucket_total_seq > max_cache_length_) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
 
@@ -479,14 +517,14 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Execute(const atb::Varian
     return st;
   }
 
-  const auto history_shape_3d = std::vector<int64_t>{batch * num_key_value_heads_, total_seq, head_dim_};
+  const auto history_shape_3d = std::vector<int64_t>{batch * num_key_value_heads_, bucket_total_seq, head_dim_};
   WorkspacePlan plan;
   plan.key_history_bytes = alignUp(makeTensorWithShape(query.desc.dtype, history_shape_3d).dataSize);
   plan.value_history_bytes = alignUp(makeTensorWithShape(query.desc.dtype, history_shape_3d).dataSize);
-  plan.subgraph_workspace_bytes = workspaceSize >= (plan.key_history_bytes + plan.value_history_bytes)
-      ? workspaceSize - (plan.key_history_bytes + plan.value_history_bytes)
+  plan.subgraph_workspace_bytes = workspace_size >= (plan.key_history_bytes + plan.value_history_bytes)
+      ? workspace_size - (plan.key_history_bytes + plan.value_history_bytes)
       : 0;
-  if (workspace == nullptr && workspaceSize > 0) {
+  if (workspace == nullptr && workspace_size > 0) {
     return atb::ERROR_INVALID_TENSOR_NUM;
   }
 
@@ -512,7 +550,8 @@ atb::Status AscendAttentionWithKVCachePluginOperation::Execute(const atb::Varian
       {makeTensorView(query, {batch * num_key_value_heads_, num_key_value_groups_ * seq_q, head_dim_}),
        key_hist_3d,
        value_hist_3d,
-       attn_scale},
+       attn_scale,
+       variantPack.inTensors.at(CURRENT_SEQ_LEN_INPUT_INDEX)},
       {makeTensorView(output, {batch * num_key_value_heads_, num_key_value_groups_ * seq_q, head_dim_})});
 
   auto* selected_subgraph = seq_q > 1 ? prefill_subgraph_op_ : decode_subgraph_op_;
@@ -528,13 +567,17 @@ atb::Operation* createAttentionWithKVCachePluginGraphOp(int32_t num_attention_he
                                                         int32_t head_dim,
                                                         int32_t max_cache_length,
                                                         bool sliding_window,
-                                                        int32_t window_size) {
+                                                        int32_t window_size,
+                                                        std::string name_suffix,
+                                                        int32_t setup_bucket_size) {
   return new AscendAttentionWithKVCachePluginOperation(num_attention_heads,
                                                        num_key_value_heads,
                                                        head_dim,
                                                        max_cache_length,
                                                        sliding_window,
-                                                       window_size);
+                                                       window_size,
+                                                       std::move(name_suffix),
+                                                       setup_bucket_size);
 }
 
 }  // namespace mllm::ascend

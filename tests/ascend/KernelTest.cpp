@@ -7,6 +7,8 @@
 
 /// Kernel tests
 #include "AscendKernelTest.hpp"
+#include "AscendAclnnKernelTest.hpp"
+#include "AscendBroadcastKernelTest.hpp"
 
 //===----------------------------------------------------------------------===//
 // Graph Builder tests.
@@ -101,6 +103,116 @@ TEST_F(AscendKernelTest, MulFloat16) {
 }
 
 //===----------------------------------------------------------------------===//
+// Element wise MULS.
+//
+// FP16 input, FP16 output
+//===----------------------------------------------------------------------===//
+TEST_F(AscendKernelTest, MulScalarFloat16) {
+  EXPECT_EQ(MulScalarFloat16Test({
+                {2, 3},
+                {1, 1},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// aclnnAbs (FP16): element-wise absolute value.
+//
+// Verify aclnnAbs works on 310B for FP16 tensors.
+//===----------------------------------------------------------------------===//
+TEST_F(AscendAclnnKernelTest, AclnnAbsFloat16) {
+  EXPECT_EQ(AclnnAbsFloat16Test({
+                {2, 3},
+                {1, 1},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+                {1, 1024},
+                {128, 128},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// aclnnMaxDim (FP16, keepdim=true): max along last dim.
+//
+// Verify aclnnMaxDim works on 310B with dummy indices buffer.
+//===----------------------------------------------------------------------===//
+TEST_F(AscendAclnnKernelTest, AclnnMaxDimFloat16) {
+  EXPECT_EQ(AclnnMaxDimFloat16Test({
+                {2, 3},
+                {1, 8},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+                {1, 1024},
+                {128, 128},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// ATB ELEWISE_REALDIV (broadcast): [M,K] / [M,1].
+//
+// Verify ATB ELEWISE_REALDIV supports broadcast on 310B.
+//===----------------------------------------------------------------------===//
+TEST_F(AscendBroadcastKernelTest, RealDivBroadcastFloat16) {
+  EXPECT_EQ(RealDivBroadcastFloat16Test({
+                {2, 3},
+                {1, 8},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+                {1, 1024},
+                {128, 128},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// ATB ELEWISE_MUL (broadcast): [M,K] * [M,1].
+//
+// Verify ATB ELEWISE_MUL supports broadcast on 310B (pipeline post-scale step).
+//===----------------------------------------------------------------------===//
+TEST_F(AscendBroadcastKernelTest, MulBroadcastFloat16) {
+  EXPECT_EQ(MulBroadcastFloat16Test({
+                {2, 3},
+                {1, 8},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+                {1, 1024},
+                {128, 128},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// aclnnCast FP16 -> INT8 (alternative to ELEWISE_CAST which fails on 310B).
+//
+// Tests whether aclnnCast can be used for activation quantization on 310B.
+//===----------------------------------------------------------------------===//
+TEST_F(AscendAclnnKernelTest, AclnnCastFloat16ToInt8) {
+  EXPECT_EQ(AclnnCastFloat16ToInt8Test({
+                {2, 3},
+                {1, 1},
+                {4, 4},
+                {8, 8},
+                {16, 16},
+                {32, 32},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
 // SiLU activation function.
 //
 // FP16 (Ascend currently uses FP16)
@@ -144,6 +256,30 @@ TEST_F(AscendLinearKernelTest, LinearWithBiasFloat16) {
                 {{2, 3}, 3, 4},
                 {{1, 8}, 8, 16},
                 {{4, 16}, 16, 32},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
+// W8A8 end-to-end pipeline test (corrected activation quantization path).
+//
+// Tests the full pipeline on 310B:
+//   x_fp16 → [ATB ELEWISE_MULS *inv_scale] → x_scaled_fp16
+//           → [aclnnRound FP16]             → x_round_fp16
+//           → [aclnnClamp(-128,127) FP16]   → x_clamped_fp16
+//           → [aclnnCast FP16→INT8]         → x_int8
+//   x_int8, weight_int8, bias_i32, deq_scale → [ATB Linear W8A8] → y_fp16
+//
+// The test returns false at the first failing step so that missing primitive
+// support on 310B is immediately apparent from the diagnostic output.
+//===----------------------------------------------------------------------===//
+TEST_F(AscendLinearKernelTest, LinearW8A8EndToEndPipeline) {
+  EXPECT_EQ(LinearW8A8EndToEndPipelineTest({
+                // {input_shape, K (in_channels), N (out_channels)}
+                {{1, 32},    32,   64},
+                {{1, 64},    64,  128},
+                {{4, 128},  128,  256},
+                {{1, 1024}, 1024, 512},
             }),
             true);
 }
@@ -346,7 +482,6 @@ TEST_F(AscendRoPEKernelTest, RoPEFloat16) {
                 {1, 16, 8, 128},    // 16 heads, D=128 (Qwen3 head_dim)
                 {1, 8, 1, 128},     // S=1 (decode phase)
                 {2, 8, 16, 64},     // Batch=2
-                
             }),
             true);
 }

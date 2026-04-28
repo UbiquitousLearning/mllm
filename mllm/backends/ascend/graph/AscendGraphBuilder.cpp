@@ -35,7 +35,7 @@ void AscendGraphBuilder::beginGraph(
   current_graph_name_ = graph_name;
 
   // Create shape inference function
-  auto inferShapeFunc = infer_shape_func ? infer_shape_func : createInferShapeFunc();
+  auto infer_shape_func_to_use = infer_shape_func ? infer_shape_func : createInferShapeFunc();
 
   // Convert std::vector to atb::SVector
   atb::SVector<std::string> atb_input_names;
@@ -50,7 +50,7 @@ void AscendGraphBuilder::beginGraph(
   // Initialize graph with TensorName API
   auto ret = builder_->Init(
       graph_name.c_str(),
-      inferShapeFunc,
+      infer_shape_func_to_use,
       atb_input_names,
       atb_output_names
   );
@@ -116,13 +116,9 @@ atb::Operation* AscendGraphBuilder::build() {
 }
 
 atb::InferShapeFunc AscendGraphBuilder::createInferShapeFunc() {
-  // Generic shape inference function
-  // For most ATB operators, ATB can infer shapes automatically
-  // This provides a simple fallback that copies the first input shape to first output
+  // Fallback shape inference: copy the first input descriptor to the first output.
   return [](const atb::SVector<atb::TensorDesc>& inTensorDescs,
             atb::SVector<atb::TensorDesc>& outTensorDescs) -> atb::Status {
-    // Simple heuristic: output shape matches first input shape
-    // ATB's internal shape inference will override this for most operators
     if (!inTensorDescs.empty() && !outTensorDescs.empty()) {
       outTensorDescs.at(0) = inTensorDescs.at(0);
     }

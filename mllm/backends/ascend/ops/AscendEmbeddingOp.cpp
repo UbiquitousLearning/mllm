@@ -15,7 +15,7 @@
 
 namespace mllm::ascend {
 
-namespace {
+namespace MLLM_ANONYMOUS_NAMESPACE {
 
 // Helper function to convert MLLM dtype to ACL dtype
 aclDataType toAclDataType(DataTypes dtype) {
@@ -71,11 +71,14 @@ aclTensor* createAclTensor(const Tensor& tensor) {
   return acl_tensor;
 }
 
-}  // namespace
+}  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 AscendEmbeddingOp::AscendEmbeddingOp(const aops::EmbeddingOpOptions& options) : aops::EmbeddingOp(options) {}
 
 void AscendEmbeddingOp::load(const ParameterFile::ptr_t& ploader) {
+  // Guard: during LayerImpl::to() the temp ploader may be empty.
+  if (!ploader->has(getName() + ".weight")) { return; }
+
   // First call parent's load to get weight from file (on CPU)
   aops::EmbeddingOp::load(ploader);
 
@@ -112,10 +115,10 @@ void AscendEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   }
 
   // Get workspace size and executor using aclnnEmbedding
-  uint64_t workspaceSize = 0;
+  uint64_t workspace_size = 0;
   aclOpExecutor* executor = nullptr;
 
-  auto ret = aclnnEmbeddingGetWorkspaceSize(acl_weight, acl_indices, acl_output, &workspaceSize, &executor);
+  auto ret = aclnnEmbeddingGetWorkspaceSize(acl_weight, acl_indices, acl_output, &workspace_size, &executor);
   if (ret != 0) {
     aclDestroyTensor(acl_weight);
     aclDestroyTensor(acl_indices);
@@ -126,9 +129,9 @@ void AscendEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   // Allocate workspace
   void* workspace = nullptr;
   int workspace_block_id = -1;
-  if (workspaceSize > 0) {
+  if (workspace_size > 0) {
     auto& mem_mgr = getAscendMemoryManager();
-    mem_mgr.allocateBlock(static_cast<uint32_t>(workspaceSize), workspace_block_id);
+    mem_mgr.allocateBlock(static_cast<uint32_t>(workspace_size), workspace_block_id);
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
 
@@ -136,7 +139,7 @@ void AscendEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<T
   aclrtStream stream = getGlobalAtbStream();
   {
     //ASCEND_TIME_SCOPE("AscendEmbeddingOp::forward");
-    ret = aclnnEmbedding(workspace, workspaceSize, executor, stream);
+    ret = aclnnEmbedding(workspace, workspace_size, executor, stream);
   }
 
   // Synchronize before checking result and cleanup

@@ -26,7 +26,7 @@ AscendMemoryPool::AscendMemoryPool(size_t pool_size = POOL_SIZE) {
     }
     cur_mem_ptr_ = base_mem_ptr_;
     remain_size_ = pool_size;
-    pool_size_ = pool_size;  
+    pool_size_ = pool_size;
     // MLLM_INFO("Successfully allocated Ascend memory pool: {} MB at address {}",
     //           pool_size / (1024 * 1024), base_mem_ptr_);
     fmt::print("[Ascend] Memory pool allocated: {} MB\n", pool_size / (1024 * 1024));
@@ -96,7 +96,7 @@ void AscendMemoryPool::allocateBlock(uint32_t size, int &block_id) {
 
         used_blocks_.insert(*best_fit);
         free_blocks_.erase(best_fit);
-        total_reuse_count_++;  
+        total_reuse_count_++;
         MLLM_INFO("find free block id {} to allocate (best-fit)", block_id);
         return;
     }
@@ -111,12 +111,12 @@ void AscendMemoryPool::allocateBlock(uint32_t size, int &block_id) {
         used_blocks_.insert({block_id, block});
         remain_size_ -= align_size;
         cur_mem_ptr_ = reinterpret_cast<uint8_t *>(cur_mem_ptr_) + align_size;
-        total_new_alloc_count_++;  
+        total_new_alloc_count_++;
         MLLM_INFO("allocate block id {} for size {}", block_id, align_size);
         return;
     }
 
-    lock.unlock();  
+    lock.unlock();
     printStats();
     lock.lock();
 
@@ -160,7 +160,7 @@ void AscendMemoryPool::freeBlock(int block_id) {
     if (it != used_blocks_.end()) {
         free_blocks_.insert(*it);
         used_blocks_.erase(it);
-        total_free_count_++;  
+        total_free_count_++;
     } else {
         MLLM_ERROR("Double free block id {}", block_id);
     }

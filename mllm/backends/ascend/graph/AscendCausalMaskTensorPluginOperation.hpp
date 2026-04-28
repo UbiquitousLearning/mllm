@@ -10,6 +10,8 @@
 
 namespace mllm::ascend {
 
+// Builds an additive causal mask tensor for KV-cache attention.
+// Input 0 provides the target shape/dtype; input 1 is current_seq_len on device.
 class AscendCausalMaskTensorPluginOperation final : public atb::OperationInfra {
  public:
   AscendCausalMaskTensorPluginOperation(bool sliding_window = false, int32_t window_size = 0);
@@ -20,10 +22,10 @@ class AscendCausalMaskTensorPluginOperation final : public atb::OperationInfra {
                          atb::SVector<atb::TensorDesc>& outTensorDescs) const override;
   uint32_t GetInputNum() const override;
   uint32_t GetOutputNum() const override;
-  atb::Status Setup(const atb::VariantPack& variantPack, uint64_t& workspaceSize, atb::Context* context) override;
+  atb::Status Setup(const atb::VariantPack& variantPack, uint64_t& workspace_size, atb::Context* context) override;
   atb::Status Execute(const atb::VariantPack& variantPack,
                       uint8_t* workspace,
-                      uint64_t workspaceSize,
+                      uint64_t workspace_size,
                       atb::Context* context) override;
 
  private:

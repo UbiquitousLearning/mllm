@@ -25,7 +25,6 @@
 #include "mllm/core/aops/RadixAttnDiffDimOp.hpp"
 #include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/core/aops/WhereOp.hpp"
-#include "mllm/core/aops/RoPEOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -233,11 +232,6 @@ mllm::Tensor sigmoid(const Tensor& x) {
 mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices) {
   auto& ctx = mllm::Context::instance();
   return ctx.buildOpAndSubmitTask(OpTypes::kGather, aops::GatherOpOptions{.dim = dim}, {x, indices})[0];
-}
-
-Tensor rope(const Tensor& x, const Tensor& cos, const Tensor& sin, aops::RoPEOpOptionsInputType input_type) {
-  auto& ctx = mllm::Context::instance();
-  return ctx.buildOpAndSubmitTask(OpTypes::kRoPE, aops::RoPEOpOptions{.input_type = input_type}, {x, cos, sin})[0];
 }
 
 }  // namespace mllm::nn::functional

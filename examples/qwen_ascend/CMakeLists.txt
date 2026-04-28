@@ -6,4 +6,3 @@ if(MLLM_BUILD_ASCEND_BACKEND)
   target_link_libraries(mllm-qwen-ascend-runner PRIVATE MllmAscendBackend)
   target_compile_definitions(mllm-qwen-ascend-runner PRIVATE MLLM_BUILD_ASCEND_BACKEND)
 endif()
-

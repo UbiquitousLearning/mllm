@@ -123,8 +123,6 @@ class ARGeneration {
 
   void customEventEndTimePoint(const std::string& name);
 
-  [[nodiscard]] virtual bool enableChatTimingFallbackFix() const { return false; }
-
  protected:
   bool do_sample_ = false;
   int eos_token_id_;

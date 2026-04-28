@@ -8,56 +8,149 @@
 #include <atb/types.h>
 #include <atb/utils.h>
 #include <atb/infer_op_params.h>
-#include <cstdlib>
+#include <utility>
+#include <vector>
+#include <string>
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/backends/ascend/memory/AscendMemoryManager.hpp"
 #include "mllm/backends/ascend/AscendCommon.hpp"
+#include "mllm/backends/ascend/ops/AscendLinearDynamicW8A8.hpp"
+#include "mllm/backends/ascend/ops/AscendLinearQuant.hpp"
 
 namespace mllm::ascend {
-
-namespace {
-bool shouldDebugLinearStats() {
-  const char* debug = std::getenv("MLLM_DEBUG_LINEAR_STATS");
-  return debug != nullptr && debug[0] == '1';
-}
-
-void printTensorMeta(const char* tag, const Tensor& t) {
-  fmt::print("[LinearDbg] {} dtype={} device={} rank={} bytes={} ptr={}\n", tag, static_cast<int>(t.dtype()),
-             static_cast<int>(t.device()), t.shape().size(), t.bytes(), fmt::ptr(t.ptr<void>()));
-}
-
-void printAtbTensorMeta(const char* tag, const atb::Tensor& t) {
-  fmt::print("[LinearDbg] {} atb_dtype={} dimNum={} shape=[", tag, static_cast<int>(t.desc.dtype), t.desc.shape.dimNum);
-  for (size_t i = 0; i < t.desc.shape.dimNum; ++i) {
-    fmt::print("{}{}", i == 0 ? "" : ",", t.desc.shape.dims[i]);
-  }
-  fmt::print("] dataSize={} ptr={}\n", t.dataSize, fmt::ptr(t.deviceData));
-}
-}  // namespace
 
 AscendLinearOp::AscendLinearOp(const aops::LinearOpOptions& options) : aops::LinearOp(options) {}
 
 void AscendLinearOp::load(const ParameterFile::ptr_t& ploader) {
-  // First call parent's load to get weight/bias from file (on CPU)
+  // Guard: during LayerImpl::to() the temp ploader may be empty (no weight yet).
+  // In that case, skip — model.load() will call us again with the real model file.
+  if (!ploader->has(getName() + ".weight")) { return; }
+
+  scale_x_ = 0.0f;
+  scale_w_ = Tensor::nil();
+  scale_x_tensor_ = Tensor::nil();
+  deq_scale_npu_ = Tensor::nil();
+  deq_scale_w_npu_ = Tensor::nil();
+  bias_int32_npu_ = Tensor::nil();
+
+  // Pull weight_ (and bias_ if any) onto CPU via parent implementation.
   aops::LinearOp::load(ploader);
 
-  // Convert weight to FP16 and move to Ascend NPU
-  if (!weight_.isNil()) {
-    weight_ = convertTensorToAscendFP16(weight_);
-  }
+  // The conversion script stores scales under the weight tensor name:
+  //   {getName()}.weight          INT8  [N, K]
+  //   {getName()}.weight.scale    FP32  [N]    per-channel weight scale
+  //   {getName()}.weight.scale_x  FP32  [1]    per-tensor activation scale
+  const std::string weight_key  = getName() + ".weight";
+  const std::string scale_w_key = weight_key + ".scale";
+  const std::string scale_x_key = weight_key + ".scale_x";
 
-  // Convert bias to FP16 and move to Ascend NPU (if exists)
-  // ATB Linear requires bias to be 2D [1, out_channels]
-  if (options_.bias && !bias_.isNil()) {
-    // Reshape bias from [out_channels] to [1, out_channels] for ATB
-    if (bias_.shape().size() == 1) {
-      bias_ = bias_.view({1, bias_.shape()[0]});
+  if (weight_.dtype() == kInt8 && ploader->has(scale_x_key)) {
+    // ----------------------------------------------------------------
+    // W8A8 path (INT8 weight + per-channel scale + per-tensor scale_x)
+    // ----------------------------------------------------------------
+    if (!ploader->has(scale_w_key)) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "AscendLinearOp W8A8 load: layer {} has {} but no {}",
+                      getName(),
+                      scale_x_key,
+                      scale_w_key);
     }
-    bias_ = convertTensorToAscendFP16(bias_);
+
+    auto artifacts = prepareLinearW8A8Artifacts(
+        getName(), options_.out_channels, ploader->pull(scale_w_key), ploader->pull(scale_x_key));
+    scale_x_ = artifacts.scale_x;
+    scale_w_ = std::move(artifacts.scale_w_cpu);
+    scale_x_tensor_ = std::move(artifacts.scale_x_cpu);
+    deq_scale_npu_ = std::move(artifacts.deq_scale_npu);
+    deq_scale_w_npu_ = std::move(artifacts.deq_scale_w_npu);
+    bias_int32_npu_ = std::move(artifacts.bias_int32_npu);
+
+    // Upload INT8 weight as-is to NPU (no dtype conversion)
+    weight_ = weight_.to(kAscend);
+
+  } else if (weight_.dtype() == kInt8 && ploader->has(scale_w_key)) {
+    // ----------------------------------------------------------------
+    // W8A16 path (INT8 weight + per-channel scale, no scale_x)
+    //
+    // Baseline strategy: dequantize INT8 -> FP16 once here, then let the
+    // FP16 forward path handle matmul. No memory-bandwidth savings yet; this
+    // exists to validate that the converter output + load wiring is correct
+    // independently of any activation quantization complexity.
+    // ----------------------------------------------------------------
+    const int out_channels = options_.out_channels;
+    const int in_channels = options_.in_channels;
+    MLLM_RT_ASSERT_EQ(weight_.shape().size(), 2);
+    MLLM_RT_ASSERT_EQ(weight_.shape()[0], out_channels);
+    MLLM_RT_ASSERT_EQ(weight_.shape()[1], in_channels);
+
+    Tensor scale_w_raw = ploader->pull(scale_w_key);
+    Tensor sw_cpu = (scale_w_raw.device() == kAscend) ? scale_w_raw.to(kCPU) : scale_w_raw;
+    MLLM_RT_ASSERT_EQ(sw_cpu.dtype(), kFloat32);
+    MLLM_RT_ASSERT_EQ(sw_cpu.numel(), static_cast<size_t>(out_channels));
+
+    const int8_t* w_int8 = weight_.ptr<int8_t>();
+    const float*  sw     = sw_cpu.ptr<float>();
+
+    Tensor w_fp16_cpu = Tensor::empty({out_channels, in_channels}, kFloat16, kCPU);
+    w_fp16_cpu.alloc();
+    auto* w_fp16 = w_fp16_cpu.ptr<half_float::half>();
+    for (int n = 0; n < out_channels; ++n) {
+      const float scale = sw[n];
+      for (int k = 0; k < in_channels; ++k) {
+        w_fp16[n * in_channels + k] = half_float::half(static_cast<float>(w_int8[n * in_channels + k]) * scale);
+      }
+    }
+
+    weight_ = convertTensorToAscendFP16(w_fp16_cpu);
+
+    if (options_.bias && !bias_.isNil()) {
+      if (bias_.shape().size() == 1) { bias_ = bias_.view({1, bias_.shape()[0]}); }
+      bias_ = convertTensorToAscendFP16(bias_);
+    }
+    // Intentionally do NOT retain scale_w_ — the weight is now FP16, so
+    // getParams() returning a {FP16 weight, FP32 scale} pair would be
+    // inconsistent. LayerImpl::to() will see a pure FP16 Linear.
+
+  } else {
+    // ----------------------------------------------------------------
+    // FP16 path (original behaviour)
+    // ----------------------------------------------------------------
+    // Guard: an INT8 weight reaching this branch means the converter wrote
+    // INT8 bytes but no scale metadata — reinterpreting them as FP16 would
+    // silently produce garbage output. Fail loudly instead.
+    if (weight_.dtype() == kInt8) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "AscendLinearOp::load: layer {} has INT8 weight but no {} "
+                      "nor {} in the model file. Check the converter output.",
+                      getName(), scale_w_key, scale_x_key);
+    }
+    if (!weight_.isNil()) {
+      weight_ = convertTensorToAscendFP16(weight_);
+    }
+
+    // ATB Linear requires bias to be 2D [1, out_channels]
+    if (options_.bias && !bias_.isNil()) {
+      if (bias_.shape().size() == 1) {
+        bias_ = bias_.view({1, bias_.shape()[0]});
+      }
+      bias_ = convertTensorToAscendFP16(bias_);
+    }
   }
+}
+
+ParameterFile::ptr_t AscendLinearOp::getParams() {
+  // Start from the base class (returns weight_ and optionally bias_).
+  auto p = aops::LinearOp::getParams();
+  // Append W8A8 scale tensors so LayerImpl::to() can pass them back to load().
+  if (!scale_w_.isNil()) {
+    const std::string weight_key = getName() + ".weight";
+    p->push(weight_key + ".scale",   scale_w_);
+    p->push(weight_key + ".scale_x", scale_x_tensor_);
+  }
+  return p;
 }
 
 void AscendLinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
@@ -97,134 +190,93 @@ void AscendLinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   const auto& x = inputs[0];
   auto& y = outputs[0];
 
-  // Validate that input tensors are FP16
-  if (x.dtype() != MLLM_TYPE_F16) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                    "AscendLinearOp: Input tensor must be FP16, but got dtype={}",
-                    static_cast<int>(x.dtype()));
-  }
-  if (weight_ptr->dtype() != MLLM_TYPE_F16) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                    "AscendLinearOp: Weight tensor must be FP16, but got dtype={}",
-                    static_cast<int>(weight_ptr->dtype()));
-  }
-  if (bias_ptr != nullptr && bias_ptr->dtype() != MLLM_TYPE_F16) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                    "AscendLinearOp: Bias tensor must be FP16, but got dtype={}",
-                    static_cast<int>(bias_ptr->dtype()));
-  }
-
-  // Validate bias dimensions: ATB Linear requires bias to be 2D [1, out_channels]
-  if (bias_ptr != nullptr) {
-    const auto& bias_shape = bias_ptr->shape();
-    if (bias_shape.size() == 1) {
+  if (weight_ptr->dtype() == kInt8) {
+    runLinearDynamicW8A8Eager(getName(), x, *weight_ptr, bias_int32_npu_, deq_scale_w_npu_, y);
+  } else {
+    // ----------------------------------------------------------------
+    // FP16 path (original behaviour)
+    // ----------------------------------------------------------------
+    if (x.dtype() != kFloat16) {
       MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                      "AscendLinearOp: Bias tensor must be 2D [1, out_channels], but got 1D shape with size={}. "
-                      "Please reshape the bias tensor before passing to AscendLinearOp.",
-                      bias_shape[0]);
+                      "AscendLinearOp: Input tensor must be FP16, but got dtype={}",
+                      static_cast<int>(x.dtype()));
     }
-    if (bias_shape.size() != 2 || bias_shape[0] != 1) {
+    if (weight_ptr->dtype() != kFloat16) {
       MLLM_ERROR_EXIT(ExitCode::kAscendError,
-                      "AscendLinearOp: Bias tensor must be 2D with shape [1, out_channels], but got shape=[{}, {}]",
-                      bias_shape.size() >= 1 ? bias_shape[0] : 0,
-                      bias_shape.size() >= 2 ? bias_shape[1] : 0);
+                      "AscendLinearOp: Weight tensor must be FP16, but got dtype={}",
+                      static_cast<int>(weight_ptr->dtype()));
     }
-  }
-
-
-  atb::infer::LinearParam linearParam;
-  linearParam.transposeA = false;
-  linearParam.transposeB = true;  // Set to true because weight is [out_channels, in_channels]
-  linearParam.hasBias = (bias_ptr != nullptr);
-  linearParam.outDataType = ACL_DT_UNDEFINED;
-  linearParam.enAccum = false;
-  linearParam.matmulType = atb::infer::LinearParam::MATMUL_UNDEFINED;
-  linearParam.quantMode = atb::infer::LinearParam::QUANT_UNDEFINED;
-
-  atb::Operation* op = nullptr;
-  auto st = atb::CreateOperation(linearParam, &op);
-  if (st != atb::NO_ERROR || op == nullptr) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB CreateOperation(Linear) failed, status={}", static_cast<int>(st));
-  }
-
-  atb::Context* atb_ctx = getGlobalAtbContext();
-
-  atb::Tensor atb_x;
-  atb::Tensor atb_weight;
-  atb::Tensor atb_y;
-  atb::Tensor atb_bias;
-
-  fillAtbTensor(x, atb_x);
-  fillAtbTensor(*weight_ptr, atb_weight);
-  fillAtbTensor(y, atb_y);
-  if (shouldDebugLinearStats()) {
-    static int linear_debug_count = 0;
-    if (linear_debug_count < 6) {
-      fmt::print("[LinearDbg] call={} hasBias={} transposeB={}\n", linear_debug_count, bias_ptr != nullptr ? 1 : 0,
-                 linearParam.transposeB ? 1 : 0);
-      printTensorMeta("x", x);
-      printTensorMeta("weight", *weight_ptr);
-      printTensorMeta("y", y);
-      printAtbTensorMeta("atb_x", atb_x);
-      printAtbTensorMeta("atb_weight", atb_weight);
-      printAtbTensorMeta("atb_y", atb_y);
-      if (bias_ptr != nullptr) { printTensorMeta("bias", *bias_ptr); }
+    if (bias_ptr != nullptr && bias_ptr->dtype() != kFloat16) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                      "AscendLinearOp: Bias tensor must be FP16, but got dtype={}",
+                      static_cast<int>(bias_ptr->dtype()));
     }
-    ++linear_debug_count;
+    if (bias_ptr != nullptr) {
+      const auto& bias_shape = bias_ptr->shape();
+      if (bias_shape.size() != 2 || bias_shape[0] != 1) {
+        MLLM_ERROR_EXIT(ExitCode::kAscendError,
+                        "AscendLinearOp: Bias must be [1, out_channels], got shape=[{}, {}]",
+                        bias_shape.size() >= 1 ? bias_shape[0] : 0,
+                        bias_shape.size() >= 2 ? bias_shape[1] : 0);
+      }
+    }
+
+    atb::infer::LinearParam lp;
+    lp.transposeA  = false;
+    lp.transposeB  = true;
+    lp.hasBias     = (bias_ptr != nullptr);
+    lp.outDataType = ACL_DT_UNDEFINED;
+    lp.enAccum     = false;
+    lp.matmulType  = atb::infer::LinearParam::MATMUL_UNDEFINED;
+    lp.quantMode   = atb::infer::LinearParam::QUANT_UNDEFINED;
+
+    atb::Operation* op = nullptr;
+    auto st = atb::CreateOperation(lp, &op);
+    if (st != atb::NO_ERROR || op == nullptr) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB CreateOperation(Linear FP16) failed, status={}", static_cast<int>(st));
+    }
+
+    auto* atb_ctx = getGlobalAtbContext();
+    atb::Tensor atb_x, atb_w, atb_y, atb_bias;
+    fillAtbTensor(x,           atb_x);
+    fillAtbTensor(*weight_ptr, atb_w);
+    fillAtbTensor(y,           atb_y);
+
+    atb::SVector<atb::Tensor> inTensors, outTensors;
+    inTensors.push_back(atb_x);
+    inTensors.push_back(atb_w);
+    if (bias_ptr != nullptr) {
+      fillAtbTensor(*bias_ptr, atb_bias);
+      inTensors.push_back(atb_bias);
+    }
+    outTensors.push_back(atb_y);
+
+    atb::VariantPack vp;
+    vp.inTensors  = inTensors;
+    vp.outTensors = outTensors;
+
+    uint64_t ws_size = 0;
+    st = op->Setup(vp, ws_size, atb_ctx);
+    if (st != atb::NO_ERROR) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB Linear FP16 Setup failed, status={}", static_cast<int>(st));
+    }
+
+    void* workspace = nullptr;
+    int   ws_bid    = -1;
+    if (ws_size > 0) {
+      auto& mem_mgr = getAscendMemoryManager();
+      mem_mgr.allocateBlock(static_cast<uint32_t>(ws_size), ws_bid);
+      mem_mgr.getBlockPtr(ws_bid, workspace);
+    }
+    st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), ws_size, atb_ctx);
+    if (st != atb::NO_ERROR) {
+      MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB Linear FP16 Execute failed, status={}", static_cast<int>(st));
+    }
+    syncGlobalAtbStream();
+
+    if (ws_bid != -1) getAscendMemoryManager().freeBlock(ws_bid);
+    atb::DestroyOperation(op);
   }
-
-  atb::SVector<atb::Tensor> inTensors;
-  atb::SVector<atb::Tensor> outTensors;
-  inTensors.push_back(atb_x);
-  inTensors.push_back(atb_weight);
-
-  if (bias_ptr != nullptr) {
-    fillAtbTensor(*bias_ptr, atb_bias);
-    inTensors.push_back(atb_bias);
-  }
-
-  outTensors.push_back(atb_y);
-
-  atb::VariantPack vp;
-  vp.inTensors = inTensors;
-  vp.outTensors = outTensors;
-
-  uint64_t workspaceSize = 0;
-  st = op->Setup(vp, workspaceSize, atb_ctx);
-  if (st != atb::NO_ERROR) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB LinearOp Setup failed, status={}", static_cast<int>(st));
-  }
-  if (shouldDebugLinearStats()) {
-    static int workspace_debug_count = 0;
-    if (workspace_debug_count < 6) { fmt::print("[LinearDbg] workspaceSize={} bytes\n", workspaceSize); }
-    ++workspace_debug_count;
-  }
-
-  void* workspace = nullptr;
-  int workspace_block_id = -1;
-  if (workspaceSize > 0) {
-    auto& mem_mgr = getAscendMemoryManager();
-    mem_mgr.allocateBlock(static_cast<uint32_t>(workspaceSize), workspace_block_id);
-    mem_mgr.getBlockPtr(workspace_block_id, workspace);
-  }
-
-  {
-    //ASCEND_TIME_SCOPE("AscendLinearOp::forward");
-    st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
-  }
-
-  if (st != atb::NO_ERROR) {
-    MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB LinearOp Execute failed, status={}", static_cast<int>(st));
-  }
-
-  syncGlobalAtbStream();
-
-  if (workspace_block_id != -1) {
-    auto& mem_mgr = getAscendMemoryManager();
-    mem_mgr.freeBlock(workspace_block_id);
-  }
-
-  atb::DestroyOperation(op);
 }
 
 }  // namespace mllm::ascend
