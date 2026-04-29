@@ -154,7 +154,8 @@ void cutlass_int8_scaled_mm(
 }
 
 // ---------------------------------------------------------------------------
-// SM89/SM87 dispatch (100K shared memory safe tiles)
+// Dispatch shape for sm89 (L40S, L20, RTX 4090), according to:
+// https://github.com/vllm-project/vllm/blob/main/csrc/quantization/cutlass_w8a8/scaled_mm_c2x_sm89_int8_dispatch.cuh
 // ---------------------------------------------------------------------------
 
 template <typename ElementOutput, typename ArchTag, typename InstructionShape>
@@ -204,10 +205,44 @@ void sm89_dispatch_shape(
           InstructionShape, 3>(out, mat_a, mat_b, scales_a, scales_b, bias);
     }
   } else if (m <= 128) {
-    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
-        cutlass::gemm::GemmShape<128, 64, 64>,
-        cutlass::gemm::GemmShape<64, 64, 64>,
-        InstructionShape, 3>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    if (n <= 8192) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<64, 128, 128>,
+          cutlass::gemm::GemmShape<32, 64, 64>,
+          InstructionShape, 3>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else if (n <= 16384) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<128, 128, 64>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<64, 64, 128>,
+          cutlass::gemm::GemmShape<32, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
+  } else if (m <= 256) {
+    if (n <= 4096) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<64, 128, 128>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 3>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else if (n <= 8192) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<128, 128, 64>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else if (n <= 16384) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<256, 128, 64>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 3>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<128, 128, 64>,
+          cutlass::gemm::GemmShape<64, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
   } else {
     cutlass_int8_scaled_mm<ElementOutput, ArchTag,
         cutlass::gemm::GemmShape<128, 128, 64>,
@@ -231,15 +266,29 @@ void sm80_dispatch_shape(
   int m = mat_a.size(0);
   int n = mat_b.size(1);
   if (m <= 16) {
-    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
-        cutlass::gemm::GemmShape<16, 64, 128>,
-        cutlass::gemm::GemmShape<16, 64, 64>,
-        InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    if (n <= 4096) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<16, 64, 128>,
+          cutlass::gemm::GemmShape<16, 64, 64>,
+          InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<16, 64, 128>,
+          cutlass::gemm::GemmShape<16, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
   } else if (m <= 32) {
-    cutlass_int8_scaled_mm<ElementOutput, ArchTag,
-        cutlass::gemm::GemmShape<32, 64, 128>,
-        cutlass::gemm::GemmShape<32, 64, 64>,
-        InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    if (n <= 4096) {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<32, 64, 128>,
+          cutlass::gemm::GemmShape<32, 64, 64>,
+          InstructionShape, 6>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    } else {
+      cutlass_int8_scaled_mm<ElementOutput, ArchTag,
+          cutlass::gemm::GemmShape<32, 64, 128>,
+          cutlass::gemm::GemmShape<32, 64, 64>,
+          InstructionShape, 5>(out, mat_a, mat_b, scales_a, scales_b, bias);
+    }
   } else if (m <= 64) {
     if (n <= 4096) {
       cutlass_int8_scaled_mm<ElementOutput, ArchTag,
@@ -313,19 +362,27 @@ torch::Tensor int8_scaled_mm(
   using InstructionShape = cutlass::gemm::GemmShape<16, 8, 32>;
   using ArchTag = cutlass::arch::Sm80;
 
-  // SM87 (Jetson Orin) has 164K smem — same as SM80, NOT 100K like SM86/SM89.
-  // Both sglang and vllm route SM87 to SM80 dispatch (deeper pipeline stages).
-  // E2E benchmark confirms SM80 ≈ SM89 tiles on SM87 (<2% diff), so we align
-  // with upstream. SM89 dispatch is kept for reference only.
+  // SM86/SM89 have smaller shared memory and use sglang's SM89 tile shapes.
+  // SM87 (Jetson Orin) has 164K smem, same as SM80, so it stays on SM80.
   int sm_version = getSMVersion();
 
   if (sm_version >= 80 && sm_version < 90) {
-    if (out_dtype == torch::kBFloat16) {
-      sm80_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
-          out, mat_a, mat_b, scales_a, scales_b, bias);
+    if (sm_version == 86 || sm_version == 89) {
+      if (out_dtype == torch::kBFloat16) {
+        sm89_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
+            out, mat_a, mat_b, scales_a, scales_b, bias);
+      } else {
+        sm89_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
+            out, mat_a, mat_b, scales_a, scales_b, bias);
+      }
     } else {
-      sm80_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
-          out, mat_a, mat_b, scales_a, scales_b, bias);
+      if (out_dtype == torch::kBFloat16) {
+        sm80_dispatch_shape<cutlass::bfloat16_t, ArchTag, InstructionShape>(
+            out, mat_a, mat_b, scales_a, scales_b, bias);
+      } else {
+        sm80_dispatch_shape<cutlass::half_t, ArchTag, InstructionShape>(
+            out, mat_a, mat_b, scales_a, scales_b, bias);
+      }
     }
   } else {
     TORCH_CHECK(false, "Unsupported SM version: ", sm_version, ". Requires SM80-SM89.");

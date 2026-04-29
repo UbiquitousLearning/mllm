@@ -1,7 +1,8 @@
 """CUTLASS-based INT8 scaled matmul for SM80+ (Ampere).
 
 JIT-compiled via torch.utils.cpp_extension.load on first use.
-Compiled module is cached at ~/.cache/mllm_kernel/cutlass_int8_scaled_mm/.
+Compiled module is cached per GPU arch at
+~/.cache/mllm_kernel/cutlass_int8_scaled_mm/sm_XX/.
 """
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ from typing import Optional
 import torch
 
 _module = None
+_module_arch = None
 _CSRC_DIR = Path(__file__).resolve().parent.parent / "csrc"
 _CUTLASS_INC = None
 
@@ -50,29 +52,43 @@ def _find_cutlass_include() -> str:
     )
 
 
+def _current_cuda_arch() -> str:
+    major, minor = torch.cuda.get_device_capability()
+    arch = f"sm_{major}{minor}"
+    if major != 8:
+        raise RuntimeError(
+            f"CUTLASS int8_scaled_mm supports SM80-SM89, got {arch}"
+        )
+    return arch
+
+
 def _load_module():
-    global _module, _CUTLASS_INC
-    if _module is not None:
+    global _module, _module_arch, _CUTLASS_INC
+
+    cuda_arch = _current_cuda_arch()
+    if _module is not None and _module_arch == cuda_arch:
         return _module
 
     from torch.utils.cpp_extension import load
 
     _CUTLASS_INC = _find_cutlass_include()
 
-    cache_dir = os.path.expanduser("~/.cache/mllm_kernel/cutlass_int8_scaled_mm")
+    cache_dir = os.path.expanduser(
+        os.path.join("~/.cache/mllm_kernel/cutlass_int8_scaled_mm", cuda_arch)
+    )
     os.makedirs(cache_dir, exist_ok=True)
 
     source = str(_CSRC_DIR / "gemm" / "int8" / "int8_scaled_mm_cutlass.cu")
 
     _module = load(
-        name="mllm_cutlass_int8_scaled_mm",
+        name=f"mllm_cutlass_int8_scaled_mm_{cuda_arch}",
         sources=[source],
         extra_include_paths=[
             _CUTLASS_INC,
             str(_CSRC_DIR),
         ],
         extra_cuda_cflags=[
-            "-arch=sm_87",
+            f"-arch={cuda_arch}",
             "-DCUTLASS_ENABLE_TENSOR_CORE_MMA=1",
             "--expt-relaxed-constexpr",
             "-std=c++17",
@@ -83,6 +99,7 @@ def _load_module():
         build_directory=cache_dir,
         verbose=False,
     )
+    _module_arch = cuda_arch
     return _module
 
 
@@ -107,12 +124,19 @@ def int8_scaled_mm(
     Returns:
         [M, N] tensor of out_dtype
     """
+    if out_dtype == torch.float16:
+        dtype_str = "float16"
+    elif out_dtype == torch.bfloat16:
+        dtype_str = "bfloat16"
+    else:
+        raise ValueError(
+            f"out_dtype must be torch.float16 or torch.bfloat16, got {out_dtype}"
+        )
+
     mod = _load_module()
 
     # scales_a from Triton quant is (M,1) float32 — flatten to (M,)
     if scales_a.dim() == 2:
         scales_a = scales_a.squeeze(-1)
-
-    dtype_str = "float16" if out_dtype == torch.float16 else "bfloat16"
 
     return mod.int8_scaled_mm(mat_a, mat_b, scales_a, scales_b, dtype_str, bias)
