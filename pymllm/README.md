@@ -260,5 +260,6 @@ rm -rf ~/.cache/mllm_kernel/cutlass_int8_scaled_mm/
   W8A8 quantized scope.
 - Other GPUs need separate validation for tile dispatch, JIT compilation, and
   performance.
-- Service timing fields are useful for request-level observation; strict
-  model-level timing should use dedicated benchmarks.
+- OpenAI-compatible responses hide debug timing by default for SGLang/OpenAI
+  compatibility. Use `--server.enable_debug_timing` only for local diagnostics;
+  strict model-level timing should use dedicated benchmarks.

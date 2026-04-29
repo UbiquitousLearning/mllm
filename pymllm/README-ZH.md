@@ -250,4 +250,5 @@ rm -rf ~/.cache/mllm_kernel/cutlass_int8_scaled_mm/
 - W8A8 激活量化使用 Triton kernel；decode 下固定量化开销仍是后续优化点。
 - Qwen3-VL 的 ViT、`lm_head`、embedding 和 LayerNorm 不在当前 W8A8 量化范围内。
 - 其他 GPU 需要重新验证 tile dispatch、JIT 编译和性能。
-- 服务侧 timing 字段适合观察整体请求链路；严格模型级计时应使用专用 benchmark。
+- 为对齐 SGLang/OpenAI 兼容响应，OpenAI API 默认不返回 debug timing。
+  仅在本地诊断时使用 `--server.enable_debug_timing`；严格模型级计时应使用专用 benchmark。
