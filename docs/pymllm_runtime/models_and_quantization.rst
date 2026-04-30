@@ -75,6 +75,23 @@ Qwen3-VL 图文模型
 当前 W8A8 量化主要覆盖语言 decoder 的线性层；视觉 encoder、embedding、LayerNorm 和
 ``lm_head`` 保持全精度。
 
+Fused projection 与 shard-aware loading
+----------------------------------------
+
+Qwen3 / Qwen3-VL 的 text decoder 使用 fused QKV projection 和 fused gate/up
+projection。对未量化模型，这减少了 projection 层的 module 边界；对 W8A8 和 W4A16
+路径，它还避免把同一层拆成多次 activation quant、GEMM 或 Marlin 调用。
+
+checkpoint 中的权重仍可能以 HuggingFace 常见的分离形式保存，例如 ``q_proj``、
+``k_proj``、``v_proj``、``gate_proj`` 和 ``up_proj``。``MergedLinear`` 通过
+shard-aware ``weight_loader`` 将这些分离 tensor 写入 fused 参数，运行时布局保持为
+``[Q, K, V]`` 或 ``[gate, up]``。权重加载完成后，``process_weights_after_loading``
+再负责 W8A8 layout 转换或 W4A16 Marlin repack。
+
+Qwen3 / Qwen3-VL decoder 还使用 residual-carry 形式组织 RMSNorm 的 fused add 路径。
+在 Qwen3-VL 中，如果 deepstack embedding 需要注入，运行时会先物化当前 residual sum，
+再执行注入并重置 carry，避免改变图文 prefill 语义。
+
 量化配置解析
 ----------------------------------------
 

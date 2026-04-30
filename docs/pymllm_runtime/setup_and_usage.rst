@@ -260,7 +260,8 @@ OpenAI-compatible 请求
 ``pymllm.executor.model_runner.ModelRunner``，绕过 HTTP server、tokenizer 进程、
 scheduler 进程和 detokenizer 进程，用 synthetic text-only token ids 测一次静态
 prefill，再测逐 token decode。该工具适合分析模型 forward、KV cache、attention、
-CUDA Graph 与量化 kernel 的模型级开销，不代表在线服务的 TTFT / ITL / E2E 指标。
+CUDA Graph 与量化 kernel 的模型级开销，也适合验证 fused projection、residual carry
+等模型图优化。不代表在线服务的 TTFT / ITL / E2E 指标。
 
 典型用法：
 
