@@ -20,6 +20,7 @@ RadixCache lifecycle
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -373,7 +374,21 @@ class ModelRunnerProcess:
                 mrope_position_deltas=mrope_deltas_tensor,
             )
 
+        _forward_t0 = time.perf_counter()
         logits_output = runner.forward(fb)
+        _forward_ms = (time.perf_counter() - _forward_t0) * 1000.0
+
+        # Extract timing info written by multimodal models onto ForwardBatch.
+        vit_prefill_ms = getattr(fb, "vit_prefill_ms", None)
+        vit_prefill_tokens = getattr(fb, "vit_prefill_tokens", None)
+        llm_prefill_ms = getattr(fb, "llm_prefill_ms", None)
+        llm_decode_ms = getattr(fb, "llm_decode_ms", None)
+
+        # Decode may run through CUDA graph / non-Python execution paths where
+        # model-level Python timing hooks do not fire. Fall back to the outer
+        # runner.forward wall-clock time for decode batches.
+        if forward_mode == "decode" and llm_decode_ms is None:
+            llm_decode_ms = _forward_ms
 
         # Persist M-RoPE position deltas for multimodal models (Qwen3-VL).
         # The model sets mrope_position_deltas on the ForwardBatch during
@@ -424,6 +439,15 @@ class ModelRunnerProcess:
                 "rid": rid,
                 "output_token_ids": [token_id],
             }
+
+            if vit_prefill_ms is not None:
+                out["vit_prefill_ms"] = float(vit_prefill_ms)
+            if vit_prefill_tokens is not None:
+                out["vit_prefill_tokens"] = int(vit_prefill_tokens)
+            if llm_prefill_ms is not None:
+                out["llm_prefill_ms"] = float(llm_prefill_ms)
+            if llm_decode_ms is not None:
+                out["llm_decode_ms"] = float(llm_decode_ms)
             # Report actual prefix_len back to the scheduler so it can
             # update its token budget tracking accurately.
             if actual_prefix_lens is not None:
@@ -565,6 +589,11 @@ class ModelRunnerProcess:
                     len(new_indices),
                     new_indices[: min(len(new_indices), 8)].tolist(),
                 )
+            if not hasattr(cache, "page_size"):
+                # ChunkCache / no-op cache when disable_radix_cache=True.
+                self._rid_to_cache_protected_len[rid] = 0
+                continue
+
             if cache.page_size == 1:
                 assert len(new_indices) == seq_len, (
                     f"Re-match length mismatch after insert: "
@@ -999,7 +1028,7 @@ class ModelRunnerProcess:
         # and the eviction callback; here we just remove the rid mapping.
         self._rid_to_gdn_track_slot.pop(rid, None)
 
-        cache_enabled = cache is not None
+        cache_enabled = cache is not None and not isinstance(cache, ChunkCache)
 
         # ----------------------------------------------------------
         # Phase 1: Read all KV indices BEFORE freeing anything.

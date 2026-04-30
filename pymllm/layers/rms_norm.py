@@ -10,6 +10,17 @@ from pymllm.layers.base import MllmBaseLayer
 from pymllm.layers.utils import set_weight_attrs
 
 
+def _torch_rmsnorm(
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float,
+) -> torch.Tensor:
+    x_fp32 = x.float()
+    var = x_fp32.pow(2).mean(dim=-1, keepdim=True)
+    x_norm = x_fp32 * torch.rsqrt(var + eps)
+    return x_norm.to(dtype=x.dtype) * weight
+
+
 class RMSNorm(MllmBaseLayer):
     """RMSNorm layer implemented with FlashInfer kernel."""
 
@@ -26,24 +37,33 @@ class RMSNorm(MllmBaseLayer):
         x: torch.Tensor,
         residual: Optional[torch.Tensor] = None,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        if residual is not None:
-            flashinfer.norm.fused_add_rmsnorm(x, residual, self.weight.data, self.eps)
-            return x, residual
-
         if x.shape[-1] != self.hidden_size:
             raise ValueError(
                 f"Expected last dim == hidden_size ({self.hidden_size}), "
                 f"but got input shape {tuple(x.shape)}"
             )
 
-        # FlashInfer rmsnorm accepts 2D/3D input; flatten higher-rank tensors to 2D.
-        if x.dim() in (2, 3):
-            return flashinfer.norm.rmsnorm(x, self.weight, self.eps)
+        if residual is not None:
+            try:
+                flashinfer.norm.fused_add_rmsnorm(
+                    x, residual, self.weight.data, self.eps
+                )
+                return x, residual
+            except Exception:
+                residual = x + residual
+                return _torch_rmsnorm(residual, self.weight, self.eps), residual
 
-        original_shape = x.shape
-        x_2d = x.reshape(-1, self.hidden_size)
-        out = flashinfer.norm.rmsnorm(x_2d, self.weight, self.eps)
-        return out.reshape(original_shape)
+        try:
+            # FlashInfer rmsnorm accepts 2D/3D input; flatten higher-rank tensors to 2D.
+            if x.dim() in (2, 3):
+                return flashinfer.norm.rmsnorm(x, self.weight, self.eps)
+
+            original_shape = x.shape
+            x_2d = x.reshape(-1, self.hidden_size)
+            out = flashinfer.norm.rmsnorm(x_2d, self.weight, self.eps)
+            return out.reshape(original_shape)
+        except Exception:
+            return _torch_rmsnorm(x, self.weight, self.eps)
 
 
 class GemmaRMSNorm(MllmBaseLayer):

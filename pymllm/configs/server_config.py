@@ -76,6 +76,7 @@ class ServerConfig:
     log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
     enable_metrics: bool = False
     show_time_cost: bool = False
+    enable_debug_timing: bool = False
     # Log prefill/decode throughput stats every N decode batches (0 = disabled)
     decode_log_interval: int = 40
 

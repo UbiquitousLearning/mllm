@@ -419,6 +419,56 @@ def _normalize_finish_reason(reason: Optional[str]) -> Optional[str]:
     return _FINISH_REASON_MAP.get(reason, reason)
 
 
+def _debug_tps(tokens: int, ms: Optional[float]) -> Optional[float]:
+    if ms is None or ms <= 0:
+        return None
+    return tokens / (ms / 1000.0)
+
+
+def _build_debug_timing(
+    result: Dict[str, Any],
+    *,
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> Dict[str, Any]:
+    vit_prefill_ms = result.get("vit_prefill_ms")
+    vit_prefill_tokens = result.get("vit_prefill_tokens")
+    llm_prefill_ms = result.get("llm_prefill_ms")
+    llm_decode_ms = result.get("llm_decode_ms")
+
+    return {
+        "experimental_vit_prefill_ms": vit_prefill_ms,
+        "experimental_llm_prefill_ms": llm_prefill_ms,
+        "decode_phase_wall_ms": llm_decode_ms,
+        "prefill_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "experimental_vit_prefill_tps": (
+            None
+            if vit_prefill_tokens is None
+            else _debug_tps(int(vit_prefill_tokens), vit_prefill_ms)
+        ),
+        "experimental_llm_prefill_tps": _debug_tps(prompt_tokens, llm_prefill_ms),
+        "decode_phase_output_tps": _debug_tps(completion_tokens, llm_decode_ms),
+    }
+
+
+def _maybe_add_debug_timing(
+    payload: Dict[str, Any],
+    *,
+    result: Dict[str, Any],
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> Dict[str, Any]:
+    cfg = get_global_config()
+    if cfg.server.enable_debug_timing:
+        payload["debug_timing"] = _build_debug_timing(
+            result,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+    return payload
+
+
 def _build_sampling_params(
     temperature: Optional[float] = None,
     top_p: Optional[float] = None,
@@ -470,14 +520,21 @@ def _messages_to_prompt(
         Extra keyword arguments forwarded to ``apply_chat_template``
         (e.g. ``enable_thinking=True`` for Qwen3).
     """
-    # Flatten each message into a plain dict for the tokenizer.
+    # Preserve multimodal message structure for tokenizer.apply_chat_template.
     msg_dicts: List[Dict[str, Any]] = []
     for msg in messages:
         content = msg.content
         if isinstance(content, list):
-            # Multimodal: extract only text parts for the prompt string.
-            text_parts = [p.text for p in content if p.type == "text" and p.text]
-            content = "\n".join(text_parts) if text_parts else ""
+            mm_parts: List[Dict[str, Any]] = []
+            for part in content:
+                if part.type == "text" and part.text is not None:
+                    mm_parts.append({"type": "text", "text": part.text})
+                elif part.type == "image_url" and part.image_url is not None:
+                    # Keep image content so chat template can emit vision tokens.
+                    mm_parts.append(
+                        {"type": "image", "image": part.image_url.url}
+                    )
+            content = mm_parts
         elif content is None:
             content = ""
         d: Dict[str, Any] = {"role": msg.role, "content": content}
@@ -721,20 +778,25 @@ async def openai_completions(obj: CompletionRequest, request: Request):
             prompt_tokens += r.get("prompt_tokens", 0)
             completion_tokens += r.get("completion_tokens", 0)
 
-        return ORJSONResponse(
-            {
-                "id": _make_completion_id(),
-                "object": "text_completion",
-                "created": int(time.time()),
-                "model": model_name,
-                "choices": choices,
-                "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
-                },
-            }
+        payload = {
+            "id": _make_completion_id(),
+            "object": "text_completion",
+            "created": int(time.time()),
+            "model": model_name,
+            "choices": choices,
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+        }
+        _maybe_add_debug_timing(
+            payload,
+            result=results[-1] if results else {},
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
+        return ORJSONResponse(payload)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
@@ -960,27 +1022,32 @@ async def openai_chat_completions(obj: ChatCompletionRequest, request: Request):
         if tool_calls_list:
             message["tool_calls"] = tool_calls_list
 
-        return ORJSONResponse(
-            {
-                "id": _make_chat_completion_id(),
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": model_name,
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": message,
-                        "logprobs": None,
-                        "finish_reason": finish_reason,
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
-                },
-            }
+        payload = {
+            "id": _make_chat_completion_id(),
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model_name,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": message,
+                    "logprobs": None,
+                    "finish_reason": finish_reason,
+                }
+            ],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+        }
+        _maybe_add_debug_timing(
+            payload,
+            result=r,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
+        return ORJSONResponse(payload)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:

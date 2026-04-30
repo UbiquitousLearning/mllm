@@ -6,7 +6,7 @@
 #include <variant>
 #endif
 
-namespace host {
+namespace mllm_kernel::host {
 
 //
 //  ScalarType can represent a wide range of floating point and integer types,
@@ -257,4 +257,6 @@ static inline constexpr auto kFloat16 = kHalf;
 static inline constexpr auto kBFloat16 = kFE8M7;
 
 static inline constexpr auto kFloat16Id = kFloat16.id();
-}  // namespace host
+}  // namespace mllm_kernel::host
+
+namespace host = ::mllm_kernel::host;

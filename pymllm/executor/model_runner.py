@@ -487,7 +487,12 @@ class ModelRunner:
             fpath = model_path / fname
             if fpath.exists():
                 with open(fpath) as fp:
-                    return json.load(fp)
+                    cfg = json.load(fp)
+                # config.json stores model metadata at the top level and
+                # nests quantization details under quantization_config.
+                if fname == "config.json" and "quantization_config" in cfg:
+                    return cfg["quantization_config"]
+                return cfg
 
         # Fallback: config.json → quantization_config section
         config_path = model_path / "config.json"

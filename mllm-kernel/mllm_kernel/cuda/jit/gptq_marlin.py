@@ -29,13 +29,14 @@ _MAX_THREAD_N = 256
 @cache_once
 def _make_gptq_marlin_gemm_kernel(dtype: torch.dtype):
     """JIT-compile the GPTQ Marlin GEMM kernel for a specific dtype."""
-    args = make_cpp_args(dtype)
+    cpp_args = make_cpp_args(dtype)
 
     @jit(
-        args=args,
+        args=[dtype],
         device="cuda",
         cuda_files=["gemm/marlin/gptq_marlin.cuh"],
-        cuda_wrappers=[("gptq_marlin_gemm", f"gptq_marlin_gemm<{args}>")],
+        cpp_wrappers=[],
+        cuda_wrappers=[("gptq_marlin_gemm", f"gptq_marlin_gemm<{cpp_args}>")],
         func_name="gptq_marlin_gemm",
     )
     def _kernel(

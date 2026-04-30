@@ -27,6 +27,7 @@ Designed for a single accelerator card — no tensor / pipeline parallelism.
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple
 
 import numpy as np
@@ -36,7 +37,7 @@ import torch.nn.functional as F
 
 from pymllm.layers import RMSNorm, apply_mrope
 from pymllm.layers.attention.radix_attention import RadixAttention
-from pymllm.layers.linear import Linear
+from pymllm.layers.linear import Linear, MergedLinear
 from pymllm.layers.mlp import MLP
 
 if TYPE_CHECKING:
@@ -162,8 +163,8 @@ class Qwen3VisionAttention(nn.Module):
             cos = torch.cat([cos, cos], dim=-1)
             sin = torch.cat([sin, sin], dim=-1)
 
-        cos = cos.unsqueeze(1)  # [seq, 1, head_dim]
-        sin = sin.unsqueeze(1)  # [seq, 1, head_dim]
+        cos = cos.unsqueeze(1).to(dtype=q.dtype, device=q.device)  # [seq, 1, head_dim]
+        sin = sin.unsqueeze(1).to(dtype=q.dtype, device=q.device)  # [seq, 1, head_dim]
 
         q = q * cos + _rotate_half(q) * sin
         k = k * cos + _rotate_half(k) * sin
@@ -399,10 +400,12 @@ class Qwen3VLVisionModel(nn.Module):
     # -- Position embedding interpolation --
 
     def _get_interpolation_indices(self, dim_size: int) -> np.ndarray:
-        indices = (np.arange(dim_size, dtype=np.float32) + 0.5) * (
-            self.num_grid_per_side / dim_size
-        ) - 0.5
-        return np.clip(indices, 0, self.num_grid_per_side - 1)
+        return np.linspace(
+            0,
+            self.num_grid_per_side - 1,
+            dim_size,
+            dtype=np.float32,
+        )
 
     def _calculate_indices_and_weights(
         self, h_idxs: np.ndarray, w_idxs: np.ndarray
@@ -548,7 +551,9 @@ class Qwen3VLVisionModel(nn.Module):
 def _compute_cu_seqlens_from_grid(grid_thw: torch.Tensor) -> torch.Tensor:
     """Compute cumulative sequence lengths from grid dimensions."""
     grid_np = grid_thw.cpu().numpy()
-    seq_lens = (grid_np[:, 0] * grid_np[:, 1] * grid_np[:, 2]).astype(np.int32)
+    seq_lens = np.repeat(grid_np[:, 1] * grid_np[:, 2], grid_np[:, 0]).astype(
+        np.int32
+    )
     cu_seqlens = np.concatenate([[0], np.cumsum(seq_lens)])
     return torch.tensor(cu_seqlens, dtype=torch.int32)
 
@@ -719,13 +724,14 @@ class Qwen3VLAttention(nn.Module):
                 layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
             )
 
-        # When quantized, AWQ checkpoints store q/k/v separately so we
-        # cannot fuse them into a single packed-int32 parameter.
-        self.use_fused_qkv = quant_config is None
+        self.use_fused_qkv = True
 
         if self.use_fused_qkv:
-            self.qkv_proj = Linear(
-                hidden_size, self.q_size + 2 * self.kv_size, bias=False,
+            self.qkv_proj = MergedLinear(
+                hidden_size,
+                [self.q_size, self.kv_size, self.kv_size],
+                bias=False,
+                quant_method=_get_qm("qkv_proj"),
             )
             self.q_proj = None
             self.k_proj = None
@@ -861,25 +867,21 @@ class Qwen3VLDecoderLayer(nn.Module):
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         forward_batch: "ForwardBatch",
-        deepstack_embeds: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        # Self-attention
-        residual = hidden_states
-        hidden_states = self.input_layernorm(hidden_states)
+        residual: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+
         hidden_states = self.self_attn(positions, hidden_states, forward_batch)
-        hidden_states = residual + hidden_states
-
-        # Add deepstack embeddings after residual (matches HF ordering)
-        if deepstack_embeds is not None:
-            hidden_states = hidden_states + deepstack_embeds
-
-        # MLP
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
         hidden_states = self.mlp(hidden_states)
-        hidden_states = residual + hidden_states
 
-        return hidden_states
+        return hidden_states, residual
 
 
 class Qwen3VLTextModel(nn.Module):
@@ -943,18 +945,41 @@ class Qwen3VLTextModel(nn.Module):
         else:
             hidden_states = input_embeds
 
+        residual = None
         for layer_idx, layer in enumerate(self.layers):
+            if residual is not None and not isinstance(layer, Qwen3VLDecoderLayer):
+                hidden_states = hidden_states + residual
+                residual = None
+
+            if isinstance(layer, Qwen3VLDecoderLayer):
+                layer_output = layer(
+                    positions,
+                    hidden_states,
+                    forward_batch,
+                    residual=residual,
+                )
+            else:
+                layer_output = layer(positions, hidden_states, forward_batch)
+
+            if isinstance(layer_output, tuple):
+                hidden_states, residual = layer_output
+            else:
+                hidden_states = layer_output
+                residual = None
+
             ds_embeds = _get_deepstack_embeds(
                 layer_idx, input_deepstack_embeds, self.hidden_size
             )
-            hidden_states = layer(
-                positions,
-                hidden_states,
-                forward_batch,
-                deepstack_embeds=ds_embeds,
-            )
+            if ds_embeds is not None:
+                if residual is not None:
+                    hidden_states = hidden_states + residual
+                    residual = None
+                hidden_states = hidden_states + ds_embeds
 
-        return self.norm(hidden_states)
+        if residual is None:
+            return self.norm(hidden_states)
+        hidden_states, _ = self.norm(hidden_states, residual)
+        return hidden_states
 
 
 def _get_deepstack_embeds(
@@ -996,7 +1021,6 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         text_config = getattr(config, "text_config", config)
         vision_config = getattr(config, "vision_config", None)
-
         # Vision encoder — NOT quantized
         if vision_config is not None:
             self.visual = Qwen3VLVisionModel(
@@ -1051,7 +1075,6 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             max_position_embeddings=max_position_embeddings,
             quant_config=quant_config,
         )
-
         # LM head — following sglang's pattern: always use lm_head.weight
         # for matmul in forward(), so it works whether lm_head is nn.Embedding
         # (tied) or nn.Linear (untied).
@@ -1158,6 +1181,10 @@ class Qwen3VLForConditionalGeneration(nn.Module):
 
         input_embeds = None
         input_deepstack_embeds = None
+        vit_prefill_ms = None
+        vit_prefill_tokens = None
+        llm_prefill_ms = None
+        llm_decode_ms = None
 
         if (
             pixel_values is not None
@@ -1166,7 +1193,11 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             and not forward_batch.forward_mode.is_decode()
         ):
             # Run vision encoder
-            vision_features = self.visual(pixel_values, grid_thw=image_grid_thw)
+            _vit_t0 = time.perf_counter()
+            vision_features = (
+                self.visual(pixel_values, grid_thw=image_grid_thw)
+            )
+            vit_prefill_ms = (time.perf_counter() - _vit_t0) * 1000.0
 
             # Separate main embeddings and deepstack embeddings
             if self.num_deepstack_embeddings > 0:
@@ -1179,6 +1210,13 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             # Get text embeddings and replace image tokens with vision features
             input_embeds = self.model.embed_tokens(input_ids)
             image_mask = input_ids == self.image_token_id
+            vit_prefill_tokens = int(image_mask.sum().item())
+            if vit_prefill_tokens != int(vision_embeds.shape[0]):
+                raise ValueError(
+                    "Image features and image tokens do not match, "
+                    f"tokens: {vit_prefill_tokens}, "
+                    f"features: {vision_embeds.shape[0]}"
+                )
             if image_mask.any():
                 input_embeds[image_mask] = vision_embeds.to(input_embeds.dtype)
 
@@ -1195,13 +1233,27 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 )
 
         # Text decoder
-        hidden_states = self.model(
-            input_ids,
-            positions,
-            forward_batch,
-            input_embeds=input_embeds,
-            input_deepstack_embeds=input_deepstack_embeds,
+        _llm_t0 = time.perf_counter()
+        hidden_states = (
+            self.model(
+                input_ids,
+                positions,
+                forward_batch,
+                input_embeds=input_embeds,
+                input_deepstack_embeds=input_deepstack_embeds,
+            )
         )
+        _llm_ms = (time.perf_counter() - _llm_t0) * 1000.0
+
+        if forward_batch.forward_mode.is_extend():
+            llm_prefill_ms = _llm_ms
+            forward_batch.vit_prefill_ms = vit_prefill_ms
+            forward_batch.vit_prefill_tokens = vit_prefill_tokens
+            forward_batch.llm_prefill_ms = llm_prefill_ms
+            forward_batch.llm_decode_ms = None
+        else:
+            llm_decode_ms = _llm_ms
+            forward_batch.llm_decode_ms = llm_decode_ms
 
         # Prune hidden_states before lm_head to avoid a wasteful
         # [total_tokens, vocab] matmul during prefill.
@@ -1240,19 +1292,14 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         Handles weight name remapping between HuggingFace Qwen3-VL
         checkpoints and this model's parameter names.
         """
-        # When quantized, the model has separate q/k/v and gate/up projections
-        # (no fused qkv_proj / gate_up_proj), so skip the stacking logic.
-        if self.quant_config is not None:
-            stacked_params_mapping = []
-        else:
-            stacked_params_mapping = [
-                # (param_name, weight_name, shard_id)
-                (".qkv_proj", ".q_proj", "q"),
-                (".qkv_proj", ".k_proj", "k"),
-                (".qkv_proj", ".v_proj", "v"),
-                (".gate_up_proj", ".up_proj", 1),
-                (".gate_up_proj", ".gate_proj", 0),
-            ]
+        stacked_params_mapping = [
+            # (param_name, weight_name, shard_id)
+            (".qkv_proj", ".q_proj", "q"),
+            (".qkv_proj", ".k_proj", "k"),
+            (".qkv_proj", ".v_proj", "v"),
+            (".gate_up_proj", ".up_proj", 1),
+            (".gate_up_proj", ".gate_proj", 0),
+        ]
 
         params_dict = dict(self.named_parameters())
 
@@ -1277,7 +1324,12 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 name = name.replace(weight_name, param_name)
                 if name not in params_dict:
                     continue
-                _load_stacked_weight(params_dict[name], loaded_weight, shard_id)
+                param = params_dict[name]
+                loader = getattr(param, "weight_loader", None)
+                if loader is not None:
+                    loader(param, loaded_weight, shard_id)
+                else:
+                    _load_stacked_weight(param, loaded_weight, shard_id)
                 handled = True
                 break
 
@@ -1332,9 +1384,10 @@ def _remap_weight_name(name: str) -> str:
     elif name.startswith("model.visual."):
         name = name.replace("model.visual.", "visual.", 1)
 
-    # Vision attention QKV renaming (fused weights in checkpoint)
+    # Vision attention param renaming (checkpoint -> pymllm names)
     if "visual" in name:
         name = name.replace("attn.qkv.", "attn.qkv_proj.")
+        name = name.replace("attn.proj.", "attn.out_proj.")
 
     return name
 

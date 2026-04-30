@@ -3,7 +3,12 @@
 from pymllm.layers.base import MllmBaseLayer
 from pymllm.layers.embedding import VocabParallelEmbedding
 from pymllm.layers.layer_norm import LayerNorm
-from pymllm.layers.linear import ColumnParallelLinear, Linear, RowParallelLinear
+from pymllm.layers.linear import (
+    ColumnParallelLinear,
+    Linear,
+    MergedLinear,
+    RowParallelLinear,
+)
 from pymllm.layers.mlp import MLP, ParallelMLP
 from pymllm.layers.rms_norm import GemmaRMSNorm, RMSNorm
 from pymllm.layers.rms_norm_gated import RMSNormGated
@@ -38,6 +43,7 @@ __all__ = [
     "VocabParallelEmbedding",
     "ColumnParallelLinear",
     "Linear",
+    "MergedLinear",
     "RowParallelLinear",
     "MLP",
     "ParallelMLP",
