@@ -37,7 +37,7 @@ import torch.nn.functional as F
 
 from pymllm.layers import RMSNorm, apply_mrope
 from pymllm.layers.attention.radix_attention import RadixAttention
-from pymllm.layers.linear import Linear
+from pymllm.layers.linear import Linear, MergedLinear
 from pymllm.layers.mlp import MLP
 
 if TYPE_CHECKING:
@@ -724,13 +724,14 @@ class Qwen3VLAttention(nn.Module):
                 layer=None, prefix=f"{prefix}.{suffix}" if prefix else suffix,
             )
 
-        # When quantized, AWQ checkpoints store q/k/v separately so we
-        # cannot fuse them into a single packed-int32 parameter.
-        self.use_fused_qkv = quant_config is None
+        self.use_fused_qkv = True
 
         if self.use_fused_qkv:
-            self.qkv_proj = Linear(
-                hidden_size, self.q_size + 2 * self.kv_size, bias=False,
+            self.qkv_proj = MergedLinear(
+                hidden_size,
+                [self.q_size, self.kv_size, self.kv_size],
+                bias=False,
+                quant_method=_get_qm("qkv_proj"),
             )
             self.q_proj = None
             self.k_proj = None
@@ -866,20 +867,21 @@ class Qwen3VLDecoderLayer(nn.Module):
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         forward_batch: "ForwardBatch",
-    ) -> torch.Tensor:
-        # Self-attention
-        residual = hidden_states
-        hidden_states = self.input_layernorm(hidden_states)
+        residual: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+
         hidden_states = self.self_attn(positions, hidden_states, forward_batch)
-        hidden_states = residual + hidden_states
-
-        # MLP
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
         hidden_states = self.mlp(hidden_states)
-        hidden_states = residual + hidden_states
 
-        return hidden_states
+        return hidden_states, residual
 
 
 class Qwen3VLTextModel(nn.Module):
@@ -943,19 +945,41 @@ class Qwen3VLTextModel(nn.Module):
         else:
             hidden_states = input_embeds
 
+        residual = None
         for layer_idx, layer in enumerate(self.layers):
-            hidden_states = layer(
-                positions,
-                hidden_states,
-                forward_batch,
-            )
+            if residual is not None and not isinstance(layer, Qwen3VLDecoderLayer):
+                hidden_states = hidden_states + residual
+                residual = None
+
+            if isinstance(layer, Qwen3VLDecoderLayer):
+                layer_output = layer(
+                    positions,
+                    hidden_states,
+                    forward_batch,
+                    residual=residual,
+                )
+            else:
+                layer_output = layer(positions, hidden_states, forward_batch)
+
+            if isinstance(layer_output, tuple):
+                hidden_states, residual = layer_output
+            else:
+                hidden_states = layer_output
+                residual = None
+
             ds_embeds = _get_deepstack_embeds(
                 layer_idx, input_deepstack_embeds, self.hidden_size
             )
             if ds_embeds is not None:
+                if residual is not None:
+                    hidden_states = hidden_states + residual
+                    residual = None
                 hidden_states = hidden_states + ds_embeds
 
-        return self.norm(hidden_states)
+        if residual is None:
+            return self.norm(hidden_states)
+        hidden_states, _ = self.norm(hidden_states, residual)
+        return hidden_states
 
 
 def _get_deepstack_embeds(
@@ -1268,19 +1292,14 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         Handles weight name remapping between HuggingFace Qwen3-VL
         checkpoints and this model's parameter names.
         """
-        # When quantized, the model has separate q/k/v and gate/up projections
-        # (no fused qkv_proj / gate_up_proj), so skip the stacking logic.
-        if self.quant_config is not None:
-            stacked_params_mapping = []
-        else:
-            stacked_params_mapping = [
-                # (param_name, weight_name, shard_id)
-                (".qkv_proj", ".q_proj", "q"),
-                (".qkv_proj", ".k_proj", "k"),
-                (".qkv_proj", ".v_proj", "v"),
-                (".gate_up_proj", ".up_proj", 1),
-                (".gate_up_proj", ".gate_proj", 0),
-            ]
+        stacked_params_mapping = [
+            # (param_name, weight_name, shard_id)
+            (".qkv_proj", ".q_proj", "q"),
+            (".qkv_proj", ".k_proj", "k"),
+            (".qkv_proj", ".v_proj", "v"),
+            (".gate_up_proj", ".up_proj", 1),
+            (".gate_up_proj", ".gate_proj", 0),
+        ]
 
         params_dict = dict(self.named_parameters())
 
@@ -1305,7 +1324,12 @@ class Qwen3VLForConditionalGeneration(nn.Module):
                 name = name.replace(weight_name, param_name)
                 if name not in params_dict:
                     continue
-                _load_stacked_weight(params_dict[name], loaded_weight, shard_id)
+                param = params_dict[name]
+                loader = getattr(param, "weight_loader", None)
+                if loader is not None:
+                    loader(param, loaded_weight, shard_id)
+                else:
+                    _load_stacked_weight(param, loaded_weight, shard_id)
                 handled = True
                 break
 

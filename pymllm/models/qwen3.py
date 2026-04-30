@@ -19,7 +19,7 @@ import torch.nn as nn
 
 from pymllm.layers import RMSNorm
 from pymllm.layers.attention.radix_attention import RadixAttention
-from pymllm.layers.linear import Linear
+from pymllm.layers.linear import Linear, MergedLinear
 from pymllm.layers.mlp import MLP
 from pymllm.layers.rope import apply_rope_pos_ids
 
@@ -62,14 +62,14 @@ class Qwen3Attention(nn.Module):
                 prefix=f"{prefix}.{suffix}" if prefix else suffix,
             )
 
-        # Keep fused QKV for non-quantized models for lower launch overhead.
-        self.use_fused_qkv = quant_config is None
+        self.use_fused_qkv = True
 
         if self.use_fused_qkv:
-            self.qkv_proj = Linear(
+            self.qkv_proj = MergedLinear(
                 hidden_size,
-                self.q_size + 2 * self.kv_size,
+                [self.q_size, self.kv_size, self.kv_size],
                 bias=attention_bias,
+                quant_method=_get_qm("qkv_proj"),
             )
             self.q_proj = None
             self.k_proj = None
@@ -200,18 +200,21 @@ class Qwen3DecoderLayer(nn.Module):
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         forward_batch,
-    ) -> torch.Tensor:
-        residual = hidden_states
-        hidden_states = self.input_layernorm(hidden_states)
+        residual: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+
         hidden_states = self.self_attn(positions, hidden_states, forward_batch)
-        hidden_states = residual + hidden_states
-
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
         hidden_states = self.mlp(hidden_states)
-        hidden_states = residual + hidden_states
 
-        return hidden_states
+        return hidden_states, residual
 
 
 class Qwen3Model(nn.Module):
@@ -259,10 +262,32 @@ class Qwen3Model(nn.Module):
         else:
             hidden_states = input_embeds
 
+        residual = None
         for layer in self.layers:
-            hidden_states = layer(positions, hidden_states, forward_batch)
+            if residual is not None and not isinstance(layer, Qwen3DecoderLayer):
+                hidden_states = hidden_states + residual
+                residual = None
 
-        return self.norm(hidden_states)
+            if isinstance(layer, Qwen3DecoderLayer):
+                layer_output = layer(
+                    positions,
+                    hidden_states,
+                    forward_batch,
+                    residual=residual,
+                )
+            else:
+                layer_output = layer(positions, hidden_states, forward_batch)
+
+            if isinstance(layer_output, tuple):
+                hidden_states, residual = layer_output
+            else:
+                hidden_states = layer_output
+                residual = None
+
+        if residual is None:
+            return self.norm(hidden_states)
+        hidden_states, _ = self.norm(hidden_states, residual)
+        return hidden_states
 
 
 class Qwen3ForCausalLM(nn.Module):
@@ -326,17 +351,13 @@ class Qwen3ForCausalLM(nn.Module):
         return LogitsProcessorOutput(next_token_logits=logits)
 
     def load_weights(self, weights: Iterable[Tuple[str, torch.Tensor]]) -> None:
-        # Quantized checkpoints keep q/k/v and gate/up separated.
-        if self.quant_config is not None:
-            stacked_params_mapping = []
-        else:
-            stacked_params_mapping = [
-                (".qkv_proj", ".q_proj", "q"),
-                (".qkv_proj", ".k_proj", "k"),
-                (".qkv_proj", ".v_proj", "v"),
-                (".gate_up_proj", ".gate_proj", 0),
-                (".gate_up_proj", ".up_proj", 1),
-            ]
+        stacked_params_mapping = [
+            (".qkv_proj", ".q_proj", "q"),
+            (".qkv_proj", ".k_proj", "k"),
+            (".qkv_proj", ".v_proj", "v"),
+            (".gate_up_proj", ".gate_proj", 0),
+            (".gate_up_proj", ".up_proj", 1),
+        ]
 
         params_dict = dict(self.named_parameters())
         tie_word_embeddings = getattr(self.config, "tie_word_embeddings", False)
@@ -365,7 +386,12 @@ class Qwen3ForCausalLM(nn.Module):
                 mapped_name = name.replace(weight_name, param_name)
                 if mapped_name not in params_dict:
                     continue
-                _load_stacked_weight(params_dict[mapped_name], loaded_weight, shard_id)
+                param = params_dict[mapped_name]
+                loader = getattr(param, "weight_loader", None)
+                if loader is not None:
+                    loader(param, loaded_weight, shard_id)
+                else:
+                    _load_stacked_weight(param, loaded_weight, shard_id)
                 handled = True
                 break
 

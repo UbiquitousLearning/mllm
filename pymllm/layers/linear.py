@@ -314,3 +314,154 @@ class Linear(MllmBaseLayer):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.quant_method.apply(self, x, self.bias)
+
+
+class MergedLinear(MllmBaseLayer):
+    """Non-parallel merged linear layer.
+
+    This is the single-GPU counterpart of SGLang/vLLM merged column
+    projections.  It owns one physical parameter set, while
+    ``output_partition_sizes`` records the logical shards, e.g.
+    ``[q_size, k_size, v_size]`` or ``[intermediate_size, intermediate_size]``.
+    Checkpoints may still store those shards as separate tensors; the
+    shard-aware loader stacks them into the fused parameter.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        output_partition_sizes: list[int],
+        bias: bool = True,
+        quant_method: Optional[LinearMethodBase] = None,
+    ):
+        super().__init__()
+        if not output_partition_sizes:
+            raise ValueError("output_partition_sizes must not be empty")
+        if any(size <= 0 for size in output_partition_sizes):
+            raise ValueError(
+                "all output_partition_sizes must be positive, got "
+                f"{output_partition_sizes}"
+            )
+
+        self.in_features = in_features
+        self.output_partition_sizes = list(output_partition_sizes)
+        self.out_features = sum(self.output_partition_sizes)
+
+        self.quant_method = quant_method or UnquantizedLinearMethod()
+        self.quant_method.create_weights(
+            layer=self,
+            input_size_per_partition=in_features,
+            output_partition_sizes=self.output_partition_sizes,
+            input_size=in_features,
+            output_size=self.out_features,
+            params_dtype=torch.get_default_dtype(),
+            weight_loader=self.weight_loader,
+        )
+
+        if bias:
+            self.bias = Parameter(torch.empty(self.out_features))
+            set_weight_attrs(
+                self.bias,
+                {"output_dim": 0, "weight_loader": self.weight_loader},
+            )
+        else:
+            self.register_parameter("bias", None)
+
+    def _actual_offset_for_shard(
+        self,
+        param: Parameter,
+        loaded_weight: torch.Tensor,
+        output_dim: int,
+        loaded_shard_id,
+    ) -> tuple[int, int]:
+        """Return offset/size in the parameter's actual output dimension."""
+        shard_size = loaded_weight.shape[output_dim]
+        total_size = param.data.shape[output_dim]
+
+        if isinstance(loaded_shard_id, str):
+            if loaded_shard_id == "q":
+                return 0, shard_size
+            if loaded_shard_id == "k":
+                return total_size - 2 * shard_size, shard_size
+            if loaded_shard_id == "v":
+                return total_size - shard_size, shard_size
+            raise ValueError(f"Unknown QKV shard id: {loaded_shard_id!r}")
+
+        if not isinstance(loaded_shard_id, int):
+            raise ValueError(f"Unknown shard id: {loaded_shard_id!r}")
+        if loaded_shard_id < 0 or loaded_shard_id >= len(self.output_partition_sizes):
+            raise ValueError(
+                f"shard id {loaded_shard_id} out of range for "
+                f"{len(self.output_partition_sizes)} partitions"
+            )
+
+        logical_total = sum(self.output_partition_sizes)
+        if total_size == logical_total:
+            offset = sum(self.output_partition_sizes[:loaded_shard_id])
+        elif total_size * self.output_partition_sizes[loaded_shard_id] == (
+            logical_total * shard_size
+        ):
+            offset = sum(
+                part * total_size // logical_total
+                for part in self.output_partition_sizes[:loaded_shard_id]
+            )
+        else:
+            # Gate/up packed shards are equal-width in the current models.
+            offset = loaded_shard_id * shard_size
+        return offset, shard_size
+
+    def _load_unsharded_metadata(
+        self,
+        param: Parameter,
+        loaded_weight: torch.Tensor,
+        loaded_shard_id,
+    ) -> None:
+        if param.data.shape != loaded_weight.shape:
+            raise AssertionError(
+                f"Shape mismatch: param {param.data.shape} vs "
+                f"loaded {loaded_weight.shape}"
+            )
+
+        if loaded_shard_id is not None and param.data.numel() == 2:
+            fused_shape = loaded_weight.detach().clone().reshape(-1)
+            fused_shape[0] = self.out_features
+            fused_shape[1] = self.in_features
+            param.data.copy_(fused_shape.reshape_as(param.data).to(param.data.dtype))
+            return
+
+        param.data.copy_(loaded_weight)
+
+    def weight_loader(
+        self,
+        param: Parameter,
+        loaded_weight: torch.Tensor,
+        loaded_shard_id=None,
+    ) -> None:
+        output_dim = getattr(param, "output_dim", None)
+
+        if loaded_shard_id is None:
+            if param.data.shape != loaded_weight.shape:
+                raise AssertionError(
+                    f"Shape mismatch: param {param.data.shape} vs "
+                    f"loaded {loaded_weight.shape}"
+                )
+            param.data.copy_(loaded_weight)
+            return
+
+        if output_dim is None:
+            self._load_unsharded_metadata(param, loaded_weight, loaded_shard_id)
+            return
+
+        shard_offset, shard_size = self._actual_offset_for_shard(
+            param, loaded_weight, output_dim, loaded_shard_id
+        )
+        param_data = param.data.narrow(output_dim, shard_offset, shard_size)
+        if param_data.shape != loaded_weight.shape:
+            raise AssertionError(
+                f"Shard shape mismatch: param {param_data.shape} vs "
+                f"loaded {loaded_weight.shape}"
+            )
+        param_data.copy_(loaded_weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.quant_method.apply(self, x, self.bias)

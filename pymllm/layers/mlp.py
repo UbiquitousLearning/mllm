@@ -7,7 +7,12 @@ import flashinfer
 import torch
 
 from pymllm.layers.base import MllmBaseLayer
-from pymllm.layers.linear import ColumnParallelLinear, Linear, RowParallelLinear
+from pymllm.layers.linear import (
+    ColumnParallelLinear,
+    Linear,
+    MergedLinear,
+    RowParallelLinear,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +78,6 @@ class MLP(MllmBaseLayer):
         super().__init__()
         _validate_mlp_args(hidden_size, intermediate_size, activation)
 
-        # Quantized checkpoints store gate_proj / up_proj separately;
-        # fusing them into a single packed-int32 parameter is impractical,
-        # so force the unfused path when quantisation is active.
-        if quant_config is not None:
-            use_fused_gate_up_proj = False
-
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
         self.activation = activation
@@ -99,8 +98,10 @@ class MLP(MllmBaseLayer):
             )
 
         if use_fused_gate_up_proj:
-            self.gate_up_proj = Linear(
-                hidden_size, 2 * intermediate_size, bias=use_bias_gate_up,
+            self.gate_up_proj = MergedLinear(
+                hidden_size,
+                [intermediate_size, intermediate_size],
+                bias=use_bias_gate_up,
                 quant_method=_get_qm("gate_up_proj"),
             )
             self.gate_proj = None

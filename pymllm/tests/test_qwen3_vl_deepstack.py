@@ -25,6 +25,30 @@ class _AddLayer(nn.Module):
         return hidden_states + self.value
 
 
+class _CarryLayer(nn.Module):
+    def forward(self, positions, hidden_states, forward_batch, **kwargs):
+        del positions, forward_batch, kwargs
+        return hidden_states + 10.0, hidden_states + 100.0
+
+
+class _TensorLayer(nn.Module):
+    def forward(self, positions, hidden_states, forward_batch):
+        del positions, forward_batch
+        return hidden_states * 2.0
+
+
+class _FinalNorm(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.seen_residual = None
+
+    def forward(self, hidden_states, residual=None):
+        self.seen_residual = residual
+        if residual is None:
+            return hidden_states
+        return hidden_states + residual
+
+
 class _Mode:
     def is_extend(self) -> bool:
         return True
@@ -109,6 +133,75 @@ def test_text_model_adds_deepstack_after_decoder_layer():
     torch.testing.assert_close(
         hidden_states,
         input_embeds + 10.0 + input_deepstack_embeds,
+    )
+
+
+def test_text_model_deepstack_resets_residual_carry_before_injection():
+    model = Qwen3VLTextModel(
+        vocab_size=8,
+        hidden_size=2,
+        intermediate_size=4,
+        num_hidden_layers=1,
+        num_attention_heads=1,
+        num_key_value_heads=1,
+        head_dim=2,
+    )
+    final_norm = _FinalNorm()
+    model.layers = nn.ModuleList([_CarryLayer()])
+    model.norm = final_norm
+
+    input_embeds = torch.tensor(
+        [[1.0, 2.0], [3.0, 4.0]],
+        dtype=torch.float32,
+    )
+    input_deepstack_embeds = torch.tensor(
+        [[0.5, 1.5], [2.5, 3.5]],
+        dtype=torch.float32,
+    )
+
+    hidden_states = model(
+        input_ids=torch.tensor([0, 1], dtype=torch.int64),
+        positions=torch.zeros((3, 2), dtype=torch.int64),
+        forward_batch=SimpleNamespace(),
+        input_embeds=input_embeds,
+        input_deepstack_embeds=input_deepstack_embeds,
+    )
+
+    assert final_norm.seen_residual is None
+    torch.testing.assert_close(
+        hidden_states,
+        input_embeds + 10.0 + input_embeds + 100.0 + input_deepstack_embeds,
+    )
+
+
+def test_text_model_materializes_residual_before_tensor_returning_layer():
+    model = Qwen3VLTextModel(
+        vocab_size=8,
+        hidden_size=2,
+        intermediate_size=4,
+        num_hidden_layers=2,
+        num_attention_heads=1,
+        num_key_value_heads=1,
+        head_dim=2,
+    )
+    model.layers = nn.ModuleList([_CarryLayer(), _TensorLayer()])
+    model.norm = nn.Identity()
+
+    input_embeds = torch.tensor(
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+        dtype=torch.float32,
+    )
+
+    hidden_states = model(
+        input_ids=torch.tensor([0, 1, 2], dtype=torch.int64),
+        positions=torch.zeros((3, 3), dtype=torch.int64),
+        forward_batch=SimpleNamespace(),
+        input_embeds=input_embeds,
+    )
+
+    torch.testing.assert_close(
+        hidden_states,
+        (input_embeds + 10.0 + input_embeds + 100.0) * 2.0,
     )
 
 
