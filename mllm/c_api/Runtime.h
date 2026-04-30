@@ -42,6 +42,8 @@ void setLogLevel(int level);
 
 MllmCAny createQwen3Session(const char* model_path);
 
+MllmCAny createQwen3ProbingSession(const char* model_path, const char* probe_path);
+
 MllmCAny createDeepseekOCRSession(const char* model_path);
 
 MllmCAny insertSession(const char* session_id, MllmCAny handle);
