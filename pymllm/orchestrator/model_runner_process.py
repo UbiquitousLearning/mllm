@@ -498,6 +498,11 @@ class ModelRunnerProcess:
         if cache is None:
             return
 
+        # When radix cache is disabled, the runner uses ChunkCache rather than
+        # RadixCache. ChunkCache should not enter radix insertion logic.
+        if not hasattr(cache, "page_size"):
+            return
+
         runner = self._runner
         gdn_pool = getattr(runner, "gdn_pool", None)
 
