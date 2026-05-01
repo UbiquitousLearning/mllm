@@ -498,6 +498,11 @@ class ModelRunnerProcess:
         if cache is None:
             return
 
+        # When radix cache is disabled, the runner uses ChunkCache rather than
+        # RadixCache. ChunkCache should not enter radix insertion logic.
+        if not hasattr(cache, "page_size"):
+            return
+
         runner = self._runner
         gdn_pool = getattr(runner, "gdn_pool", None)
 
@@ -999,7 +1004,10 @@ class ModelRunnerProcess:
         # and the eviction callback; here we just remove the rid mapping.
         self._rid_to_gdn_track_slot.pop(rid, None)
 
-        cache_enabled = cache is not None
+        # ChunkCache is used when radix cache is disabled. It is still stored
+        # in self._radix_cache for the shared prefix-cache interface, but it
+        # must not enter RadixCache-specific cleanup/insert logic here.
+        cache_enabled = cache is not None and hasattr(cache, "page_size")
 
         # ----------------------------------------------------------
         # Phase 1: Read all KV indices BEFORE freeing anything.
