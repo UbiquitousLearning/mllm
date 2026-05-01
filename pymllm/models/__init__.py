@@ -34,6 +34,14 @@ _MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
         "pymllm.models.qwen3_5",
         "Qwen3_5ForConditionalGeneration",
     ),
+    "Gemma3nForCausalLM": (
+        "pymllm.models.gemma3n",
+        "Gemma3nForCausalLM",
+    ),
+    "Gemma3nForConditionalGeneration": (
+        "pymllm.models.gemma3n",
+        "Gemma3nForConditionalGeneration",
+    ),
 }
 
 
