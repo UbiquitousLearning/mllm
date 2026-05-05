@@ -101,18 +101,26 @@ class Gemma3nMLP(MllmBaseLayer):
         self.act = _get_gemma3n_hidden_act_fn(activation)
         self.activation_sparsity = float(activation_sparsity)
 
+        if self.activation_sparsity > 0.0:
+            normal_dist = torch.distributions.normal.Normal(0.0, 1.0)
+            std_multiplier = normal_dist.icdf(
+                torch.tensor(self.activation_sparsity, dtype=torch.float32)
+            )
+            self.register_buffer(
+                "_std_multiplier",
+                std_multiplier,
+                persistent=False,
+            )
+
         self.gate_proj = Linear(hidden_size, intermediate_size, bias=False)
         self.up_proj = Linear(hidden_size, intermediate_size, bias=False)
         self.down_proj = Linear(intermediate_size, hidden_size, bias=False)
 
     def _gaussian_topk(self, inputs: torch.Tensor) -> torch.Tensor:
-        target_sparsity_tensor = torch.tensor(
-            self.activation_sparsity,
-            dtype=torch.float32,
+        std_multiplier = self._std_multiplier.to(
             device=inputs.device,
+            dtype=inputs.dtype,
         )
-        normal_dist = torch.distributions.normal.Normal(0, 1)
-        std_multiplier = normal_dist.icdf(target_sparsity_tensor).to(dtype=inputs.dtype)
         inputs_mean = torch.mean(inputs, dim=-1, keepdim=True)
         inputs_std = torch.std(inputs, dim=-1, keepdim=True, unbiased=False)
         cutoff_x = inputs_mean + inputs_std * std_multiplier

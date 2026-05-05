@@ -334,7 +334,7 @@ class Gemma3nAttention(nn.Module):
         if isinstance(forward_batch, dict):
             shared_kv_cache = forward_batch.get("kv_shared_cache")
         elif forward_batch is not None and hasattr(forward_batch, "kv_shared_cache"):
-            shared_kv_cache = getattr(forward_batch, "kv_shared_cache")
+            shared_kv_cache = forward_batch.kv_shared_cache
 
         if (
             self.is_kv_shared_layer
@@ -638,7 +638,7 @@ class Gemma3nModel(nn.Module):
             native_forward_batch.setdefault("kv_shared_cache", {})
         else:
             native_forward_batch = forward_batch
-            setattr(native_forward_batch, "kv_shared_cache", {})
+            native_forward_batch.kv_shared_cache = {}
 
         for layer_idx, layer in enumerate(self.layers):
             hidden_states = layer(
@@ -925,11 +925,6 @@ class Gemma3nForCausalLM(nn.Module):
         else:
             st_files = sorted(model_path.glob("*.safetensors"))
             if not st_files:
-                logger.info(
-                    "Gemma3n streaming loader found no safetensors under %s; "
-                    "falling back to regular load_weights path.",
-                    model_path,
-                )
                 raise FileNotFoundError(
                     f"No safetensors checkpoint shards found under {model_path}. "
                     "Gemma3n native loading currently expects safetensors weights."
@@ -1033,11 +1028,11 @@ class Gemma3nForCausalLM(nn.Module):
         else:
             try:
                 weight_items = iter(weights)
-            except TypeError:
+            except TypeError as err:
                 raise TypeError(
                     f"weights must be a dict-like state_dict, a module with state_dict(), "
                     f"or an iterable of (name, tensor), got {type(weights)}"
-                )
+                ) from err
 
         def _normalize_name(name: str):
             # Ignore clearly multimodal-only weights for current text-only path.
