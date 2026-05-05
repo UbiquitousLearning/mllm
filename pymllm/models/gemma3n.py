@@ -443,7 +443,7 @@ class Gemma3nAttention(nn.Module):
                 batch_size * seq_len, self.kv_size
             )
             if not self._radix_path_logged:
-                logger.info(
+                logger.debug(
                     "Gemma3n RadixAttention path active: layer=%d type=%s "
                     "sliding_window_size=%s tokens=%d",
                     self.layer_id,
@@ -602,6 +602,7 @@ class Gemma3nModel(nn.Module):
         self.altup_unembed_projections = nn.ModuleList(
             [Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
         )
+
     def move_compute_modules_to_device(self, device):
         """Move Gemma3n compute modules to the runtime device.
 
@@ -770,6 +771,7 @@ class Gemma3nForCausalLM(nn.Module):
         # recompute the full context, returning only the last-token logits.
         self._native_cached_input_ids = None
         self._native_cached_positions = None
+
     def move_compute_modules_to_device(self, device):
         """Move Gemma3n decoder compute modules to the runtime device.
 
