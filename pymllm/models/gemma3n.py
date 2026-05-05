@@ -300,6 +300,7 @@ class Gemma3nAttention(nn.Module):
             layer_id=layer_id,
             sliding_window_size=self.sliding_window_size,
         )
+        self._radix_path_logged = False
 
         num_kv_shared_layers = int(getattr(tc, "num_kv_shared_layers", 0))
         first_kv_shared_layer_idx = int(tc.num_hidden_layers) - num_kv_shared_layers
@@ -439,6 +440,16 @@ class Gemma3nAttention(nn.Module):
             v_flat = v.transpose(1, 2).contiguous().reshape(
                 batch_size * seq_len, self.kv_size
             )
+            if not self._radix_path_logged:
+                logger.info(
+                    "Gemma3n RadixAttention path active: layer=%d type=%s "
+                    "sliding_window_size=%s tokens=%d",
+                    self.layer_id,
+                    self.layer_type,
+                    self.sliding_window_size,
+                    batch_size * seq_len,
+                )
+                self._radix_path_logged = True
             attn_output = self.attn(q_flat, k_flat, v_flat, forward_batch)
             attn_output = attn_output.view(batch_size, seq_len, self.q_size)
             return self.o_proj(attn_output)
@@ -694,7 +705,14 @@ class Gemma3nModel(nn.Module):
 
         hidden_states = torch.stack(temp_hidden_states, dim=0)  # [P, B, S, H]
 
-        native_forward_batch = {"kv_shared_cache": {}}
+        if forward_batch is None:
+            native_forward_batch = {"kv_shared_cache": {}}
+        elif isinstance(forward_batch, dict):
+            native_forward_batch = forward_batch
+            native_forward_batch.setdefault("kv_shared_cache", {})
+        else:
+            native_forward_batch = forward_batch
+            setattr(native_forward_batch, "kv_shared_cache", {})
 
         for layer_idx, layer in enumerate(self.layers):
             hidden_states = layer(
@@ -865,7 +883,16 @@ class Gemma3nForCausalLM(nn.Module):
         self._native_cached_input_ids = full_input_ids.detach().cpu()
         self._native_cached_positions = full_positions.detach().cpu()
 
-        hidden_states = self.model(input_ids=full_input_ids, positions=full_positions)
+        if is_extend_mode and forward_batch_obj is not None:
+            model_forward_batch = forward_batch_obj
+        else:
+            model_forward_batch = {"kv_shared_cache": {}}
+
+        hidden_states = self.model(
+            input_ids=full_input_ids,
+            positions=full_positions,
+            forward_batch=model_forward_batch,
+        )
         output_device = hidden_states.device
         logits = self.lm_head(hidden_states.to(device=self.lm_head.weight.device))
 
