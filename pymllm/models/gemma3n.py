@@ -9,6 +9,11 @@ import torch.nn.functional as F
 
 from pymllm.layers.linear import Linear
 from pymllm.layers.attention.radix_attention import RadixAttention
+from pymllm.layers.gemma3n import (
+    Gemma3nMLP,
+    Gemma3nRMSNorm,
+    Gemma3nRMSNormNoWeight,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,51 +54,9 @@ def _get_intermediate_size(config, layer_id: int) -> int:
     return int(intermediate_size[layer_id])
 
 
-class Gemma3nRMSNorm(nn.Module):
-    def __init__(self, hidden_size: int, eps: float = 1e-6):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(hidden_size))
-
-    def _norm(self, x: torch.Tensor) -> torch.Tensor:
-        return x / torch.sqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        residual: Optional[torch.Tensor] = None,
-    ):
-        if x.shape[-1] != self.hidden_size:
-            raise ValueError(
-                f"Expected last dim == hidden_size ({self.hidden_size}), "
-                f"but got input shape {tuple(x.shape)}"
-            )
-
-        if residual is not None:
-            residual = residual + x
-            x = residual
-
-        out = self._norm(x.float()) * self.weight.float()
-        out = out.to(dtype=x.dtype)
-
-        if residual is not None:
-            return out, residual
-        return out
 
 
 
-class Gemma3nRMSNormNoWeight(nn.Module):
-    def __init__(self, eps: float = 1e-6):
-        super().__init__()
-        self.eps = eps
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x_dtype = x.dtype
-        x_fp32 = x.float()
-        var = x_fp32.pow(2).mean(dim=-1, keepdim=True)
-        out = x_fp32 * torch.rsqrt(var + self.eps)
-        return out.to(x_dtype)
 
 
 def _rotate_half(x: torch.Tensor) -> torch.Tensor:
@@ -127,46 +90,6 @@ def _apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.
     return (x * cos) + (_rotate_half(x) * sin)
 
 
-class Gemma3nMLP(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        activation: str,
-        activation_sparsity: float = 0.0,
-    ):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.intermediate_size = intermediate_size
-        self.activation_name = activation
-        self.act = _get_hidden_act_fn(activation)
-        self.activation_sparsity = float(activation_sparsity)
-
-        self.gate_proj = Linear(hidden_size, intermediate_size, bias=False)
-        self.up_proj = Linear(hidden_size, intermediate_size, bias=False)
-        self.down_proj = Linear(intermediate_size, hidden_size, bias=False)
-
-    def _gaussian_topk(self, inputs: torch.Tensor) -> torch.Tensor:
-        target_sparsity_tensor = torch.tensor(
-            self.activation_sparsity,
-            dtype=torch.float32,
-            device=inputs.device,
-        )
-        normal_dist = torch.distributions.normal.Normal(0, 1)
-        std_multiplier = normal_dist.icdf(target_sparsity_tensor).to(dtype=inputs.dtype)
-        inputs_mean = torch.mean(inputs, dim=-1, keepdim=True)
-        inputs_std = torch.std(inputs, dim=-1, keepdim=True, unbiased=False)
-        cutoff_x = inputs_mean + inputs_std * std_multiplier
-        return F.relu(inputs - cutoff_x)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        gate = self.gate_proj(x)
-        if self.activation_sparsity > 0.0:
-            gate = self._gaussian_topk(gate)
-        gate = self.act(gate)
-        up = self.up_proj(x)
-        hidden = gate * up
-        return self.down_proj(hidden)
 
 
 

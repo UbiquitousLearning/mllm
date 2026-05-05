@@ -6,6 +6,11 @@ from pymllm.layers.layer_norm import LayerNorm
 from pymllm.layers.linear import ColumnParallelLinear, Linear, RowParallelLinear
 from pymllm.layers.mlp import MLP, ParallelMLP
 from pymllm.layers.rms_norm import GemmaRMSNorm, RMSNorm
+from pymllm.layers.gemma3n import (
+    Gemma3nMLP,
+    Gemma3nRMSNorm,
+    Gemma3nRMSNormNoWeight,
+)
 from pymllm.layers.rms_norm_gated import RMSNormGated
 from pymllm.layers.gated_delta_net import GatedDeltaNet
 from pymllm.layers.rope import (
@@ -62,4 +67,7 @@ __all__ = [
     "top_k_renorm_probs",
     "top_k_mask_logits",
     "chain_speculative_sampling",
+    "Gemma3nMLP",
+    "Gemma3nRMSNorm",
+    "Gemma3nRMSNormNoWeight",
 ]
