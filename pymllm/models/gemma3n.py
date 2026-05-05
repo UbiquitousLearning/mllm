@@ -589,6 +589,33 @@ class Gemma3nModel(nn.Module):
         self.altup_unembed_projections = nn.ModuleList(
             [Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
         )
+    def move_compute_modules_to_device(self, device):
+        """Move Gemma3n compute modules to the runtime device.
+
+        The two large embedding tables intentionally remain on CPU.  This keeps
+        memory usage manageable while allowing decoder computation to run on
+        CUDA and making the guarded RadixAttention path reachable in the server
+        path once ``forward_batch`` is passed through.
+        """
+        device = torch.device(device)
+
+        self.layers.to(device)
+        self.norm.to(device)
+        self.per_layer_model_projection.to(device)
+        self.per_layer_projection_norm.to(device)
+        self.altup_projections.to(device)
+        self.altup_unembed_projections.to(device)
+
+        logger.info(
+            "Gemma3n compute modules moved to %s; "
+            "embed_tokens=%s embed_tokens_per_layer=%s norm=%s",
+            device,
+            self.embed_tokens.weight.device,
+            self.embed_tokens_per_layer.weight.device,
+            self.norm.weight.device,
+        )
+        return self
+
 
     def forward(
         self,
@@ -723,6 +750,28 @@ class Gemma3nForCausalLM(nn.Module):
         # recompute the full context, returning only the last-token logits.
         self._native_cached_input_ids = None
         self._native_cached_positions = None
+    def move_compute_modules_to_device(self, device):
+        """Move Gemma3n decoder compute modules to the runtime device.
+
+        Keep ``lm_head`` on CPU because it is tied from ``embed_tokens`` and is
+        very large.  ``forward`` moves hidden states to the lm_head device for
+        logits and then returns logits on the decoder output device.
+        """
+        device = torch.device(device)
+
+        self.model.move_compute_modules_to_device(device)
+        self.lm_head.to(torch.device("cpu"))
+
+        logger.info(
+            "Gemma3n device split: embed_tokens=%s embed_tokens_per_layer=%s "
+            "decoder_norm=%s lm_head=%s",
+            self.model.embed_tokens.weight.device,
+            self.model.embed_tokens_per_layer.weight.device,
+            self.model.norm.weight.device,
+            self.lm_head.weight.device,
+        )
+        return self
+
 
     def forward(
         self,

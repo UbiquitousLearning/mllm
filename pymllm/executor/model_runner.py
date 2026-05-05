@@ -649,6 +649,14 @@ class ModelRunner:
             if quant_method is not None and hasattr(quant_method, "process_weights_after_loading"):
                 quant_method.process_weights_after_loading(module)
 
+        move_compute_modules = getattr(self.model, "move_compute_modules_to_device", None)
+        if callable(move_compute_modules) and self.device == "cuda":
+            logger.info(
+                "Moving model compute modules to runtime device after weight loading: %s",
+                device_str,
+            )
+            move_compute_modules(torch.device(device_str))
+
         self.model.eval()
 
         after_mem = get_available_gpu_memory(self.device, self.gpu_id)
