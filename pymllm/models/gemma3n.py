@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pymllm.layers.linear import Linear
+
 logger = logging.getLogger(__name__)
 
 
@@ -139,9 +141,9 @@ class Gemma3nMLP(nn.Module):
         self.act = _get_hidden_act_fn(activation)
         self.activation_sparsity = float(activation_sparsity)
 
-        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
-        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
-        self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
+        self.gate_proj = Linear(hidden_size, intermediate_size, bias=False)
+        self.up_proj = Linear(hidden_size, intermediate_size, bias=False)
+        self.down_proj = Linear(intermediate_size, hidden_size, bias=False)
 
     def _gaussian_topk(self, inputs: torch.Tensor) -> torch.Tensor:
         target_sparsity_tensor = torch.tensor(
@@ -167,7 +169,7 @@ class Gemma3nMLP(nn.Module):
 
 
 
-class SimpleScaledWordEmbedding(nn.Embedding):
+class Gemma3nScaledWordEmbedding(nn.Embedding):
     def __init__(self, num_embeddings: int, embedding_dim: int, embed_scale: float = 1.0):
         super().__init__(num_embeddings, embedding_dim)
         self.scalar_embed_scale = float(embed_scale)
@@ -177,13 +179,13 @@ class SimpleScaledWordEmbedding(nn.Embedding):
         return super().forward(input_ids) * self.embed_scale.to(self.weight.dtype)
 
 
-class SimpleLaurelBlock(nn.Module):
+class Gemma3nLaurelBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
         tc = _get_text_config(config)
         laurel_rank = getattr(tc, "laurel_rank", 8)
-        self.linear_left = nn.Linear(tc.hidden_size, laurel_rank, bias=False)
-        self.linear_right = nn.Linear(laurel_rank, tc.hidden_size, bias=False)
+        self.linear_left = Linear(tc.hidden_size, laurel_rank, bias=False)
+        self.linear_right = Linear(laurel_rank, tc.hidden_size, bias=False)
         self.post_laurel_norm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
@@ -193,7 +195,7 @@ class SimpleLaurelBlock(nn.Module):
         return hidden_states + normed
 
 
-class SimpleAltUp(nn.Module):
+class Gemma3nAltUp(nn.Module):
     def __init__(self, config):
         super().__init__()
         tc = _get_text_config(config)
@@ -201,9 +203,9 @@ class SimpleAltUp(nn.Module):
         self.altup_num_inputs = getattr(tc, "altup_num_inputs", 2)
         self.altup_active_idx = getattr(tc, "altup_active_idx", 0)
         self.correct_output_scale = nn.Parameter(torch.zeros(tc.hidden_size))
-        self.correction_coefs = nn.Linear(self.altup_num_inputs, self.altup_num_inputs, bias=False)
-        self.prediction_coefs = nn.Linear(self.altup_num_inputs, self.altup_num_inputs ** 2, bias=False)
-        self.modality_router = nn.Linear(tc.hidden_size, self.altup_num_inputs, bias=False)
+        self.correction_coefs = Linear(self.altup_num_inputs, self.altup_num_inputs, bias=False)
+        self.prediction_coefs = Linear(self.altup_num_inputs, self.altup_num_inputs ** 2, bias=False)
+        self.modality_router = Linear(tc.hidden_size, self.altup_num_inputs, bias=False)
         self.router_norm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
         self.register_buffer("router_input_scale", torch.tensor(tc.hidden_size ** -1.0), persistent=False)
 
@@ -266,10 +268,10 @@ class Gemma3nAttention(nn.Module):
         self.q_size = self.num_heads * self.head_dim
         self.kv_size = self.num_kv_heads * self.head_dim
 
-        self.q_proj = nn.Linear(self.hidden_size, self.q_size, bias=False)
-        self.k_proj = nn.Linear(self.hidden_size, self.kv_size, bias=False)
-        self.v_proj = nn.Linear(self.hidden_size, self.kv_size, bias=False)
-        self.o_proj = nn.Linear(self.q_size, self.hidden_size, bias=False)
+        self.q_proj = Linear(self.hidden_size, self.q_size, bias=False)
+        self.k_proj = Linear(self.hidden_size, self.kv_size, bias=False)
+        self.v_proj = Linear(self.hidden_size, self.kv_size, bias=False)
+        self.o_proj = Linear(self.q_size, self.hidden_size, bias=False)
 
         self.q_norm = Gemma3nRMSNorm(self.head_dim)
         self.k_norm = Gemma3nRMSNorm(self.head_dim)
@@ -426,13 +428,13 @@ class Gemma3nDecoderLayer(nn.Module):
             tc.hidden_size, eps=tc.rms_norm_eps
         )
 
-        self.altup = SimpleAltUp(config)
-        self.laurel = SimpleLaurelBlock(config)
+        self.altup = Gemma3nAltUp(config)
+        self.laurel = Gemma3nLaurelBlock(config)
         self.hidden_size_per_layer_input = getattr(tc, "hidden_size_per_layer_input", 8)
-        self.per_layer_input_gate = nn.Linear(
+        self.per_layer_input_gate = Linear(
             tc.hidden_size, self.hidden_size_per_layer_input, bias=False
         )
-        self.per_layer_projection = nn.Linear(
+        self.per_layer_projection = Linear(
             self.hidden_size_per_layer_input, tc.hidden_size, bias=False
         )
         self.post_per_layer_input_norm = Gemma3nRMSNorm(
@@ -492,7 +494,7 @@ class Gemma3nModel(nn.Module):
         tc = _get_text_config(config)
 
         self.config = config
-        self.embed_tokens = SimpleScaledWordEmbedding(tc.vocab_size, tc.hidden_size, embed_scale=tc.hidden_size ** 0.5)
+        self.embed_tokens = Gemma3nScaledWordEmbedding(tc.vocab_size, tc.hidden_size, embed_scale=tc.hidden_size ** 0.5)
         self.layers = nn.ModuleList(
             [Gemma3nDecoderLayer(config, i) for i in range(tc.num_hidden_layers)]
         )
@@ -503,12 +505,12 @@ class Gemma3nModel(nn.Module):
         self.vocab_size_per_layer_input = getattr(tc, "vocab_size_per_layer_input", tc.vocab_size)
         self.altup_num_inputs = getattr(tc, "altup_num_inputs", 2)
 
-        self.embed_tokens_per_layer = SimpleScaledWordEmbedding(
+        self.embed_tokens_per_layer = Gemma3nScaledWordEmbedding(
             self.vocab_size_per_layer_input,
             tc.num_hidden_layers * self.hidden_size_per_layer_input,
             embed_scale=self.hidden_size_per_layer_input ** 0.5,
         )
-        self.per_layer_model_projection = nn.Linear(
+        self.per_layer_model_projection = Linear(
             tc.hidden_size,
             tc.num_hidden_layers * self.hidden_size_per_layer_input,
             bias=False,
@@ -518,10 +520,10 @@ class Gemma3nModel(nn.Module):
         )
 
         self.altup_projections = nn.ModuleList(
-            [nn.Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
+            [Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
         )
         self.altup_unembed_projections = nn.ModuleList(
-            [nn.Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
+            [Linear(tc.hidden_size, tc.hidden_size, bias=False) for _ in range(1, self.altup_num_inputs)]
         )
 
     def forward(
