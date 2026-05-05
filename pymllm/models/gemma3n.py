@@ -336,6 +336,34 @@ class Gemma3nAttention(nn.Module):
 
         self.rope_theta = float(rope_theta)
 
+    def _can_use_radix_attention(
+        self,
+        hidden_states: torch.Tensor,
+        forward_batch: Any,
+    ) -> bool:
+        """Return whether this layer can use pymllm RadixAttention.
+
+        The current text-only direct verification path is CPU-first and calls
+        attention with ``forward_batch=None``; that path must keep the eager
+        implementation below. The guarded RadixAttention path is intended for
+        the server CUDA/KV-cache path.
+
+        Gemma3n KV-sharing layers cannot be routed to RadixAttention yet because
+        the current FlashInfer backend reads/writes KV cache by ``layer_id`` and
+        does not redirect a layer to another layer's shared KV buffer.
+        """
+        if self.is_kv_shared_layer:
+            return False
+        if forward_batch is None:
+            return False
+        if getattr(forward_batch, "attn_backend", None) is None:
+            return False
+        if getattr(forward_batch, "token_to_kv_pool", None) is None:
+            return False
+        if getattr(forward_batch, "out_cache_loc", None) is None:
+            return False
+        return bool(hidden_states.is_cuda)
+
     def _build_attention_mask(
         self,
         positions: torch.Tensor,
@@ -400,6 +428,20 @@ class Gemma3nAttention(nn.Module):
 
             if shared_kv_cache is not None and self.store_full_length_kv:
                 shared_kv_cache[self.layer_id] = (k, v)
+
+        if self._can_use_radix_attention(hidden_states, forward_batch):
+            q_flat = q.transpose(1, 2).contiguous().reshape(
+                batch_size * seq_len, self.q_size
+            )
+            k_flat = k.transpose(1, 2).contiguous().reshape(
+                batch_size * seq_len, self.kv_size
+            )
+            v_flat = v.transpose(1, 2).contiguous().reshape(
+                batch_size * seq_len, self.kv_size
+            )
+            attn_output = self.attn(q_flat, k_flat, v_flat, forward_batch)
+            attn_output = attn_output.view(batch_size, seq_len, self.q_size)
+            return self.o_proj(attn_output)
 
         if self.num_heads != self.num_kv_heads:
             n_rep = self.num_heads // self.num_kv_heads
