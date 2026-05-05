@@ -58,6 +58,7 @@ class ServerConfig:
     # --------------------------------------------------------------------- #
     attention_backend: Literal["auto", "flashinfer"] = "auto"
     gdn_decode_backend: Literal["auto", "flashinfer", "mllm_kernel", "pytorch"] = "auto"
+    gdn_extend_backend: Literal["auto", "flashinfer", "mllm_kernel", "cuda_chunkwise", "pytorch"] = "auto"
     sampling_backend: Optional[str] = None
     disable_cuda_graph: bool = False
     enable_torch_compile: bool = False

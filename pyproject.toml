@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-  "scikit-build-core>=0.11.0", "apache-tvm-ffi == 0.1.8"
+  "scikit-build-core>=0.11.0", "apache-tvm-ffi == 0.1.8.post2"
 ]
 build-backend = "scikit_build_core.build"
 
