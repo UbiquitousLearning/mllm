@@ -295,7 +295,9 @@ class Gemma3nAttention(nn.Module):
         self.attn = RadixAttention(
             num_heads=self.num_heads,
             head_dim=self.head_dim,
-            scaling=self.scaling,
+            # Match the currently verified eager Gemma3n attention path, which
+            # applies softmax to q @ k^T without an additional scale factor.
+            scaling=1.0,
             num_kv_heads=self.num_kv_heads,
             layer_id=layer_id,
             sliding_window_size=self.sliding_window_size,
