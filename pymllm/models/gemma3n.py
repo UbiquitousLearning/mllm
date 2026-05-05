@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from pymllm.layers.linear import Linear
+from pymllm.layers.attention.radix_attention import RadixAttention
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +279,27 @@ class Gemma3nAttention(nn.Module):
         self.v_norm = Gemma3nRMSNormNoWeight(eps=getattr(tc, "rms_norm_eps", 1e-6))
 
         self.sliding_window = getattr(tc, "sliding_window", None)
+        self.sliding_window_size = (
+            int(self.sliding_window)
+            if self.layer_type == "sliding_attention" and self.sliding_window is not None
+            else -1
+        )
+        query_pre_attn_scalar = getattr(tc, "query_pre_attn_scalar", self.head_dim)
+        self.scaling = float(query_pre_attn_scalar) ** -0.5
+
+        # RadixAttention is the pymllm-native attention layer.  Keep the eager
+        # full-context path below as a correctness fallback for the current
+        # CPU-first Gemma3n text-only implementation, but configure RadixAttention
+        # here so Gemma3n layers carry the correct per-layer SWA metadata:
+        # sliding layers use tc.sliding_window, full layers use -1.
+        self.attn = RadixAttention(
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+            scaling=self.scaling,
+            num_kv_heads=self.num_kv_heads,
+            layer_id=layer_id,
+            sliding_window_size=self.sliding_window_size,
+        )
 
         num_kv_shared_layers = int(getattr(tc, "num_kv_shared_layers", 0))
         first_kv_shared_layer_idx = int(tc.num_hidden_layers) - num_kv_shared_layers
