@@ -603,15 +603,6 @@ class ModelRunner:
         requires_cpu_first_loading = bool(
             getattr(model_cls, "requires_cpu_first_weight_loading", False)
         )
-        if not requires_cpu_first_loading:
-            import os
-
-            gemma3n_native_mode = (
-                architecture in {"Gemma3nForCausalLM", "Gemma3nForConditionalGeneration"}
-                and os.environ.get("MLLM_GEMMA3N_NATIVE", "0") == "1"
-            )
-            requires_cpu_first_loading = gemma3n_native_mode
-
         instantiate_device_str = "cpu" if requires_cpu_first_loading else device_str
         if instantiate_device_str != device_str:
             logger.info(

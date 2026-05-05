@@ -46,7 +46,7 @@ def _get_intermediate_size(config, layer_id: int) -> int:
     return int(intermediate_size[layer_id])
 
 
-class SimpleGemmaRMSNorm(nn.Module):
+class Gemma3nRMSNorm(nn.Module):
     def __init__(self, hidden_size: int, eps: float = 1e-6):
         super().__init__()
         self.hidden_size = hidden_size
@@ -80,7 +80,7 @@ class SimpleGemmaRMSNorm(nn.Module):
 
 
 
-class SimpleRMSNormNoWeight(nn.Module):
+class Gemma3nRMSNormNoWeight(nn.Module):
     def __init__(self, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
@@ -124,7 +124,7 @@ def _apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.
     return (x * cos) + (_rotate_half(x) * sin)
 
 
-class SimpleMLP(nn.Module):
+class Gemma3nMLP(nn.Module):
     def __init__(
         self,
         hidden_size: int,
@@ -184,7 +184,7 @@ class SimpleLaurelBlock(nn.Module):
         laurel_rank = getattr(tc, "laurel_rank", 8)
         self.linear_left = nn.Linear(tc.hidden_size, laurel_rank, bias=False)
         self.linear_right = nn.Linear(laurel_rank, tc.hidden_size, bias=False)
-        self.post_laurel_norm = SimpleGemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
+        self.post_laurel_norm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         laurel_hidden_states = self.linear_left(hidden_states)
@@ -204,7 +204,7 @@ class SimpleAltUp(nn.Module):
         self.correction_coefs = nn.Linear(self.altup_num_inputs, self.altup_num_inputs, bias=False)
         self.prediction_coefs = nn.Linear(self.altup_num_inputs, self.altup_num_inputs ** 2, bias=False)
         self.modality_router = nn.Linear(tc.hidden_size, self.altup_num_inputs, bias=False)
-        self.router_norm = SimpleGemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
+        self.router_norm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
         self.register_buffer("router_input_scale", torch.tensor(tc.hidden_size ** -1.0), persistent=False)
 
     def compute_router_modalities(self, x: torch.Tensor) -> torch.Tensor:
@@ -271,9 +271,9 @@ class Gemma3nAttention(nn.Module):
         self.v_proj = nn.Linear(self.hidden_size, self.kv_size, bias=False)
         self.o_proj = nn.Linear(self.q_size, self.hidden_size, bias=False)
 
-        self.q_norm = SimpleGemmaRMSNorm(self.head_dim)
-        self.k_norm = SimpleGemmaRMSNorm(self.head_dim)
-        self.v_norm = SimpleRMSNormNoWeight(eps=getattr(tc, "rms_norm_eps", 1e-6))
+        self.q_norm = Gemma3nRMSNorm(self.head_dim)
+        self.k_norm = Gemma3nRMSNorm(self.head_dim)
+        self.v_norm = Gemma3nRMSNormNoWeight(eps=getattr(tc, "rms_norm_eps", 1e-6))
 
         self.sliding_window = getattr(tc, "sliding_window", None)
 
@@ -409,20 +409,20 @@ class Gemma3nDecoderLayer(nn.Module):
         else:
             layer_activation_sparsity = float(getattr(tc, "activation_sparsity", 0.0))
 
-        self.mlp = SimpleMLP(
+        self.mlp = Gemma3nMLP(
             hidden_size=tc.hidden_size,
             intermediate_size=_get_intermediate_size(config, layer_id),
             activation=getattr(tc, "hidden_activation", getattr(tc, "hidden_act", "silu")),
             activation_sparsity=layer_activation_sparsity,
         )
-        self.input_layernorm = SimpleGemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
-        self.post_attention_layernorm = SimpleGemmaRMSNorm(
+        self.input_layernorm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
+        self.post_attention_layernorm = Gemma3nRMSNorm(
             tc.hidden_size, eps=tc.rms_norm_eps
         )
-        self.pre_feedforward_layernorm = SimpleGemmaRMSNorm(
+        self.pre_feedforward_layernorm = Gemma3nRMSNorm(
             tc.hidden_size, eps=tc.rms_norm_eps
         )
-        self.post_feedforward_layernorm = SimpleGemmaRMSNorm(
+        self.post_feedforward_layernorm = Gemma3nRMSNorm(
             tc.hidden_size, eps=tc.rms_norm_eps
         )
 
@@ -435,7 +435,7 @@ class Gemma3nDecoderLayer(nn.Module):
         self.per_layer_projection = nn.Linear(
             self.hidden_size_per_layer_input, tc.hidden_size, bias=False
         )
-        self.post_per_layer_input_norm = SimpleGemmaRMSNorm(
+        self.post_per_layer_input_norm = Gemma3nRMSNorm(
             tc.hidden_size, eps=tc.rms_norm_eps
         )
         self.per_layer_input_act = _get_hidden_act_fn(
@@ -496,7 +496,7 @@ class Gemma3nModel(nn.Module):
         self.layers = nn.ModuleList(
             [Gemma3nDecoderLayer(config, i) for i in range(tc.num_hidden_layers)]
         )
-        self.norm = SimpleGemmaRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
+        self.norm = Gemma3nRMSNorm(tc.hidden_size, eps=tc.rms_norm_eps)
 
         # Text-only modules whose names match the official Gemma3n checkpoint.
         self.hidden_size_per_layer_input = getattr(tc, "hidden_size_per_layer_input", 8)
@@ -513,7 +513,7 @@ class Gemma3nModel(nn.Module):
             tc.num_hidden_layers * self.hidden_size_per_layer_input,
             bias=False,
         )
-        self.per_layer_projection_norm = SimpleGemmaRMSNorm(
+        self.per_layer_projection_norm = Gemma3nRMSNorm(
             self.hidden_size_per_layer_input, eps=tc.rms_norm_eps
         )
 
@@ -630,54 +630,33 @@ class Gemma3nModel(nn.Module):
 class Gemma3nForCausalLM(nn.Module):
     """Text-only Gemma3n Causal LM wrapper.
 
-    The default server path uses the official HF text model and keeps the main
-    token embedding and lm_head on CUDA, while offloading the large per-layer
-    embedding table to CPU during weight loading. Native mode can be enabled
-    for development with MLLM_GEMMA3N_NATIVE=1.
+    This implementation uses the native Gemma3n text-only path directly.
+    It keeps CPU-first instantiation and model-path streaming weight loading
+    for the large Gemma3n text checkpoint until the attention path is fully
+    integrated with pymllm.layers and RadixAttention.
     """
 
-    requires_cpu_first_weight_loading = False
+    requires_cpu_first_weight_loading = True
 
     def __init__(self, config, quant_config=None, prefix: str = ""):
         super().__init__()
         text_config = _get_text_config(config)
         text_config._attn_implementation = "eager"
 
-        import os
-        self.use_native = os.environ.get("MLLM_GEMMA3N_NATIVE", "0") == "1"
-        self.use_model_path_weight_loader = self.use_native
-        if self.use_native:
-            self.config = text_config
-            self.quant_config = quant_config
-            self.prefix = prefix
-            self.model = Gemma3nModel(config)
-            self.lm_head = nn.Linear(text_config.hidden_size, text_config.vocab_size, bias=False)
-            self._hf_past_key_values = None
-            # Minimal batch=1 decode cache for pymllm-server native smoke tests.
-            # During prefill the server passes the full prompt; during decode it
-            # passes only the latest token. Until native attention is integrated
-            # with mllm's KV cache, keep the full token/position history here and
-            # recompute the full context, returning only the last-token logits.
-            self._native_cached_input_ids = None
-            self._native_cached_positions = None
-            return
-
-        from transformers.models.gemma3n.modeling_gemma3n import (
-            Gemma3nForCausalLM as HFGemma3nForCausalLM,
-        )
-
         self.config = text_config
         self.quant_config = quant_config
         self.prefix = prefix
+        self.use_model_path_weight_loader = True
+        self.model = Gemma3nModel(config)
+        self.lm_head = nn.Linear(text_config.hidden_size, text_config.vocab_size, bias=False)
 
-        hf_model = HFGemma3nForCausalLM(text_config)
-        self.model = hf_model.model
-        self.lm_head = hf_model.lm_head
-
-        # Minimal HF cache for current text-only server path.
-        # mllm supplies only the newest token during decode, so the HF wrapper
-        # must retain and reuse past_key_values across decode steps.
-        self._hf_past_key_values = None
+        # Minimal batch=1 decode cache for pymllm-server native smoke tests.
+        # During prefill the server passes the full prompt; during decode it
+        # passes only the latest token. Until native attention is integrated
+        # with mllm's KV cache, keep the full token/position history here and
+        # recompute the full context, returning only the last-token logits.
+        self._native_cached_input_ids = None
+        self._native_cached_positions = None
 
     def forward(
         self,
@@ -685,173 +664,95 @@ class Gemma3nForCausalLM(nn.Module):
         positions: torch.Tensor,
         forward_batch: Any = None,
     ):
-        # mllm passes flat tensors for extend/prefill, e.g. input_ids=[T] and positions=[T].
-        # HF Gemma3n expects batched text tensors:
-        #   input_ids: [B, T]
-        #   position_ids: [B, T]
-        #   inputs_embeds: [B, T, H]
-        # Current server path only supports batch_size=1 for Gemma3n text-only.
+        # mllm passes flat tensors for extend/prefill, e.g. input_ids=[T]
+        # and positions=[T]. Native Gemma3nModel expects batched tensors.
         forward_batch_obj = forward_batch
         del forward_batch
-
-        if getattr(self, "use_native", False):
-            if input_ids.dim() == 1:
-                input_ids_hf = input_ids.unsqueeze(0)
-            else:
-                input_ids_hf = input_ids
-
-            if positions.dim() == 1:
-                position_ids_hf = positions.unsqueeze(0)
-            else:
-                position_ids_hf = positions
-
-            # Native text-only path currently keeps large Gemma3n weights on CPU.
-            # Keep the recomputed full-context forward on CPU as well; otherwise
-            # server decode can pass CUDA token tensors while embeddings/lm_head
-            # remain on CPU, producing a different path from the verified local
-            # stepwise generation.
-            # Important: do a blocking CPU copy here. In server decode, the
-            # CUDA input tensor can be reused/cleared by the runtime after the
-            # forward call is scheduled; a non_blocking CUDA->CPU copy may then
-            # observe zeros or stale values.
-            input_ids_hf = input_ids_hf.detach().to(device=torch.device("cpu"), non_blocking=False).clone()
-            position_ids_hf = position_ids_hf.detach().to(device=torch.device("cpu"), non_blocking=False).clone()
-
-            # pymllm-server prefill/extend is the start of a new request
-            # context. Prefer the server's forward mode over sequence length so
-            # one-token prompts do not get appended to a previous request cache.
-            is_extend_mode = False
-            if forward_batch_obj is not None:
-                forward_mode = getattr(forward_batch_obj, "forward_mode", None)
-                is_extend = getattr(forward_mode, "is_extend", None)
-                if callable(is_extend):
-                    is_extend_mode = bool(is_extend())
-                elif isinstance(forward_batch_obj, dict):
-                    is_extend_mode = forward_batch_obj.get("forward_mode") == "extend"
-
-            # pymllm-server prefill sends the full prompt, while decode sends
-            # only the latest token. For the current text-only native path,
-            # recompute from the full cached sequence so multi-token server
-            # decode matches direct greedy generation.
-            is_prefill = (
-                is_extend_mode
-                or input_ids_hf.shape[1] > 1
-                or self._native_cached_input_ids is None
-                or self._native_cached_positions is None
-            )
-            if is_prefill:
-                full_input_ids = input_ids_hf
-            else:
-                full_input_ids = torch.cat(
-                    [
-                        self._native_cached_input_ids.to(device=input_ids_hf.device),
-                        input_ids_hf,
-                    ],
-                    dim=1,
-                )
-
-            # Recompute contiguous full-context positions, matching direct greedy
-            # generation. Decode-time positions from the server correspond to
-            # the submitted token batch, not necessarily to the recomputed full
-            # native context.
-            full_positions = torch.arange(
-                full_input_ids.shape[1],
-                dtype=torch.long,
-                device=full_input_ids.device,
-            ).unsqueeze(0).expand(full_input_ids.shape[0], -1)
-
-            self._native_cached_input_ids = full_input_ids.detach().cpu()
-            self._native_cached_positions = full_positions.detach().cpu()
-
-            hidden_states = self.model(input_ids=full_input_ids, positions=full_positions)
-            output_device = hidden_states.device
-            logits = self.lm_head(hidden_states.to(device=self.lm_head.weight.device))
-
-            final_logit_softcapping = getattr(self.config, "final_logit_softcapping", None)
-            if final_logit_softcapping is not None:
-                logits = logits / final_logit_softcapping
-                logits = torch.tanh(logits)
-                logits = logits * final_logit_softcapping
-
-            # For decode, the server expects logits for the token(s) just
-            # submitted in this forward call, not the whole recomputed prefix.
-            logits = logits[:, -input_ids_hf.shape[1]:, :]
-
-            return logits.to(device=output_device, non_blocking=True)
 
         if input_ids.dim() == 1:
             input_ids_hf = input_ids.unsqueeze(0)
         else:
             input_ids_hf = input_ids
 
-        if positions.dim() == 1:
+        if positions is None:
+            position_ids_hf = torch.arange(
+                input_ids_hf.shape[1],
+                dtype=torch.long,
+                device=input_ids_hf.device,
+            ).unsqueeze(0).expand(input_ids_hf.shape[0], -1)
+        elif positions.dim() == 1:
             position_ids_hf = positions.unsqueeze(0)
         else:
             position_ids_hf = positions
 
-        # For batch_size=1 text-only serving:
-        # - prefill has sequence length > 1, so reset HF cache;
-        # - decode has sequence length == 1, so reuse stored HF cache.
-        is_prefill = input_ids_hf.shape[1] > 1 or self._hf_past_key_values is None
-        past_key_values = None if is_prefill else self._hf_past_key_values
+        # Native text-only path currently keeps large Gemma3n weights on CPU.
+        # Keep the recomputed full-context forward on CPU as well; otherwise
+        # server decode can pass CUDA token tensors while embeddings/lm_head
+        # remain on CPU, producing a different path from the verified local
+        # stepwise generation.
+        #
+        # Important: do a blocking CPU copy here. In server decode, the
+        # CUDA input tensor can be reused/cleared by the runtime after the
+        # forward call is scheduled; a non_blocking CUDA->CPU copy may then
+        # observe zeros or stale values.
+        input_ids_hf = input_ids_hf.detach().to(
+            device=torch.device("cpu"),
+            non_blocking=False,
+        ).clone()
+        position_ids_hf = position_ids_hf.detach().to(
+            device=torch.device("cpu"),
+            non_blocking=False,
+        ).clone()
 
-        model_device = self.model.norm.weight.device
-        embed_dev = self.model.embed_tokens.weight.device
-        per_layer_dev = self.model.embed_tokens_per_layer.weight.device
+        # pymllm-server prefill/extend is the start of a new request context.
+        # Prefer the server's forward mode over sequence length so one-token
+        # prompts do not get appended to a previous request cache.
+        is_extend_mode = False
+        if forward_batch_obj is not None:
+            forward_mode = getattr(forward_batch_obj, "forward_mode", None)
+            is_extend = getattr(forward_mode, "is_extend", None)
+            if callable(is_extend):
+                is_extend_mode = bool(is_extend())
+            elif isinstance(forward_batch_obj, dict):
+                is_extend_mode = forward_batch_obj.get("forward_mode") == "extend"
 
-        # If both embedding tables already live on the same device as the HF text model,
-        # use the native HF text-model path directly. This is the closest apples-to-apples
-        # comparison with the official implementation.
-        if embed_dev == model_device and per_layer_dev == model_device:
-            outputs = self.model(
-                input_ids=input_ids_hf.to(device=model_device, non_blocking=True),
-                per_layer_inputs=None,
-                attention_mask=None,
-                position_ids=position_ids_hf.to(device=model_device, non_blocking=True),
-                past_key_values=past_key_values,
-                inputs_embeds=None,
-                use_cache=True,
-            )
-        else:
-            embed_input_ids = input_ids_hf.to(
-                device=embed_dev,
-                non_blocking=True,
-            )
-            inputs_embeds = self.model.embed_tokens(embed_input_ids).to(
-                device=model_device,
-                non_blocking=True,
-            )
-
-            per_layer_input_ids = input_ids_hf.to(
-                device=per_layer_dev,
-                non_blocking=True,
-            )
-            per_layer_inputs = self.model.get_per_layer_inputs(per_layer_input_ids).to(
-                device=model_device,
-                dtype=inputs_embeds.dtype,
-                non_blocking=True,
-            )
-
-            outputs = self.model(
-                input_ids=None,
-                per_layer_inputs=per_layer_inputs,
-                attention_mask=None,
-                position_ids=position_ids_hf.to(device=model_device, non_blocking=True),
-                past_key_values=past_key_values,
-                inputs_embeds=inputs_embeds,
-                use_cache=True,
-            )
-
-        if hasattr(outputs, "past_key_values"):
-            self._hf_past_key_values = outputs.past_key_values
-
-        hidden_states = outputs.last_hidden_state
-        output_device = hidden_states.device
-        hidden_states_for_head = hidden_states.to(
-            device=self.lm_head.weight.device,
-            non_blocking=True,
+        # pymllm-server prefill sends the full prompt, while decode sends
+        # only the latest token. For the current text-only native path,
+        # recompute from the full cached sequence so multi-token server
+        # decode matches direct greedy generation.
+        is_prefill = (
+            is_extend_mode
+            or input_ids_hf.shape[1] > 1
+            or self._native_cached_input_ids is None
+            or self._native_cached_positions is None
         )
-        logits = self.lm_head(hidden_states_for_head)
+        if is_prefill:
+            full_input_ids = input_ids_hf
+        else:
+            full_input_ids = torch.cat(
+                [
+                    self._native_cached_input_ids.to(device=input_ids_hf.device),
+                    input_ids_hf,
+                ],
+                dim=1,
+            )
+
+        # Recompute contiguous full-context positions, matching direct greedy
+        # generation. Decode-time positions from the server correspond to the
+        # submitted token batch, not necessarily to the recomputed full native
+        # context.
+        full_positions = torch.arange(
+            full_input_ids.shape[1],
+            dtype=torch.long,
+            device=full_input_ids.device,
+        ).unsqueeze(0).expand(full_input_ids.shape[0], -1)
+
+        self._native_cached_input_ids = full_input_ids.detach().cpu()
+        self._native_cached_positions = full_positions.detach().cpu()
+
+        hidden_states = self.model(input_ids=full_input_ids, positions=full_positions)
+        output_device = hidden_states.device
+        logits = self.lm_head(hidden_states.to(device=self.lm_head.weight.device))
 
         final_logit_softcapping = getattr(self.config, "final_logit_softcapping", None)
         if final_logit_softcapping is not None:
@@ -859,6 +760,9 @@ class Gemma3nForCausalLM(nn.Module):
             logits = torch.tanh(logits)
             logits = logits * final_logit_softcapping
 
+        # For decode, the server expects logits for the token(s) just submitted
+        # in this forward call, not the whole recomputed prefix.
+        logits = logits[:, -input_ids_hf.shape[1]:, :]
         return logits.to(device=output_device, non_blocking=True)
 
 
