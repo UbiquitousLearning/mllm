@@ -919,6 +919,7 @@ class ModelRunner:
             req_to_token=self.req_to_token_pool.req_to_token,
             device=torch.device(self.device),
             max_req_pool_size=self.req_to_token_pool.size,
+            sliding_window_size=self.sliding_window_size,
         )
 
         if self.gdn_pool is not None:
