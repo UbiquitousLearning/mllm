@@ -17,6 +17,7 @@ mllm
 
 ## Latest News
 
+- [2026 May 02] 🔥🔥🔥 MLLM now supports the Ascend NPU backend, with ATB graph execution and Qwen3 W8A8 inference on Ascend devices.
 - [2026 Mar 18] 🔥🔥🔥 `pymllm` now supports CUDA on Jetson Orin and Jetson Thor devices (experimental; still under active development).
 - [2026 Feb 03] 🔥🔥🔥 MLLM Qnn AOT Support for Full Graph Execution on NPU! [Quick Start](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
 - [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
@@ -75,7 +76,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 
 | Model(v2)                                                                   | CPU  | Hexagon NPU <br> INT8 | Ascend NPU |
 |-----------------------------------------------------------------------------|------|-----------------------|------------|
-| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | ✔️ W8A8 |
+| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | [✔️ W8A8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-W8A8-Ascend) |
 | [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/) | |
 | [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  | |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  | |
