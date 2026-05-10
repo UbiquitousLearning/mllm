@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Benchmark pymllm server: prefill and decode throughput.
+"""
+Benchmark pymllm server: prefill and decode throughput.
 
 Sends a list of prompts sequentially to the /v1/completions endpoint,
 measures Time-To-First-Token (TTFT, i.e. prefill latency) and decode
@@ -118,10 +119,11 @@ class RequestResult:
     prompt: str
     prompt_tokens: int
     generated_tokens: int
-    ttft_ms: float          # time to first token (prefill latency)
+    ttft_ms: float          # time to first token (prefill latency), client-side
+    prefill_ms: float       # estimated pure prefill time = ttft - one_decode_step
     total_time_ms: float    # total request time
     decode_time_ms: float   # total_time - ttft
-    prefill_tps: float      # prompt_tokens / ttft
+    prefill_tps: float      # prompt_tokens / prefill_ms
     decode_tps: float       # generated_tokens / decode_time
 
 
@@ -134,40 +136,34 @@ class BenchmarkSummary:
 
     def print_table(self):
         print()
-        print("=" * 110)
+        print("=" * 120)
         print(f"{'#':>3}  {'Prompt Tok':>10}  {'Gen Tok':>8}  "
-              f"{'TTFT(ms)':>10}  {'Prefill t/s':>12}  "
+              f"{'TTFT(ms)':>10}  {'Prefill(ms)':>12}  {'Prefill t/s':>12}  "
               f"{'Decode(ms)':>10}  {'Decode t/s':>11}  "
               f"{'Total(ms)':>10}")
-        print("-" * 110)
+        print("-" * 120)
 
         for i, r in enumerate(self.results):
             print(
                 f"{i+1:>3}  {r.prompt_tokens:>10}  {r.generated_tokens:>8}  "
-                f"{r.ttft_ms:>10.1f}  {r.prefill_tps:>12.1f}  "
+                f"{r.ttft_ms:>10.1f}  {r.prefill_ms:>12.1f}  {r.prefill_tps:>12.1f}  "
                 f"{r.decode_time_ms:>10.1f}  {r.decode_tps:>11.1f}  "
                 f"{r.total_time_ms:>10.1f}"
             )
 
-        print("-" * 110)
+        print("-" * 120)
 
         if not self.results:
             return
 
-        avg_prefill = sum(r.prefill_tps for r in self.results) / len(self.results)
-        avg_decode = sum(r.decode_tps for r in self.results) / len(self.results)
-        avg_ttft = sum(r.ttft_ms for r in self.results) / len(self.results)
         total_prompt = sum(r.prompt_tokens for r in self.results)
         total_gen = sum(r.generated_tokens for r in self.results)
         total_time = sum(r.total_time_ms for r in self.results)
 
-        print(f"AVG  {'':<10}  {'':<8}  "
-              f"{avg_ttft:>10.1f}  {avg_prefill:>12.1f}  "
-              f"{'':>10}  {avg_decode:>11.1f}")
         print(f"SUM  {total_prompt:>10}  {total_gen:>8}  "
-              f"{'':>10}  {'':>12}  "
+              f"{'':>10}  {'':>12}  {'':>12}  "
               f"{'':>10}  {'':>11}  {total_time:>10.1f}")
-        print("=" * 110)
+        print("=" * 120)
 
 
 # ---------------------------------------------------------------------------
@@ -243,14 +239,22 @@ def run_one_request(
     total_ms = (t_end - t_start) * 1000
     decode_ms = total_ms - ttft_ms
 
-    prefill_tps = prompt_tokens / (ttft_ms / 1000) if ttft_ms > 0 else 0
     decode_tps = generated_tokens / (decode_ms / 1000) if decode_ms > 0 else 0
+
+    # Estimate pure prefill time by subtracting one decode step from TTFT.
+    # TTFT (client-side) = network_rtt + server_queue + prefill + first_decode_step + network_rtt.
+    # On localhost network_rtt ≈ 0.  We estimate first_decode_step ≈ decode_ms / generated_tokens.
+    one_decode_step_ms = (decode_ms / generated_tokens) if generated_tokens > 0 else 0
+    prefill_ms = max(ttft_ms - one_decode_step_ms, ttft_ms * 0.5)
+
+    prefill_tps = prompt_tokens / (prefill_ms / 1000) if prefill_ms > 0 else 0
 
     return RequestResult(
         prompt=prompt[:60] + ("..." if len(prompt) > 60 else ""),
         prompt_tokens=prompt_tokens,
         generated_tokens=generated_tokens,
         ttft_ms=ttft_ms,
+        prefill_ms=prefill_ms,
         total_time_ms=total_ms,
         decode_time_ms=decode_ms,
         prefill_tps=prefill_tps,
@@ -268,7 +272,7 @@ def main():
                         help="Server base URL (default: http://127.0.0.1:30000)")
     parser.add_argument("--model", default="Qwen3.5-2B",
                         help="Model name for the API request")
-    parser.add_argument("--max-tokens", type=int, default=256,
+    parser.add_argument("--max-tokens", type=int, default=128,
                         help="Max tokens to generate per request (default: 500)")
     parser.add_argument("--temperature", type=float, default=0.6,
                         help="Sampling temperature (default: 0.6)")
@@ -322,7 +326,7 @@ def main():
         )
         summary.add(result)
 
-        print(f"         TTFT={result.ttft_ms:.0f}ms  "
+        print(f"         TTFT={result.ttft_ms:.0f}ms  prefill_est={result.prefill_ms:.0f}ms  "
               f"prefill={result.prefill_tps:.0f} t/s  "
               f"decode={result.decode_tps:.1f} t/s  "
               f"gen={result.generated_tokens} tokens")

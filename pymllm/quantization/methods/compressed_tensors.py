@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 import torch
@@ -179,13 +180,16 @@ def _validate_supported_signature(config: "CompressedTensorsConfig") -> str:
             raise ValueError(
                 f"Unsupported compressed-tensors num_bits: {config.weight_bits}"
             )
-        if config.group_size != 32:
+        if config.group_size not in MARLIN_SUPPORTED_GROUP_SIZES:
             raise ValueError(
-                f"Unsupported compressed-tensors group_size: {config.group_size}"
+                f"Unsupported compressed-tensors group_size: {config.group_size}. "
+                f"Supported: {MARLIN_SUPPORTED_GROUP_SIZES}"
             )
         if not config.symmetric:
             raise ValueError("v1 only supports symmetric compressed-tensors")
-        if config.actorder is not None:
+        # "static" means standard sequential group order (no activation-based
+        # reordering), which Marlin handles the same as actorder=None.
+        if config.actorder not in (None, "static"):
             raise ValueError(
                 f"Unsupported compressed-tensors actorder: {config.actorder}"
             )
@@ -547,13 +551,35 @@ class CompressedTensorsConfig(QuantizationConfig):
     def get_config_filenames() -> List[str]:
         return ["config.json"]
 
+    @staticmethod
+    def _normalize_ignore(entries: List[str]) -> List[str]:
+        """Strip HuggingFace-style module path prefixes from ignore entries.
+
+        llm-compressor stores ignore entries as full checkpoint paths such as
+        "model.language_model.layers.0.linear_attn.out_proj", but pymllm
+        addresses layers with the outer prefixes already stripped, e.g.
+        "layers.0.linear_attn.out_proj".  Strip the known outer prefixes so
+        the entries can be matched against pymllm's internal module names.
+        Regex entries ("re:...") are left unchanged.
+        """
+        _STRIP_PREFIXES = ("model.language_model.", "model.")
+        out: List[str] = []
+        for entry in entries:
+            if not entry.startswith("re:"):
+                for strip in _STRIP_PREFIXES:
+                    if entry.startswith(strip):
+                        entry = entry[len(strip):]
+                        break
+            out.append(entry)
+        return out
+
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "CompressedTensorsConfig":
         weights = _weights_cfg(config)
         input_activations = _input_activations_cfg(config)
         return cls(
             quant_format=config["format"],
-            ignore=list(config.get("ignore", [])),
+            ignore=cls._normalize_ignore(list(config.get("ignore", []))),
             weight_bits=weights["num_bits"],
             group_size=weights["group_size"],
             weight_strategy=weights.get("strategy"),
@@ -592,6 +618,24 @@ class CompressedTensorsConfig(QuantizationConfig):
         self, layer: torch.nn.Module, prefix: str = ""
     ) -> Optional[CompressedTensorsLinearMethod]:
         signature = _validate_supported_signature(self)
-        if any(ignored and prefix.startswith(ignored) for ignored in self.ignore):
+        # Support two matching styles for items in self.ignore:
+        #   1. Exact prefix match: prefix.startswith(ignored)
+        #      e.g. ignore=["lm_head"] matches prefix="lm_head"
+        #   2. Path-component containment: ".ignored." in ".prefix."
+        #      e.g. ignore=["linear_attn"] matches prefix="layers.0.linear_attn.out_proj"
+        # Style 2 is needed because nested module names (e.g. inside decoder layers)
+        # never start with the bare module name.
+        dotted = f".{prefix}."
+        def _is_ignored(ignored: str) -> bool:
+            if not ignored:
+                return False
+            # Support llm-compressor-style regex patterns: "re:.*pattern.*"
+            if ignored.startswith("re:"):
+                try:
+                    return bool(re.search(ignored[3:], prefix))
+                except re.error:
+                    return False
+            return prefix.startswith(ignored) or f".{ignored}." in dotted
+        if any(_is_ignored(ig) for ig in self.ignore):
             return None
         return CompressedTensorsLinearMethod(self, signature)
