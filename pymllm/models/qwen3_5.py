@@ -372,14 +372,15 @@ class Qwen3_5ForCausalLM(nn.Module):
 
     def load_weights(self, weights: Iterable[Tuple[str, torch.Tensor]]):
         """Load HuggingFace checkpoint weights with name remapping."""
-        # When quantized, gate/up are separate projections — skip stacking.
-        if self.quant_config is not None:
-            stacked_params_mapping = []
-        else:
-            stacked_params_mapping = [
-                ("gate_up_proj", "gate_proj", 0),
-                ("gate_up_proj", "up_proj", 1),
-            ]
+        # Always enable gate/up stacking.
+        # - Pre-fused checkpoints (our GPTQ script): gate_up_proj.* keys pass
+        #   path-component matching unchanged and are loaded directly.
+        # - Unfused checkpoints (e.g. llm-compressor / RedHatAI style):
+        #   gate_proj.* / up_proj.* are sharded into gate_up_proj.* below.
+        stacked_params_mapping = [
+            ("gate_up_proj", "gate_proj", 0),
+            ("gate_up_proj", "up_proj", 1),
+        ]
 
         params_dict = dict(self.named_parameters())
         loaded: Set[str] = set()
@@ -397,19 +398,33 @@ class Qwen3_5ForCausalLM(nn.Module):
                 name = name[len("model."):]
             # NOTE: do NOT strip .self_attn — pymllm keeps it as a submodule
 
-            # Handle stacked params (gate_up_proj = gate_proj + up_proj)
+            # Handle stacked params (gate_up_proj = gate_proj + up_proj).
+            # Use path-component matching (".gate_proj." in ".name.") to avoid
+            # "gate_proj" falsely matching inside "gate_up_proj".
             matched = False
             for param_name, weight_name, shard_id in stacked_params_mapping:
-                if weight_name not in name:
+                if f".{weight_name}." not in f".{name}.":
                     continue
                 if "mlp.experts" in name:
                     continue
-                name = name.replace(weight_name, param_name)
-                if name not in params_dict:
+                # Use a tentative name; only commit once we confirm it's shardable.
+                stacked_name = name.replace(weight_name, param_name)
+                # llm-compressor W4A16: packed int4 saved as "weight",
+                # pymllm registers the parameter as "weight_packed".
+                if stacked_name not in params_dict and stacked_name.endswith(".weight"):
+                    alt = stacked_name[: -len(".weight")] + ".weight_packed"
+                    if alt in params_dict:
+                        stacked_name = alt
+                if stacked_name not in params_dict:
                     continue
-                param = params_dict[name]
-                # gate_up_proj is a plain Linear — manually place each shard
+                param = params_dict[stacked_name]
+                # gate_up_proj is a plain Linear — manually place each shard.
+                # Guard: skip metadata tensors (e.g. weight_shape [2]) that
+                # cannot be evenly halved along dim-0.
                 output_dim = param.shape[0] // 2
+                if weight.shape[0] != output_dim:
+                    break  # not a shardable weight tensor; fall through to direct load
+                name = stacked_name  # commit rename
                 param.data[shard_id * output_dim : (shard_id + 1) * output_dim].copy_(
                     weight
                 )
@@ -417,6 +432,12 @@ class Qwen3_5ForCausalLM(nn.Module):
                 break
 
             if not matched:
+                # llm-compressor W4A16: packed int4 saved as "weight",
+                # pymllm registers the parameter as "weight_packed".
+                if name not in params_dict and name.endswith(".weight"):
+                    alt = name[: -len(".weight")] + ".weight_packed"
+                    if alt in params_dict:
+                        name = alt
                 if name not in params_dict:
                     continue
                 param = params_dict[name]

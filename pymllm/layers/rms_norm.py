@@ -135,6 +135,13 @@ class GemmaRMSNorm(MllmBaseLayer):
         x: torch.Tensor,
         residual: Optional[torch.Tensor] = None,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        # Guard: empty batch (M=0) can happen when the radix cache fully covers
+        # all tokens in a request (100% cache hit).  The flashinfer/TVM kernel
+        # would be launched with grid_dim=0, which is an invalid CUDA
+        # configuration.  Return the tensors unchanged instead.
+        if x.shape[0] == 0:
+            return (x, residual) if residual is not None else x
+
         if residual is not None:
             _patch_cuda_device_properties_for_flashinfer_norm()
             flashinfer.norm.gemma_fused_add_rmsnorm(
