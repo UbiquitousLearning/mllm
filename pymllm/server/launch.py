@@ -100,6 +100,9 @@ async def _iter_with_disconnect_check(
 # ---------------------------------------------------------------------------
 _engine: Optional[Engine] = None
 _tokenizer: Optional[Any] = None
+# Architectures list from model config, e.g. ["Qwen3_5ForConditionalGeneration"].
+# Used to pick the correct image content format for apply_chat_template.
+_model_architectures: Optional[List[str]] = None
 
 
 def _get_engine() -> Engine:
@@ -243,7 +246,7 @@ class AbortRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown hooks for the FastAPI app."""
-    global _engine, _tokenizer
+    global _engine, _tokenizer, _model_architectures
     _engine = app.state.engine  # type: ignore[attr-defined]
 
     # Load tokenizer in server process for apply_chat_template
@@ -260,6 +263,11 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         logger.warning("Failed to load tokenizer for chat template: %s", e)
+
+    # Stash model architectures so request handlers can detect the model family.
+    hf_cfg = getattr(cfg.model, "hf_config", None)
+    _model_architectures = getattr(hf_cfg, "architectures", None) if hf_cfg else None
+    logger.info("Model architectures: %s", _model_architectures)
 
     logger.info(
         "HTTP server ready at http://%s:%s",
@@ -505,6 +513,22 @@ def _build_sampling_params(
     return params
 
 
+def _is_qwen3vl_architecture() -> bool:
+    """Return True when the loaded model is a Qwen3-VL / Qwen2-VL model.
+
+    These models use ``{"type": "image", "image": url}`` in their chat
+    templates, whereas Qwen3.5 and OpenAI-compatible models use the
+    ``{"type": "image_url", "image_url": {"url": url}}`` format.
+    """
+    archs = _model_architectures
+    if not archs:
+        return False
+    return any(
+        "Qwen3VL" in a or "Qwen2VL" in a or "Qwen3_VL" in a or "Qwen2_VL" in a
+        for a in archs
+    )
+
+
 def _messages_to_prompt(
     messages: List[ChatMessage],
     chat_template_kwargs: Optional[Dict[str, Any]] = None,
@@ -519,24 +543,43 @@ def _messages_to_prompt(
     chat_template_kwargs
         Extra keyword arguments forwarded to ``apply_chat_template``
         (e.g. ``enable_thinking=True`` for Qwen3).
+
+    Notes
+    -----
+    Image content format is chosen automatically based on the loaded model:
+    - Qwen3-VL / Qwen2-VL: ``{"type": "image", "image": url}``
+    - Qwen3.5 / OpenAI-compatible: ``{"type": "image_url", "image_url": {"url": url}}``
     """
-    # Preserve multimodal message structure for tokenizer.apply_chat_template.
+    use_qwen3vl_image_fmt = _is_qwen3vl_architecture()
+
     msg_dicts: List[Dict[str, Any]] = []
     for msg in messages:
         content = msg.content
         if isinstance(content, list):
-            mm_parts: List[Dict[str, Any]] = []
-            for part in content:
-                if part.type == "text" and part.text is not None:
-                    mm_parts.append({"type": "text", "text": part.text})
-                elif part.type == "image_url" and part.image_url is not None:
-                    # Keep image content so chat template can emit vision tokens.
-                    mm_parts.append(
-                        {"type": "image", "image": part.image_url.url}
-                    )
-            content = mm_parts
+            content_list: List[Dict[str, Any]] = []
+            for p in content:
+                if p.type == "text" and p.text:
+                    content_list.append({"type": "text", "text": p.text})
+                elif p.type == "image_url" and p.image_url is not None:
+                    if use_qwen3vl_image_fmt:
+                        # Qwen3-VL / Qwen2-VL chat template expects:
+                        # {"type": "image", "image": url}
+                        content_list.append(
+                            {"type": "image", "image": p.image_url.url}
+                        )
+                    else:
+                        # Qwen3.5 / OpenAI-compatible:
+                        # {"type": "image_url", "image_url": {"url": url}}
+                        content_list.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": p.image_url.url},
+                            }
+                        )
+            content = content_list
         elif content is None:
             content = ""
+
         d: Dict[str, Any] = {"role": msg.role, "content": content}
         if msg.name is not None:
             d["name"] = msg.name
