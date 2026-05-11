@@ -379,11 +379,13 @@ __global__ void gdn_extend_chunkwise_kernel(
 
             if (k_idx < BV) {
                 SW_smem[t_loc * BV + k_idx] = sw_r[k_idx];
-                // [OPT-3] Numerical guard: when gam_t underflows to 0.f the
-                // contribution β/γ·v would be ±inf, but the corresponding
-                // output term γ_r·Ũ[t] = 0 for any r≥t (since γ_r≤γ_t=0).
-                // Setting U_smem to 0 is therefore mathematically exact.
-                U_smem[t_loc * BV + k_idx] = (gam_t > 0.f)
+                // OPT-3 (stricter): the bound must protect against denormal as well,
+                // because beta / gam_t needs to fit in FP32.  With v_val up to O(10^3)
+                // (post-RMSNorm activation), the safe threshold is ~1e-30
+                // (then |beta/gam_t * v_val| ≲ 10^3 / 10^-30 = 10^33, well under FP32 max).
+                // Mathematically equivalent to setting Ũ[t]=0 because for any r ≥ t,
+                // γ_r ≤ γ_t ≤ 1e-30, so γ_r · Ũ[t] is below FP32 precision floor anyway.
+                U_smem[t_loc * BV + k_idx] = (gam_t > 1.0e-30f)
                     ? (beta / gam_t) * v_val - u_corr
                     : 0.f;
             }
@@ -469,7 +471,9 @@ __global__ void gdn_extend_chunkwise_kernel(
                 const float delta = U_smem[i * BV + bv] - SW_smem[i * BV + bv];
                 ds += delta * K_smem[i * BLOCK_K + k_idx];
             }
-            state[bv] = gam_C * (state[bv] + ds);
+            // Guard: when gam_C underflows the new state is mathematically 0;
+            // avoid 0 * Inf = NaN propagation if upstream (e.g. Phase 1/2) overflowed.
+            state[bv] = (gam_C > 0.f) ? gam_C * (state[bv] + ds) : 0.f;
         }
         __syncthreads();   // smem safe to overwrite in next chunk
     }
