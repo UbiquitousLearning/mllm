@@ -127,6 +127,34 @@ class LLMQuantRecipeRMSNormPattern : public ir::Pattern {
 };
 
 //===----------------------------------------------------------------------===//
+// LayerNorm Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeLayerNormPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeLayerNormPattern> create() {
+    return std::make_shared<LLMQuantRecipeLayerNormPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// GELU Pattern
+//===----------------------------------------------------------------------===//
+class LLMQuantRecipeGELUPattern : public ir::Pattern {
+ public:
+  bool isMatch(const mllm::ir::op_ptr_t& op) override;
+
+  bool rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) override;
+
+  static inline std::shared_ptr<LLMQuantRecipeGELUPattern> create() {
+    return std::make_shared<LLMQuantRecipeGELUPattern>();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // SiLU Pattern
 //===----------------------------------------------------------------------===//
 class LLMQuantRecipeSiLUPattern : public ir::Pattern {
