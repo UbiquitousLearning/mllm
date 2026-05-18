@@ -65,6 +65,20 @@ class Qwen2VLImagePreprocessor {
     auto old_w = img.w();
     auto old_h = img.h();
     auto [new_h, new_w] = smartResize(old_h, old_w, 28, min_pixels_, max_pixels_);
+    return processResizedImage(img, new_h, new_w);
+  }
+
+  inline std::pair<Tensor, Tensor> operator()(const std::string& image_path, int32_t grid_h, int32_t grid_w) {
+    if (grid_h <= 0 || grid_w <= 0 || grid_h % merge_size_ != 0 || grid_w % merge_size_ != 0) {
+      MLLM_ERROR_EXIT(ExitCode::kIOError, "invalid Qwen2VL image grid override {}x{}", grid_h, grid_w);
+    }
+
+    auto img = Image::open(image_path);
+    return processResizedImage(img, grid_h * patch_size_, grid_w * patch_size_);
+  }
+
+ private:
+  inline std::pair<Tensor, Tensor> processResizedImage(Image& img, int32_t new_h, int32_t new_w) {
     img = img.resize(new_w, new_h);
 
     // Process patches
@@ -113,7 +127,6 @@ class Qwen2VLImagePreprocessor {
     return {flatten_patches, grid_thw};
   }
 
- private:
   Tensor OPENAI_CLIP_MEAN;
   Tensor OPENAI_CLIP_STD;
   int32_t merge_size_ = 2;

@@ -1,0 +1,9 @@
+# case_id|image_file|prompt
+dog_describe|dog_image.jpg|describe this picture
+cat_describe|cat.jpg|describe this picture
+two_cats_count|two_cats.jpg|how many cats are in this image?
+bus_describe|bus.png|describe this picture
+car_describe|car_image.jpg|describe this picture
+bird_describe|bird_image.jpg|describe this picture
+australia_describe|australia.jpg|describe this picture
+ui_describe|uidemo.jpg|describe the user interface in this image

@@ -1,0 +1,7 @@
+# case_id|image_file|prompt
+bus_describe|bus.png|describe this picture
+shadow_describe|shadow_execution.png|describe this picture
+car_describe|car_image.jpg|describe this picture
+australia_describe|australia.jpg|describe this picture
+cat_describe|cat.jpg|describe this picture
+dog_describe|dog_image.jpg|describe this picture
