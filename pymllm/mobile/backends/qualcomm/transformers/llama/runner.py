@@ -251,6 +251,12 @@ class LlamaQuantizer:
         print("Compile done.")
 
     def infer(self, prompt: str):
+        messages = [{"role": "user", "content": prompt}]
+        prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
         # Llama models typically don't use chat templates, so we tokenize directly
         model_inputs = self.tokenizer([prompt], return_tensors="pt").to(
             self.model.device
@@ -308,12 +314,13 @@ class LlamaQuantizer:
             for entry in dataset:
                 if samples_processed >= num_samples:
                     break
-
-                if len(entry["text"].strip()) < 1024:
+                
+                text = entry["text"].strip()
+                if len(text) < 50:
                     continue
 
                 # Llama models typically don't use chat templates
-                text = entry["text"]
+                # text = entry["text"]
                 model_inputs = self.tokenizer(
                     [text],
                     return_tensors="pt",
@@ -322,16 +329,18 @@ class LlamaQuantizer:
                     padding=False,
                 ).to(self.model.device)
 
-                # Only need Prefill stage: directly call forward
-                # This will trigger observer update statistics in ActivationQDQ
-                self.model.generate(
-                    **model_inputs,
-                    max_new_tokens=1,
-                    do_sample=False,
-                    temperature=None,
-                    top_p=None,
-                    top_k=None,
-                )
+                self.model(**model_inputs)
+
+                # # Only need Prefill stage: directly call forward
+                # # This will trigger observer update statistics in ActivationQDQ
+                # self.model.generate(
+                #     **model_inputs,
+                #     max_new_tokens=1,
+                #     do_sample=False,
+                #     temperature=None,
+                #     top_p=None,
+                #     top_k=None,
+                # )
 
                 samples_processed += 1
                 pbar.update(1)

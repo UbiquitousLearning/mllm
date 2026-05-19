@@ -46,8 +46,22 @@ bool Runner::load() {
   // init token generator(decode)
   // TODO: EOS IDs
   auto eos_ids = std::make_unique<std::unordered_set<uint64_t>>();
-  eos_ids->insert(151643);
-  eos_ids->insert(151645);
+  // eos_ids->insert(151643);
+  // eos_ids->insert(151645);
+
+  // Dynamically determine the currently loaded model based on the model name.
+  if (config_.type == "llama3") {
+      eos_ids->insert(128001); // <|end_of_text|>
+      eos_ids->insert(128008); // <|eom_id|>
+      eos_ids->insert(128009); // <|eot_id|>
+  } else if (config_.type == "qwen2"){
+      eos_ids->insert(151643);
+      eos_ids->insert(151645);
+  } else{
+      // qwen3
+      eos_ids->insert(151643);
+      eos_ids->insert(151645);
+  }
 
   token_generator_ = std::make_unique<TokenGenerator<uint8_t>>(tokenizer_, kv_manager_.get(), std::move(eos_ids), config_);
 

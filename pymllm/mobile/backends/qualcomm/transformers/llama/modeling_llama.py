@@ -302,8 +302,8 @@ class LlamaAttention(nn.Module):
 
         # QDQ
         self.q_proj_input_qdq = ActivationQDQ(bits=16)
-        self.k_proj_input_qdq = ActivationQDQ(bits=16)
-        self.v_proj_input_qdq = ActivationQDQ(bits=16)
+        # self.k_proj_input_qdq = ActivationQDQ(bits=16)
+        # self.v_proj_input_qdq = ActivationQDQ(bits=16)
 
         self.q_proj_output_qdq = ActivationQDQ(bits=16)
         self.k_proj_output_qdq = ActivationQDQ(bits=16)
@@ -336,13 +336,13 @@ class LlamaAttention(nn.Module):
         )
         self.k_rope_neg_half_qdq = ActivationQDQ(bits=16)
         self.k_rope_concat_observer.add_observer(
-            self.k_proj_input_qdq.fake_quant.activation_post_process
+            self.k_proj_output_qdq.fake_quant.activation_post_process
         )
         self.k_rope_concat_observer.add_observer(
             self.k_rope_neg_half_qdq.fake_quant.activation_post_process
         )
         self.q_rope_concat_observer.add_observer(
-            self.q_proj_input_qdq.fake_quant.activation_post_process
+            self.q_proj_output_qdq.fake_quant.activation_post_process
         )
         self.q_rope_concat_observer.add_observer(
             self.q_rope_neg_half_qdq.fake_quant.activation_post_process
@@ -384,12 +384,12 @@ class LlamaAttention(nn.Module):
         query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
         query_states = self.q_proj_output_qdq(query_states)
 
-        hidden_states_k = self.k_proj_input_qdq(hidden_states)
-        key_states = self.k_proj(hidden_states_k).view(hidden_shape).transpose(1, 2)
+        # hidden_states_k = self.k_proj_input_qdq(hidden_states)
+        key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
         key_states = self.k_proj_output_qdq(key_states)
 
-        hidden_states_v = self.v_proj_input_qdq(hidden_states)
-        value_states = self.v_proj(hidden_states_v).view(hidden_shape).transpose(1, 2)
+        # hidden_states_v = self.v_proj_input_qdq(hidden_states)
+        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
 
         cos, sin = position_embeddings
         cos = cos.unsqueeze(1)
@@ -399,7 +399,7 @@ class LlamaAttention(nn.Module):
             + self.q_rope_mul_1_output_qdq(
                 rotate_half(
                     query_states,
-                    self.q_proj_input_qdq.fake_quant.activation_post_process,
+                    self.q_proj_output_qdq.fake_quant.activation_post_process,
                     self.q_rope_neg_half_qdq,
                     self.q_rope_concat_observer,
                 )
@@ -411,7 +411,7 @@ class LlamaAttention(nn.Module):
             + self.k_rope_mul_1_output_qdq(
                 rotate_half(
                     key_states,
-                    self.k_proj_input_qdq.fake_quant.activation_post_process,
+                    self.k_proj_output_qdq.fake_quant.activation_post_process,
                     self.k_rope_neg_half_qdq,
                     self.k_rope_concat_observer,
                 )
