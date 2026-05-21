@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cmath>
 #include <string>
 #include <unordered_map>
 
@@ -21,6 +22,39 @@ namespace {
 
 constexpr float kDefaultInputEmbeddingScale = 0.002563515f;
 constexpr int32_t kDefaultInputEmbeddingZeroPoint = 15604;
+constexpr float kDefaultVisualPatchInputScale = 4.4f / 65535.f;
+constexpr int32_t kDefaultVisualPatchInputZeroPoint = 32768;
+constexpr float kDefaultVisualSinCosScale = 2.0f / 65535.f;
+constexpr int32_t kDefaultVisualSinCosZeroPoint = 32768;
+constexpr float kDefaultVisualAttentionMaskScale = 10000.0f / 65535.f;
+constexpr int32_t kDefaultVisualAttentionMaskZeroPoint = 65535;
+const std::string kVisualFinalOutputQDQ = "visual.merger.mlp.2_output_qdq";
+
+enum class VisualIODType {
+  kUInt16,
+  kFloat32,
+  kFloat16,
+};
+
+std::string firstHybridBodyInputQDQName() { return "visual.blocks.0.attn.qkv_input_qdq"; }
+
+VisualIODType parseVisualIODType(const std::string& dtype) {
+  if (dtype == "uint16") { return VisualIODType::kUInt16; }
+  if (dtype == "fp32" || dtype == "float32") { return VisualIODType::kFloat32; }
+  if (dtype == "fp16" || dtype == "float16") { return VisualIODType::kFloat16; }
+  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_io_dtype must be uint16, fp32, or fp16.");
+}
+
+mllm::DataTypes visualFloatDType(VisualIODType dtype) {
+  switch (dtype) {
+    case VisualIODType::kFloat32: return mllm::kFloat32;
+    case VisualIODType::kFloat16: return mllm::kFloat16;
+    case VisualIODType::kUInt16:
+    default: return mllm::kFloat32;
+  }
+}
+
+bool isRawFloatVisualIO(VisualIODType dtype) { return dtype == VisualIODType::kFloat32 || dtype == VisualIODType::kFloat16; }
 
 template <typename ParamsT>
 void addCausalMaskParams(const ParamsT& params) {
@@ -28,6 +62,49 @@ void addCausalMaskParams(const ParamsT& params) {
   params->push("causal_mask.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
   params->push("constant_zero.scale", mllm::Tensor::constant(0.001 / 65535.f, mllm::kFloat32));
   params->push("constant_zero.zero_point", mllm::Tensor::constant(65535, mllm::kInt32));
+}
+
+template <typename ParamsT>
+void replaceParam(const ParamsT& params, const std::string& name, const mllm::Tensor& tensor) {
+  if (params->has(name)) { params->remove(name); }
+  params->push(name, tensor);
+}
+
+template <typename ParamsT>
+void overrideVisualFinalOutputQDQ(const ParamsT& params, float scale, int32_t zero_point) {
+  replaceParam(params, kVisualFinalOutputQDQ + ".fake_quant.scale", mllm::Tensor::constant(scale, mllm::kFloat32));
+  replaceParam(params, kVisualFinalOutputQDQ + ".fake_quant.zero_point", mllm::Tensor::constant(zero_point, mllm::kInt32));
+  fmt::print("[Qwen2VL AOT Compile] override {}: scale={:.9f}, zero_point={}\n",
+             kVisualFinalOutputQDQ,
+             scale,
+             zero_point);
+}
+
+template <typename ParamsT>
+void scaleVisualActivationQDQ(const ParamsT& params, float multiplier) {
+  if (multiplier <= 0.0f || std::abs(multiplier - 1.0f) < 1e-6f) { return; }
+
+  int32_t patched = 0;
+  std::vector<std::string> names;
+  names.reserve(params->dict().size());
+  for (auto it = params->begin(); it != params->end(); ++it) {
+    names.push_back(it->first);
+  }
+
+  for (const auto& name : names) {
+    if (name.rfind("visual.", 0) != 0) { continue; }
+    const std::string scale_suffix = ".fake_quant.scale";
+    if (name.size() < scale_suffix.size() || name.compare(name.size() - scale_suffix.size(), scale_suffix.size(), scale_suffix) != 0) {
+      continue;
+    }
+    if (name.find("_input_qdq.") == std::string::npos && name.find("_output_qdq.") == std::string::npos) { continue; }
+
+    mllm::Tensor scale_tensor = params->pull(name);
+    const auto old_scale = scale_tensor.item<mllm::mllm_fp32_t>();
+    replaceParam(params, name, mllm::Tensor::constant(old_scale * multiplier, mllm::kFloat32));
+    ++patched;
+  }
+  fmt::print("[Qwen2VL AOT Compile] scaled {} visual activation QDQ scale tensor(s) by {:.6f}\n", patched, multiplier);
 }
 
 template <typename ParamsT>
@@ -59,6 +136,260 @@ inline mllm::Tensor makeUInt16AsymTensor(const std::vector<int32_t>& shape, floa
   tensor.attach("zero_point", mllm::Tensor::constant(zero_point, mllm::kInt32).impl(), true);
   return tensor;
 }
+
+mllm::Tensor makeVisualTraceTensor(const std::vector<int32_t>& shape,
+                                   VisualIODType visual_io_dtype,
+                                   float scale,
+                                   int32_t zero_point) {
+  if (visual_io_dtype == VisualIODType::kUInt16) { return makeUInt16AsymTensor(shape, scale, zero_point); }
+  return mllm::Tensor::empty(shape, visualFloatDType(visual_io_dtype), mllm::kCPU).alloc();
+}
+
+class RawPatchEmbedLinear final : public mllm::nn::Module {
+  int32_t patch_dim_ = 0;
+  int32_t embed_dim_ = 0;
+
+  mllm::nn::Linear proj_;
+
+ public:
+  RawPatchEmbedLinear() = default;
+
+  RawPatchEmbedLinear(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
+      : mllm::nn::Module(name) {
+    patch_dim_ = cfg.visual_in_chans * cfg.visual_temporal_patch_size * cfg.visual_patch_size * cfg.visual_patch_size;
+    embed_dim_ = cfg.visual_embed_dim;
+    proj_ = reg<mllm::nn::Linear>("proj", patch_dim_, embed_dim_, false, mllm::aops::LinearImplTypes::kDefault);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto hidden_states = inputs[0];
+    hidden_states = hidden_states.view({-1, patch_dim_}, true);
+    hidden_states = proj_(hidden_states).view({-1, embed_dim_}, true);
+    return {hidden_states};
+  }
+};
+
+class RawVisionMlpPrimitiveQuickGELU final : public mllm::nn::Module {
+  int32_t dim_ = 0;
+  int32_t hidden_dim_ = 0;
+
+  mllm::nn::Linear fc_1_;
+  mllm::nn::Linear fc_2_;
+
+ public:
+  RawVisionMlpPrimitiveQuickGELU() = default;
+
+  RawVisionMlpPrimitiveQuickGELU(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
+      : mllm::nn::Module(name) {
+    dim_ = cfg.visual_embed_dim;
+    hidden_dim_ = cfg.visual_embed_dim * cfg.visual_mlp_ratio;
+    fc_1_ = reg<mllm::nn::Linear>("fc1", dim_, hidden_dim_, true, mllm::aops::LinearImplTypes::kDefault);
+    fc_2_ = reg<mllm::nn::Linear>("fc2", hidden_dim_, dim_, true, mllm::aops::LinearImplTypes::kDefault);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto x = fc_1_(inputs[0]);
+    x = x * mllm::nn::functional::sigmoid(x * 1.702f);
+    return {fc_2_(x)};
+  }
+};
+
+class RawVisionAttentionMaskedAOTRewrite final : public mllm::nn::Module {
+  int32_t dim_ = 0;
+  int32_t num_heads_ = 0;
+  int32_t head_dim_ = 0;
+
+  mllm::nn::Linear qkv_;
+  mllm::nn::Linear proj_;
+  mllm::nn::Softmax softmax_;
+
+ public:
+  RawVisionAttentionMaskedAOTRewrite() = default;
+
+  RawVisionAttentionMaskedAOTRewrite(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
+      : mllm::nn::Module(name) {
+    dim_ = cfg.visual_embed_dim;
+    num_heads_ = cfg.visual_num_heads;
+    head_dim_ = dim_ / num_heads_;
+    qkv_ = reg<mllm::nn::Linear>("qkv", dim_, dim_ * 3, true, mllm::aops::LinearImplTypes::kDefault);
+    proj_ = reg<mllm::nn::Linear>("proj", dim_, dim_, true, mllm::aops::LinearImplTypes::kDefault);
+    softmax_ = reg<mllm::nn::Softmax>("softmax", -1);
+  }
+
+  mllm::Tensor applyVisionRoPEPrimitive(mllm::Tensor x, mllm::Tensor visual_embedding_sin, mllm::Tensor visual_embedding_cos) {
+    const int32_t half_dim = head_dim_ / 2;
+    auto x1 = x.slice({mllm::kAll, mllm::kAll, mllm::kAll, {mllm::kAll, half_dim}}, true);
+    auto x2 = x.slice({mllm::kAll, mllm::kAll, mllm::kAll, {half_dim, mllm::kAll}}, true);
+    auto sin = visual_embedding_sin;
+    auto cos = visual_embedding_cos;
+    if (sin.rank() == 2) {
+      sin = sin.view({1, -1, 1, half_dim}, true);
+      cos = cos.view({1, -1, 1, half_dim}, true);
+    } else {
+      MLLM_RT_ASSERT_EQ(sin.rank(), 4);
+      MLLM_RT_ASSERT_EQ(cos.rank(), 4);
+    }
+    auto y1 = x1 * cos + (-(x2 * sin));
+    auto y2 = x1 * sin + x2 * cos;
+    return mllm::nn::functional::concat({y1, y2}, -1);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto hidden_states = inputs[0];
+    auto visual_embedding_sin = inputs[1];
+    auto visual_embedding_cos = inputs[2];
+    auto attention_mask = inputs.size() > 3 ? inputs[3] : mllm::Tensor::nil();
+
+    auto qkv_states = qkv_(hidden_states).view({-1, 3, num_heads_, head_dim_}, true);
+    auto query_states = qkv_states.slice({mllm::kAll, {0, 1}, mllm::kAll, mllm::kAll}, true).transpose(0, 1);
+    auto key_states = qkv_states.slice({mllm::kAll, {1, 2}, mllm::kAll, mllm::kAll}, true).transpose(0, 1);
+    auto value_states = qkv_states.slice({mllm::kAll, {2, 3}, mllm::kAll, mllm::kAll}, true).transpose(0, 1);
+
+    query_states = applyVisionRoPEPrimitive(query_states, visual_embedding_sin, visual_embedding_cos);
+    key_states = applyVisionRoPEPrimitive(key_states, visual_embedding_sin, visual_embedding_cos);
+
+    query_states = query_states.transpose(1, 2);
+    key_states = key_states.transpose(1, 2);
+    value_states = value_states.transpose(1, 2);
+
+    auto attn = mllm::nn::functional::matmul(query_states, key_states, false, true)
+                * (1.f / std::sqrt(static_cast<float>(head_dim_)));
+    if (!attention_mask.isNil()) { attn = attn + attention_mask; }
+    attn = softmax_(attn);
+
+    auto attn_output = mllm::nn::functional::matmul(attn, value_states);
+    attn_output = attn_output.transpose(1, 2).view({-1, dim_}, true);
+    return {proj_(attn_output)};
+  }
+};
+
+class RawQwen2VLVisionBlockAOTRewrite final : public mllm::nn::Module {
+  mllm::nn::LayerNorm norm1_;
+  mllm::nn::LayerNorm norm2_;
+
+  RawVisionAttentionMaskedAOTRewrite attn_;
+  RawVisionMlpPrimitiveQuickGELU mlp_;
+
+ public:
+  RawQwen2VLVisionBlockAOTRewrite() = default;
+
+  RawQwen2VLVisionBlockAOTRewrite(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
+      : mllm::nn::Module(name) {
+    norm1_ = reg<mllm::nn::LayerNorm>("norm1", std::vector<int32_t>{cfg.visual_embed_dim}, true, true, 1e-6);
+    norm2_ = reg<mllm::nn::LayerNorm>("norm2", std::vector<int32_t>{cfg.visual_embed_dim}, true, true, 1e-6);
+    attn_ = reg<RawVisionAttentionMaskedAOTRewrite>("attn", cfg);
+    mlp_ = reg<RawVisionMlpPrimitiveQuickGELU>("mlp", cfg);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto hidden_states = inputs[0];
+    auto visual_embedding_sin = inputs[1];
+    auto visual_embedding_cos = inputs[2];
+    auto attention_mask = inputs.size() > 3 ? inputs[3] : mllm::Tensor::nil();
+
+    auto norm1_out = norm1_(hidden_states);
+    mllm::Tensor attn_out;
+    if (attention_mask.isNil()) {
+      attn_out = attn_(norm1_out, visual_embedding_sin, visual_embedding_cos)[0];
+    } else {
+      attn_out = attn_(norm1_out, visual_embedding_sin, visual_embedding_cos, attention_mask)[0];
+    }
+    hidden_states = hidden_states + attn_out;
+    hidden_states = hidden_states + mlp_(norm2_(hidden_states))[0];
+    return {hidden_states};
+  }
+};
+
+class RawPatchMergerAOTRewrite final : public mllm::nn::Module {
+  int32_t hidden_size_ = 0;
+  int32_t spatial_merge_size_ = 0;
+  int32_t context_dim_ = 0;
+
+  mllm::nn::LayerNorm ln_q_;
+  mllm::nn::Linear mlp_0_;
+  mllm::nn::Linear mlp_2_;
+  mllm::nn::GELU mlp_gelu_;
+
+ public:
+  RawPatchMergerAOTRewrite() = default;
+
+  RawPatchMergerAOTRewrite(const std::string& name, const mllm::models::qwen2vl::Qwen2VLConfig& cfg)
+      : mllm::nn::Module(name) {
+    context_dim_ = cfg.visual_embed_dim;
+    spatial_merge_size_ = cfg.visual_spatial_merge_size;
+    hidden_size_ = context_dim_ * spatial_merge_size_ * spatial_merge_size_;
+
+    ln_q_ = reg<mllm::nn::LayerNorm>("ln_q", std::vector<int32_t>{context_dim_}, true, true, 1e-6);
+    mlp_0_ = reg<mllm::nn::Linear>("mlp.0", hidden_size_, hidden_size_, true, mllm::aops::LinearImplTypes::kDefault);
+    mlp_gelu_ = reg<mllm::nn::GELU>("mlp.gelu");
+    mlp_2_ = reg<mllm::nn::Linear>("mlp.2", hidden_size_, cfg.hidden_size, true, mllm::aops::LinearImplTypes::kDefault);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto o = ln_q_(inputs[0]).view({-1, hidden_size_}, true);
+    o = mlp_0_(o);
+    o = mlp_gelu_(o);
+    o = mlp_2_(o);
+    return {o};
+  }
+};
+
+class RawQwen2VisionTransformerPretrainedModelAOTRewrite final : public mllm::nn::Module {
+  RawPatchEmbedLinear patch_embed_;
+  RawPatchMergerAOTRewrite patch_merger_;
+  mllm::nn::ModuleList<RawQwen2VLVisionBlockAOTRewrite> blocks_;
+  int32_t start_block_ = 0;
+  int32_t active_blocks_ = -1;
+  bool skip_merger_ = false;
+  bool skip_patch_embed_ = false;
+
+ public:
+  RawQwen2VisionTransformerPretrainedModelAOTRewrite() = default;
+
+  RawQwen2VisionTransformerPretrainedModelAOTRewrite(const std::string& name,
+                                                     const mllm::models::qwen2vl::Qwen2VLConfig& cfg,
+                                                     int32_t start_block = 0,
+                                                     int32_t active_blocks = -1,
+                                                     bool skip_merger = false,
+                                                     bool skip_patch_embed = false)
+      : mllm::nn::Module(name) {
+    start_block_ = start_block;
+    active_blocks_ = active_blocks;
+    skip_merger_ = skip_merger;
+    skip_patch_embed_ = skip_patch_embed;
+    patch_embed_ = reg<RawPatchEmbedLinear>("patch_embed", cfg);
+    patch_merger_ = reg<RawPatchMergerAOTRewrite>("merger", cfg);
+    blocks_ = reg<mllm::nn::ModuleList<RawQwen2VLVisionBlockAOTRewrite>>("blocks", cfg.visual_depth, cfg);
+  }
+
+  std::vector<mllm::Tensor> forward(const std::vector<mllm::Tensor>& inputs,
+                                    const std::vector<mllm::AnyValue>& /*args*/) override {
+    auto hidden_states = inputs[0];
+    auto embedding_sin = inputs[1];
+    auto embedding_cos = inputs[2];
+    auto attention_mask = inputs.size() > 3 ? inputs[3] : mllm::Tensor::nil();
+
+    if (!skip_patch_embed_) { hidden_states = patch_embed_(hidden_states)[0]; }
+    auto num_blocks = active_blocks_ < 0 ? static_cast<int32_t>(blocks_.list().size()) : active_blocks_;
+    MLLM_RT_ASSERT(start_block_ >= 0);
+    MLLM_RT_ASSERT(num_blocks >= 0);
+    MLLM_RT_ASSERT(start_block_ + num_blocks <= static_cast<int32_t>(blocks_.list().size()));
+    for (int32_t i = 0; i < num_blocks; ++i) {
+      if (attention_mask.isNil()) {
+        hidden_states = blocks_.list()[start_block_ + i](hidden_states, embedding_sin, embedding_cos)[0];
+      } else {
+        hidden_states = blocks_.list()[start_block_ + i](hidden_states, embedding_sin, embedding_cos, attention_mask)[0];
+      }
+    }
+    if (!skip_merger_) { hidden_states = patch_merger_(hidden_states)[0]; }
+    return {hidden_states};
+  }
+};
 
 template <typename ParamsT>
 std::unordered_map<std::string, mllm::Tensor> makeTraceInputs(int seq_len,
@@ -151,12 +482,25 @@ void compileVisualBundleGraphs(mllm::qnn::aot::QnnAOTEnv& qnn_aot_env,
                                int32_t patch_flat_dim,
                                const std::string& bundle_layout,
                                const std::string& visual_ir_prefix,
-                               const std::string& graph_suffix) {
+                               const std::string& graph_suffix,
+                               VisualIODType visual_io_dtype) {
+  if (isRawFloatVisualIO(visual_io_dtype) && bundle_layout != "single") {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "--visual_io_dtype=fp16/fp32 is currently supported only with --visual_bundle_layout=single.");
+  }
   const int32_t half_dim = visual_cfg.visual_embed_dim / visual_cfg.visual_num_heads / 2;
-  auto visual_embedding_sin = mllm::Tensor::empty({1, visual_patch_tokens, 1, half_dim}, mllm::kFloat32, mllm::kCPU).alloc();
-  auto visual_embedding_cos = mllm::Tensor::empty({1, visual_patch_tokens, 1, half_dim}, mllm::kFloat32, mllm::kCPU).alloc();
-  auto visual_attention_mask =
-      mllm::Tensor::empty({1, 1, 1, visual_patch_tokens}, mllm::kFloat32, mllm::kCPU).alloc();
+  auto visual_embedding_sin = makeVisualTraceTensor({1, visual_patch_tokens, 1, half_dim},
+                                                    visual_io_dtype,
+                                                    kDefaultVisualSinCosScale,
+                                                    kDefaultVisualSinCosZeroPoint);
+  auto visual_embedding_cos = makeVisualTraceTensor({1, visual_patch_tokens, 1, half_dim},
+                                                    visual_io_dtype,
+                                                    kDefaultVisualSinCosScale,
+                                                    kDefaultVisualSinCosZeroPoint);
+  auto visual_attention_mask = makeVisualTraceTensor({1, 1, 1, visual_patch_tokens},
+                                                     visual_io_dtype,
+                                                     kDefaultVisualAttentionMaskScale,
+                                                     kDefaultVisualAttentionMaskZeroPoint);
 
   const auto segments = qwen2vl_qnn_aot::makeVisualBundleSegments(bundle_layout,
                                                                   visual_cfg.visual_depth,
@@ -167,23 +511,65 @@ void compileVisualBundleGraphs(mllm::qnn::aot::QnnAOTEnv& qnn_aot_env,
 
   for (const auto& segment : segments) {
     fmt::print("\n{:=^72}\n", fmt::format(" Compile {} ", segment.graph_name));
-    auto segment_img = mllm::Tensor::empty(segment.input_shape, mllm::kFloat32, mllm::kCPU).alloc();
-    auto visual = qwen2vl_qnn_aot::Qwen2VisionTransformerPretrainedModelAOTRewrite("visual",
-                                                                                  visual_cfg,
-                                                                                  segment.start_block,
-                                                                                  segment.visual_blocks,
-                                                                                  segment.skip_merger,
-                                                                                  segment.skip_patch_embed);
-    visual.load(visual_params);
+    const bool quantized_patch_embed =
+        !segment.skip_patch_embed && visual_params->has("visual.patch_embed.proj.weight")
+        && visual_params->pull("visual.patch_embed.proj.weight").dtype() == mllm::kInt8;
+    const auto segment_input_qdq =
+        qwen2vl_qnn_aot::visualSegmentInputQDQName(segment, visual_cfg.visual_depth);
+    auto segment_img = [&]() {
+      if (isRawFloatVisualIO(visual_io_dtype)) {
+        return mllm::Tensor::empty(segment.input_shape, visualFloatDType(visual_io_dtype), mllm::kCPU).alloc();
+      }
+      return quantized_patch_embed
+                 ? makeUInt16AsymTensor(segment.input_shape, kDefaultVisualPatchInputScale, kDefaultVisualPatchInputZeroPoint)
+                 : (!segment_input_qdq.empty() && visual_params->has(segment_input_qdq + ".fake_quant.scale")
+                        ? makeUInt16AsymTensor(segment.input_shape,
+                                               segment_input_qdq + ".fake_quant.scale",
+                                               segment_input_qdq + ".fake_quant.zero_point",
+                                               visual_params)
+                        : mllm::Tensor::empty(segment.input_shape, mllm::kFloat32, mllm::kCPU).alloc());
+    }();
 
+    mllm::Tensor visual_output;
     mllm::ir::lowlevel::traceStart();
-    auto visual_output = segment.visual_blocks > 0
-                             ? mllm::ir::lowlevel::traceModule(visual,
-                                                               segment_img,
-                                                               visual_embedding_sin,
-                                                               visual_embedding_cos,
-                                                               visual_attention_mask)[0]
-                             : mllm::ir::lowlevel::traceModule(visual, segment_img, visual_embedding_sin, visual_embedding_cos)[0];
+    if (isRawFloatVisualIO(visual_io_dtype)) {
+      auto visual = RawQwen2VisionTransformerPretrainedModelAOTRewrite("visual",
+                                                                       visual_cfg,
+                                                                       segment.start_block,
+                                                                       segment.visual_blocks,
+                                                                       segment.skip_merger,
+                                                                       segment.skip_patch_embed);
+      visual.load(visual_params);
+      visual_output = segment.visual_blocks > 0
+                          ? mllm::ir::lowlevel::traceModule(visual,
+                                                            segment_img,
+                                                            visual_embedding_sin,
+                                                            visual_embedding_cos,
+                                                            visual_attention_mask)[0]
+                          : mllm::ir::lowlevel::traceModule(visual, segment_img, visual_embedding_sin, visual_embedding_cos)[0];
+    } else {
+      auto visual = qwen2vl_qnn_aot::Qwen2VisionTransformerPretrainedModelAOTRewrite("visual",
+                                                                                    visual_cfg,
+                                                                                    segment.start_block,
+                                                                                    segment.visual_blocks,
+                                                                                    segment.skip_merger,
+                                                                                    segment.skip_patch_embed);
+      visual.load(visual_params);
+      visual_output = segment.visual_blocks > 0
+                          ? mllm::ir::lowlevel::traceModule(visual,
+                                                            segment_img,
+                                                            visual_embedding_sin,
+                                                            visual_embedding_cos,
+                                                            visual_attention_mask)[0]
+                          : mllm::ir::lowlevel::traceModule(visual, segment_img, visual_embedding_sin, visual_embedding_cos)[0];
+    }
+    const auto segment_output_qdq =
+        qwen2vl_qnn_aot::visualGraphOutputQDQName(segment.graph_name, visual_cfg.visual_depth);
+    if (!isRawFloatVisualIO(visual_io_dtype) && !segment_output_qdq.empty() && visual_params->has(segment_output_qdq + ".fake_quant.scale")
+        && visual_params->has(segment_output_qdq + ".fake_quant.zero_point")) {
+      visual_output.attach("scale", visual_params->pull(segment_output_qdq + ".fake_quant.scale").impl(), true);
+      visual_output.attach("zero_point", visual_params->pull(segment_output_qdq + ".fake_quant.zero_point").impl(), true);
+    }
     auto visual_ir = mllm::ir::lowlevel::traceStop();
 
     fmt::print("visual segment output shape: [{}, {}]\n", visual_output.shape()[0], visual_output.shape()[1]);
@@ -210,7 +596,8 @@ void compileVisualBundleGraphsFromImage(mllm::qnn::aot::QnnAOTEnv& qnn_aot_env,
                                         const std::string& image_path,
                                         const std::string& prompt,
                                         const std::string& bundle_layout,
-                                        const std::string& visual_ir_prefix) {
+                                        const std::string& visual_ir_prefix,
+                                        VisualIODType visual_io_dtype) {
   if (tokenizer_path.empty() || image_path.empty()) {
     MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--include_visual_bundle requires --tokenizer and --image.");
   }
@@ -226,7 +613,8 @@ void compileVisualBundleGraphsFromImage(mllm::qnn::aot::QnnAOTEnv& qnn_aot_env,
                             img.shape()[1],
                             bundle_layout,
                             visual_ir_prefix,
-                            "");
+                            "",
+                            visual_io_dtype);
 }
 
 }  // namespace
@@ -274,9 +662,25 @@ MLLM_MAIN({
       Argparse::add<std::string>("--visual_bundle_layout")
           .def("6x8")
           .help("Visual bundle layout: single, 6x8, tail4, early2 or block1.");
+  auto& visual_io_dtype =
+      Argparse::add<std::string>("--visual_io_dtype")
+          .def("uint16")
+          .help("Visual graph input/output dtype: uint16 for quantized LPBQ visual, fp32/fp16 for raw float single visual graph.");
   auto& visual_bucket_grids = Argparse::add<std::string>("--visual_bucket_grids")
                                   .def("")
                                   .help("Comma-separated visual patch grid buckets HxW. Example: 10x16,12x16,26x36.");
+  auto& visual_output_scale =
+      Argparse::add<float>("--visual_output_scale")
+          .def(-1.0f)
+          .help("Override visual final output UInt16 scale for visual bundle graph compilation.");
+  auto& visual_output_zero_point =
+      Argparse::add<int>("--visual_output_zero_point")
+          .def(-1)
+          .help("Override visual final output UInt16 zero point for visual bundle graph compilation.");
+  auto& visual_qdq_scale_multiplier =
+      Argparse::add<float>("--visual_qdq_scale_multiplier")
+          .def(1.0f)
+          .help("Multiply visual *_input_qdq/*_output_qdq scale tensors before compiling visual graphs.");
   auto& tokenizer_path = Argparse::add<std::string>("-t|--tokenizer").help("tokenizer.json path for visual input shape.");
   auto& image_path = Argparse::add<std::string>("-i|--image").help("image path for visual input shape.");
   auto& prompt = Argparse::add<std::string>("-p|--prompt").help("prompt text used with --image.").def("describe this picture");
@@ -308,6 +712,16 @@ MLLM_MAIN({
   const bool key_cache_uint16 = key_cache_dtype.get() == "uint16";
   if (!key_cache_uint16 && key_cache_dtype.get() != "uint8") {
     MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--key_cache_dtype must be uint8 or uint16.");
+  }
+  const bool override_visual_output_qp = visual_output_scale.get() > 0.0f || visual_output_zero_point.get() >= 0;
+  if (override_visual_output_qp && (visual_output_scale.get() <= 0.0f || visual_output_zero_point.get() < 0)) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "visual output override requires both --visual_output_scale and --visual_output_zero_point.");
+  }
+  const auto parsed_visual_io_dtype = parseVisualIODType(visual_io_dtype.get());
+  if (isRawFloatVisualIO(parsed_visual_io_dtype) && visual_bundle_layout.get() != "single") {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "--visual_io_dtype=fp16/fp32 requires --visual_bundle_layout=single for now.");
   }
 
   auto model_cfg = mllm::models::qwen2vl::Qwen2VLConfig(model_cfg_path.get());
@@ -358,6 +772,10 @@ MLLM_MAIN({
     const auto visual_aot_config = visual_aot_config_path.isSet() ? visual_aot_config_path.get() : qnn_aot_cfg_files.get();
     auto visual_cfg = mllm::models::qwen2vl::Qwen2VLConfig(visual_config);
     auto visual_params = mllm::load(visual_model, mllm::ModelFileVersion::kV2);
+    if (override_visual_output_qp) {
+      overrideVisualFinalOutputQDQ(visual_params, visual_output_scale.get(), visual_output_zero_point.get());
+    }
+    scaleVisualActivationQDQ(visual_params, visual_qdq_scale_multiplier.get());
     qwen2vl_qnn_aot::reshapePatchEmbedConv3DWeightForLinear(visual_params, visual_cfg);
 
     const int32_t patch_flat_dim =
@@ -377,7 +795,8 @@ MLLM_MAIN({
                                   patch_flat_dim,
                                   visual_bundle_layout.get(),
                                   visual_ir_prefix.get(),
-                                  qwen2vl_qnn_aot::visualGraphSuffixForPatchTokens(patch_tokens));
+                                  qwen2vl_qnn_aot::visualGraphSuffixForPatchTokens(patch_tokens),
+                                  parsed_visual_io_dtype);
       }
     } else {
       compileVisualBundleGraphsFromImage(qnn_aot_env,
@@ -388,7 +807,8 @@ MLLM_MAIN({
                                          image_path.get(),
                                          prompt.get(),
                                          visual_bundle_layout.get(),
-                                         visual_ir_prefix.get());
+                                         visual_ir_prefix.get(),
+                                         parsed_visual_io_dtype);
     }
   }
 

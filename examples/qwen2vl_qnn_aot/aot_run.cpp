@@ -15,6 +15,7 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -46,10 +47,24 @@ namespace {
 
 constexpr float kDefaultInputEmbeddingScale = 0.002563515f;
 constexpr int32_t kDefaultInputEmbeddingZeroPoint = 15604;
+constexpr float kDefaultVisualPatchInputScale = 4.4f / 65535.f;
+constexpr int32_t kDefaultVisualPatchInputZeroPoint = 32768;
+constexpr float kDefaultVisualSinCosScale = 2.0f / 65535.f;
+constexpr int32_t kDefaultVisualSinCosZeroPoint = 32768;
+constexpr float kDefaultVisualAttentionMaskScale = 10000.0f / 65535.f;
+constexpr int32_t kDefaultVisualAttentionMaskZeroPoint = 65535;
+constexpr float kDefaultVisualOutputScale = 0.00041101f;
+constexpr int32_t kDefaultVisualOutputZeroPoint = 32768;
 
 struct QuantParams {
   float scale = 1.f;
   int32_t zero_point = 0;
+};
+
+enum class VisualIODType {
+  kUInt16,
+  kFloat32,
+  kFloat16,
 };
 
 struct LogitEntry {
@@ -94,6 +109,21 @@ struct VisualResizeOverride {
   VisualBucketGrid bucket;
 };
 
+class Qwen2VLPatchEmbedOnly final : public mllm::nn::Module {
+  mllm::models::qwen2vl::PatchEmbed patch_embed_;
+
+ public:
+  Qwen2VLPatchEmbedOnly() = default;
+
+  Qwen2VLPatchEmbedOnly(const std::string& name, const Qwen2VLConfig& cfg) : mllm::nn::Module(name) {
+    patch_embed_ = reg<mllm::models::qwen2vl::PatchEmbed>("patch_embed", cfg);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<mllm::AnyValue>& /*args*/) override {
+    return patch_embed_(inputs[0]);
+  }
+};
+
 std::string trimInteractiveLine(std::string line) {
   while (!line.empty() && (line.back() == '\n' || line.back() == '\r' || std::isspace(static_cast<unsigned char>(line.back())))) {
     line.pop_back();
@@ -112,11 +142,35 @@ int32_t readScalarInt32(const mllm::ParameterFile::ptr_t& params, const std::str
   return params->pull(name).ptr<int32_t>()[0];
 }
 
+bool hasQuantParams(const mllm::ParameterFile::ptr_t& params,
+                    const std::string& scale_name,
+                    const std::string& zp_name) {
+  return params->has(scale_name) && params->has(zp_name);
+}
+
 QuantParams readQuantParams(const mllm::ParameterFile::ptr_t& params,
                             const std::string& scale_name,
                             const std::string& zp_name) {
   return {.scale = readScalarFloat(params, scale_name), .zero_point = readScalarInt32(params, zp_name)};
 }
+
+VisualIODType parseVisualIODType(const std::string& dtype) {
+  if (dtype == "uint16") { return VisualIODType::kUInt16; }
+  if (dtype == "fp32" || dtype == "float32") { return VisualIODType::kFloat32; }
+  if (dtype == "fp16" || dtype == "float16") { return VisualIODType::kFloat16; }
+  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_io_dtype must be uint16, fp32, or fp16.");
+}
+
+mllm::DataTypes visualIODTypeToDataType(VisualIODType dtype) {
+  switch (dtype) {
+    case VisualIODType::kUInt16: return mllm::kUInt16PerTensorAsy;
+    case VisualIODType::kFloat32: return mllm::kFloat32;
+    case VisualIODType::kFloat16: return mllm::kFloat16;
+  }
+  return mllm::kUInt16PerTensorAsy;
+}
+
+bool isRawFloatVisualIO(VisualIODType dtype) { return dtype == VisualIODType::kFloat32 || dtype == VisualIODType::kFloat16; }
 
 uint16_t quantizeUInt16(float value, const QuantParams& qp) {
   auto q = static_cast<int64_t>(std::llround(value / qp.scale) + qp.zero_point);
@@ -124,10 +178,99 @@ uint16_t quantizeUInt16(float value, const QuantParams& qp) {
   return static_cast<uint16_t>(q);
 }
 
+float dequantizeUInt16(uint16_t value, const QuantParams& qp) {
+  return (static_cast<int32_t>(value) - qp.zero_point) * qp.scale;
+}
+
 bool shouldDumpQwen2VLAOTStats() {
   const char* flag = std::getenv("MLLM_QWEN2VL_AOT_DUMP_STATS");
   return flag != nullptr && std::string(flag) != "0";
 }
+
+bool shouldProfileQwen2VLAOT() {
+  const char* flag = std::getenv("MLLM_QWEN2VL_AOT_PROFILE");
+  return flag != nullptr && std::string(flag) != "0";
+}
+
+std::string firstHybridBodyInputQDQName() { return "visual.blocks.0.attn.qkv_input_qdq"; }
+
+struct ProfileStage {
+  std::string name;
+  int64_t total_us = 0;
+  int64_t max_us = 0;
+  int64_t count = 0;
+};
+
+class RequestProfiler {
+ public:
+  explicit RequestProfiler(bool enabled = false) : enabled_(enabled) {}
+
+  [[nodiscard]] bool enabled() const { return enabled_; }
+
+  void reset() {
+    stages_.clear();
+    stage_index_.clear();
+  }
+
+  void add(const std::string& name, int64_t us) {
+    if (!enabled_) { return; }
+    auto it = stage_index_.find(name);
+    if (it == stage_index_.end()) {
+      const auto idx = stages_.size();
+      stage_index_[name] = idx;
+      stages_.push_back({.name = name});
+      it = stage_index_.find(name);
+    }
+    auto& stage = stages_[it->second];
+    stage.total_us += us;
+    stage.max_us = std::max(stage.max_us, us);
+    stage.count += 1;
+  }
+
+  void printSummary() const {
+    if (!enabled_ || stages_.empty()) { return; }
+    fmt::print(fg(fmt::color::yellow), "\n{:=^72}\n", " Qwen2VL Stage Profile ");
+    fmt::print("[QWEN2VL_PROFILE] {:<42} {:>8} {:>12} {:>12} {:>12}\n", "stage", "count", "total_us", "avg_us", "max_us");
+    for (const auto& stage : stages_) {
+      const double avg_us = stage.count > 0 ? static_cast<double>(stage.total_us) / static_cast<double>(stage.count) : 0.0;
+      fmt::print("[QWEN2VL_PROFILE] {:<42} {:>8} {:>12} {:>12.2f} {:>12}\n",
+                 stage.name,
+                 stage.count,
+                 stage.total_us,
+                 avg_us,
+                 stage.max_us);
+    }
+    fmt::print(fg(fmt::color::yellow), "{:=^72}\n", "");
+  }
+
+ private:
+  bool enabled_ = false;
+  std::vector<ProfileStage> stages_;
+  std::unordered_map<std::string, size_t> stage_index_;
+};
+
+class ScopedProfile {
+ public:
+  ScopedProfile(RequestProfiler* profiler, std::string name)
+      : profiler_(profiler), name_(std::move(name)), enabled_(profiler_ != nullptr && profiler_->enabled()) {
+    if (enabled_) { start_ = std::chrono::high_resolution_clock::now(); }
+  }
+
+  ~ScopedProfile() {
+    if (!enabled_) { return; }
+    const auto end = std::chrono::high_resolution_clock::now();
+    profiler_->add(name_, std::chrono::duration_cast<std::chrono::microseconds>(end - start_).count());
+  }
+
+  ScopedProfile(const ScopedProfile&) = delete;
+  ScopedProfile& operator=(const ScopedProfile&) = delete;
+
+ private:
+  RequestProfiler* profiler_ = nullptr;
+  std::string name_;
+  bool enabled_ = false;
+  std::chrono::high_resolution_clock::time_point start_;
+};
 
 std::vector<VisualBucketGrid> parseVisualBucketGrids(const std::string& text) {
   std::vector<VisualBucketGrid> buckets;
@@ -183,6 +326,36 @@ int32_t floorEvenGrid(double value) {
   return std::max(4, grid);
 }
 
+std::pair<int32_t, int32_t> smartResizePixelsForTokenizer(int32_t height, int32_t width) {
+  constexpr int32_t factor = 28;
+  constexpr int32_t min_pixels = 56 * 56;
+  constexpr int32_t max_pixels = 28 * 28 * 256;
+
+  if (std::max(height, width) / static_cast<double>(std::min(height, width)) > 200.0) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kIOError, "absolute aspect ratio must be smaller than 200");
+  }
+
+  int32_t h_bar = static_cast<int32_t>(std::round(static_cast<double>(height) / factor)) * factor;
+  int32_t w_bar = static_cast<int32_t>(std::round(static_cast<double>(width) / factor)) * factor;
+  const int32_t current_pixels = h_bar * w_bar;
+
+  if (current_pixels > max_pixels) {
+    const double beta = std::sqrt(static_cast<double>(height) * width / max_pixels);
+    const int32_t new_height = std::max(1, static_cast<int32_t>(std::floor(height / beta)));
+    const int32_t new_width = std::max(1, static_cast<int32_t>(std::floor(width / beta)));
+    h_bar = std::max(factor, (new_height / factor) * factor);
+    w_bar = std::max(factor, (new_width / factor) * factor);
+  } else if (current_pixels < min_pixels) {
+    const double beta = std::sqrt(static_cast<double>(min_pixels) / (height * width));
+    const int32_t new_height = static_cast<int32_t>(std::ceil(height * beta));
+    const int32_t new_width = static_cast<int32_t>(std::ceil(width * beta));
+    h_bar = (new_height + factor - 1) / factor * factor;
+    w_bar = (new_width + factor - 1) / factor * factor;
+  }
+
+  return {h_bar, w_bar};
+}
+
 int64_t visualPatchIndex(int32_t t, int32_t h, int32_t w, int32_t grid_h, int32_t grid_w, int32_t merge_size) {
   const int32_t h_blocks = grid_h / merge_size;
   const int32_t w_blocks = grid_w / merge_size;
@@ -221,16 +394,11 @@ VisualBucketGrid selectVisualBucket(Tensor grid_thw, const std::vector<VisualBuc
   return buckets[best_idx];
 }
 
-VisualResizeOverride chooseVisualResizeOverrideForOversizedImage(const std::string& image_path,
-                                                                 const std::vector<VisualBucketGrid>& buckets) {
+VisualResizeOverride chooseVisualResizeOverrideForGrid(int32_t native_grid_h,
+                                                       int32_t native_grid_w,
+                                                       const std::vector<VisualBucketGrid>& buckets) {
   VisualResizeOverride override;
   if (buckets.empty()) { return override; }
-
-  auto image = mllm::Image::open(image_path);
-  mllm::models::qwen2vl::Qwen2VLImagePreprocessor image_preprocessor(56 * 56, 28 * 28 * 256);
-  auto [native_h_px, native_w_px] = image_preprocessor.smartResize(image.h(), image.w(), 28, 56 * 56, 28 * 28 * 256);
-  const int32_t native_grid_h = native_h_px / 14;
-  const int32_t native_grid_w = native_w_px / 14;
   if (findCoveringVisualBucketIndex(native_grid_h, native_grid_w, buckets) >= 0) { return override; }
 
   int32_t max_patch_tokens = 0;
@@ -271,6 +439,19 @@ VisualResizeOverride chooseVisualResizeOverrideForOversizedImage(const std::stri
   override.resize_grid_w = resize_grid_w;
   override.bucket = bucket;
   return override;
+}
+
+VisualResizeOverride chooseVisualResizeOverrideForImage(const std::string& image_path,
+                                                        const std::vector<VisualBucketGrid>& buckets) {
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t channels = 0;
+  if (!stbi_info(image_path.c_str(), &width, &height, &channels)) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kIOError, "Can't get information of image: {}", image_path);
+  }
+
+  const auto [native_h_px, native_w_px] = smartResizePixelsForTokenizer(height, width);
+  return chooseVisualResizeOverrideForGrid(native_h_px / 14, native_w_px / 14, buckets);
 }
 
 Tensor padVisualPatchesToBucket(Tensor img, Tensor grid_thw, const VisualBucketGrid& bucket, const Qwen2VLConfig& cfg) {
@@ -329,6 +510,7 @@ Tensor cropVisualEmbeddingsFromBucket(Tensor bucket_embeddings,
                                       Tensor original_grid_thw,
                                       Tensor bucket_grid_thw,
                                       const Qwen2VLConfig& cfg) {
+  MLLM_RT_ASSERT_EQ(bucket_embeddings.dtype(), mllm::kFloat32);
   const auto* original_grid = original_grid_thw.ptr<int32_t>();
   const auto* bucket_grid = bucket_grid_thw.ptr<int32_t>();
   const int32_t grid_t = original_grid[0];
@@ -358,6 +540,72 @@ Tensor cropVisualEmbeddingsFromBucket(Tensor bucket_embeddings,
   return cropped;
 }
 
+Tensor dequantizeVisualUInt16ToFloat(Tensor tensor, const QuantParams& qp) {
+  auto cpu_tensor = tensor.device() == mllm::kCPU ? tensor : tensor.to(mllm::kCPU);
+  if (cpu_tensor.dtype() == mllm::kFloat32) { return cpu_tensor; }
+  if (cpu_tensor.dtype() == mllm::kFloat16) { return cpu_tensor.to(mllm::kFloat32); }
+  if (cpu_tensor.dtype() != mllm::kUInt16 && cpu_tensor.dtype() != mllm::kUInt16PerTensorAsy) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "Visual QNN output must be Float32, Float16, or UInt16PerTensorAsy, got {}",
+                    nameOfType(cpu_tensor.dtype()));
+  }
+
+  auto out = Tensor::empty(cpu_tensor.shape(), mllm::kFloat32, mllm::kCPU).alloc();
+  const auto* src = cpu_tensor.ptr<uint16_t>();
+  auto* dst = out.ptr<float>();
+  for (int64_t i = 0; i < cpu_tensor.numel(); ++i) { dst[i] = dequantizeUInt16(src[i], qp); }
+  return out;
+}
+
+void writeFloatTensorBinary(const std::string& path, Tensor tensor);
+
+template<typename Fn>
+void dumpVisualSegmentOutput(const std::string& dump_prefix,
+                             const std::string& graph_name,
+                             Tensor tensor,
+                             Fn&& qp_for_graph) {
+  if (dump_prefix.empty()) { return; }
+  auto cpu_tensor = tensor.device() == mllm::kCPU ? tensor : tensor.to(mllm::kCPU);
+  Tensor float_tensor = cpu_tensor;
+  if (cpu_tensor.dtype() == mllm::kUInt16 || cpu_tensor.dtype() == mllm::kUInt16PerTensorAsy) {
+    float_tensor = dequantizeVisualUInt16ToFloat(cpu_tensor, qp_for_graph(graph_name));
+  } else if (cpu_tensor.dtype() == mllm::kFloat16) {
+    float_tensor = cpu_tensor.to(mllm::kFloat32);
+  } else if (cpu_tensor.dtype() != mllm::kFloat32) {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "Cannot dump visual segment {} with dtype={}",
+                    graph_name,
+                    nameOfType(cpu_tensor.dtype()));
+  }
+  writeFloatTensorBinary(dump_prefix + "." + graph_name + ".bin", float_tensor);
+}
+
+void writeFloatTensorBinary(const std::string& path, Tensor tensor) {
+  if (path.empty()) { return; }
+  auto cpu_tensor = tensor.device() == mllm::kCPU ? tensor : tensor.to(mllm::kCPU);
+  MLLM_RT_ASSERT_EQ(cpu_tensor.dtype(), mllm::kFloat32);
+
+  std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+  if (!out) {
+    fmt::print("[Qwen2VL AOT Dump] failed to open visual embedding dump path: {}\n", path);
+    return;
+  }
+
+  const char magic[8] = {'M', 'L', 'L', 'M', 'F', '3', '2', '\0'};
+  const int32_t rank = static_cast<int32_t>(cpu_tensor.rank());
+  const int64_t numel = cpu_tensor.numel();
+  out.write(magic, sizeof(magic));
+  out.write(reinterpret_cast<const char*>(&rank), sizeof(rank));
+  for (auto dim : cpu_tensor.shape()) { out.write(reinterpret_cast<const char*>(&dim), sizeof(dim)); }
+  out.write(reinterpret_cast<const char*>(&numel), sizeof(numel));
+  out.write(reinterpret_cast<const char*>(cpu_tensor.ptr<float>()), numel * sizeof(float));
+  fmt::print("[Qwen2VL AOT Dump] wrote visual embeddings to {} shape=[", path);
+  for (size_t i = 0; i < cpu_tensor.shape().size(); ++i) {
+    fmt::print("{}{}", i == 0 ? "" : ",", cpu_tensor.shape()[i]);
+  }
+  fmt::print("]\n");
+}
+
 Tensor makeQnnTensor(const std::vector<int32_t>& shape, mllm::DataTypes dtype, const std::string& name) {
   auto tensor = Tensor::empty(shape, dtype, mllm::kQNN).setName(name).alloc();
   return tensor;
@@ -367,6 +615,56 @@ Tensor copyToQnn(const Tensor& cpu_tensor, const std::string& name) {
   auto qnn_tensor = makeQnnTensor(cpu_tensor.shape(), cpu_tensor.dtype(), name);
   std::memcpy(qnn_tensor.ptr<void>(), cpu_tensor.ptr<void>(), cpu_tensor.bytes());
   return qnn_tensor;
+}
+
+Tensor quantizeFloatToQnnUInt16(Tensor cpu_tensor, const QuantParams& qp, const std::string& name) {
+  auto qnn_tensor = makeQnnTensor(cpu_tensor.shape(), mllm::kUInt16PerTensorAsy, name);
+  auto* out = qnn_tensor.ptr<uint16_t>();
+  const auto* in = cpu_tensor.ptr<float>();
+  for (int64_t i = 0; i < cpu_tensor.numel(); ++i) { out[i] = quantizeUInt16(in[i], qp); }
+  qnn_tensor.attach("scale", Tensor::constant(qp.scale, mllm::kFloat32).impl(), true);
+  qnn_tensor.attach("zero_point", Tensor::constant(qp.zero_point, mllm::kInt32).impl(), true);
+  return qnn_tensor;
+}
+
+Tensor copyFloatToQnnDType(Tensor cpu_tensor, const std::string& name, mllm::DataTypes dtype) {
+  if (cpu_tensor.dtype() == mllm::kFloat32) {
+    if (dtype == mllm::kFloat32) { return copyToQnn(cpu_tensor, name); }
+    if (dtype == mllm::kFloat16) { return copyToQnn(cpu_tensor.to(mllm::kFloat16), name); }
+  }
+  if (cpu_tensor.dtype() == dtype) { return copyToQnn(cpu_tensor, name); }
+  if (dtype == mllm::kFloat32 || dtype == mllm::kFloat16) { return copyToQnn(cpu_tensor.to(dtype), name); }
+  return copyToQnn(cpu_tensor, name);
+}
+
+Tensor copyVisualImageToQnn(Tensor cpu_tensor, const std::string& name, VisualIODType visual_io_dtype) {
+  if (visual_io_dtype == VisualIODType::kUInt16) {
+    return quantizeFloatToQnnUInt16(cpu_tensor,
+                                    {.scale = kDefaultVisualPatchInputScale,
+                                     .zero_point = kDefaultVisualPatchInputZeroPoint},
+                                    name);
+  }
+  return copyFloatToQnnDType(cpu_tensor, name, visualIODTypeToDataType(visual_io_dtype));
+}
+
+Tensor copyVisualSinCosToQnn(Tensor cpu_tensor, const std::string& name, VisualIODType visual_io_dtype) {
+  if (visual_io_dtype != VisualIODType::kUInt16) {
+    return copyFloatToQnnDType(cpu_tensor, name, visualIODTypeToDataType(visual_io_dtype));
+  }
+  return quantizeFloatToQnnUInt16(cpu_tensor,
+                                  {.scale = kDefaultVisualSinCosScale,
+                                   .zero_point = kDefaultVisualSinCosZeroPoint},
+                                  name);
+}
+
+Tensor copyVisualMaskToQnn(Tensor cpu_tensor, const std::string& name, VisualIODType visual_io_dtype) {
+  if (visual_io_dtype != VisualIODType::kUInt16) {
+    return copyFloatToQnnDType(cpu_tensor, name, visualIODTypeToDataType(visual_io_dtype));
+  }
+  return quantizeFloatToQnnUInt16(cpu_tensor,
+                                  {.scale = kDefaultVisualAttentionMaskScale,
+                                   .zero_point = kDefaultVisualAttentionMaskZeroPoint},
+                                  name);
 }
 
 QnnAOTModule& getOrCreateCachedModule(QnnAOTModuleCache& cache, const std::string& graph_name) {
@@ -381,6 +679,7 @@ QnnAOTModule& getOrCreateCachedModule(QnnAOTModuleCache& cache, const std::strin
 
 std::vector<std::string> visualGraphNamesForLayout(const std::string& bundle_layout, const std::string& graph_suffix) {
   if (bundle_layout == "single") { return {"visual_full" + graph_suffix}; }
+  if (bundle_layout == "hybrid_single") { return {"visual_body" + graph_suffix}; }
   if (bundle_layout == "6x8") {
     return {"visual_patch_embed" + graph_suffix,
             "visual_blocks_0_8" + graph_suffix,
@@ -411,7 +710,37 @@ std::vector<std::string> visualGraphNamesForLayout(const std::string& bundle_lay
             "visual_merger" + graph_suffix};
   }
 
-  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_bundle_layout must be single, 6x8, early2 or tail4.");
+  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_bundle_layout must be single, hybrid_single, 6x8, early2 or tail4.");
+}
+
+std::string stripVisualGraphSuffix(const std::string& graph_name) {
+  const auto pos = graph_name.rfind("_s");
+  if (pos == std::string::npos || pos + 2 >= graph_name.size()) { return graph_name; }
+  const auto suffix_is_digits =
+      std::all_of(graph_name.begin() + static_cast<std::ptrdiff_t>(pos + 2),
+                  graph_name.end(),
+                  [](unsigned char ch) { return std::isdigit(ch); });
+  return suffix_is_digits ? graph_name.substr(0, pos) : graph_name;
+}
+
+std::string visualGraphOutputQDQName(const std::string& graph_name, int32_t visual_depth) {
+  const auto base = stripVisualGraphSuffix(graph_name);
+  if (base == "visual_full" || base == "visual_body" || base == "visual_merger") {
+    return "visual.merger.mlp.2_output_qdq";
+  }
+  if (base == "visual_patch_embed") { return "visual.blocks.0.attn.qkv_input_qdq"; }
+
+  constexpr const char* prefix = "visual_blocks_";
+  if (base.rfind(prefix, 0) == 0) {
+    const auto mid = base.find('_', std::strlen(prefix));
+    if (mid != std::string::npos) {
+      const auto end_block = std::stoi(base.substr(mid + 1));
+      return end_block < visual_depth ? "visual.blocks." + std::to_string(end_block) + ".attn.qkv_input_qdq"
+                                      : "visual.merger.mlp.0_input_qdq";
+    }
+  }
+
+  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "Cannot infer visual output QDQ for graph {}", graph_name);
 }
 
 void initializeVisualQnnModules(const std::string& bundle_layout,
@@ -447,7 +776,8 @@ Tensor runQnnGraph1(const std::string& graph_name,
                     Tensor visual_embedding_cos,
                     Tensor visual_attention_mask,
                     Tensor output,
-                    QnnAOTModuleCache* module_cache = nullptr) {
+                    QnnAOTModuleCache* module_cache = nullptr,
+                    RequestProfiler* profiler = nullptr) {
   std::unique_ptr<QnnAOTModule> local_module;
   QnnAOTModule* module = nullptr;
   if (module_cache != nullptr) {
@@ -464,7 +794,11 @@ Tensor runQnnGraph1(const std::string& graph_name,
                                                                     visual_embedding_sin,
                                                                     visual_embedding_cos,
                                                                     visual_attention_mask};
-  auto outputs = (*module)(inputs);
+  std::vector<Tensor> outputs;
+  {
+    ScopedProfile timer(profiler, "visual.qnn_execute." + graph_name);
+    outputs = (*module)(inputs);
+  }
   MLLM_RT_ASSERT_EQ(outputs.size(), 1);
   return outputs[0];
 }
@@ -476,59 +810,110 @@ Tensor runVisualQnnBundle(Tensor img,
                           const Qwen2VLConfig& cfg,
                           const std::string& bundle_layout,
                           const std::string& graph_suffix,
-                          QnnAOTModuleCache* module_cache = nullptr) {
+                          VisualIODType visual_io_dtype,
+                          const QuantParams& output_qp,
+                          Tensor patch_embed_hidden = Tensor::nil(),
+                          QuantParams patch_embed_qp = {},
+                          QnnAOTModuleCache* module_cache = nullptr,
+                          RequestProfiler* profiler = nullptr,
+                          const std::string& segment_dump_prefix = "",
+                          const std::function<QuantParams(const std::string&)>& segment_output_qp = {}) {
   const int32_t visual_patch_tokens = img.shape()[0];
   const int32_t merged_tokens = visual_patch_tokens / (cfg.visual_spatial_merge_size * cfg.visual_spatial_merge_size);
+  if (!segment_dump_prefix.empty()) { MLLM_RT_ASSERT(static_cast<bool>(segment_output_qp)); }
+  if (isRawFloatVisualIO(visual_io_dtype) && bundle_layout != "single") {
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "--visual_io_dtype=fp16/fp32 is currently supported only with --visual_bundle_layout=single.");
+  }
 
-  auto img_qnn = copyToQnn(img, "visual_img");
-  auto sin_qnn = copyToQnn(visual_embedding_sin, "visual_embedding_sin");
-  auto cos_qnn = copyToQnn(visual_embedding_cos, "visual_embedding_cos");
-  auto mask_qnn = copyToQnn(visual_attention_mask, "visual_attention_mask");
+  Tensor img_qnn;
+  Tensor sin_qnn;
+  Tensor cos_qnn;
+  Tensor mask_qnn;
+  {
+    ScopedProfile timer(profiler, "visual.copy_inputs_to_qnn");
+    img_qnn = copyVisualImageToQnn(img, "visual_img", visual_io_dtype);
+    sin_qnn = copyVisualSinCosToQnn(visual_embedding_sin, "visual_embedding_sin", visual_io_dtype);
+    cos_qnn = copyVisualSinCosToQnn(visual_embedding_cos, "visual_embedding_cos", visual_io_dtype);
+    mask_qnn = copyVisualMaskToQnn(visual_attention_mask, "visual_attention_mask", visual_io_dtype);
+  }
 
-  auto hidden_a = makeQnnTensor({visual_patch_tokens, cfg.visual_embed_dim}, mllm::kFloat32, "visual_hidden_a");
-  auto hidden_b = makeQnnTensor({visual_patch_tokens, cfg.visual_embed_dim}, mllm::kFloat32, "visual_hidden_b");
-  auto visual_embeddings = makeQnnTensor({merged_tokens, cfg.hidden_size}, mllm::kFloat32, "visual_embeddings");
+  Tensor hidden_a;
+  Tensor hidden_b;
+  Tensor visual_embeddings;
+  {
+    ScopedProfile timer(profiler, "visual.alloc_qnn_tensors");
+    hidden_a = makeQnnTensor({visual_patch_tokens, cfg.visual_embed_dim}, mllm::kUInt16PerTensorAsy, "visual_hidden_a");
+    hidden_b = makeQnnTensor({visual_patch_tokens, cfg.visual_embed_dim}, mllm::kUInt16PerTensorAsy, "visual_hidden_b");
+    const auto visual_output_dtype = bundle_layout == "single" ? visualIODTypeToDataType(visual_io_dtype) : mllm::kUInt16PerTensorAsy;
+    visual_embeddings = makeQnnTensor({merged_tokens, cfg.hidden_size}, visual_output_dtype, "visual_embeddings");
+  }
+
+  auto run_and_maybe_dump = [&](const std::string& graph_name,
+                                Tensor graph_input,
+                                Tensor graph_sin,
+                                Tensor graph_cos,
+                                Tensor graph_mask,
+                                Tensor graph_output) {
+    auto output = runQnnGraph1(graph_name,
+                               graph_input,
+                               graph_sin,
+                               graph_cos,
+                               graph_mask,
+                               graph_output,
+                               module_cache,
+                               profiler);
+    dumpVisualSegmentOutput(segment_dump_prefix, graph_name, output, segment_output_qp);
+    return output;
+  };
 
   Tensor hidden = Tensor::nil();
   if (bundle_layout == "single") {
-    auto output =
-        runQnnGraph1("visual_full" + graph_suffix, img_qnn, sin_qnn, cos_qnn, mask_qnn, visual_embeddings, module_cache);
-    return output.to(mllm::kCPU).clone();
+    auto output = run_and_maybe_dump("visual_full" + graph_suffix, img_qnn, sin_qnn, cos_qnn, mask_qnn, visual_embeddings);
+    ScopedProfile timer(profiler, "visual.copy_output_to_cpu");
+    return dequantizeVisualUInt16ToFloat(output, output_qp);
+  } else if (bundle_layout == "hybrid_single") {
+    if (patch_embed_hidden.isNil()) {
+      MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "hybrid_single requires CPU patch_embed hidden states.");
+    }
+    Tensor patch_hidden_qnn;
+    {
+      ScopedProfile timer(profiler, "visual.copy_patch_embed_to_qnn");
+      patch_hidden_qnn = quantizeFloatToQnnUInt16(patch_embed_hidden, patch_embed_qp, "visual_patch_embed_hidden");
+    }
+    auto output = run_and_maybe_dump("visual_body" + graph_suffix, patch_hidden_qnn, sin_qnn, cos_qnn, mask_qnn, visual_embeddings);
+    ScopedProfile timer(profiler, "visual.copy_output_to_cpu");
+    return dequantizeVisualUInt16ToFloat(output, output_qp);
   } else if (bundle_layout == "6x8") {
-    hidden = runQnnGraph1("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_0_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_16_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_24_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
+    hidden = run_and_maybe_dump("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_0_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_16_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_24_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
   } else if (bundle_layout == "early2") {
-    hidden = runQnnGraph1("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_0_2" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_2_4" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_4_6" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_6_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_16_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_24_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
+    hidden = run_and_maybe_dump("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_0_2" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_2_4" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_4_6" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_6_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_16_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_24_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
   } else if (bundle_layout == "tail4") {
-    hidden = runQnnGraph1("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_0_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_16_20" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_20_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
-    hidden = runQnnGraph1("visual_blocks_24_28" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b, module_cache);
-    hidden = runQnnGraph1("visual_blocks_28_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a, module_cache);
+    hidden = run_and_maybe_dump("visual_patch_embed" + graph_suffix, img_qnn, sin_qnn, cos_qnn, Tensor::nil(), hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_0_8" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_8_16" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_16_20" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_20_24" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
+    hidden = run_and_maybe_dump("visual_blocks_24_28" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_b);
+    hidden = run_and_maybe_dump("visual_blocks_28_32" + graph_suffix, hidden, sin_qnn, cos_qnn, mask_qnn, hidden_a);
   } else {
-    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_bundle_layout must be single, 6x8, early2 or tail4 for full runner.");
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "--visual_bundle_layout must be single, hybrid_single, 6x8, early2 or tail4 for full runner.");
   }
 
-  auto output = runQnnGraph1("visual_merger" + graph_suffix,
-                             hidden,
-                             sin_qnn,
-                             cos_qnn,
-                             Tensor::nil(),
-                             visual_embeddings,
-                             module_cache);
-  return output.to(mllm::kCPU).clone();
+  auto output = run_and_maybe_dump("visual_merger" + graph_suffix, hidden, sin_qnn, cos_qnn, Tensor::nil(), visual_embeddings);
+  ScopedProfile timer(profiler, "visual.copy_output_to_cpu");
+  return dequantizeVisualUInt16ToFloat(output, output_qp);
 }
 
 int32_t findVisionTokenStart(const Tensor& sequence, int32_t vision_token_id) {
@@ -856,11 +1241,18 @@ class Qwen2VLAOTRunner {
                    bool dump_visual_tokens,
                    bool key_cache_uint16,
                    bool visual_qnn,
+                   bool visual_only,
                    std::string visual_bundle_layout,
                    std::vector<VisualBucketGrid> visual_bucket_grids,
+                   VisualIODType visual_io_dtype,
+                   float visual_output_scale,
+                   int32_t visual_output_zero_point,
+                   float visual_qdq_scale_multiplier,
                    int32_t dump_logits_topk,
                    std::vector<int32_t> dump_token_indices,
-                   std::string dump_path)
+                   std::string dump_path,
+                   std::string visual_embeddings_dump_path,
+                   std::string visual_segments_dump_prefix)
       : qnn_cfg_(qnn_cfg),
         visual_cfg_(visual_cfg),
         qnn_params_(qnn_params),
@@ -869,11 +1261,17 @@ class Qwen2VLAOTRunner {
         dump_visual_tokens_(dump_visual_tokens),
         key_cache_uint16_(key_cache_uint16),
         visual_qnn_(visual_qnn),
+        visual_only_(visual_only),
         visual_bundle_layout_(std::move(visual_bundle_layout)),
         visual_bucket_grids_(std::move(visual_bucket_grids)),
+        visual_io_dtype_(visual_io_dtype),
+        visual_qdq_scale_multiplier_(visual_qdq_scale_multiplier),
         dump_logits_topk_(dump_logits_topk),
         dump_token_indices_(std::move(dump_token_indices)),
-        dump_path_(std::move(dump_path)) {
+        dump_path_(std::move(dump_path)),
+        visual_embeddings_dump_path_(std::move(visual_embeddings_dump_path)),
+        visual_segments_dump_prefix_(std::move(visual_segments_dump_prefix)),
+        profiler_(shouldProfileQwen2VLAOT()) {
     config_.num_layers = qnn_cfg_.num_hidden_layers;
     config_.num_heads = qnn_cfg_.num_key_value_heads;
     config_.head_dim = qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads;
@@ -884,6 +1282,11 @@ class Qwen2VLAOTRunner {
     config_.max_cache_len = context_len - 1;
     config_.max_ar_len = std::max(1, ar_len);
     config_.sliding_window = context_len;
+
+    if (visual_qnn_ && isRawFloatVisualIO(visual_io_dtype_) && visual_bundle_layout_ != "single") {
+      MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                      "--visual_io_dtype=fp16/fp32 requires --visual_bundle_layout=single for now.");
+    }
 
     embedding_weight_qp_ = readQuantParams(qnn_params_, "model.embed_tokens.scale", "model.embed_tokens.zero_point");
     input_embedding_qp_ = embedding_weight_qp_;
@@ -898,6 +1301,48 @@ class Qwen2VLAOTRunner {
                               "model.cos_embedding_input_qdq.fake_quant.zero_point");
     logits_qp_ =
         readQuantParams(qnn_params_, "lm_head_output_qdq.fake_quant.scale", "lm_head_output_qdq.fake_quant.zero_point");
+    if (visual_output_scale > 0.0f && visual_output_zero_point >= 0) {
+      visual_output_qp_ = {.scale = visual_output_scale, .zero_point = visual_output_zero_point};
+      fmt::print("[Qwen2VL AOT] override visual output quant params: scale={:.9f}, zero_point={}\n",
+                 visual_output_qp_.scale, visual_output_qp_.zero_point);
+    } else if (hasQuantParams(qnn_params_,
+                              "visual.merger.mlp.2_output_qdq.fake_quant.scale",
+                              "visual.merger.mlp.2_output_qdq.fake_quant.zero_point")) {
+      visual_output_qp_ = readQuantParams(qnn_params_,
+                                          "visual.merger.mlp.2_output_qdq.fake_quant.scale",
+                                          "visual.merger.mlp.2_output_qdq.fake_quant.zero_point");
+    } else if (visual_qnn_ && visual_bundle_layout_ == "single") {
+      visual_output_qp_ = {.scale = kDefaultVisualOutputScale, .zero_point = kDefaultVisualOutputZeroPoint};
+      fmt::print("[Qwen2VL AOT] visual output QDQ not found in --qnn_params; using single-graph default: "
+                 "scale={:.9f}, zero_point={}\n",
+                 visual_output_qp_.scale,
+                 visual_output_qp_.zero_point);
+    } else if (visual_qnn_) {
+      MLLM_ERROR_EXIT(mllm::ExitCode::kIOError,
+                      "Missing visual output QDQ tensors in --qnn_params. Pass --visual_output_scale and "
+                      "--visual_output_zero_point, or use a parameter file containing visual QDQ tensors.");
+    }
+    if (visual_qnn_ && visual_bundle_layout_ == "hybrid_single") {
+      visual_body_input_qp_ = readQuantParams(qnn_params_,
+                                              firstHybridBodyInputQDQName() + ".fake_quant.scale",
+                                              firstHybridBodyInputQDQName() + ".fake_quant.zero_point");
+    }
+    if (visual_qdq_scale_multiplier > 0.0f && std::abs(visual_qdq_scale_multiplier - 1.0f) >= 1e-6f) {
+      if (visual_qnn_ && visual_bundle_layout_ != "hybrid_single") {
+        MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                        "--visual_qdq_scale_multiplier is only supported with --visual_bundle_layout=hybrid_single.");
+      }
+      visual_body_input_qp_.scale *= visual_qdq_scale_multiplier;
+      visual_output_qp_.scale *= visual_qdq_scale_multiplier;
+      fmt::print("[Qwen2VL AOT] scaled visual body input QP by {:.6f}: scale={:.9f}, zero_point={}\n",
+                 visual_qdq_scale_multiplier,
+                 visual_body_input_qp_.scale,
+                 visual_body_input_qp_.zero_point);
+      fmt::print("[Qwen2VL AOT] scaled visual output QP by {:.6f}: scale={:.9f}, zero_point={}\n",
+                 visual_qdq_scale_multiplier,
+                 visual_output_qp_.scale,
+                 visual_output_qp_.zero_point);
+    }
     block_out_qps_.reserve(qnn_cfg_.num_hidden_layers);
     for (int32_t l = 0; l < qnn_cfg_.num_hidden_layers; ++l) {
       if (l + 1 < qnn_cfg_.num_hidden_layers) {
@@ -911,6 +1356,10 @@ class Qwen2VLAOTRunner {
     }
     initLayer0QuantParams();
     embedding_weight_ = qnn_params_->pull("model.embed_tokens.weight");
+    visual_rope_inv_freq_ = mllm::models::qwen2vl::makeVisualRoPEInvFreq(
+        visual_cfg_.visual_embed_dim / visual_cfg_.visual_num_heads, 10000.0);
+    llm_rope_inv_freq_ = mllm::models::qwen2vl::makeMultimodalRoPEInvFreq(
+        qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads, qnn_cfg_.rope_theta);
   }
 
   bool load() {
@@ -920,24 +1369,32 @@ class Qwen2VLAOTRunner {
       return false;
     }
 
-    kv_manager_u8_ = std::make_unique<KVCacheManager<uint8_t>>(config_);
-    kv_manager_u8_->initCache(backend->allocator().get(), config_.ar_len);
-    if (key_cache_uint16_) {
-      key_cache_manager_u16_ = std::make_unique<KVCacheManager<uint16_t>>(config_);
-      key_cache_manager_u16_->initCache(backend->allocator().get(), config_.ar_len);
-      fmt::print("[Qwen2VL AOT] experimental key cache dtype: uint16, value cache dtype: uint8\n");
+    if (!visual_only_) {
+      kv_manager_u8_ = std::make_unique<KVCacheManager<uint8_t>>(config_);
+      kv_manager_u8_->initCache(backend->allocator().get(), config_.ar_len);
+      if (key_cache_uint16_) {
+        key_cache_manager_u16_ = std::make_unique<KVCacheManager<uint16_t>>(config_);
+        key_cache_manager_u16_->initCache(backend->allocator().get(), config_.ar_len);
+        fmt::print("[Qwen2VL AOT] experimental key cache dtype: uint16, value cache dtype: uint8\n");
+      }
+      prefill_io_.ar_len = config_.ar_len;
+      decode_io_.ar_len = 1;
+      prefill_io_.dump_block_outputs = dump_block_outputs_;
+      decode_io_.dump_block_outputs = dump_block_outputs_;
+      prefill_io_.dump_layer0_outputs = dump_layer0_outputs_;
+      decode_io_.dump_layer0_outputs = dump_layer0_outputs_;
+      initQwen2VLIO(prefill_io_, config_, *kv_manager_u8_, key_cache_manager_u16_.get(), key_cache_uint16_,
+                    qnn_cfg_.hidden_size, qnn_cfg_.intermediate_size);
+      initQwen2VLIO(decode_io_, config_, *kv_manager_u8_, key_cache_manager_u16_.get(), key_cache_uint16_,
+                    qnn_cfg_.hidden_size, qnn_cfg_.intermediate_size);
+    } else {
+      fmt::print("[Qwen2VL AOT] visual-only mode: skipped LLM QNN module and KV cache initialization.\n");
     }
-    prefill_io_.ar_len = config_.ar_len;
-    decode_io_.ar_len = 1;
-    prefill_io_.dump_block_outputs = dump_block_outputs_;
-    decode_io_.dump_block_outputs = dump_block_outputs_;
-    prefill_io_.dump_layer0_outputs = dump_layer0_outputs_;
-    decode_io_.dump_layer0_outputs = dump_layer0_outputs_;
-    initQwen2VLIO(prefill_io_, config_, *kv_manager_u8_, key_cache_manager_u16_.get(), key_cache_uint16_,
-                  qnn_cfg_.hidden_size, qnn_cfg_.intermediate_size);
-    initQwen2VLIO(decode_io_, config_, *kv_manager_u8_, key_cache_manager_u16_.get(), key_cache_uint16_,
-                  qnn_cfg_.hidden_size, qnn_cfg_.intermediate_size);
     if (visual_qnn_) { initializeVisualQnnModules(visual_bundle_layout_, visual_bucket_grids_, visual_modules_); }
+    decode_token_tensor_ = Tensor::empty({1, 1}, mllm::kInt64, mllm::kCPU).alloc();
+    if (profiler_.enabled()) {
+      fmt::print("[Qwen2VL AOT] fine-grained stage profiling enabled (MLLM_QWEN2VL_AOT_PROFILE=1)\n");
+    }
     return true;
   }
 
@@ -949,10 +1406,19 @@ class Qwen2VLAOTRunner {
     prompt_token_ids_.clear();
     vision_token_start_ = -1;
     vision_token_count_ = 0;
+    profiler_.reset();
   }
 
+  RequestProfiler* profiler() { return &profiler_; }
+
+  void printProfileSummary() const { profiler_.printSummary(); }
+
+  void addProfileEvent(const std::string& name, int64_t us) { profiler_.add(name, us); }
+
   PromptFeatures preparePrompt(const mllm::models::ARGenerationOutputPast& inputs,
-                               mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel* visual) {
+                               mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel* visual,
+                               Qwen2VLPatchEmbedOnly* patch_embed) {
+    ScopedProfile prepare_timer(&profiler_, "prepare_prompt.total");
     PromptFeatures features;
     features.sequence = inputs.at("sequence");
     auto img = inputs.at("img");
@@ -966,15 +1432,23 @@ class Qwen2VLAOTRunner {
     mllm::print("Image shape is:", img.shape());
     auto visual_img = img;
     auto visual_grid_thw = grid_thw;
-    auto visual_attention_mask = makeAllValidVisualAttentionMask(img.shape()[0]);
+    Tensor visual_attention_mask;
+    {
+      ScopedProfile timer(&profiler_, "visual.make_initial_mask");
+      visual_attention_mask = makeAllValidVisualAttentionMask(img.shape()[0]);
+    }
     std::string visual_graph_suffix;
     if (visual_qnn_ && !visual_bucket_grids_.empty()) {
       const auto* original_grid = grid_thw.ptr<int32_t>();
-      const auto bucket = selectVisualBucket(grid_thw, visual_bucket_grids_);
-      visual_img = padVisualPatchesToBucket(img, grid_thw, bucket, visual_cfg_);
-      visual_grid_thw = makeGridThwTensor(original_grid[0], bucket.grid_h, bucket.grid_w);
-      visual_attention_mask = makeVisualAttentionMaskForBucket(grid_thw, bucket, visual_cfg_);
-      visual_graph_suffix = visualGraphSuffixForPatchTokens(bucket.patchTokens());
+      VisualBucketGrid bucket;
+      {
+        ScopedProfile timer(&profiler_, "visual.bucket_select_pad_mask");
+        bucket = selectVisualBucket(grid_thw, visual_bucket_grids_);
+        visual_img = padVisualPatchesToBucket(img, grid_thw, bucket, visual_cfg_);
+        visual_grid_thw = makeGridThwTensor(original_grid[0], bucket.grid_h, bucket.grid_w);
+        visual_attention_mask = makeVisualAttentionMaskForBucket(grid_thw, bucket, visual_cfg_);
+        visual_graph_suffix = visualGraphSuffixForPatchTokens(bucket.patchTokens());
+      }
       fmt::print("[Qwen2VL AOT] visual bucket: original_grid={}x{} patches={} -> bucket_grid={}x{} patches={} graph_suffix={}\n",
                  original_grid[1],
                  original_grid[2],
@@ -984,30 +1458,57 @@ class Qwen2VLAOTRunner {
                  visual_img.shape()[0],
                  visual_graph_suffix);
     }
-    auto inv_freq = mllm::models::qwen2vl::makeVisualRoPEInvFreq(visual_cfg_.visual_embed_dim / visual_cfg_.visual_num_heads,
-                                                                 10000.0);
-    auto visual_pos_ids = mllm::models::qwen2vl::makeVisualRotaryPosEmbIds(visual_grid_thw, visual_cfg_.visual_spatial_merge_size);
-    auto rotary_pos_emb_full = mllm::models::qwen2vl::makeVisualRotaryPosEmbFull(inv_freq, visual_img.shape()[0]);
-    auto pos_emb = mllm::models::qwen2vl::makeVisualRotaryPosEmb(rotary_pos_emb_full, visual_pos_ids, visual_grid_thw);
-    auto [visual_embedding_sin, visual_embedding_cos] = mllm::models::qwen2vl::makeVisualRotarySinCos(pos_emb);
+    Tensor visual_embedding_sin;
+    Tensor visual_embedding_cos;
+    {
+      ScopedProfile timer(&profiler_, "visual.rope_prepare");
+      auto visual_pos_ids =
+          mllm::models::qwen2vl::makeVisualRotaryPosEmbIds(visual_grid_thw, visual_cfg_.visual_spatial_merge_size);
+      auto rotary_pos_emb_full =
+          mllm::models::qwen2vl::makeVisualRotaryPosEmbFull(visual_rope_inv_freq_, visual_img.shape()[0]);
+      auto pos_emb = mllm::models::qwen2vl::makeVisualRotaryPosEmb(rotary_pos_emb_full, visual_pos_ids, visual_grid_thw);
+      auto sin_cos = mllm::models::qwen2vl::makeVisualRotarySinCos(pos_emb);
+      visual_embedding_sin = sin_cos.first;
+      visual_embedding_cos = sin_cos.second;
+    }
 
     vit_start_ = std::chrono::high_resolution_clock::now();
     if (visual_qnn_) {
+      Tensor patch_embed_hidden = Tensor::nil();
+      if (visual_bundle_layout_ == "hybrid_single") {
+        MLLM_RT_ASSERT(patch_embed != nullptr);
+        ScopedProfile timer(&profiler_, "visual.cpu_patch_embed");
+        patch_embed_hidden = (*patch_embed)(visual_img)[0];
+      }
       const int32_t half_dim = visual_cfg_.visual_embed_dim / visual_cfg_.visual_num_heads / 2;
       auto visual_sin_4d = visual_embedding_sin.view({1, -1, 1, half_dim}, false);
       auto visual_cos_4d = visual_embedding_cos.view({1, -1, 1, half_dim}, false);
-      auto bucket_embeddings =
-          runVisualQnnBundle(visual_img,
-                             visual_sin_4d,
-                             visual_cos_4d,
-                             visual_attention_mask,
-                             visual_cfg_,
-                             visual_bundle_layout_,
-                             visual_graph_suffix,
-                             &visual_modules_);
+      Tensor bucket_embeddings;
+      {
+        ScopedProfile timer(&profiler_, "visual.qnn_bundle_total");
+        bucket_embeddings = runVisualQnnBundle(visual_img,
+                                               visual_sin_4d,
+                                               visual_cos_4d,
+                                               visual_attention_mask,
+                                               visual_cfg_,
+                                               visual_bundle_layout_,
+                                               visual_graph_suffix,
+                                               visual_io_dtype_,
+                                               visual_output_qp_,
+                                               patch_embed_hidden,
+                                               visual_body_input_qp_,
+                                               &visual_modules_,
+                                               &profiler_,
+                                               visual_segments_dump_prefix_,
+                                               [this](const std::string& graph_name) { return visualSegmentOutputQP(graph_name); });
+      }
+      {
+      ScopedProfile timer(&profiler_, "visual.crop_embeddings");
       features.visual_embeddings = cropVisualEmbeddingsFromBucket(bucket_embeddings, grid_thw, visual_grid_thw, visual_cfg_);
+    }
     } else {
       MLLM_RT_ASSERT(visual != nullptr);
+      ScopedProfile timer(&profiler_, "visual.cpu_forward");
       features.visual_embeddings = (*visual)(img, visual_embedding_sin, visual_embedding_cos)[0];
     }
     vit_end_ = std::chrono::high_resolution_clock::now();
@@ -1015,6 +1516,7 @@ class Qwen2VLAOTRunner {
                visual_qnn_ ? "QNN AOT" : "CPU/KAI",
                std::chrono::duration<double>(vit_end_ - vit_start_).count());
     if (shouldDumpQwen2VLAOTStats()) {
+      ScopedProfile timer(&profiler_, "visual.embedding_stats");
       const auto* data = features.visual_embeddings.ptr<float>();
       const auto numel = features.visual_embeddings.numel();
       auto [min_it, max_it] = std::minmax_element(data, data + numel);
@@ -1026,27 +1528,33 @@ class Qwen2VLAOTRunner {
       }
       fmt::print("[Qwen2VL AOT] visual_embeddings shape=[{}, {}], range=[{:.6f}, {:.6f}], embedding_qrange=[{:.6f}, "
                  "{:.6f}], clipped={}/{} ({:.2f}%)\n",
-                 features.visual_embeddings.shape()[0], features.visual_embeddings.shape()[1], *min_it, *max_it, qmin, qmax,
-                 clipped, numel, numel > 0 ? 100.0 * static_cast<double>(clipped) / static_cast<double>(numel) : 0.0);
+               features.visual_embeddings.shape()[0], features.visual_embeddings.shape()[1], *min_it, *max_it, qmin, qmax,
+               clipped, numel, numel > 0 ? 100.0 * static_cast<double>(clipped) / static_cast<double>(numel) : 0.0);
+    }
+    if (!visual_embeddings_dump_path_.empty()) {
+      ScopedProfile timer(&profiler_, "visual.dump_embeddings");
+      writeFloatTensorBinary(visual_embeddings_dump_path_, features.visual_embeddings);
     }
 
-    features.vision_token_start = findVisionTokenStart(features.sequence, qnn_cfg_.vision_token_id);
-    MLLM_RT_ASSERT(features.vision_token_start >= 0);
-    vision_token_start_ = features.vision_token_start;
-    vision_token_count_ = features.visual_embeddings.shape()[0];
+    {
+      ScopedProfile timer(&profiler_, "llm.position_embedding_prepare");
+      features.vision_token_start = findVisionTokenStart(features.sequence, qnn_cfg_.vision_token_id);
+      MLLM_RT_ASSERT(features.vision_token_start >= 0);
+      vision_token_start_ = features.vision_token_start;
+      vision_token_count_ = features.visual_embeddings.shape()[0];
 
-    features.position_ids = makePositionIdsPrefill(features.sequence, grid_thw, qnn_cfg_);
-    auto inv = mllm::models::qwen2vl::makeMultimodalRoPEInvFreq(
-        qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads, qnn_cfg_.rope_theta);
-    auto [sin, cos] = mllm::models::qwen2vl::makeMultimodalPositionEmbedding(
-        features.position_ids, inv, qnn_cfg_.max_position_embeddings, qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads,
-        qnn_cfg_.mrope_section);
-    features.llm_embedding_sin = sin;
-    features.llm_embedding_cos = cos;
+      features.position_ids = makePositionIdsPrefill(features.sequence, grid_thw, qnn_cfg_);
+      auto [sin, cos] = mllm::models::qwen2vl::makeMultimodalPositionEmbedding(
+          features.position_ids, llm_rope_inv_freq_, qnn_cfg_.max_position_embeddings,
+          qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads, qnn_cfg_.mrope_section);
+      features.llm_embedding_sin = sin;
+      features.llm_embedding_cos = cos;
+    }
     return features;
   }
 
   int64_t prefill(const PromptFeatures& features) {
+    ScopedProfile total_timer(&profiler_, "prefill.total");
     const int64_t num_tokens = features.sequence.shape()[1];
     const auto dump_tokens = selectDumpTokens(num_tokens);
     if ((dump_block_outputs_ || dump_layer0_outputs_ || dump_visual_tokens_ || dump_logits_topk_ > 0) && !dump_path_.empty()) {
@@ -1055,39 +1563,69 @@ class Qwen2VLAOTRunner {
     int64_t processed_tokens = 0;
     int64_t current_pos = 0;
 
-    rearrangeCache(config_.ar_len);
+    {
+      ScopedProfile timer(&profiler_, "prefill.rearrange_cache");
+      rearrangeCache(config_.ar_len);
+    }
 
-    std::vector<int32_t> attention_map(config_.ar_len);
-    std::iota(attention_map.begin(), attention_map.end(), -1);
-    kv_manager_u8_->initAttentionMask(prefill_io_.inputs[3].ptr<uint16_t>(), attention_map, config_.ar_len, 0,
-                                      config_.sliding_window);
-    prefill_io_.module->setOutputTensors(prefill_io_.outputs);
+    {
+      ScopedProfile timer(&profiler_, "prefill.init_attention_mask");
+      std::vector<int32_t> attention_map(config_.ar_len);
+      std::iota(attention_map.begin(), attention_map.end(), -1);
+      kv_manager_u8_->initAttentionMask(prefill_io_.inputs[3].ptr<uint16_t>(), attention_map, config_.ar_len, 0,
+                                        config_.sliding_window);
+      prefill_io_.module->setOutputTensors(prefill_io_.outputs);
+    }
 
     int64_t next_token = 0;
     while (processed_tokens < num_tokens) {
+      ScopedProfile chunk_timer(&profiler_, "prefill.chunk_total");
       const int32_t chunk = static_cast<int32_t>(std::min<int64_t>(config_.ar_len, num_tokens - processed_tokens));
-      fillEmbeddingChunk(features.sequence, embedding_weight_, features.visual_embeddings, features.vision_token_start,
-                         processed_tokens, chunk, prefill_io_.inputs[0], embedding_weight_qp_, input_embedding_qp_,
-                         qnn_cfg_.hidden_size);
-      fillQuantizedFloatChunk(features.llm_embedding_sin, processed_tokens, chunk, prefill_io_.inputs[1], sin_qp_,
-                              config_.head_dim);
-      fillQuantizedFloatChunk(features.llm_embedding_cos, processed_tokens, chunk, prefill_io_.inputs[2], cos_qp_,
-                              config_.head_dim);
+      {
+        ScopedProfile timer(&profiler_, "prefill.fill_input_embeddings");
+        fillEmbeddingChunk(features.sequence, embedding_weight_, features.visual_embeddings, features.vision_token_start,
+                           processed_tokens, chunk, prefill_io_.inputs[0], embedding_weight_qp_, input_embedding_qp_,
+                           qnn_cfg_.hidden_size);
+      }
+      {
+        ScopedProfile timer(&profiler_, "prefill.fill_rope");
+        fillQuantizedFloatChunk(features.llm_embedding_sin, processed_tokens, chunk, prefill_io_.inputs[1], sin_qp_,
+                                config_.head_dim);
+        fillQuantizedFloatChunk(features.llm_embedding_cos, processed_tokens, chunk, prefill_io_.inputs[2], cos_qp_,
+                                config_.head_dim);
+      }
 
       auto module_inputs = prefill_io_.inputs;
-      prefill_io_.outputs = (*prefill_io_.module)(module_inputs);
+      {
+        ScopedProfile timer(&profiler_, "prefill.qnn_execute");
+        prefill_io_.outputs = (*prefill_io_.module)(module_inputs);
+      }
       if (dump_block_outputs_ || dump_layer0_outputs_ || dump_visual_tokens_) {
+        ScopedProfile timer(&profiler_, "prefill.dump_debug_outputs");
         dumpPrefillDebugOutputs(prefill_io_.inputs, prefill_io_.outputs, chunk, processed_tokens, dump_tokens);
       }
 
-      updateCache(config_.ar_len, current_pos, chunk);
-      kv_manager_u8_->updateAttentionMask(prefill_io_.inputs[3].ptr<uint16_t>(), config_.ar_len, current_pos, chunk,
-                                          config_.sliding_window);
+      {
+        ScopedProfile timer(&profiler_, "prefill.update_cache");
+        updateCache(config_.ar_len, current_pos, chunk);
+      }
+      {
+        ScopedProfile timer(&profiler_, "prefill.update_attention_mask");
+        kv_manager_u8_->updateAttentionMask(prefill_io_.inputs[3].ptr<uint16_t>(), config_.ar_len, current_pos, chunk,
+                                            config_.sliding_window);
+      }
 
-      const int32_t logits_idx = static_cast<int32_t>((processed_tokens + chunk - 1) % config_.ar_len);
-      next_token = sampleGreedyFromLogitsAt(prefill_io_.outputs[0], logits_idx);
-      if (dump_logits_topk_ > 0 && processed_tokens + chunk == num_tokens) {
-        dumpLogitsTopK(prefill_io_.outputs[0], logits_idx, static_cast<int32_t>(processed_tokens + chunk - 1), "prefill");
+      const bool is_final_chunk = processed_tokens + chunk == num_tokens;
+      if (is_final_chunk) {
+        const int32_t logits_idx = chunk - 1;
+        {
+          ScopedProfile timer(&profiler_, "prefill.sample_logits");
+          next_token = sampleGreedyFromLogitsAt(prefill_io_.outputs[0], logits_idx);
+        }
+        if (dump_logits_topk_ > 0) {
+          ScopedProfile timer(&profiler_, "prefill.dump_logits_topk");
+          dumpLogitsTopK(prefill_io_.outputs[0], logits_idx, static_cast<int32_t>(processed_tokens + chunk - 1), "prefill");
+        }
       }
 
       processed_tokens += chunk;
@@ -1100,35 +1638,67 @@ class Qwen2VLAOTRunner {
   }
 
   int64_t decodeOne(int64_t token) {
-    rearrangeCache(1);
-    auto position_ids = makePositionIdsDecode(prev_position_ids_);
-    prev_position_ids_ = position_ids;
+    ScopedProfile step_timer(&profiler_, "decode.step_total");
+    {
+      ScopedProfile timer(&profiler_, "decode.rearrange_cache");
+      rearrangeCache(1);
+    }
+    Tensor position_ids;
+    {
+      ScopedProfile timer(&profiler_, "decode.position_ids");
+      position_ids = makePositionIdsDecode(prev_position_ids_);
+      prev_position_ids_ = position_ids;
+    }
 
-    std::vector<int32_t> attention_map(1);
-    std::iota(attention_map.begin(), attention_map.end(), -1);
-    kv_manager_u8_->initAttentionMask(decode_io_.inputs[3].ptr<uint16_t>(), attention_map, 1, current_pos_,
-                                      config_.sliding_window);
+    {
+      ScopedProfile timer(&profiler_, "decode.init_attention_mask");
+      std::vector<int32_t> attention_map(1);
+      std::iota(attention_map.begin(), attention_map.end(), -1);
+      kv_manager_u8_->initAttentionMask(decode_io_.inputs[3].ptr<uint16_t>(), attention_map, 1, current_pos_,
+                                        config_.sliding_window);
+    }
 
-    auto token_tensor = Tensor::empty({1, 1}, mllm::kInt64, mllm::kCPU).alloc();
-    token_tensor.ptr<int64_t>()[0] = token;
+    decode_token_tensor_.ptr<int64_t>()[0] = token;
     auto visual_nil = Tensor::nil();
-    fillEmbeddingChunk(token_tensor, embedding_weight_, visual_nil, 0, 0, 1, decode_io_.inputs[0], embedding_weight_qp_,
-                       input_embedding_qp_, qnn_cfg_.hidden_size);
+    {
+      ScopedProfile timer(&profiler_, "decode.fill_input_embeddings");
+      fillEmbeddingChunk(decode_token_tensor_,
+                         embedding_weight_,
+                         visual_nil,
+                         0,
+                         0,
+                         1,
+                         decode_io_.inputs[0],
+                         embedding_weight_qp_,
+                         input_embedding_qp_,
+                         qnn_cfg_.hidden_size);
+    }
 
-    auto inv = mllm::models::qwen2vl::makeMultimodalRoPEInvFreq(
-        qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads, qnn_cfg_.rope_theta);
-    auto [sin, cos] = mllm::models::qwen2vl::makeMultimodalPositionEmbedding(
-        position_ids, inv, qnn_cfg_.max_position_embeddings, qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads,
-        qnn_cfg_.mrope_section);
-    fillQuantizedFloatChunk(sin, 0, 1, decode_io_.inputs[1], sin_qp_, config_.head_dim);
-    fillQuantizedFloatChunk(cos, 0, 1, decode_io_.inputs[2], cos_qp_, config_.head_dim);
+    {
+      ScopedProfile timer(&profiler_, "decode.fill_rope");
+      auto [sin, cos] = mllm::models::qwen2vl::makeMultimodalPositionEmbedding(
+          position_ids, llm_rope_inv_freq_, qnn_cfg_.max_position_embeddings, qnn_cfg_.hidden_size / qnn_cfg_.num_attention_heads,
+          qnn_cfg_.mrope_section);
+      fillQuantizedFloatChunk(sin, 0, 1, decode_io_.inputs[1], sin_qp_, config_.head_dim);
+      fillQuantizedFloatChunk(cos, 0, 1, decode_io_.inputs[2], cos_qp_, config_.head_dim);
+    }
 
     decode_io_.module->setOutputTensors(decode_io_.outputs);
     auto module_inputs = decode_io_.inputs;
-    decode_io_.outputs = (*decode_io_.module)(module_inputs);
+    {
+      ScopedProfile timer(&profiler_, "decode.qnn_execute");
+      decode_io_.outputs = (*decode_io_.module)(module_inputs);
+    }
 
-    updateCache(1, current_pos_, 1);
-    auto next_token = sampleGreedyFromLogitsAt(decode_io_.outputs[0], 0);
+    {
+      ScopedProfile timer(&profiler_, "decode.update_cache");
+      updateCache(1, current_pos_, 1);
+    }
+    int64_t next_token = 0;
+    {
+      ScopedProfile timer(&profiler_, "decode.sample_logits");
+      next_token = sampleGreedyFromLogitsAt(decode_io_.outputs[0], 0);
+    }
     ++current_pos_;
     return next_token;
   }
@@ -1142,7 +1712,10 @@ class Qwen2VLAOTRunner {
     prefill_end_ = std::chrono::high_resolution_clock::now();
 
     generated_tokens_ = 1;
-    emitToken(next_token, tokenizer, token_callback);
+    {
+      ScopedProfile timer(&profiler_, "token.emit");
+      emitToken(next_token, tokenizer, token_callback);
+    }
 
     decode_start_ = std::chrono::high_resolution_clock::now();
     for (int32_t i = 1; i < gen_len; ++i) {
@@ -1150,7 +1723,10 @@ class Qwen2VLAOTRunner {
       if (eos_ids_.count(next_token)) { break; }
       next_token = decodeOne(next_token);
       ++generated_tokens_;
-      emitToken(next_token, tokenizer, token_callback);
+      {
+        ScopedProfile timer(&profiler_, "token.emit");
+        emitToken(next_token, tokenizer, token_callback);
+      }
       if (eos_ids_.count(next_token)) { break; }
     }
     decode_end_ = std::chrono::high_resolution_clock::now();
@@ -1217,6 +1793,10 @@ class Qwen2VLAOTRunner {
   QuantParams sin_qp_;
   QuantParams cos_qp_;
   QuantParams logits_qp_;
+  QuantParams visual_output_qp_;
+  QuantParams visual_body_input_qp_;
+  Tensor visual_rope_inv_freq_;
+  Tensor llm_rope_inv_freq_;
   std::vector<QuantParams> block_out_qps_;
   std::vector<std::pair<std::string, QuantParams>> layer0_output_qps_;
   QnnAOTConfig config_;
@@ -1224,6 +1804,7 @@ class Qwen2VLAOTRunner {
   std::unique_ptr<KVCacheManager<uint16_t>> key_cache_manager_u16_;
   RuntimeIO prefill_io_;
   RuntimeIO decode_io_;
+  Tensor decode_token_tensor_;
   QnnAOTModuleCache visual_modules_;
   Tensor prev_position_ids_;
   int64_t current_pos_ = 0;
@@ -1234,11 +1815,16 @@ class Qwen2VLAOTRunner {
   bool dump_visual_tokens_ = false;
   bool key_cache_uint16_ = false;
   bool visual_qnn_ = false;
+  bool visual_only_ = false;
   std::string visual_bundle_layout_ = "6x8";
   std::vector<VisualBucketGrid> visual_bucket_grids_;
+  VisualIODType visual_io_dtype_ = VisualIODType::kUInt16;
+  float visual_qdq_scale_multiplier_ = 1.0f;
   int32_t dump_logits_topk_ = 0;
   std::vector<int32_t> dump_token_indices_;
   std::string dump_path_;
+  std::string visual_embeddings_dump_path_;
+  std::string visual_segments_dump_prefix_;
   std::vector<int64_t> prompt_token_ids_;
   int32_t vision_token_start_ = -1;
   int32_t vision_token_count_ = 0;
@@ -1249,6 +1835,7 @@ class Qwen2VLAOTRunner {
   std::chrono::high_resolution_clock::time_point prefill_end_;
   std::chrono::high_resolution_clock::time_point decode_start_;
   std::chrono::high_resolution_clock::time_point decode_end_;
+  RequestProfiler profiler_;
 
   static float dequantizeUInt16(uint16_t value, const QuantParams& qp) {
     return (static_cast<int32_t>(value) - qp.zero_point) * qp.scale;
@@ -1305,6 +1892,16 @@ class Qwen2VLAOTRunner {
     const int32_t start = std::max<int32_t>(0, seq_len - 16);
     for (int32_t i = start; i < seq_len; ++i) { fmt::print("{}{}", i == start ? "" : ",", prompt_token_ids_[i]); }
     fmt::print("\n");
+  }
+
+  QuantParams visualSegmentOutputQP(const std::string& graph_name) const {
+    auto qp_name = visualGraphOutputQDQName(graph_name, visual_cfg_.visual_depth);
+    if (qp_name == "visual.merger.mlp.2_output_qdq") { return visual_output_qp_; }
+    auto qp = readQuantParams(qnn_params_, qp_name + ".fake_quant.scale", qp_name + ".fake_quant.zero_point");
+    if (visual_qdq_scale_multiplier_ > 0.0f && std::abs(visual_qdq_scale_multiplier_ - 1.0f) >= 1e-6f) {
+      qp.scale *= visual_qdq_scale_multiplier_;
+    }
+    return qp;
   }
 
   void dumpTokenIdLine(std::ofstream& out, const char* label, int32_t begin, int32_t end) const {
@@ -1559,7 +2156,7 @@ mllm::models::ARGenerationOutputPast makeRequestInputs(Qwen2VLTokenizer& tokeniz
                                                        bool visual_qnn,
                                                        const std::vector<VisualBucketGrid>& visual_bucket_grids) {
   const auto resize_override =
-      visual_qnn ? chooseVisualResizeOverrideForOversizedImage(image_path, visual_bucket_grids) : VisualResizeOverride{};
+      visual_qnn ? chooseVisualResizeOverrideForImage(image_path, visual_bucket_grids) : VisualResizeOverride{};
   if (resize_override.enabled) {
     fmt::print("[Qwen2VL AOT] visual oversized fallback: native_grid={}x{} patches={} -> resize_grid={}x{} patches={} "
                "within bucket_grid={}x{} patches={} graph_suffix={}\n",
@@ -1573,38 +2170,54 @@ mllm::models::ARGenerationOutputPast makeRequestInputs(Qwen2VLTokenizer& tokeniz
                resize_override.bucket.grid_w,
                resize_override.bucket.patchTokens(),
                visualGraphSuffixForPatchTokens(resize_override.bucket.patchTokens()));
+    return tokenizer.convertMessage({.prompt = prompt, .img_file_path = image_path},
+                                    resize_override.resize_grid_h,
+                                    resize_override.resize_grid_w);
   }
-  return resize_override.enabled
-             ? tokenizer.convertMessage({.prompt = prompt, .img_file_path = image_path},
-                                        resize_override.resize_grid_h,
-                                        resize_override.resize_grid_w)
-             : tokenizer.convertMessage({.prompt = prompt, .img_file_path = image_path});
+  return tokenizer.convertMessage({.prompt = prompt, .img_file_path = image_path});
 }
 
 void runOneRequest(Qwen2VLAOTRunner& runner,
                    Qwen2VLTokenizer& tokenizer,
                    mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel* visual,
+                   Qwen2VLPatchEmbedOnly* patch_embed,
                    const std::string& image_path,
                    const std::string& prompt,
                    bool visual_qnn,
                    const std::vector<VisualBucketGrid>& visual_bucket_grids,
-                   int32_t gen_len) {
-  auto inputs = makeRequestInputs(tokenizer, image_path, prompt, visual_qnn, visual_bucket_grids);
+                   int32_t gen_len,
+                   bool visual_only = false) {
   runner.resetStateForRequest();
-  auto features = runner.preparePrompt(inputs, visual);
-  fmt::print("\nResponse: ");
-  runner.generate(features, tokenizer, gen_len, [](const std::string& token) { std::cout << token << std::flush; });
-  fmt::print("\n");
-  runner.perfSummary();
+  bool ran_llm = false;
+  {
+    ScopedProfile request_timer(runner.profiler(), "request.total");
+    auto inputs = [&]() {
+      ScopedProfile timer(runner.profiler(), "request.make_inputs");
+      return makeRequestInputs(tokenizer, image_path, prompt, visual_qnn, visual_bucket_grids);
+    }();
+    auto features = runner.preparePrompt(inputs, visual, patch_embed);
+    if (visual_only) {
+      fmt::print("\n[Qwen2VL AOT] visual-only mode: skipped LLM prefill/decode after visual embedding dump.\n");
+    } else {
+      fmt::print("\nResponse: ");
+      runner.generate(features, tokenizer, gen_len, [](const std::string& token) { std::cout << token << std::flush; });
+      fmt::print("\n");
+      ran_llm = true;
+    }
+  }
+  if (ran_llm) { runner.perfSummary(); }
+  runner.printProfileSummary();
 }
 
 void runInteractiveLoop(Qwen2VLAOTRunner& runner,
                         Qwen2VLTokenizer& tokenizer,
                         mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel* visual,
+                        Qwen2VLPatchEmbedOnly* patch_embed,
                         bool visual_qnn,
                         const std::vector<VisualBucketGrid>& visual_bucket_grids,
                         const std::string& default_prompt,
-                        int32_t gen_len) {
+                        int32_t gen_len,
+                        bool visual_only = false) {
   fmt::print("\n[Qwen2VL AOT] interactive mode is ready. Enter an image path per request; /exit quits.\n");
   fmt::print("[Qwen2VL AOT] default prompt: {}\n", default_prompt);
 
@@ -1626,7 +2239,8 @@ void runInteractiveLoop(Qwen2VLAOTRunner& runner,
     if (prompt.empty()) { prompt = default_prompt; }
 
     fmt::print("[Qwen2VL AOT] running request: image={}, gen_len={}\n", image_path, gen_len);
-    runOneRequest(runner, tokenizer, visual, image_path, prompt, visual_qnn, visual_bucket_grids, gen_len);
+    runOneRequest(runner, tokenizer, visual, patch_embed, image_path, prompt, visual_qnn, visual_bucket_grids, gen_len,
+                  visual_only);
   }
 
   fmt::print("\n[Qwen2VL AOT] interactive mode stopped.\n");
@@ -1651,6 +2265,8 @@ MLLM_MAIN({
   auto& prompt = Argparse::add<std::string>("-p|--prompt").help("prompt text").def("Describe this picture.");
   auto& interactive =
       Argparse::add<bool>("--interactive").help("Run repeated image/prompt requests in one process after model initialization.");
+  auto& visual_only =
+      Argparse::add<bool>("--visual_only").help("Run only image preprocessing/ViT and optional visual embedding dump.");
   auto& ar_len = Argparse::add<int>("--ar_len").help("prefill graph chunk length").def(32);
   auto& context_len = Argparse::add<int>("--context_len").help("QNN context length").def(1024);
   auto& gen_len = Argparse::add<int>("--gen_len").help("max generated tokens").def(96);
@@ -1678,6 +2294,14 @@ MLLM_MAIN({
   auto& dump_path = Argparse::add<std::string>("--dump_path")
                         .help("Path on device for debug vector dump.")
                         .def("/data/local/tmp/qwen2vl_qnn_aot_debug_dump.log");
+  auto& dump_visual_embeddings =
+      Argparse::add<std::string>("--dump_visual_embeddings")
+          .help("Optional path to write the full cropped visual embeddings as a binary Float32 tensor.")
+          .def("");
+  auto& dump_visual_segments_prefix =
+      Argparse::add<std::string>("--dump_visual_segments_prefix")
+          .help("Optional prefix to write each visual QNN segment output as Float32 tensor binaries.")
+          .def("");
   auto& key_cache_dtype =
       Argparse::add<std::string>("--key_cache_dtype")
           .help("Key cache dtype for experimental contexts: uint8 or uint16. Value cache remains uint8.")
@@ -1685,10 +2309,30 @@ MLLM_MAIN({
   auto& visual_qnn =
       Argparse::add<bool>("--visual_qnn").help("Use visual graphs from the loaded combined QNN context instead of CPU/KAI visual.");
   auto& visual_bundle_layout =
-      Argparse::add<std::string>("--visual_bundle_layout").help("visual QNN bundle layout: single, 6x8, early2 or tail4.").def("6x8");
+      Argparse::add<std::string>("--visual_bundle_layout")
+          .help("visual QNN bundle layout: single, hybrid_single, 6x8, early2 or tail4.")
+          .def("6x8");
+  auto& visual_io_dtype =
+      Argparse::add<std::string>("--visual_io_dtype")
+          .help("visual QNN graph input/output dtype: uint16 for quantized visual, fp32/fp16 for raw float single visual.")
+          .def("uint16");
   auto& visual_bucket_grids = Argparse::add<std::string>("--visual_bucket_grids")
                                   .help("Comma-separated visual QNN patch-grid buckets HxW. Example: 10x16,12x16,26x36.")
                                   .def("");
+  auto& visual_output_scale =
+      Argparse::add<float>("--visual_output_scale")
+          .help("Override visual QNN final output UInt16 scale used when dequantizing visual embeddings. Defaults to "
+                "the baseline FP32/W32A32 visual single-graph QP when --qnn_params has no visual QDQ tensors.")
+          .def(-1.0f);
+  auto& visual_output_zero_point =
+      Argparse::add<int>("--visual_output_zero_point")
+          .help("Override visual QNN final output UInt16 zero point used when dequantizing visual embeddings. Defaults "
+                "to the baseline FP32/W32A32 visual single-graph QP when --qnn_params has no visual QDQ tensors.")
+          .def(-1);
+  auto& visual_qdq_scale_multiplier =
+      Argparse::add<float>("--visual_qdq_scale_multiplier")
+          .help("Runtime multiplier for visual activation QDQ scales. Must match context compilation for hybrid_single.")
+          .def(1.0f);
 
   Argparse::parse(argc, argv);
   if (help.isSet()) {
@@ -1706,8 +2350,18 @@ MLLM_MAIN({
     std::cerr << "--key_cache_dtype must be uint8 or uint16\n";
     return 1;
   }
+  const bool override_visual_output_qp = visual_output_scale.get() > 0.0f || visual_output_zero_point.get() >= 0;
+  if (override_visual_output_qp && (visual_output_scale.get() <= 0.0f || visual_output_zero_point.get() < 0)) {
+    std::cerr << "visual output override requires both --visual_output_scale and --visual_output_zero_point\n";
+    return 1;
+  }
   if (!interactive.isSet() && !image_path.isSet()) {
     std::cerr << "-i/--image is required unless --interactive is set\n";
+    return 1;
+  }
+  const auto parsed_visual_io_dtype = parseVisualIODType(visual_io_dtype.get());
+  if (visual_qnn.isSet() && isRawFloatVisualIO(parsed_visual_io_dtype) && visual_bundle_layout.get() != "single") {
+    std::cerr << "--visual_io_dtype=fp16/fp32 requires --visual_bundle_layout=single\n";
     return 1;
   }
 
@@ -1719,26 +2373,39 @@ MLLM_MAIN({
 
   auto qnn_params = mllm::load(qnn_params_path.get(), mllm::ModelFileVersion::kV2);
   std::unique_ptr<mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel> visual;
-  if (!visual_qnn.isSet()) {
+  std::unique_ptr<Qwen2VLPatchEmbedOnly> patch_embed;
+  const bool visual_hybrid_single = visual_qnn.isSet() && visual_bundle_layout.get() == "hybrid_single";
+  if (!visual_qnn.isSet() || visual_hybrid_single) {
     if (!visual_model_path.isSet()) {
-      std::cerr << "--visual_model is required when --visual_qnn is not set\n";
+      std::cerr << "--visual_model is required when --visual_qnn is not set or --visual_bundle_layout=hybrid_single\n";
       return 1;
     }
     mllm::ModelFileVersion visual_file_version = mllm::ModelFileVersion::kV2;
     if (visual_model_version.get() == "v1") { visual_file_version = mllm::ModelFileVersion::kV1; }
     auto visual_params = mllm::load(visual_model_path.get(), visual_file_version);
-    visual = std::make_unique<mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel>("visual", visual_cfg);
-    visual->load(visual_params);
+    if (visual_hybrid_single) {
+      patch_embed = std::make_unique<Qwen2VLPatchEmbedOnly>("visual", visual_cfg);
+      patch_embed->load(visual_params);
+      fmt::print("[Qwen2VL AOT] hybrid_single enabled: CPU/KAI patch_embed from --visual_model, QNN visual_body from context.\n");
+    } else {
+      visual = std::make_unique<mllm::models::qwen2vl::Qwen2VisionTransformerPretrainedModel>("visual", visual_cfg);
+      visual->load(visual_params);
+    }
   }
 
   auto parsed_visual_bucket_grids = parseVisualBucketGrids(visual_bucket_grids.get());
 
   Qwen2VLAOTRunner runner(qnn_cfg, visual_cfg, qnn_params, ar_len.get(), context_len.get(), input_embedding_scale.get(),
                           input_embedding_zero_point.get(), dump_block_outputs.isSet(), dump_layer0_outputs.isSet(),
-                          dump_visual_tokens.isSet(), key_cache_uint16, visual_qnn.isSet(), visual_bundle_layout.get(),
+                          dump_visual_tokens.isSet(), key_cache_uint16, visual_qnn.isSet(), visual_only.isSet(),
+                          visual_bundle_layout.get(),
                           parsed_visual_bucket_grids,
+                          parsed_visual_io_dtype,
+                          visual_output_scale.get(), visual_output_zero_point.get(), visual_qdq_scale_multiplier.get(),
                           dump_logits_topk.get(),
-                          parseDumpTokenIndices(dump_token_indices.get()), dump_path.get());
+                          parseDumpTokenIndices(dump_token_indices.get()), dump_path.get(),
+                          dump_visual_embeddings.get(),
+                          dump_visual_segments_prefix.get());
   if (!runner.load()) {
     std::cerr << "Failed to load Qwen2-VL QNN AOT runner\n";
     return 1;
@@ -1748,19 +2415,23 @@ MLLM_MAIN({
     runInteractiveLoop(runner,
                        tokenizer,
                        visual.get(),
+                       patch_embed.get(),
                        visual_qnn.isSet(),
                        parsed_visual_bucket_grids,
                        prompt.get(),
-                       gen_len.get());
+                       gen_len.get(),
+                       visual_only.isSet());
   } else {
     runOneRequest(runner,
                   tokenizer,
                   visual.get(),
+                  patch_embed.get(),
                   image_path.get(),
                   prompt.get(),
                   visual_qnn.isSet(),
                   parsed_visual_bucket_grids,
-                  gen_len.get());
+                  gen_len.get(),
+                  visual_only.isSet());
   }
   mllm::memoryReport();
   return 0;

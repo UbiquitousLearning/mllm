@@ -9,6 +9,7 @@
 #include <cmath>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <unordered_set>
 #include <vector>
 
@@ -286,6 +287,46 @@ inline std::vector<int32_t> uniqueVisualBucketPatchTokens(const std::vector<Visu
 
 inline std::string visualGraphSuffixForPatchTokens(int32_t patch_tokens) { return "_s" + std::to_string(patch_tokens); }
 
+inline std::string visualBlockInputQDQName(int32_t block_idx) {
+  return "visual.blocks." + std::to_string(block_idx) + ".attn.qkv_input_qdq";
+}
+
+inline std::string stripVisualGraphSuffix(const std::string& graph_name) {
+  const auto pos = graph_name.rfind("_s");
+  if (pos == std::string::npos || pos + 2 >= graph_name.size()) { return graph_name; }
+  const auto suffix_is_digits =
+      std::all_of(graph_name.begin() + static_cast<std::ptrdiff_t>(pos + 2),
+                  graph_name.end(),
+                  [](unsigned char ch) { return std::isdigit(ch); });
+  return suffix_is_digits ? graph_name.substr(0, pos) : graph_name;
+}
+
+inline std::string visualGraphOutputQDQName(const std::string& graph_name, int32_t visual_depth) {
+  const auto base = stripVisualGraphSuffix(graph_name);
+  if (base == "visual_full" || base == "visual_body" || base == "visual_merger") {
+    return "visual.merger.mlp.2_output_qdq";
+  }
+  if (base == "visual_patch_embed") { return "visual.blocks.0.attn.qkv_input_qdq"; }
+
+  constexpr const char* prefix = "visual_blocks_";
+  if (base.rfind(prefix, 0) == 0) {
+    const auto mid = base.find('_', std::strlen(prefix));
+    if (mid != std::string::npos) {
+      const auto end_block = std::stoi(base.substr(mid + 1));
+      return end_block < visual_depth ? "visual.blocks." + std::to_string(end_block) + ".attn.qkv_input_qdq"
+                                      : "visual.merger.mlp.0_input_qdq";
+    }
+  }
+
+  MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError, "Cannot infer visual output QDQ for graph {}", graph_name);
+}
+
+inline std::string visualSegmentInputQDQName(const VisualSegment& segment, int32_t visual_depth) {
+  if (!segment.skip_patch_embed) { return ""; }
+  if (segment.visual_blocks > 0) { return visualBlockInputQDQName(segment.start_block); }
+  return segment.start_block >= visual_depth ? "" : "visual.merger.mlp.0_input_qdq";
+}
+
 inline void reshapePatchEmbedConv3DWeightForLinear(const mllm::ParameterFile::ptr_t& params,
                                                    const mllm::models::qwen2vl::Qwen2VLConfig& cfg) {
   const std::string weight_name = "visual.patch_embed.proj.weight";
@@ -294,6 +335,13 @@ inline void reshapePatchEmbedConv3DWeightForLinear(const mllm::ParameterFile::pt
   const int32_t patch_dim = cfg.visual_in_chans * cfg.visual_temporal_patch_size * cfg.visual_patch_size * cfg.visual_patch_size;
   auto weight = params->pull(weight_name);
   MLLM_RT_ASSERT_EQ(weight.numel(), cfg.visual_embed_dim * patch_dim);
+
+  if (weight.dtype() == mllm::kInt8) {
+    if (weight.rank() == 4 && weight.size(-2) == patch_dim && weight.size(-1) == cfg.visual_embed_dim) { return; }
+    MLLM_ERROR_EXIT(mllm::ExitCode::kCoreError,
+                    "{} is already int8 but has unexpected LPBQ layout; expected [1,1,{},{}], got rank={}, last2=[{},{}]",
+                    weight_name, patch_dim, cfg.visual_embed_dim, weight.rank(), weight.size(-2), weight.size(-1));
+  }
 
   params->remove(weight_name);
   params->push(weight_name, weight.view({cfg.visual_embed_dim, patch_dim}));
@@ -309,6 +357,10 @@ inline std::vector<VisualSegment> makeVisualBundleSegments(const std::string& la
   if (layout == "single") {
     segments = {
         {"visual_full" + graph_suffix, 0, visual_depth, false, false, {visual_patch_tokens, patch_flat_dim}, "full" + graph_suffix},
+    };
+  } else if (layout == "hybrid_single") {
+    segments = {
+        {"visual_body" + graph_suffix, 0, visual_depth, true, false, {visual_patch_tokens, cfg.visual_embed_dim}, "body" + graph_suffix},
     };
   } else if (layout == "6x8") {
     segments = {

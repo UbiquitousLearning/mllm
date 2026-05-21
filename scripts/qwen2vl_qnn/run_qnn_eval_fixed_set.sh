@@ -12,8 +12,8 @@ REMOTE_QNN_DIR="${REMOTE_QNN_DIR:-/data/local/tmp/mllm-qwen2vl-qnn}"
 REMOTE_CPU_DIR="${REMOTE_CPU_DIR:-/data/local/tmp/mllm-qwen2vl}"
 REMOTE_IMAGE_DIR="${REMOTE_IMAGE_DIR:-${REMOTE_CPU_DIR}/images/eval}"
 
-CONTEXT="${CONTEXT:-models/qwen2vl-2b-sm8650-qnn234-fullqnn-5bucket-baseline-v1.bin}"
-QNN_PARAMS="${QNN_PARAMS:-models/qwen2vl-2b-sm8650-qnn234-lpbq-baseline-v1.mllm}"
+CONTEXT="${CONTEXT:-models/qwen2vl-2b-sm8650-qnn234-fullqnn-5bucket-visualfp16-v1.bin}"
+QNN_PARAMS="${QNN_PARAMS:-models/qwen2vl-2b-sm8650-qnn234-lpbq-visualfp16-vprojg16.mllm}"
 TOKENIZER="${TOKENIZER:-${REMOTE_CPU_DIR}/tokenizer/tokenizer.json}"
 QNN_CONFIG="${QNN_CONFIG:-config/config_2B_qnn_lpbq.json}"
 VISUAL_MODEL="${VISUAL_MODEL:-${REMOTE_CPU_DIR}/models/qwen2vl-2b-w4a32-kai.mllm}"
@@ -21,6 +21,7 @@ VISUAL_CONFIG="${VISUAL_CONFIG:-${REMOTE_CPU_DIR}/config/config_2B_w32a32.json}"
 VISUAL_MODEL_VERSION="${VISUAL_MODEL_VERSION:-v2}"
 VISUAL_QNN="${VISUAL_QNN:-1}"
 VISUAL_BUNDLE_LAYOUT="${VISUAL_BUNDLE_LAYOUT:-single}"
+VISUAL_IO_DTYPE="${VISUAL_IO_DTYPE:-fp16}"
 VISUAL_BUCKET_GRIDS="${VISUAL_BUCKET_GRIDS:-12x16,16x24,24x24,24x32,18x52,52x18,26x36,36x26}"
 
 AR_LEN="${AR_LEN:-32}"
@@ -28,8 +29,10 @@ CONTEXT_LEN="${CONTEXT_LEN:-1024}"
 GEN_LEN="${GEN_LEN:-120}"
 INPUT_EMBEDDING_SCALE="${INPUT_EMBEDDING_SCALE:-0.002563515}"
 INPUT_EMBEDDING_ZERO_POINT="${INPUT_EMBEDDING_ZERO_POINT:-15604}"
+VISUAL_OUTPUT_SCALE="${VISUAL_OUTPUT_SCALE:--1}"
+VISUAL_OUTPUT_ZERO_POINT="${VISUAL_OUTPUT_ZERO_POINT:--1}"
 KEY_CACHE_DTYPE="${KEY_CACHE_DTYPE:-uint8}"
-DUMP_STATS="${DUMP_STATS:-1}"
+DUMP_STATS="${DUMP_STATS:-0}"
 PUSH_ASSETS="${PUSH_ASSETS:-1}"
 OUT_ROOT="${OUT_ROOT:-${QWEN2VL_QNN_REPO_ROOT}/logs/qwen2vl_qnn_eval}"
 RUN_ID="${RUN_ID:-$(timestamp)}"
@@ -53,12 +56,15 @@ visual_model=${VISUAL_MODEL}
 visual_config=${VISUAL_CONFIG}
 visual_qnn=${VISUAL_QNN}
 visual_bundle_layout=${VISUAL_BUNDLE_LAYOUT}
+visual_io_dtype=${VISUAL_IO_DTYPE}
 visual_bucket_grids=${VISUAL_BUCKET_GRIDS}
 ar_len=${AR_LEN}
 context_len=${CONTEXT_LEN}
 gen_len=${GEN_LEN}
 input_embedding_scale=${INPUT_EMBEDDING_SCALE}
 input_embedding_zero_point=${INPUT_EMBEDDING_ZERO_POINT}
+visual_output_scale=${VISUAL_OUTPUT_SCALE}
+visual_output_zero_point=${VISUAL_OUTPUT_ZERO_POINT}
 key_cache_dtype=${KEY_CACHE_DTYPE}
 EOF
 
@@ -70,9 +76,12 @@ while IFS='|' read -r case_id image_file prompt; do
   log_file="${OUT_DIR}/${case_id}.log"
   visual_args=""
   if [[ "${VISUAL_QNN}" == "1" ]]; then
-    visual_args="--visual_qnn --visual_bundle_layout $(remote_quote "${VISUAL_BUNDLE_LAYOUT}")"
+    visual_args="--visual_qnn --visual_bundle_layout $(remote_quote "${VISUAL_BUNDLE_LAYOUT}") --visual_io_dtype $(remote_quote "${VISUAL_IO_DTYPE}")"
     if [[ -n "${VISUAL_BUCKET_GRIDS}" ]]; then
       visual_args="${visual_args} --visual_bucket_grids $(remote_quote "${VISUAL_BUCKET_GRIDS}")"
+    fi
+    if [[ "${VISUAL_BUNDLE_LAYOUT}" == "hybrid_single" ]]; then
+      visual_args="${visual_args} --visual_model $(remote_quote "${VISUAL_MODEL}") --visual_model_version $(remote_quote "${VISUAL_MODEL_VERSION}")"
     fi
   else
     visual_args="--visual_model $(remote_quote "${VISUAL_MODEL}") --visual_model_version $(remote_quote "${VISUAL_MODEL_VERSION}")"
@@ -103,6 +112,8 @@ export ADSP_LIBRARY_PATH=\"\$PWD/lib;/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/sys
   --gen_len ${GEN_LEN} \
   --input_embedding_scale ${INPUT_EMBEDDING_SCALE} \
   --input_embedding_zero_point ${INPUT_EMBEDDING_ZERO_POINT} \
+  --visual_output_scale ${VISUAL_OUTPUT_SCALE} \
+  --visual_output_zero_point ${VISUAL_OUTPUT_ZERO_POINT} \
   --key_cache_dtype $(remote_quote "${KEY_CACHE_DTYPE}")
 "
 

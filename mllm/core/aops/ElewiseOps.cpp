@@ -44,6 +44,12 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
           i_irs[1]->setAttr("constant", ctx->create<ir::VectorFP32Attr>(inputs[1].toVector<float>()));     \
           break;                                                                                           \
         }                                                                                                  \
+        case kFloat16: {                                                                                   \
+          auto fp16_constant = inputs[1];                                                                  \
+          auto fp32_constant = fp16_constant.to(kFloat32);                                                 \
+          i_irs[1]->setAttr("constant", ctx->create<ir::VectorFP32Attr>(fp32_constant.toVector<float>())); \
+          break;                                                                                           \
+        }                                                                                                  \
         case kInt16: {                                                                                     \
           i_irs[1]->setAttr("constant", ctx->create<ir::VectorInt16Attr>(inputs[1].toVector<int16_t>()));  \
           break;                                                                                           \
