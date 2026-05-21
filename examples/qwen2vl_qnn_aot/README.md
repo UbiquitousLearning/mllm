@@ -13,7 +13,7 @@ The recommended Qwen2-VL-2B baseline tested on 2026-05-21 uses:
 
 - LPBQ / W4A16 LLM weights
 - FP16 visual encoder weights
-- one combined QNN context with `model.0.s32`, `model.0.s1`, and five visual bucket graphs
+- one combined QNN context with `model.0.s32`, `model.0.s1`, and five visual size buckets with aspect-ratio variants
 - `--visual_bundle_layout single`
 - `--visual_io_dtype fp16`
 
@@ -29,6 +29,98 @@ Build the Android runner:
 
 ```bash
 cmake --build build-android-arm64-v8a-qnn --target mllm-qwen2vl-aot-runner -j2
+```
+
+## Run Qwen2-VL VLM on Android
+
+Large runtime artifacts are not included in this repository. Download the
+prebuilt Qwen2-VL-2B QNN artifacts from ModelScope, or rebuild them with the
+compile command below:
+
+```text
+https://www.modelscope.cn/models/twlddd/Qwen2-VL-2B-Instruct-Full-QNN-AOT-for-mllm/summary
+```
+
+The expected local artifact layout is flat:
+
+```text
+QWEN2VL_ARTIFACT_DIR/
+|-- qwen2vl-2b-sm8650-qnn234-lpbq-visualfp16-vprojg16.mllm
+|-- qwen2vl-2b-sm8650-qnn234-fullqnn-5bucket-visualfp16-v1.bin
+|-- config_2B_qnn_lpbq.json
+`-- tokenizer.json
+```
+
+Prepare the device directories and push the runner plus model artifacts:
+
+```bash
+REMOTE_QNN_DIR=/data/local/tmp/mllm-qwen2vl-qnn
+REMOTE_CPU_DIR=/data/local/tmp/mllm-qwen2vl
+ARTIFACT_DIR=/path/to/QWEN2VL_ARTIFACT_DIR
+
+adb shell "mkdir -p \
+  ${REMOTE_QNN_DIR}/bin \
+  ${REMOTE_QNN_DIR}/lib \
+  ${REMOTE_QNN_DIR}/models \
+  ${REMOTE_QNN_DIR}/config \
+  ${REMOTE_CPU_DIR}/tokenizer \
+  ${REMOTE_CPU_DIR}/images/eval"
+
+adb push build-android-arm64-v8a-qnn/bin/mllm-qwen2vl-aot-runner \
+  ${REMOTE_QNN_DIR}/bin/
+adb shell "chmod 755 ${REMOTE_QNN_DIR}/bin/mllm-qwen2vl-aot-runner"
+
+adb push "${ARTIFACT_DIR}/qwen2vl-2b-sm8650-qnn234-fullqnn-5bucket-visualfp16-v1.bin" \
+  ${REMOTE_QNN_DIR}/models/
+adb push "${ARTIFACT_DIR}/qwen2vl-2b-sm8650-qnn234-lpbq-visualfp16-vprojg16.mllm" \
+  ${REMOTE_QNN_DIR}/models/
+adb push "${ARTIFACT_DIR}/config_2B_qnn_lpbq.json" \
+  ${REMOTE_QNN_DIR}/config/
+adb push "${ARTIFACT_DIR}/tokenizer.json" \
+  ${REMOTE_CPU_DIR}/tokenizer/
+```
+
+The device also needs the mllm runtime libraries, the mllm QNN backend library,
+the Qualcomm QNN runtime libraries, and the QNN op-package libraries under
+`${REMOTE_QNN_DIR}/lib`. Those libraries are built or obtained from the local
+mllm/QNN SDK environment and are not shipped in this example.
+
+Push one test image:
+
+```bash
+adb push /path/to/test.jpg ${REMOTE_CPU_DIR}/images/eval/test.jpg
+```
+
+Run the interactive VLM session from the repository root:
+
+```bash
+REMOTE_QNN_DIR=/data/local/tmp/mllm-qwen2vl-qnn \
+REMOTE_CPU_DIR=/data/local/tmp/mllm-qwen2vl \
+CONTEXT=models/qwen2vl-2b-sm8650-qnn234-fullqnn-5bucket-visualfp16-v1.bin \
+QNN_PARAMS=models/qwen2vl-2b-sm8650-qnn234-lpbq-visualfp16-vprojg16.mllm \
+QNN_CONFIG=config/config_2B_qnn_lpbq.json \
+TOKENIZER=/data/local/tmp/mllm-qwen2vl/tokenizer/tokenizer.json \
+VISUAL_IO_DTYPE=fp16 \
+scripts/qwen2vl_qnn/run_qnn_interactive.sh
+```
+
+Then enter the on-device image path and the text prompt:
+
+```text
+Image path> /data/local/tmp/mllm-qwen2vl/images/eval/test.jpg
+Prompt> describe this picture
+```
+
+For fixed-set evaluation, put images under `ASSET_SRC` and use a TSV case file
+with `case_id|image_file|prompt` rows:
+
+```bash
+ASSET_SRC=/path/to/eval/images \
+CASES_FILE=scripts/qwen2vl_qnn/qwen2vl_eval_cases_5bucket.tsv \
+REMOTE_QNN_DIR=/data/local/tmp/mllm-qwen2vl-qnn \
+REMOTE_CPU_DIR=/data/local/tmp/mllm-qwen2vl \
+VISUAL_IO_DTYPE=fp16 \
+scripts/qwen2vl_qnn/run_qnn_eval_fixed_set.sh
 ```
 
 ## Compile QNN Context
