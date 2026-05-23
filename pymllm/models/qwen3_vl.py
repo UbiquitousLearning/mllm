@@ -35,7 +35,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pymllm.layers import RMSNorm, apply_mrope
+from pymllm.layers import RMSNorm, apply_mrope_fused_
 from pymllm.layers.attention.radix_attention import RadixAttention
 from pymllm.layers.linear import Linear, MergedLinear
 from pymllm.layers.mlp import MLP
@@ -776,6 +776,21 @@ class Qwen3VLAttention(nn.Module):
             layer_id=layer_id,
         )
 
+    def _match_cos_sin_cache_dtype(self, query: torch.Tensor) -> None:
+        """Keep the RoPE cache on the same device/dtype as the query.
+
+        The cache is built in FP32 for stability, but repeated ``to()``
+        conversions inside the hot path are expensive.  Match SGLang by
+        materialising the converted cache once and reusing it afterwards.
+        """
+        if (
+            self.cos_sin_cache.device != query.device
+            or self.cos_sin_cache.dtype != query.dtype
+        ):
+            self.cos_sin_cache = self.cos_sin_cache.to(
+                device=query.device, dtype=query.dtype
+            )
+
     def forward(
         self,
         positions: torch.Tensor,
@@ -798,11 +813,12 @@ class Qwen3VLAttention(nn.Module):
         # as [T] for purely text-only batches; expand to [3, T] in that case.
         if positions.ndim == 1:
             positions = positions.unsqueeze(0).expand(3, -1)
-        q, k = apply_mrope(
+        self._match_cos_sin_cache_dtype(q)
+        q, k = apply_mrope_fused_(
             q,
             k,
             positions,
-            self.cos_sin_cache.to(q.dtype),
+            self.cos_sin_cache,
             self.mrope_section,
             self.mrope_interleaved,
         )
