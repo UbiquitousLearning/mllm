@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import time
 
 import numpy as np
 import pytest
@@ -12,6 +13,7 @@ from pymllm.models.qwen3_vl import (
     Qwen3VLTextModel,
     Qwen3VLVisionModel,
     _compute_cu_seqlens_from_grid,
+    _run_with_synchronized_wall_timing,
 )
 
 
@@ -61,6 +63,25 @@ class _FakeVisual(nn.Module):
     def forward(self, pixel_values, grid_thw):
         del pixel_values, grid_thw
         return torch.ones((1, 2), dtype=torch.float32)
+
+
+class _FakeTextModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(8, 2)
+
+    def forward(
+        self,
+        input_ids,
+        positions,
+        forward_batch,
+        input_embeds=None,
+        input_deepstack_embeds=None,
+    ):
+        del positions, forward_batch, input_deepstack_embeds
+        if input_embeds is not None:
+            return input_embeds
+        return self.embed_tokens(input_ids)
 
 
 def _make_vl_config() -> SimpleNamespace:
@@ -227,6 +248,95 @@ def test_forward_rejects_mismatched_image_token_and_feature_counts():
             positions=torch.arange(5, dtype=torch.int64),
             forward_batch=forward_batch,
         )
+
+
+def test_forward_records_vit_prefill_tps_when_benchmark_timing_enabled():
+    model = Qwen3VLForConditionalGeneration(_make_vl_config())
+    model.visual = _FakeVisual()
+    model.model = _FakeTextModel()
+
+    forward_batch = SimpleNamespace(
+        forward_mode=_Mode(),
+        batch_size=1,
+        extend_start_loc=torch.tensor([0], dtype=torch.int64),
+        extend_seq_lens=torch.tensor([4], dtype=torch.int64),
+        pixel_values=torch.zeros((1, 3), dtype=torch.float32),
+        image_grid_thw=torch.tensor([[1, 1, 1]], dtype=torch.int64),
+        benchmark_vision_timing=True,
+    )
+
+    model(
+        input_ids=torch.tensor([1, 4, 5, 2], dtype=torch.int64),
+        positions=torch.arange(4, dtype=torch.int64),
+        forward_batch=forward_batch,
+    )
+
+    assert forward_batch.vit_prefill_ms is not None
+    assert forward_batch.vit_prefill_ms >= 0.0
+    assert forward_batch.vit_prefill_tokens == 1
+    assert forward_batch.vit_prefill_tps >= 0.0
+
+
+def test_vision_timing_includes_host_side_work_when_benchmark_enabled():
+    def host_heavy_fn():
+        time.sleep(0.02)
+        return torch.tensor([1.0])
+
+    result, elapsed_ms = _run_with_synchronized_wall_timing(
+        host_heavy_fn,
+        device=torch.device("cpu"),
+        enabled=True,
+    )
+
+    torch.testing.assert_close(result, torch.tensor([1.0]))
+    assert elapsed_ms >= 15.0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_cuda_vision_timing_includes_host_side_work_when_benchmark_enabled():
+    device = torch.device("cuda")
+
+    def host_heavy_cuda_fn():
+        time.sleep(0.02)
+        return torch.ones((1,), device=device)
+
+    result, elapsed_ms = _run_with_synchronized_wall_timing(
+        host_heavy_cuda_fn,
+        device=device,
+        enabled=True,
+    )
+
+    assert result.device.type == "cuda"
+    assert elapsed_ms >= 15.0
+
+
+def test_cuda_vision_timing_uses_wall_clock_not_event_elapsed(monkeypatch):
+    class _FakeCudaEvent:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        def record(self):
+            pass
+
+        def elapsed_time(self, other):
+            del other
+            return 0.0
+
+    monkeypatch.setattr(torch.cuda, "Event", _FakeCudaEvent)
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda *args, **kwargs: None)
+
+    def host_heavy_fn():
+        time.sleep(0.02)
+        return torch.tensor([1.0])
+
+    result, elapsed_ms = _run_with_synchronized_wall_timing(
+        host_heavy_fn,
+        device=torch.device("cuda"),
+        enabled=True,
+    )
+
+    torch.testing.assert_close(result, torch.tensor([1.0]))
+    assert elapsed_ms >= 15.0
 
 
 def test_vision_interpolation_indices_match_sglang_hf():

@@ -577,6 +577,21 @@ def _build_cos_sin_cache(
     return torch.cat([torch.cos(freqs), torch.sin(freqs)], dim=-1).to(dtype)
 
 
+def _run_with_synchronized_wall_timing(
+    fn,
+    *,
+    device: torch.device,
+    enabled: bool,
+) -> Tuple[torch.Tensor, float]:
+    if enabled and device.type == "cuda":
+        torch.cuda.synchronize(device)
+    tic = time.perf_counter()
+    result = fn()
+    if enabled and device.type == "cuda":
+        torch.cuda.synchronize(device)
+    return result, (time.perf_counter() - tic) * 1000.0
+
+
 def get_rope_index(
     input_ids: torch.Tensor,
     image_grid_thw: Optional[torch.Tensor],
@@ -1199,6 +1214,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
         input_deepstack_embeds = None
         vit_prefill_ms = None
         vit_prefill_tokens = None
+        vit_prefill_tps = None
         llm_prefill_ms = None
         llm_decode_ms = None
 
@@ -1209,11 +1225,14 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             and not forward_batch.forward_mode.is_decode()
         ):
             # Run vision encoder
-            _vit_t0 = time.perf_counter()
-            vision_features = (
-                self.visual(pixel_values, grid_thw=image_grid_thw)
+            benchmark_vision_timing = bool(
+                getattr(forward_batch, "benchmark_vision_timing", False)
             )
-            vit_prefill_ms = (time.perf_counter() - _vit_t0) * 1000.0
+            vision_features, vit_prefill_ms = _run_with_synchronized_wall_timing(
+                lambda: self.visual(pixel_values, grid_thw=image_grid_thw),
+                device=pixel_values.device,
+                enabled=benchmark_vision_timing,
+            )
 
             # Separate main embeddings and deepstack embeddings
             if self.num_deepstack_embeddings > 0:
@@ -1227,6 +1246,10 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             input_embeds = self.model.embed_tokens(input_ids)
             image_mask = input_ids == self.image_token_id
             vit_prefill_tokens = int(image_mask.sum().item())
+            if vit_prefill_ms > 0:
+                vit_prefill_tps = vit_prefill_tokens / (vit_prefill_ms / 1000.0)
+            else:
+                vit_prefill_tps = 0.0
             if vit_prefill_tokens != int(vision_embeds.shape[0]):
                 raise ValueError(
                     "Image features and image tokens do not match, "
@@ -1265,6 +1288,7 @@ class Qwen3VLForConditionalGeneration(nn.Module):
             llm_prefill_ms = _llm_ms
             forward_batch.vit_prefill_ms = vit_prefill_ms
             forward_batch.vit_prefill_tokens = vit_prefill_tokens
+            forward_batch.vit_prefill_tps = vit_prefill_tps
             forward_batch.llm_prefill_ms = llm_prefill_ms
             forward_batch.llm_decode_ms = None
         else:

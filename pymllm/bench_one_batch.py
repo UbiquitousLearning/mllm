@@ -51,6 +51,8 @@ class BenchArgs:
     profile_start_step: Optional[int] = None
     profile_steps: int = 1
     skip_warmup: bool = False
+    image_path: Optional[Path] = None
+    prompt: str = "Describe this image."
 
 
 @dataclass
@@ -58,6 +60,28 @@ class DecodeState:
     req_pool_indices: torch.Tensor
     seq_lens: torch.Tensor
     mrope_position_deltas: Optional[torch.Tensor] = None
+
+
+@dataclass
+class ExtendResult:
+    next_token_ids: torch.Tensor
+    state: DecodeState
+    vit_prefill_ms: Optional[float] = None
+    vit_prefill_tokens: Optional[int] = None
+    vit_prefill_tps: Optional[float] = None
+
+    def __iter__(self) -> Iterator[Any]:
+        # Preserve the old ``next_token_ids, state = extend(...)`` call pattern.
+        yield self.next_token_ids
+        yield self.state
+
+
+@dataclass
+class MultimodalBenchInput:
+    input_ids: torch.Tensor
+    pixel_values: torch.Tensor
+    image_grid_thw: torch.Tensor
+    vit_prefill_tokens: int
 
 
 def _positive_int(value: str) -> int:
@@ -150,6 +174,22 @@ def add_bench_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         action="store_true",
         help="Skip the initial non-recorded warmup run.",
     )
+    group.add_argument(
+        "--image",
+        "--image-path",
+        dest="image_path",
+        type=Path,
+        default=None,
+        help=(
+            "Optional image path for multimodal benchmark mode. When set, "
+            "--input-len is replaced by the processed prompt length."
+        ),
+    )
+    group.add_argument(
+        "--prompt",
+        default=BenchArgs.prompt,
+        help="Prompt text used with --image in multimodal benchmark mode.",
+    )
     return parser
 
 
@@ -180,6 +220,8 @@ def _bench_args_from_namespace(namespace: argparse.Namespace) -> BenchArgs:
         profile_start_step=namespace.profile_start_step,
         profile_steps=namespace.profile_steps,
         skip_warmup=namespace.skip_warmup,
+        image_path=namespace.image_path,
+        prompt=namespace.prompt,
     )
 
 
@@ -193,10 +235,11 @@ def parse_args(
 
 
 def generate_settings(args: BenchArgs) -> list[BenchSetting]:
+    input_lens = [0] if args.image_path is not None else args.input_len
     return [
         BenchSetting(batch_size=batch_size, input_len=input_len, output_len=output_len)
         for batch_size in args.batch_size
-        for input_len in args.input_len
+        for input_len in input_lens
         for output_len in args.output_len
     ]
 
@@ -267,6 +310,79 @@ def summarize_latencies(
     return result
 
 
+def make_vit_prefill_metrics(
+    *,
+    vit_prefill_ms: float,
+    vit_prefill_tokens: int,
+) -> dict[str, Any]:
+    latency = float(vit_prefill_ms) / 1000.0
+    throughput = _safe_div(float(vit_prefill_tokens), latency)
+    return {
+        "vit_prefill_latency": latency,
+        "vit_prefill_ms": float(vit_prefill_ms),
+        "vit_prefill_tokens": int(vit_prefill_tokens),
+        "vit_prefill_throughput": throughput,
+        "vit_prefill_tps": throughput,
+    }
+
+
+def _get_processor_value(processor_output: Any, key: str) -> Any:
+    if hasattr(processor_output, "get"):
+        return processor_output.get(key)
+    return getattr(processor_output, key, None)
+
+
+def make_multimodal_bench_input_from_processor_output(
+    processor_output: Any,
+    *,
+    batch_size: int,
+    image_token_id: int,
+    device: str | torch.device,
+) -> MultimodalBenchInput:
+    input_ids = _get_processor_value(processor_output, "input_ids")
+    pixel_values = _get_processor_value(processor_output, "pixel_values")
+    image_grid_thw = _get_processor_value(processor_output, "image_grid_thw")
+
+    if input_ids is None:
+        raise ValueError("Multimodal processor output does not contain input_ids")
+    if pixel_values is None:
+        raise ValueError("Multimodal processor output does not contain pixel_values")
+    if image_grid_thw is None:
+        raise ValueError(
+            "Multimodal processor output does not contain image_grid_thw"
+        )
+
+    input_ids_t = torch.as_tensor(input_ids)
+    if input_ids_t.dim() == 1:
+        input_ids_t = input_ids_t.unsqueeze(0)
+    if input_ids_t.shape[0] != 1:
+        raise ValueError(
+            "bench_one_batch multimodal mode expects one processed prompt before "
+            f"batch repetition, got batch dimension {input_ids_t.shape[0]}"
+        )
+
+    input_ids_t = input_ids_t.repeat(batch_size, 1).to(
+        device=device, dtype=torch.int32
+    )
+    pixel_values_t = torch.as_tensor(pixel_values)
+    pixel_values_t = pixel_values_t.repeat(
+        (batch_size,) + (1,) * (pixel_values_t.dim() - 1)
+    )
+    image_grid_thw_t = torch.as_tensor(image_grid_thw)
+    if image_grid_thw_t.dim() == 1:
+        image_grid_thw_t = image_grid_thw_t.unsqueeze(0)
+    image_grid_thw_t = image_grid_thw_t.repeat(batch_size, 1).to(
+        device=device, dtype=torch.int64
+    )
+
+    return MultimodalBenchInput(
+        input_ids=input_ids_t,
+        pixel_values=pixel_values_t.to(device=device),
+        image_grid_thw=image_grid_thw_t,
+        vit_prefill_tokens=int((input_ids_t == image_token_id).sum().item()),
+    )
+
+
 def make_profile_trace_path(
     *,
     output_dir: Path,
@@ -328,6 +444,74 @@ def _load_hf_config(cfg: GlobalConfig) -> None:
         trust_remote_code=cfg.server.trust_remote_code,
     )
     logger.info("Loaded model config: %s", cfg.model.hf_config.__class__.__name__)
+
+
+def _extract_image_token_id(hf_config: Any) -> int:
+    image_token_id = getattr(hf_config, "image_token_id", None)
+    if image_token_id is None:
+        raise ValueError("Model config does not define image_token_id")
+    return int(image_token_id)
+
+
+def _render_multimodal_prompt(
+    processor: Any,
+    *,
+    prompt: str,
+    image_path: Path,
+) -> str:
+    if not hasattr(processor, "apply_chat_template"):
+        return prompt
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": str(image_path)},
+                {"type": "text", "text": prompt},
+            ],
+        }
+    ]
+    try:
+        rendered = processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    except Exception as exc:
+        logger.warning("Processor chat template failed, using raw prompt: %s", exc)
+        return prompt
+    if isinstance(rendered, list):
+        if not rendered:
+            return prompt
+        return str(rendered[0])
+    return str(rendered)
+
+
+def _make_multimodal_processor_output(
+    *,
+    cfg: GlobalConfig,
+    prompt: str,
+    image_path: Path,
+) -> Any:
+    if cfg.server.tokenizer_path is None:
+        raise ValueError("--server.tokenizer_path or --server.model_path is required")
+    if not image_path.exists():
+        raise FileNotFoundError(f"Image path does not exist: {image_path}")
+
+    from PIL import Image
+    from transformers import AutoProcessor
+
+    processor = AutoProcessor.from_pretrained(
+        str(cfg.server.tokenizer_path),
+        trust_remote_code=cfg.server.trust_remote_code,
+    )
+    image = Image.open(image_path).convert("RGB")
+    text = _render_multimodal_prompt(
+        processor,
+        prompt=prompt,
+        image_path=image_path,
+    )
+    return processor(images=[image], text=[text], return_tensors="pt")
 
 
 def _append_jsonl(path: Path, row: dict[str, Any]) -> None:
@@ -420,7 +604,14 @@ class PymllmBenchRunner:
         self.runner.req_to_token_pool.clear()
         self.runner.token_to_kv_pool_allocator.clear()
 
-    def extend(self, input_ids: torch.Tensor) -> tuple[torch.Tensor, DecodeState]:
+    def extend(
+        self,
+        input_ids: torch.Tensor,
+        *,
+        pixel_values: Optional[torch.Tensor] = None,
+        image_grid_thw: Optional[torch.Tensor] = None,
+        benchmark_vision_timing: bool = False,
+    ) -> ExtendResult:
         if input_ids.dim() != 2:
             raise ValueError("input_ids must have shape [batch_size, input_len]")
 
@@ -468,6 +659,12 @@ class PymllmBenchRunner:
             extend_prefix_lens=extend_prefix_lens,
             out_cache_loc=out_cache_loc.to(torch.int64),
         )
+        if pixel_values is not None:
+            forward_batch.pixel_values = pixel_values.to(device=self.device)
+        if image_grid_thw is not None:
+            forward_batch.image_grid_thw = image_grid_thw.to(device=self.device)
+        forward_batch.benchmark_vision_timing = benchmark_vision_timing
+
         logits_output = self.runner.forward(forward_batch)
         next_token_ids = self._sample_greedy(logits_output, forward_batch)
         state = DecodeState(
@@ -477,7 +674,22 @@ class PymllmBenchRunner:
                 forward_batch, "mrope_position_deltas", None
             ),
         )
-        return next_token_ids, state
+        vit_prefill_ms = getattr(forward_batch, "vit_prefill_ms", None)
+        vit_prefill_tokens = getattr(forward_batch, "vit_prefill_tokens", None)
+        vit_prefill_tps = getattr(forward_batch, "vit_prefill_tps", None)
+        return ExtendResult(
+            next_token_ids=next_token_ids,
+            state=state,
+            vit_prefill_ms=(
+                float(vit_prefill_ms) if vit_prefill_ms is not None else None
+            ),
+            vit_prefill_tokens=(
+                int(vit_prefill_tokens) if vit_prefill_tokens is not None else None
+            ),
+            vit_prefill_tps=(
+                float(vit_prefill_tps) if vit_prefill_tps is not None else None
+            ),
+        )
 
     def decode(
         self,
@@ -561,21 +773,47 @@ def run_single_setting(
     setting: BenchSetting,
     seed: int,
     record_result: bool,
+    multimodal_processor_output: Any = None,
 ) -> Optional[dict[str, Any]]:
     bench_runner.clear()
     vocab_size = getattr(bench_runner.runner, "vocab_size", 10000)
-    input_ids = make_synthetic_input_ids(
-        batch_size=setting.batch_size,
-        input_len=setting.input_len,
-        vocab_size=vocab_size,
-        seed=seed,
-        device=bench_runner.device,
-    )
+    mm_input = None
+    effective_setting = setting
+    if multimodal_processor_output is None:
+        input_ids = make_synthetic_input_ids(
+            batch_size=setting.batch_size,
+            input_len=setting.input_len,
+            vocab_size=vocab_size,
+            seed=seed,
+            device=bench_runner.device,
+        )
+    else:
+        hf_config = bench_runner.runner.model_config.hf_config
+        image_token_id = _extract_image_token_id(hf_config)
+        mm_input = make_multimodal_bench_input_from_processor_output(
+            multimodal_processor_output,
+            batch_size=setting.batch_size,
+            image_token_id=image_token_id,
+            device=bench_runner.device,
+        )
+        input_ids = mm_input.input_ids
+        effective_setting = BenchSetting(
+            batch_size=setting.batch_size,
+            input_len=int(input_ids.shape[1]),
+            output_len=setting.output_len,
+        )
 
-    with _maybe_profile(args=args, setting=setting, stage="prefill"):
+    with _maybe_profile(args=args, setting=effective_setting, stage="prefill"):
         prefill_latency, extend_result = _timed_call(
             bench_runner.device,
-            lambda: bench_runner.extend(input_ids),
+            lambda: bench_runner.extend(
+                input_ids,
+                pixel_values=mm_input.pixel_values if mm_input is not None else None,
+                image_grid_thw=(
+                    mm_input.image_grid_thw if mm_input is not None else None
+                ),
+                benchmark_vision_timing=mm_input is not None,
+            ),
         )
     next_token_ids, state = extend_result
 
@@ -592,7 +830,12 @@ def run_single_setting(
             and profile_start_step <= step < profile_stop_step
         )
         profile_context = (
-            _maybe_profile(args=args, setting=setting, stage="decode", step=step)
+            _maybe_profile(
+                args=args,
+                setting=effective_setting,
+                stage="decode",
+                step=step,
+            )
             if should_profile_decode
             else nullcontext()
         )
@@ -616,13 +859,24 @@ def run_single_setting(
         return None
 
     return summarize_latencies(
-        setting=setting,
+        setting=effective_setting,
         prefill_latency=prefill_latency,
         decode_latencies=decode_latencies,
         run_name=args.run_name,
         device=bench_runner.device,
         dtype=str(bench_runner.runner.dtype),
         cuda_graph=bench_runner.runner.graph_runner is not None,
+        extra=(
+            make_vit_prefill_metrics(
+                vit_prefill_ms=extend_result.vit_prefill_ms,
+                vit_prefill_tokens=extend_result.vit_prefill_tokens,
+            )
+            if (
+                extend_result.vit_prefill_ms is not None
+                and extend_result.vit_prefill_tokens is not None
+            )
+            else None
+        ),
     )
 
 
@@ -636,6 +890,13 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
     bench_runner = PymllmBenchRunner.create(cfg)
     try:
         settings = generate_settings(args)
+        multimodal_processor_output = None
+        if args.image_path is not None:
+            multimodal_processor_output = _make_multimodal_processor_output(
+                cfg=cfg,
+                prompt=args.prompt,
+                image_path=args.image_path,
+            )
         if not args.skip_warmup and settings:
             first = settings[0]
             warmup_setting = BenchSetting(
@@ -655,6 +916,7 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
                 setting=warmup_setting,
                 seed=args.seed,
                 record_result=False,
+                multimodal_processor_output=multimodal_processor_output,
             )
 
         results: list[dict[str, Any]] = []
@@ -671,6 +933,7 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
                 setting=setting,
                 seed=args.seed + index,
                 record_result=True,
+                multimodal_processor_output=multimodal_processor_output,
             )
             assert result is not None
             _append_jsonl(args.result_filename, result)
