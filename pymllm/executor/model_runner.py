@@ -1287,6 +1287,7 @@ class ModelRunner:
         top_ps: Optional[torch.Tensor] = None,
         top_ks: Optional[torch.Tensor] = None,
         penalty_params: Optional[Dict[str, Any]] = None,
+        is_all_greedy: Optional[bool] = None,
     ) -> torch.Tensor:
         """Sample next-token IDs from logits.
 
@@ -1310,6 +1311,10 @@ class ModelRunner:
             ``frequency_penalties``, ``presence_penalties`` (tensors of
             shape ``[batch_size]``), and ``token_histories`` (list of
             list of int).
+        is_all_greedy
+            CPU-side metadata indicating that every request should use greedy
+            sampling.  Supplying this avoids a CUDA tensor reduction and
+            synchronization in the decode hot path.
 
         Returns
         -------
@@ -1338,12 +1343,14 @@ class ModelRunner:
             )
 
         # Greedy path: temperature=0 (or all zeros) → argmax, no sampling.
-        if temperatures is not None:
-            all_greedy = bool((temperatures < 1e-6).all())
-        else:
-            all_greedy = False
+        if is_all_greedy is None:
+            is_all_greedy = (
+                bool((temperatures < 1e-6).all())
+                if temperatures is not None
+                else False
+            )
 
-        if all_greedy:
+        if is_all_greedy:
             return logits.argmax(dim=-1).to(torch.int32)
 
         # Stochastic path: apply temperature then sample.

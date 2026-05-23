@@ -744,6 +744,7 @@ class PymllmBenchRunner:
             logits_output,
             forward_batch,
             temperatures=temperatures,
+            is_all_greedy=True,
         ).to(torch.int32)
 
     def _require_initialized(self) -> None:

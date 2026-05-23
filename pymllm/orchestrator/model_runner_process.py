@@ -272,6 +272,7 @@ class ModelRunnerProcess:
         temps_tensor = torch.tensor(temperatures, dtype=torch.float32, device=device)
         top_ps_tensor = torch.tensor(top_ps, dtype=torch.float32, device=device)
         top_ks_tensor = torch.tensor(top_ks, dtype=torch.int32, device=device)
+        is_all_greedy = all(t < 1e-6 for t in temperatures)
 
         # Collect token histories for penalty computation.
         # Each entry is (input_ids + output_ids_so_far) for the request.
@@ -408,6 +409,7 @@ class ModelRunnerProcess:
             top_ps=top_ps_tensor,
             top_ks=top_ks_tensor,
             penalty_params=penalty_params,
+            is_all_greedy=is_all_greedy,
         )
 
         # ==============================================================
