@@ -51,10 +51,11 @@ def _get_gdn_extend_backend_override() -> str:
     3. Falls back to ``"auto"``
 
     Returns one of: ``"auto"``, ``"flashinfer"``, ``"mllm_kernel"``,
-    ``"cuda_chunkwise"``, ``"pytorch"``.
+    ``"cuda_chunkwise"``, ``"torch_chunkwise"``, ``"pytorch"``.
     """
     env = os.environ.get("PYMLLM_GDN_EXTEND_BACKEND", "").strip().lower()
-    if env in ("auto", "flashinfer", "mllm_kernel", "cuda_chunkwise", "pytorch"):
+    if env in ("auto", "flashinfer", "mllm_kernel", "cuda_chunkwise",
+               "cuda_chunkwise_kernel", "torch_chunkwise", "pytorch"):
         return env
     try:
         from pymllm.configs import get_global_config
@@ -269,9 +270,11 @@ class GDNAttnBackend:
         # Pre-check FlashInfer availability
         self._use_flashinfer, _, _ = _get_flashinfer_gdn()
 
-        # Eagerly compile chunkwise kernel at load time so the first
-        # inference request doesn't pay the ~15 s JIT cost.
-        if _get_gdn_extend_backend_override() == "cuda_chunkwise":
+        # Eagerly compile the raw chunkwise CUDA kernel only when it is
+        # explicitly requested (``cuda_chunkwise_kernel``).  The default
+        # ``cuda_chunkwise`` / ``auto`` paths now use the faster fully-batched
+        # ``torch_chunkwise`` implementation, which needs no JIT compile.
+        if _get_gdn_extend_backend_override() == "cuda_chunkwise_kernel":
             _get_mllm_gdn_extend_chunkwise()
 
         # One-shot flags to log the selected backend on first actual forward call
@@ -574,30 +577,35 @@ class GDNAttnBackend:
         value_dim = layer.num_v_heads * layer.head_v_dim
 
         # --- Per-request causal conv1d ---
+        # Vectorised: unfold + weighted sum (depthwise causal conv) with no
+        # Python kernel loop.  Sequence boundaries are read once on the host
+        # (avoids a CUDA sync for every request inside the layer hot loop), and
+        # the unfold/sum form is faster than grouped F.conv1d for the very wide
+        # (conv_dim=6144) depthwise filter used here.
         conv_out = torch.empty_like(mixed_qkv)  # [total_tokens, conv_dim]
+        cu_host = cu_seqlens.tolist()
 
         for i in range(batch_size):
-            start = int(cu_seqlens[i].item())
-            end = int(cu_seqlens[i + 1].item())
+            start = int(cu_host[i])
+            end = int(cu_host[i + 1])
             seq_len = end - start
             if seq_len == 0:
                 continue
 
             idx = cache_indices[i]
-            x = mixed_qkv[start:end]  # [seq_len, conv_dim]
-            prev_state = conv_buf[idx]  # [conv_dim, K-1]
+            x = mixed_qkv[start:end]            # [seq_len, conv_dim]
+            prev_state = conv_buf[idx]          # [conv_dim, K-1]
 
-            # Pad with previous conv state
-            x_padded = torch.cat([prev_state.T, x], dim=0)  # [K-1+seq_len, conv_dim]
+            # [K-1 + seq_len, conv_dim] = prev state ++ new tokens
+            x_padded = torch.cat([prev_state.t(), x], dim=0)
 
-            # Save new conv state (last K-1 tokens)
-            conv_buf[idx] = x_padded[-(K - 1):].T.clone()
+            # Save new conv state (last K-1 rows -> [conv_dim, K-1]).
+            conv_buf[idx] = x_padded[-(K - 1):].t()
 
-            # Causal conv1d
-            out = torch.zeros(seq_len, x.shape[1], device=x.device, dtype=x.dtype)
-            for kk in range(K):
-                out += x_padded[kk: kk + seq_len] * conv_weight[:, kk]
-            conv_out[start:end] = out
+            # Causal conv: out[t] = sum_k x_padded[t+k] * w[:, k].
+            # unfold builds a [seq_len, conv_dim, K] sliding window in one shot.
+            windows = x_padded.unfold(0, K, 1)              # [seq_len, conv_dim, K]
+            conv_out[start:end] = (windows * conv_weight).sum(dim=-1)
 
         # --- SiLU activation ---
         conv_out = F.silu(conv_out)
@@ -626,18 +634,30 @@ class GDNAttnBackend:
             and (backend in ("auto", "mllm_kernel"))
             and mllm_extend is not None and mixed_qkv.is_cuda
         )
+        # Fully-batched PyTorch chunkwise (cuBLAS) — the fastest + most
+        # numerically faithful prefill path on SM80-89 (no FlashInfer).  It
+        # supersedes the sequential ``cuda_chunkwise`` CUDA kernel, so an
+        # explicit ``cuda_chunkwise`` request is auto-upgraded to it.  The raw
+        # CUDA kernel stays reachable via ``cuda_chunkwise_kernel`` for A/B.
+        use_torch_chunkwise = (
+            mixed_qkv.is_cuda
+            and not use_fi_extend
+            and not use_mllm_extend
+            and backend in ("auto", "cuda_chunkwise", "torch_chunkwise")
+        )
         use_cuda_chunkwise = (
-            (backend == "cuda_chunkwise"
-             or (backend == "auto" and not use_fi_extend and not use_mllm_extend
-                 and mllm_extend_cw is not None and mixed_qkv.is_cuda))
+            (not use_torch_chunkwise)
+            and backend == "cuda_chunkwise_kernel"
             and mllm_extend_cw is not None
+            and mixed_qkv.is_cuda
         )
 
         if not self._extend_backend_logged:
             selected = (
-                "flashinfer"     if use_fi_extend      else
-                "mllm_kernel"    if use_mllm_extend    else
-                "cuda_chunkwise" if use_cuda_chunkwise else
+                "flashinfer"      if use_fi_extend       else
+                "mllm_kernel"     if use_mllm_extend     else
+                "torch_chunkwise" if use_torch_chunkwise else
+                "cuda_chunkwise"  if use_cuda_chunkwise  else
                 "pytorch"
             )
             logger.info(
@@ -666,6 +686,17 @@ class GDNAttnBackend:
         elif use_mllm_extend:
             # Sequential recurrent scan — all fused in one CUDA kernel.
             output = mllm_extend(
+                q, k, v, a, b,
+                layer.A_log, layer.dt_bias,
+                recurrent_buf, cache_indices, cu_seqlens,
+            )
+
+        elif use_torch_chunkwise:
+            # Fully-batched chunkwise (cuBLAS) — parallel across chunks/heads.
+            from pymllm.layers.attention.gdn_chunkwise import (
+                gdn_extend_chunkwise_torch,
+            )
+            output = gdn_extend_chunkwise_torch(
                 q, k, v, a, b,
                 layer.A_log, layer.dt_bias,
                 recurrent_buf, cache_indices, cu_seqlens,

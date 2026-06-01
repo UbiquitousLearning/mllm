@@ -1,204 +1,150 @@
 #!/usr/bin/env python3
 """
-Benchmark pymllm server: prefill and decode throughput.
+Benchmark pymllm-server prefill (prompt-processing) and decode (token-gen)
+throughput, in the style of ``llama-bench``.
 
-Sends a list of prompts sequentially to the /v1/completions endpoint,
-measures Time-To-First-Token (TTFT, i.e. prefill latency) and decode
-throughput for each request, and prints a summary table.
+Methodology (per prefill size P, repeated ``--repeat`` times):
+  * PREFILL (pp):  send a prompt of ~P tokens with ``max_tokens=1`` and measure
+    pure prefill latency.  Prefill time is taken from the server's own
+    ``debug_timing`` block when available (start the server with
+    ``--server.enable_debug_timing``); otherwise it falls back to the
+    client-side TTFT minus one decode step.
+  * DECODE (tg):   send the same prompt with ``max_tokens=D`` (``--decode-tokens``)
+    and measure *steady-state* decode throughput from the inter-token arrival
+    timestamps, discarding the first token (which still carries prefill +
+    first-step warmup).  This mirrors how llama-bench reports tg.
+
+Results are aggregated over repetitions (mean / std / min / max) and printed as
+a table, plus an overall summary that is directly comparable to llama.cpp's
+``pp`` / ``tg`` numbers.
 
 Usage:
-    # Start the server first, then:
-    python benchmarks/bench_server.py
-
-    # Custom server URL:
-    python benchmarks/bench_server.py --url http://192.168.1.100:30000
-
-    # Adjust max tokens:
-    python benchmarks/bench_server.py --max-tokens 200
+    # Start the server first (debug timing gives the most accurate prefill):
+    #   PYMLLM_GDN_EXTEND_BACKEND=cuda_chunkwise pymllm-server \
+    #       --server.model_path /path/to/Qwen3.5-2B --server.enable_debug_timing
+    python benchmarks/bench_serve.py
+    python benchmarks/bench_serve.py --prefill-sizes 256,512,1024 --decode-tokens 128 --repeat 5
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import statistics
 import time
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 import requests
 
+# A neutral filler sentence (~16 tokens) repeated to build prompts of a target
+# token length.  Decode prompts additionally ask for a long answer so greedy
+# decoding does not stop early before ``--decode-tokens`` tokens are produced.
+_FILLER = (
+    "The quick brown fox jumps over the lazy dog while the curious cat watches "
+    "from the warm windowsill on a bright and cloudless autumn morning. "
+)
+_DECODE_INSTRUCTION = (
+    "Write an extremely long, detailed, and continuous essay. Do not stop early. "
+)
 
-# ---------------------------------------------------------------------------
-# Benchmark prompts — short / medium / long to test different prefill sizes
-# ---------------------------------------------------------------------------
 
-PROMPTS: List[str] = [
-    # ~256 tokens
-    "You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other. Also discuss deployment discuss",
-
-    "You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other. Also discuss deployment "
-    "strategies, monitoring, and fault tolerance. You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other.",
-
-    "You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other. Also discuss deployment "
-    "strategies, monitoring, and fault tolerance. You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other. Also discuss deployment "
-    "strategies, monitoring, and fault tolerance. You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "the API contracts, and how the services communicate with each other. Also discuss deployment "
-    "strategies, monitoring, and fault tolerance. You are an expert historian. Please provide a comprehensive overview of the Industrial Revolution, "
-    "including its origins in 18th century Britain, the key technological innovations such as the steam "
-    "engine and spinning jenny, the social and economic impacts on the working class, urbanization trends, "
-    "As a senior software architect, design a complete microservices architecture for an e-commerce "
-    "platform. The platform should support user authentication and authorization, product catalog "
-    "management with search and filtering, shopping cart functionality, order processing and payment "
-    "integration, inventory management, shipping and logistics tracking, customer reviews and ratings, "
-    "recommendation engine, analytics dashboard, and notification services. For each microservice, "
-    "describe its responsibilities, the technology stack you would choose, the database type, "
-    "describe its responsibilities"
-]
-
+def build_prompt(approx_tokens: int, *, for_decode: bool = False) -> str:
+    """Build a prompt of roughly ``approx_tokens`` tokens (~0.75 tok/word)."""
+    target_words = max(1, int(approx_tokens * 0.78))
+    words: List[str] = []
+    filler_words = _FILLER.split()
+    while len(words) < target_words:
+        words.extend(filler_words)
+    text = " ".join(words[:target_words])
+    if for_decode:
+        text = _DECODE_INSTRUCTION + text
+    return text
 
 
 # ---------------------------------------------------------------------------
-# Result data
+# Single streaming request
 # ---------------------------------------------------------------------------
 
 @dataclass
-class RequestResult:
-    prompt: str
+class StreamResult:
     prompt_tokens: int
-    generated_tokens: int
-    ttft_ms: float          # time to first token (prefill latency), client-side
-    prefill_ms: float       # estimated pure prefill time = ttft - one_decode_step
-    total_time_ms: float    # total request time
-    decode_time_ms: float   # total_time - ttft
-    prefill_tps: float      # prompt_tokens / prefill_ms
-    decode_tps: float       # generated_tokens / decode_time
+    gen_tokens: int
+    ttft_s: float                  # client-side time to first token
+    token_times: List[float]       # perf_counter() at each received chunk
+    server_prefill_ms: Optional[float] = None  # from debug_timing if present
+    server_decode_ms: Optional[float] = None
+    server_decode_tps: Optional[float] = None  # decode_phase_output_tps if present
+
+    @property
+    def decode_tps(self) -> Optional[float]:
+        """Decode throughput, apples-to-apples with llama-bench ``tg``.
+
+        Prefers the server-side decode-loop throughput (excludes HTTP /
+        detokenizer / network jitter, like llama-bench's pure-compute tg);
+        falls back to client-side inter-token gaps when unavailable.
+        """
+        if self.server_decode_tps is not None and self.server_decode_tps > 0:
+            return self.server_decode_tps
+        return self.steady_decode_tps
+
+    @property
+    def steady_decode_tps(self) -> Optional[float]:
+        """Client-side decode t/s from inter-token gaps, discarding token 1."""
+        if len(self.token_times) < 3:
+            return None
+        span = self.token_times[-1] - self.token_times[1]
+        n = len(self.token_times) - 2  # gaps between tokens 2..N
+        if span <= 0 or n <= 0:
+            return None
+        return n / span
+
+    def prefill_tps(self) -> Optional[float]:
+        ms = self.prefill_ms()
+        if ms is None or ms <= 0:
+            return None
+        return self.prompt_tokens / (ms / 1000.0)
+
+    def prefill_ms(self) -> Optional[float]:
+        if self.server_prefill_ms is not None and self.server_prefill_ms > 0:
+            return self.server_prefill_ms
+        # Fall back to TTFT minus one steady-state decode step.
+        ttft_ms = self.ttft_s * 1000.0
+        tps = self.steady_decode_tps
+        one_step = (1000.0 / tps) if tps else 0.0
+        return max(ttft_ms - one_step, ttft_ms * 0.5)
 
 
-@dataclass
-class BenchmarkSummary:
-    results: List[RequestResult] = field(default_factory=list)
-
-    def add(self, r: RequestResult):
-        self.results.append(r)
-
-    def print_table(self):
-        print()
-        print("=" * 120)
-        print(f"{'#':>3}  {'Prompt Tok':>10}  {'Gen Tok':>8}  "
-              f"{'TTFT(ms)':>10}  {'Prefill(ms)':>12}  {'Prefill t/s':>12}  "
-              f"{'Decode(ms)':>10}  {'Decode t/s':>11}  "
-              f"{'Total(ms)':>10}")
-        print("-" * 120)
-
-        for i, r in enumerate(self.results):
-            print(
-                f"{i+1:>3}  {r.prompt_tokens:>10}  {r.generated_tokens:>8}  "
-                f"{r.ttft_ms:>10.1f}  {r.prefill_ms:>12.1f}  {r.prefill_tps:>12.1f}  "
-                f"{r.decode_time_ms:>10.1f}  {r.decode_tps:>11.1f}  "
-                f"{r.total_time_ms:>10.1f}"
-            )
-
-        print("-" * 120)
-
-        if not self.results:
-            return
-
-        total_prompt = sum(r.prompt_tokens for r in self.results)
-        total_gen = sum(r.generated_tokens for r in self.results)
-        total_time = sum(r.total_time_ms for r in self.results)
-
-        print(f"SUM  {total_prompt:>10}  {total_gen:>8}  "
-              f"{'':>10}  {'':>12}  {'':>12}  "
-              f"{'':>10}  {'':>11}  {total_time:>10.1f}")
-        print("=" * 120)
-
-
-# ---------------------------------------------------------------------------
-# Streaming request with TTFT measurement
-# ---------------------------------------------------------------------------
-
-def run_one_request(
+def stream_request(
     url: str,
     model: str,
     prompt: str,
     max_tokens: int,
     temperature: float,
-) -> RequestResult:
-    """Send a streaming completions request and measure TTFT + decode speed."""
-
+) -> StreamResult:
     payload = {
         "model": model,
         "prompt": prompt,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
 
-    t_start = time.perf_counter()
-    t_first_token = None
-    chunk_count = 0         # SSE data chunks received (≈ generated tokens)
-    api_prompt_tokens = 0   # from usage field if server reports it
-    api_gen_tokens = 0      # from usage field if server reports it
+    t0 = time.perf_counter()
+    token_times: List[float] = []
+    prompt_tokens = 0
+    gen_tokens = 0
+    server_prefill_ms: Optional[float] = None
+    server_decode_ms: Optional[float] = None
+    server_decode_tps: Optional[float] = None
 
     resp = requests.post(
         f"{url}/v1/completions",
         json=payload,
         headers={"Content-Type": "application/json"},
         stream=True,
-        timeout=300,
+        timeout=900,
     )
     resp.raise_for_status()
 
@@ -208,58 +154,136 @@ def run_one_request(
         data_str = line[len("data: "):]
         if data_str.strip() == "[DONE]":
             break
-
         try:
             data = json.loads(data_str)
         except json.JSONDecodeError:
             continue
 
-        # Record TTFT on the very first data chunk
-        if t_first_token is None:
-            t_first_token = time.perf_counter()
+        # A chunk carrying generated text counts as one decode token.
+        choices = data.get("choices") or []
+        has_text = any(c.get("text") for c in choices)
+        if has_text:
+            token_times.append(time.perf_counter())
 
-        chunk_count += 1
-
-        # Extract usage if the server provides it (usually in the last chunk)
         usage = data.get("usage")
         if usage:
-            api_prompt_tokens = usage.get("prompt_tokens", api_prompt_tokens)
-            api_gen_tokens = usage.get("completion_tokens", api_gen_tokens)
+            prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
+            gen_tokens = usage.get("completion_tokens", gen_tokens)
 
-    t_end = time.perf_counter()
+        dbg = data.get("debug_timing")
+        if dbg:
+            if dbg.get("experimental_llm_prefill_ms"):
+                server_prefill_ms = dbg["experimental_llm_prefill_ms"]
+            if dbg.get("decode_phase_wall_ms"):
+                server_decode_ms = dbg["decode_phase_wall_ms"]
+            if dbg.get("decode_phase_output_tps"):
+                server_decode_tps = dbg["decode_phase_output_tps"]
 
-    if t_first_token is None:
-        t_first_token = t_end
+    ttft_s = (token_times[0] - t0) if token_times else (time.perf_counter() - t0)
+    if gen_tokens <= 0:
+        gen_tokens = len(token_times)
+    if prompt_tokens <= 0:
+        prompt_tokens = max(1, int(len(prompt.split()) / 0.78))
 
-    # Use server-reported counts when available; fall back to chunk count
-    prompt_tokens = api_prompt_tokens if api_prompt_tokens > 0 else max(1, len(prompt.split()) * 2)
-    generated_tokens = api_gen_tokens if api_gen_tokens > 0 else max(chunk_count, 1)
-
-    ttft_ms = (t_first_token - t_start) * 1000
-    total_ms = (t_end - t_start) * 1000
-    decode_ms = total_ms - ttft_ms
-
-    decode_tps = generated_tokens / (decode_ms / 1000) if decode_ms > 0 else 0
-
-    # Estimate pure prefill time by subtracting one decode step from TTFT.
-    # TTFT (client-side) = network_rtt + server_queue + prefill + first_decode_step + network_rtt.
-    # On localhost network_rtt ≈ 0.  We estimate first_decode_step ≈ decode_ms / generated_tokens.
-    one_decode_step_ms = (decode_ms / generated_tokens) if generated_tokens > 0 else 0
-    prefill_ms = max(ttft_ms - one_decode_step_ms, ttft_ms * 0.5)
-
-    prefill_tps = prompt_tokens / (prefill_ms / 1000) if prefill_ms > 0 else 0
-
-    return RequestResult(
-        prompt=prompt[:60] + ("..." if len(prompt) > 60 else ""),
+    return StreamResult(
         prompt_tokens=prompt_tokens,
-        generated_tokens=generated_tokens,
-        ttft_ms=ttft_ms,
-        prefill_ms=prefill_ms,
-        total_time_ms=total_ms,
-        decode_time_ms=decode_ms,
-        prefill_tps=prefill_tps,
-        decode_tps=decode_tps,
+        gen_tokens=gen_tokens,
+        ttft_s=ttft_s,
+        token_times=token_times,
+        server_prefill_ms=server_prefill_ms,
+        server_decode_ms=server_decode_ms,
+        server_decode_tps=server_decode_tps,
     )
+
+
+def server_timed_request(
+    url: str,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
+):
+    """Non-streaming request that returns the server's own ``debug_timing``.
+
+    This is the rigorous, llama-bench-aligned path:
+      * prefill: ``experimental_llm_prefill_ms`` = pure model-forward time for
+        the prompt (no sampling / detokenize / HTTP), matching llama-bench pp.
+      * decode : ``decode_phase_output_tps`` = server-side decode-loop
+        throughput (no HTTP / network jitter), matching llama-bench tg.
+
+    Returns ``(prompt_tokens, prefill_ms, decode_tps)`` with ``None`` for any
+    field the server did not provide.
+    """
+    r = requests.post(
+        f"{url}/v1/completions",
+        json={
+            "model": model,
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        },
+        timeout=900,
+    )
+    r.raise_for_status()
+    data = r.json()
+    dbg = data.get("debug_timing") or {}
+    usage = data.get("usage") or {}
+    prompt_tokens = usage.get("prompt_tokens") or dbg.get("prefill_tokens") or 0
+    return (
+        prompt_tokens,
+        dbg.get("experimental_llm_prefill_ms"),
+        dbg.get("decode_phase_output_tps"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Aggregation
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SizeStats:
+    target_tokens: int
+    prompt_tokens: int = 0
+    prefill_tps: List[float] = field(default_factory=list)
+    decode_tps: List[float] = field(default_factory=list)
+    gen_tokens: List[int] = field(default_factory=list)
+    server_timing: bool = False          # prefill timing from server
+    decode_server_timing: bool = False   # decode timing from server
+
+
+def _fmt(values: List[float]) -> str:
+    if not values:
+        return "       n/a"
+    m = statistics.mean(values)
+    s = statistics.stdev(values) if len(values) > 1 else 0.0
+    return f"{m:7.1f} ± {s:5.1f}"
+
+
+def print_report(stats: List[SizeStats], decode_tokens: int):
+    print()
+    print("=" * 92)
+    print(f"{'Prompt tok':>11} | {'Prefill (pp) t/s':>22} | {'Decode (tg) t/s':>22} | {'gen':>5} | pp/tg src")
+    print("-" * 92)
+    all_pref: List[float] = []
+    all_dec: List[float] = []
+    for st in stats:
+        src = f"{'srv' if st.server_timing else 'cli'}/{'srv' if st.decode_server_timing else 'cli'}"
+        gen = f"{int(statistics.mean(st.gen_tokens))}" if st.gen_tokens else "-"
+        print(f"{st.prompt_tokens:>11} | {_fmt(st.prefill_tps):>22} | "
+              f"{_fmt(st.decode_tps):>22} | {gen:>5} | {src}")
+        all_pref.extend(st.prefill_tps)
+        all_dec.extend(st.decode_tps)
+    print("-" * 92)
+    if all_pref:
+        print(f"  Overall prefill: mean {statistics.mean(all_pref):.1f} t/s   "
+              f"(max {max(all_pref):.1f})")
+    if all_dec:
+        print(f"  Overall decode : mean {statistics.mean(all_dec):.1f} t/s   "
+              f"(max {max(all_dec):.1f})")
+    print("=" * 92)
+    print("  Reference llama.cpp (2B): prefill ~1300-1400 t/s, decode ~30-40 t/s")
+    print("=" * 92)
 
 
 # ---------------------------------------------------------------------------
@@ -267,71 +291,104 @@ def run_one_request(
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark pymllm server")
-    parser.add_argument("--url", default="http://127.0.0.1:30000",
-                        help="Server base URL (default: http://127.0.0.1:30000)")
-    parser.add_argument("--model", default="Qwen3.5-2B",
-                        help="Model name for the API request")
-    parser.add_argument("--max-tokens", type=int, default=128,
-                        help="Max tokens to generate per request (default: 500)")
-    parser.add_argument("--temperature", type=float, default=0.6,
-                        help="Sampling temperature (default: 0.6)")
-    parser.add_argument("--warmup", type=int, default=1,
-                        help="Number of warmup requests before benchmarking (default: 1)")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="Benchmark pymllm-server (llama-bench style)")
+    p.add_argument("--url", default="http://127.0.0.1:30000")
+    p.add_argument("--model", default="Qwen3.5-2B")
+    p.add_argument("--prefill-sizes", default="256,512,1024",
+                   help="Comma-separated prompt token sizes (default: 256,512,1024)")
+    p.add_argument("--decode-tokens", type=int, default=128,
+                   help="Tokens to generate when measuring decode (default: 128)")
+    p.add_argument("--repeat", type=int, default=5,
+                   help="Measured repetitions per size (default: 5)")
+    p.add_argument("--warmup", type=int, default=2,
+                   help="Warmup requests before measuring (default: 2)")
+    p.add_argument("--temperature", type=float, default=0.0,
+                   help="Sampling temperature; 0 = greedy/deterministic (default: 0)")
+    p.add_argument("--client-timing", action="store_true",
+                   help="Force client-side (HTTP) timing instead of the server's "
+                        "compute-only debug_timing. Default uses server timing "
+                        "(rigorous, llama-bench-aligned) when available.")
+    args = p.parse_args()
 
-    print(f"pymllm Server Benchmark")
-    print(f"  URL:         {args.url}")
-    print(f"  Model:       {args.model}")
-    print(f"  Max tokens:  {args.max_tokens}")
-    print(f"  Temperature: {args.temperature}")
-    print(f"  Prompts:     {len(PROMPTS)}")
-    print()
+    sizes = [int(s) for s in args.prefill_sizes.split(",") if s.strip()]
 
-    # Check server is alive
+    print("pymllm-server benchmark (llama-bench style)")
+    print(f"  URL            : {args.url}")
+    print(f"  Model          : {args.model}")
+    print(f"  Prefill sizes  : {sizes}")
+    print(f"  Decode tokens  : {args.decode_tokens}")
+    print(f"  Repeat / warmup: {args.repeat} / {args.warmup}")
+    print(f"  Temperature    : {args.temperature}")
+
     try:
         r = requests.get(f"{args.url}/health", timeout=5)
-        print(f"Server health: {r.status_code}")
+        print(f"  Server health  : {r.status_code}")
     except Exception:
-        print(f"Server health: endpoint not found (proceeding anyway)")
+        print("  Server health  : (no /health, proceeding)")
 
-    # Warmup — ensures JIT-compiled CUDA kernels (e.g. cuda_chunkwise) are
-    # already compiled before benchmark requests start.  On Jetson Orin the
-    # first compile can take ~10-15 s; this cost is paid here, not during
-    # benchmark measurement.
+    # Warmup (pays JIT/compile + CUDA-graph capture costs once).
     if args.warmup > 0:
-        print(f"\n--- Warmup ({args.warmup} request(s), first may be slow due to JIT) ---")
+        print(f"\n--- Warmup ({args.warmup}) ---")
         for i in range(args.warmup):
-            print(f"  warmup {i+1}/{args.warmup} ...", end=" ", flush=True)
-            wr = run_one_request(
-                args.url, args.model,
-                "Please explain the GDN linear attention mechanism briefly.",
-                max_tokens=20, temperature=args.temperature,
-            )
-            print(f"done ({wr.total_time_ms:.0f} ms)"
-                  + (" ← JIT compile included" if wr.ttft_ms > 5000 else ""))
+            wr = stream_request(args.url, args.model,
+                                build_prompt(max(sizes), for_decode=True),
+                                max_tokens=32, temperature=args.temperature)
+            note = " (JIT/capture)" if wr.ttft_s > 5.0 else ""
+            print(f"  warmup {i+1}/{args.warmup}: ttft={wr.ttft_s*1000:.0f}ms{note}")
 
-    # Benchmark
-    print(f"\n--- Benchmark ({len(PROMPTS)} requests) ---")
-    summary = BenchmarkSummary()
+    stats: List[SizeStats] = []
+    print(f"\n--- Benchmark ---")
+    for size in sizes:
+        st = SizeStats(target_tokens=size)
+        pp_prompt = build_prompt(size, for_decode=False)
+        tg_prompt = build_prompt(size, for_decode=True)
+        for rep in range(args.repeat):
+            # --- Prefill (pp) ---
+            tps = None
+            if not args.client_timing:
+                # Rigorous path: server compute-only prefill (debug_timing).
+                ptok, pms, _ = server_timed_request(
+                    args.url, args.model, pp_prompt,
+                    max_tokens=1, temperature=args.temperature)
+                if pms and pms > 0:
+                    st.prompt_tokens = ptok
+                    st.server_timing = True
+                    tps = ptok / (pms / 1000.0)
+            if tps is None:
+                # Fallback: client-side TTFT (streaming).
+                pp = stream_request(args.url, args.model, pp_prompt,
+                                    max_tokens=1, temperature=args.temperature)
+                st.prompt_tokens = pp.prompt_tokens
+                tps = pp.prefill_tps()
+            if tps:
+                st.prefill_tps.append(tps)
 
-    for i, prompt in enumerate(PROMPTS):
-        short = prompt[:50] + ("..." if len(prompt) > 50 else "")
-        print(f"  [{i+1}/{len(PROMPTS)}] \"{short}\"", flush=True)
+            # --- Decode (tg) ---
+            dtps = None
+            gen = args.decode_tokens
+            if not args.client_timing:
+                # Rigorous path: server-side decode-loop throughput.
+                _, _, sdtps = server_timed_request(
+                    args.url, args.model, tg_prompt,
+                    max_tokens=args.decode_tokens, temperature=args.temperature)
+                if sdtps and sdtps > 0:
+                    st.decode_server_timing = True
+                    dtps = sdtps
+            if dtps is None:
+                # Fallback: client-side inter-token gaps (streaming).
+                tg = stream_request(args.url, args.model, tg_prompt,
+                                    max_tokens=args.decode_tokens, temperature=args.temperature)
+                dtps = tg.decode_tps
+                gen = tg.gen_tokens
+            if dtps:
+                st.decode_tps.append(dtps)
+            st.gen_tokens.append(gen)
+            print(f"  [{size:>5} tok] rep {rep+1}/{args.repeat}: "
+                  f"prefill={tps or 0:7.1f} t/s  decode={dtps or 0:5.1f} t/s  "
+                  f"(prompt={st.prompt_tokens})", flush=True)
+        stats.append(st)
 
-        result = run_one_request(
-            args.url, args.model, prompt,
-            max_tokens=args.max_tokens,
-            temperature=args.temperature,
-        )
-        summary.add(result)
-
-        print(f"         TTFT={result.ttft_ms:.0f}ms  prefill_est={result.prefill_ms:.0f}ms  "
-              f"prefill={result.prefill_tps:.0f} t/s  "
-              f"decode={result.decode_tps:.1f} t/s  "
-              f"gen={result.generated_tokens} tokens")
-
-    summary.print_table()
+    print_report(stats, args.decode_tokens)
 
 
 if __name__ == "__main__":

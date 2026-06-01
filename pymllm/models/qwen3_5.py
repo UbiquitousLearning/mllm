@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import torch
@@ -1031,12 +1032,19 @@ class Qwen3_5ForConditionalGeneration(nn.Module):
                 mask_3d = image_mask.unsqueeze(-1).expand_as(input_embeds)
                 input_embeds = input_embeds.masked_scatter(mask_3d, image_embeds)
 
+        _llm_t0 = time.perf_counter()
         hidden_states = self.model(
             input_ids=input_ids,
             positions=positions,
             forward_batch=forward_batch,
             input_embeds=input_embeds,
         )
+        _llm_ms = (time.perf_counter() - _llm_t0) * 1000.0
+        if forward_batch.forward_mode.is_extend():
+            forward_batch.llm_prefill_ms = _llm_ms
+            forward_batch.llm_decode_ms = None
+        else:
+            forward_batch.llm_decode_ms = _llm_ms
 
         # LM head
         logits = self.lm_head(hidden_states)
