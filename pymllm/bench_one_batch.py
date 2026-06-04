@@ -200,8 +200,9 @@ def add_bench_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         dest="correctness_test",
         action="store_true",
         help=(
-            "Run a single-stage correctness check (encode real prompts, prefill, "
-            "greedy decode, print decoded text) instead of the latency benchmark."
+            "Run a single-stage smoke correctness check (encode real prompts, "
+            "prefill, greedy decode, print decoded text) instead of the "
+            "latency benchmark."
         ),
     )
     return parser
@@ -1109,7 +1110,7 @@ def correctness_test(
     cfg: GlobalConfig,
     args: BenchArgs,
 ) -> None:
-    """Single-stage correctness check.
+    """Single-stage smoke correctness check.
 
     Encode a real prompt, run one full prefill at batch_size=1, greedy-decode
     ``output_len`` tokens, and print the decoded text.  Unlike SGLang's
