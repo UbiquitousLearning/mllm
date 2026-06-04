@@ -270,4 +270,7 @@ def test_make_profile_trace_path_is_deterministic_and_sanitized(tmp_path):
     )
 
     assert path.parent == tmp_path
-    assert path.name == "pymllm_profile_qwen3_vl_w8a8_bs1_in256_out8_decode.trace.json"
+    assert (
+        path.name
+        == "pymllm_profile_qwen3_vl_w8a8_bs1_in256_out8_decode.trace.json.gz"
+    )
