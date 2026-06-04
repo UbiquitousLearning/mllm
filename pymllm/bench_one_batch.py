@@ -708,13 +708,18 @@ class PymllmBenchRunner:
             raise RuntimeError(f"Failed to allocate {batch_size} decode KV slots")
 
         seq_lens = state.seq_lens + 1
-        for i in range(batch_size):
-            slot = int(state.req_pool_indices[i].item())
-            write_pos = int(seq_lens[i].item()) - 1
-            self.runner.req_to_token_pool.write(
-                (slot, slice(write_pos, write_pos + 1)),
-                out_cache_loc[i : i + 1],
-            )
+        # Tensorized KV-mapping write.  The production decode path
+        # (orchestrator/model_runner_process.py) keeps slot/write_pos as plain
+        # CPU bookkeeping and never does a per-request CUDA ``.item()`` sync.
+        # Doing per-request ``.item()`` here would add 2*batch_size CPU-GPU
+        # syncs inside the timed decode region that SGLang does not have,
+        # biasing decode latency once batch_size > 1.  Write all rows at once:
+        # req_to_token[req_pool_indices, seq_lens - 1] = out_cache_loc.
+        write_positions = (seq_lens - 1).to(torch.int64)
+        self.runner.req_to_token_pool.write(
+            (state.req_pool_indices, write_positions),
+            out_cache_loc.to(torch.int32),
+        )
 
         forward_batch = self.runner.prepare_forward_batch_decode(
             input_ids=input_ids.to(device=self.device, dtype=torch.int32),
