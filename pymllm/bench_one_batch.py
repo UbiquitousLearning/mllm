@@ -881,6 +881,32 @@ def run_single_setting(
     )
 
 
+def _align_runner_capacity_with_batch_sizes(
+    cfg: GlobalConfig, batch_sizes: Sequence[int]
+) -> None:
+    """Ensure the runner can hold and CUDA-graph-capture the largest batch.
+
+    Mirrors SGLang ``main()`` which sets
+    ``server_args.cuda_graph_max_bs = max(bench_args.batch_size)``.  In pymllm
+    the CUDA graph capture batch sizes are derived from
+    ``ModelRunner.max_running_requests`` (see ``CudaGraphRunner``), which also
+    sizes ``req_to_token_pool``.  Without this, sweeping a batch size larger
+    than the configured capture set makes decode silently fall off the graph
+    path and run eager, biasing decode latency versus SGLang.
+    """
+    if not batch_sizes:
+        return
+    requested = max(batch_sizes)
+    configured = cfg.server.max_running_requests
+    if configured is None or configured < requested:
+        cfg.server.max_running_requests = requested
+        logger.info(
+            "Raised max_running_requests to %d to cover bench batch sizes "
+            "(SGLang cuda_graph_max_bs alignment).",
+            requested,
+        )
+
+
 def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
     _load_hf_config(cfg)
     logger.info(
@@ -888,6 +914,7 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
         "do not chunk this benchmark."
     )
 
+    _align_runner_capacity_with_batch_sizes(cfg, args.batch_size)
     bench_runner = PymllmBenchRunner.create(cfg)
     try:
         settings = generate_settings(args)
