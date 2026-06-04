@@ -8,6 +8,7 @@ from pymllm.configs.global_config import GlobalConfig
 from pymllm.bench_one_batch import (
     BenchArgs,
     BenchSetting,
+    DecodeState,
     PymllmBenchRunner,
     generate_settings,
     make_multimodal_bench_input_from_processor_output,
@@ -273,4 +274,67 @@ def test_make_profile_trace_path_is_deterministic_and_sanitized(tmp_path):
     assert (
         path.name
         == "pymllm_profile_qwen3_vl_w8a8_bs1_in256_out8_decode.trace.json.gz"
+    )
+
+
+def test_decode_writes_batch_kv_mapping_with_tensor_indices():
+    from pymllm.mem_cache.memory_pool import ReqToTokenPool, TokenToKVPoolAllocator
+
+    class _Runner:
+        def __init__(self):
+            self.device = "cpu"
+            self.dtype = torch.float32
+            self.req_to_token_pool = ReqToTokenPool(
+                max_reqs=6,
+                max_context_len=8,
+                device="cpu",
+            )
+            self.token_to_kv_pool_allocator = TokenToKVPoolAllocator(
+                size=32,
+                device="cpu",
+            )
+            self.last_decode_kwargs = None
+
+        def prepare_forward_batch_decode(self, **kwargs):
+            self.last_decode_kwargs = kwargs
+            return SimpleNamespace(batch_size=kwargs["req_pool_indices"].shape[0])
+
+        def forward(self, forward_batch):
+            del forward_batch
+            return object()
+
+        def sample(self, logits_output, forward_batch, **kwargs):
+            del logits_output, forward_batch, kwargs
+            return torch.tensor([11, 12, 13], dtype=torch.int32)
+
+    fake_runner = _Runner()
+    bench_runner = PymllmBenchRunner(fake_runner)
+    state = DecodeState(
+        req_pool_indices=torch.tensor([2, 0, 4], dtype=torch.int64),
+        seq_lens=torch.tensor([4, 2, 6], dtype=torch.int32),
+    )
+
+    next_token_ids, next_state = bench_runner.decode(
+        torch.tensor([1, 2, 3], dtype=torch.int32),
+        state,
+    )
+
+    torch.testing.assert_close(
+        fake_runner.req_to_token_pool.req_to_token[
+            torch.tensor([2, 0, 4], dtype=torch.int64),
+            torch.tensor([4, 2, 6], dtype=torch.int64),
+        ],
+        torch.tensor([1, 2, 3], dtype=torch.int32),
+    )
+    torch.testing.assert_close(
+        next_state.seq_lens,
+        torch.tensor([5, 3, 7], dtype=torch.int32),
+    )
+    torch.testing.assert_close(
+        fake_runner.last_decode_kwargs["out_cache_loc"],
+        torch.tensor([1, 2, 3], dtype=torch.int64),
+    )
+    torch.testing.assert_close(
+        next_token_ids,
+        torch.tensor([11, 12, 13], dtype=torch.int32),
     )
