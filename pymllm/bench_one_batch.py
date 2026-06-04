@@ -14,7 +14,6 @@ import os
 import re
 import statistics
 import time
-from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator, Optional, Sequence
@@ -145,8 +144,12 @@ def add_bench_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument(
         "--profile-activities",
         nargs="+",
-        choices=["CPU", "GPU"],
+        choices=["CPU", "GPU", "CUDA_PROFILER"],
         default=["CPU", "GPU"],
+        help=(
+            "CPU/GPU use the torch profiler; CUDA_PROFILER drives nsys via "
+            "cudaProfilerStart/Stop (use with nsys --capture-range=cudaProfilerApi)."
+        ),
     )
     group.add_argument(
         "--profile-stage",
@@ -398,7 +401,7 @@ def make_profile_trace_path(
     filename = (
         f"{safe_prefix}_{safe_run_name}_bs{setting.batch_size}"
         f"_in{setting.input_len}_out{setting.output_len}_{stage}"
-        f"{step_part}.trace.json"
+        f"{step_part}.trace.json.gz"
     )
     return output_dir / filename
 
@@ -552,45 +555,79 @@ def _profiler_activities(args: BenchArgs) -> list[Any]:
     return activities
 
 
-@contextmanager
-def _maybe_profile(
-    *,
-    args: BenchArgs,
-    setting: BenchSetting,
-    stage: str,
-    step: Optional[int] = None,
-) -> Iterator[None]:
-    if not _profile_stage_enabled(args, stage):
-        with nullcontext():
-            yield
-        return
+def _resolve_profile_output_dir() -> Path:
+    output_dir = Path(os.environ.get("PYMLLM_TORCH_PROFILER_DIR", "/tmp"))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _start_profile(args: BenchArgs, trace_path: Path) -> Any:
+    """Start profiling and return a handle.
+
+    Mirrors SGLang's ``start_profile``: ``CUDA_PROFILER`` drives nsys via
+    ``cudaProfilerStart``; otherwise a torch profiler with ``with_stack=True``
+    is started so kernels can be mapped back to Python source.  Returns
+    ``"cuda"`` for the nsys path, the profiler object for the torch path, or
+    ``None`` when no activity is available.  ``trace_path`` is accepted for
+    symmetry with ``_stop_profile`` (the torch path saves it on stop).
+    """
+    if "CUDA_PROFILER" in args.profile_activities:
+        try:
+            torch.cuda.cudart().cudaProfilerStart()
+            logger.info("CUDA profiler started (nsys will begin capturing).")
+        except Exception as exc:  # pragma: no cover - depends on nsys runtime
+            logger.warning("Failed to start CUDA profiler: %s", exc)
+        return "cuda"
 
     activities = _profiler_activities(args)
     if not activities:
-        with nullcontext():
-            yield
-        return
+        return None
 
     from torch.profiler import profile
 
-    output_dir = Path(os.environ.get("PYMLLM_TORCH_PROFILER_DIR", "/tmp"))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    trace_path = make_profile_trace_path(
-        output_dir=output_dir,
-        prefix=args.profile_filename_prefix,
-        run_name=args.run_name,
-        setting=setting,
-        stage=stage,
-        step=step,
-    )
-    with profile(
+    profiler = profile(
         activities=activities,
+        with_stack=True,
         record_shapes=args.profile_record_shapes,
-    ) as profiler:
-        yield
-        profiler.step()
-    profiler.export_chrome_trace(str(trace_path))
-    logger.info("Wrote torch profiler trace: %s", trace_path)
+    )
+    profiler.start()
+    return profiler
+
+
+def _stop_profile(handle: Any, args: BenchArgs, trace_path: Path, stage: str) -> None:
+    """Stop profiling and, for the torch path, save the chrome trace.
+
+    Mirrors SGLang's ``stop_profile``, including printing the key_averages
+    table.  The trace is written as ``.trace.json.gz`` (torch gzips when the
+    filename ends with ``.gz``).
+    """
+    if handle is None:
+        return
+    if handle == "cuda":
+        try:
+            torch.cuda.cudart().cudaProfilerStop()
+            logger.info("CUDA profiler stopped for %s (nsys dumps traces).", stage)
+        except Exception as exc:  # pragma: no cover - depends on nsys runtime
+            logger.warning("Failed to stop CUDA profiler: %s", exc)
+        return
+
+    handle.stop()
+    trace_path.parent.mkdir(parents=True, exist_ok=True)
+    handle.export_chrome_trace(str(trace_path))
+    try:
+        sort_key = (
+            "self_cuda_time_total"
+            if torch.cuda.is_available()
+            else "self_cpu_time_total"
+        )
+        print(
+            handle.key_averages(
+                group_by_input_shape=args.profile_record_shapes
+            ).table(sort_by=sort_key)
+        )
+    except Exception as exc:
+        logger.warning("Failed to print profiler key_averages: %s", exc)
+    logger.info("Wrote torch profiler trace for %s: %s", stage, trace_path)
 
 
 class PymllmBenchRunner:
@@ -840,47 +877,66 @@ def run_single_setting(
         )
         return None
 
-    with _maybe_profile(args=args, setting=effective_setting, stage="prefill"):
-        prefill_latency, extend_result = _timed_call(
-            bench_runner.device,
-            lambda: bench_runner.extend(
-                input_ids,
-                pixel_values=mm_input.pixel_values if mm_input is not None else None,
-                image_grid_thw=(
-                    mm_input.image_grid_thw if mm_input is not None else None
-                ),
-                benchmark_vision_timing=mm_input is not None,
-            ),
+    prefill_profile = _profile_stage_enabled(args, "prefill")
+    prefill_trace: Optional[Path] = None
+    prefill_handle: Any = None
+    if prefill_profile:
+        prefill_trace = make_profile_trace_path(
+            output_dir=_resolve_profile_output_dir(),
+            prefix=args.profile_filename_prefix,
+            run_name=args.run_name,
+            setting=effective_setting,
+            stage="prefill",
         )
+        prefill_handle = _start_profile(args, prefill_trace)
+    prefill_latency, extend_result = _timed_call(
+        bench_runner.device,
+        lambda: bench_runner.extend(
+            input_ids,
+            pixel_values=mm_input.pixel_values if mm_input is not None else None,
+            image_grid_thw=(
+                mm_input.image_grid_thw if mm_input is not None else None
+            ),
+            benchmark_vision_timing=mm_input is not None,
+        ),
+    )
+    if prefill_profile:
+        _stop_profile(prefill_handle, args, prefill_trace, "prefill")
     next_token_ids, state = extend_result
 
     decode_latencies: list[float] = []
     decode_steps = max(0, setting.output_len - 1)
+    decode_profile = _profile_stage_enabled(args, "decode")
     profile_start_step = args.profile_start_step
     if profile_start_step is None:
-        profile_start_step = decode_steps // 2 if decode_steps else 0
+        # Align SGLang: default to output_len // 2.
+        profile_start_step = effective_setting.output_len // 2
     profile_stop_step = profile_start_step + args.profile_steps
+    decode_trace: Optional[Path] = None
+    decode_handle: Any = None
 
+    # One continuous profiler spans [profile_start_step, profile_stop_step),
+    # producing a single decode trace, matching SGLang (not one file per step).
     for step in range(decode_steps):
-        should_profile_decode = (
-            _profile_stage_enabled(args, "decode")
-            and profile_start_step <= step < profile_stop_step
-        )
-        profile_context = (
-            _maybe_profile(
-                args=args,
+        if decode_profile and step == profile_start_step:
+            decode_trace = make_profile_trace_path(
+                output_dir=_resolve_profile_output_dir(),
+                prefix=args.profile_filename_prefix,
+                run_name=args.run_name,
                 setting=effective_setting,
                 stage="decode",
-                step=step,
             )
-            if should_profile_decode
-            else nullcontext()
+            decode_handle = _start_profile(args, decode_trace)
+
+        decode_latency, decode_result = _timed_call(
+            bench_runner.device,
+            lambda: bench_runner.decode(next_token_ids, state),
         )
-        with profile_context:
-            decode_latency, decode_result = _timed_call(
-                bench_runner.device,
-                lambda: bench_runner.decode(next_token_ids, state),
-            )
+
+        if decode_handle is not None and step >= profile_stop_step - 1:
+            _stop_profile(decode_handle, args, decode_trace, "decode")
+            decode_handle = None
+
         next_token_ids, state = decode_result
         decode_latencies.append(decode_latency)
 
@@ -891,6 +947,11 @@ def run_single_setting(
                 decode_steps,
                 decode_latency,
             )
+
+    # Save if the requested profile window ran past the final decode step.
+    if decode_handle is not None:
+        _stop_profile(decode_handle, args, decode_trace, "decode")
+        decode_handle = None
 
     if not record_result:
         return None
