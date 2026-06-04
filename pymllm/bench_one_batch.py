@@ -831,6 +831,7 @@ def run_single_setting(
     seed: int,
     record_result: bool,
     multimodal_processor_output: Any = None,
+    allow_profile: bool = True,
 ) -> Optional[dict[str, Any]]:
     bench_runner.clear()
     vocab_size = getattr(bench_runner.runner, "vocab_size", 10000)
@@ -877,7 +878,7 @@ def run_single_setting(
         )
         return None
 
-    prefill_profile = _profile_stage_enabled(args, "prefill")
+    prefill_profile = allow_profile and _profile_stage_enabled(args, "prefill")
     prefill_trace: Optional[Path] = None
     prefill_handle: Any = None
     if prefill_profile:
@@ -906,7 +907,7 @@ def run_single_setting(
 
     decode_latencies: list[float] = []
     decode_steps = max(0, setting.output_len - 1)
-    decode_profile = _profile_stage_enabled(args, "decode")
+    decode_profile = allow_profile and _profile_stage_enabled(args, "decode")
     profile_start_step = args.profile_start_step
     if profile_start_step is None:
         # Align SGLang: default to output_len // 2.
@@ -1042,6 +1043,7 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
                 seed=args.seed,
                 record_result=False,
                 multimodal_processor_output=multimodal_processor_output,
+                allow_profile=False,
             )
 
         results: list[dict[str, Any]] = []
