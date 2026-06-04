@@ -414,6 +414,20 @@ def _safe_div(numerator: float, denominator: float) -> float:
     return float(numerator / denominator)
 
 
+def _max_batch_size_for(runner: Any, input_len: int, output_len: int) -> int:
+    """SGLang-style capacity bound on the static batch.
+
+    Mirrors ``ModelRunner.max_batch_size`` in SGLang's bench_one_batch:
+    ``max_total_num_tokens // (input_len + output_len)``.  Used to skip
+    settings the KV pool cannot hold instead of failing mid-run on alloc.
+    """
+    total = int(getattr(runner, "max_total_num_tokens", 0) or 0)
+    denom = int(input_len) + int(output_len)
+    if denom <= 0:
+        return 0
+    return total // denom
+
+
 def _sync_device(device: str | torch.device) -> None:
     torch_device = torch.device(device)
     if torch_device.type == "cuda":
@@ -809,6 +823,23 @@ def run_single_setting(
             output_len=setting.output_len,
         )
 
+    max_bs = _max_batch_size_for(
+        bench_runner.runner,
+        effective_setting.input_len,
+        effective_setting.output_len,
+    )
+    if effective_setting.batch_size > max_bs:
+        logger.info(
+            "skipping (batch_size=%d, input_len=%d, output_len=%d): exceeds max "
+            "batch size %d (max_total_num_tokens=%d). SGLang-style skip.",
+            effective_setting.batch_size,
+            effective_setting.input_len,
+            effective_setting.output_len,
+            max_bs,
+            int(getattr(bench_runner.runner, "max_total_num_tokens", 0) or 0),
+        )
+        return None
+
     with _maybe_profile(args=args, setting=effective_setting, stage="prefill"):
         prefill_latency, extend_result = _timed_call(
             bench_runner.device,
@@ -968,7 +999,9 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
                 record_result=True,
                 multimodal_processor_output=multimodal_processor_output,
             )
-            assert result is not None
+            if result is None:
+                # Setting skipped (e.g. exceeds KV pool capacity); do not record.
+                continue
             _append_jsonl(args.result_filename, result)
             logger.info("Result: %s", json.dumps(result, sort_keys=True))
             results.append(result)
