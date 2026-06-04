@@ -52,6 +52,7 @@ class BenchArgs:
     skip_warmup: bool = False
     image_path: Optional[Path] = None
     prompt: str = "Describe this image."
+    correctness_test: bool = False
 
 
 @dataclass
@@ -193,6 +194,16 @@ def add_bench_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default=BenchArgs.prompt,
         help="Prompt text used with --image in multimodal benchmark mode.",
     )
+    group.add_argument(
+        "--correct",
+        "--correctness-test",
+        dest="correctness_test",
+        action="store_true",
+        help=(
+            "Run a single-stage correctness check (encode real prompts, prefill, "
+            "greedy decode, print decoded text) instead of the latency benchmark."
+        ),
+    )
     return parser
 
 
@@ -225,6 +236,7 @@ def _bench_args_from_namespace(namespace: argparse.Namespace) -> BenchArgs:
         skip_warmup=namespace.skip_warmup,
         image_path=namespace.image_path,
         prompt=namespace.prompt,
+        correctness_test=namespace.correctness_test,
     )
 
 
@@ -1073,10 +1085,81 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
         bench_runner.shutdown()
 
 
+DEFAULT_CORRECTNESS_PROMPTS = (
+    "The capital of France is",
+    "The capital of the United Kindom is",
+    "Today is a sunny day and I like",
+)
+
+
+def _load_tokenizer(cfg: GlobalConfig) -> Any:
+    if cfg.server.tokenizer_path is None:
+        raise ValueError("--server.tokenizer_path or --server.model_path is required")
+
+    from transformers import AutoTokenizer
+
+    return AutoTokenizer.from_pretrained(
+        str(cfg.server.tokenizer_path),
+        trust_remote_code=cfg.server.trust_remote_code,
+    )
+
+
+def correctness_test(
+    bench_runner: PymllmBenchRunner,
+    cfg: GlobalConfig,
+    args: BenchArgs,
+) -> None:
+    """Single-stage correctness check.
+
+    Encode a real prompt, run one full prefill at batch_size=1, greedy-decode
+    ``output_len`` tokens, and print the decoded text.  Unlike SGLang's
+    ``--correct`` (which exercises a cut_len two-stage prefill to test prefix-KV
+    reuse), this runs each prompt as a single full prefill.  Greedy decoding
+    makes the per-prompt output identical to SGLang's batched path.  The cut_len
+    two-stage variant can be layered on later: ``prepare_forward_batch_extend``
+    already accepts ``extend_prefix_lens > 0`` and ``req_to_token_pool.write``
+    can pre-populate prefix KV indices.
+    """
+    tokenizer = _load_tokenizer(cfg)
+    output_len = args.output_len[0]
+    prompts = list(DEFAULT_CORRECTNESS_PROMPTS)
+
+    for idx, prompt in enumerate(prompts):
+        token_ids = list(tokenizer.encode(prompt))
+        if not token_ids:
+            logger.warning("Prompt %d encoded to an empty token list, skipping.", idx)
+            continue
+        input_ids = torch.tensor(
+            [token_ids], dtype=torch.int32, device=bench_runner.device
+        )
+
+        bench_runner.clear()
+        next_token_ids, state = bench_runner.extend(input_ids)
+        output_ids = token_ids + [int(next_token_ids[0].item())]
+        for _ in range(max(0, output_len - 1)):
+            next_token_ids, state = bench_runner.decode(next_token_ids, state)
+            output_ids.append(int(next_token_ids[0].item()))
+
+        print(f"========== Prompt {idx} ==========")
+        print(tokenizer.decode(output_ids), "\n")
+
+
+def run_correctness(cfg: GlobalConfig, args: BenchArgs) -> None:
+    _load_hf_config(cfg)
+    bench_runner = PymllmBenchRunner.create(cfg)
+    try:
+        correctness_test(bench_runner, cfg, args)
+    finally:
+        bench_runner.shutdown()
+
+
 def main(argv: Optional[Sequence[str]] = None) -> None:
     cfg, args = parse_args(argv)
     _configure_logging(cfg.server.log_level)
-    run_benchmark(cfg, args)
+    if args.correctness_test:
+        run_correctness(cfg, args)
+    else:
+        run_benchmark(cfg, args)
 
 
 if __name__ == "__main__":
