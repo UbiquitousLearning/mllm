@@ -13,7 +13,9 @@ from pymllm.mobile.backends.qualcomm.transformers.core.qlinear import (
     QLinearW8A16_PerChannelSym,
 )
 from pymllm.mobile.backends.qualcomm.transformers.core.embedding import QEmbedding
-from pymllm.mobile.backends.qualcomm.transformers.llama.modeling_llama import LlamaForCausalLM
+from pymllm.mobile.backends.qualcomm.transformers.llama.modeling_llama import (
+    LlamaForCausalLM,
+)
 from pymllm.mobile.backends.qualcomm.transformers.core.observer import ConcatObserver
 
 
@@ -194,6 +196,7 @@ def convert_weight(m):
     if isinstance(m, QEmbedding):
         m.convert_to_deploy()
 
+
 def _check_datasets_compatibility():
     try:
         ds_ver = version("datasets")
@@ -209,6 +212,7 @@ def _check_datasets_compatibility():
             "Current Qualcomm calibration depends on a modelscope-compatible "
             "datasets version. Please use datasets==2.21.0."
         )
+
 
 class LlamaQuantizer:
     def __init__(self, model_path: str, mllm_qualcomm_max_length=2048):
@@ -298,6 +302,7 @@ class LlamaQuantizer:
         # Use streaming=True to download and process on the fly, without downloading the full几十G dataset
         _check_datasets_compatibility()
         from modelscope.msdatasets import MsDataset
+
         dataset = MsDataset.load(
             "modelscope/wikitext",
             subset_name="wikitext-103-v1",
@@ -314,7 +319,7 @@ class LlamaQuantizer:
             for entry in dataset:
                 if samples_processed >= num_samples:
                     break
-                
+
                 text = entry["text"].strip()
                 if len(text) < 50:
                     continue

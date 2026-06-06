@@ -60,7 +60,6 @@ MLLM_MAIN({
   //   return 1;
   // }
 
-
   std::string prompt_text;
   fmt::print("💬 Prompt text (or 'exit/quit'): ");
   std::getline(std::cin, prompt_text);

@@ -10,7 +10,7 @@ namespace mllm::qnn::aot {
 
 struct QnnAOTConfig {
   std::string type = "qwen3";
-  
+
   int num_layers = 28;
   int num_heads = 12;
   int head_dim = 128;

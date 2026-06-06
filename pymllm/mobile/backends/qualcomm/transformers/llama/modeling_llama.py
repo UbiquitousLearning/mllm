@@ -20,9 +20,20 @@
 from typing import Callable, Optional, Union
 
 import torch
+from pymllm.mobile.backends.qualcomm.transformers.core.embedding import QEmbedding
+from pymllm.mobile.backends.qualcomm.transformers.core.observer import ConcatObserver
+from pymllm.mobile.backends.qualcomm.transformers.core.qdq import (
+    ActivationQDQ,
+    FixedActivationQDQ,
+)
+from pymllm.mobile.backends.qualcomm.transformers.core.qlinear import (
+    QLinearLPBQ,
+)
+
+# Replace linear, rms_norm with:
+from pymllm.mobile.backends.qualcomm.transformers.core.rms_norm import QRMSNorm
 from torch import nn
 from torch.nn import functional as F
-
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache
 from transformers.generation import GenerationMixin
@@ -40,6 +51,7 @@ from transformers.modeling_outputs import (
 )
 from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.processing_utils import Unpack
 from transformers.utils import (
     TransformersKwargs,
@@ -49,20 +61,6 @@ from transformers.utils import (
 )
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.utils.generic import check_model_inputs
-from transformers.models.llama.configuration_llama import LlamaConfig
-
-# Replace linear, rms_norm with:
-from pymllm.mobile.backends.qualcomm.transformers.core.rms_norm import QRMSNorm
-from pymllm.mobile.backends.qualcomm.transformers.core.qlinear import (
-    QLinearLPBQ,
-)
-from pymllm.mobile.backends.qualcomm.transformers.core.qdq import (
-    ActivationQDQ,
-    FixedActivationQDQ,
-)
-from pymllm.mobile.backends.qualcomm.transformers.core.embedding import QEmbedding
-from pymllm.mobile.backends.qualcomm.transformers.core.observer import ConcatObserver
-
 
 logger = logging.get_logger(__name__)
 
