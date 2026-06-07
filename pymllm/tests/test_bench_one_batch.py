@@ -78,6 +78,24 @@ def test_parse_args_accepts_server_config_and_list_bench_args(tmp_path):
     assert bench_args.profile_activities == ["CPU", "GPU"]
     assert bench_args.image_path == tmp_path / "image.jpg"
     assert bench_args.prompt == "What is in this image?"
+    assert bench_args.input_len_was_provided is True
+
+
+def test_parse_args_detects_default_input_len_when_omitted_in_image_mode(tmp_path):
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+
+    _, bench_args = parse_args(
+        [
+            "--server.model_path",
+            str(model_dir),
+            "--image",
+            str(tmp_path / "image.jpg"),
+        ]
+    )
+
+    assert bench_args.input_len == [256, 512, 1024]
+    assert bench_args.input_len_was_provided is False
 
 
 def test_generate_settings_has_stable_batch_input_output_order(tmp_path):
@@ -108,6 +126,24 @@ def test_generate_settings_uses_processed_prompt_length_for_image_mode(tmp_path)
     assert generate_settings(args) == [
         BenchSetting(batch_size=1, input_len=0, output_len=8),
         BenchSetting(batch_size=2, input_len=0, output_len=8),
+    ]
+
+
+def test_generate_settings_sweeps_input_len_when_explicit_in_image_mode(tmp_path):
+    args = BenchArgs(
+        batch_size=[1, 2],
+        input_len=[512, 1024],
+        output_len=[8],
+        result_filename=tmp_path / "out.jsonl",
+        image_path=tmp_path / "image.jpg",
+        input_len_was_provided=True,
+    )
+
+    assert generate_settings(args) == [
+        BenchSetting(batch_size=1, input_len=512, output_len=8),
+        BenchSetting(batch_size=1, input_len=1024, output_len=8),
+        BenchSetting(batch_size=2, input_len=512, output_len=8),
+        BenchSetting(batch_size=2, input_len=1024, output_len=8),
     ]
 
 
@@ -174,6 +210,24 @@ def test_make_vit_prefill_metrics_reports_seconds_and_tps():
     }
 
 
+def test_make_multimodal_prefill_metrics_aliases_full_prefill_latency():
+    from pymllm.bench_one_batch import make_multimodal_prefill_metrics
+
+    result = make_multimodal_prefill_metrics(
+        prefill_latency=0.25,
+        batch_size=2,
+        input_len=128,
+    )
+
+    assert result == {
+        "multimodal_prefill_latency": pytest.approx(0.25),
+        "multimodal_prefill_ms": pytest.approx(250.0),
+        "multimodal_prefill_tokens": 256,
+        "multimodal_prefill_throughput": pytest.approx(1024.0),
+        "multimodal_prefill_tps": pytest.approx(1024.0),
+    }
+
+
 def test_make_multimodal_bench_input_repeats_processor_output_per_batch():
     bench_input = make_multimodal_bench_input_from_processor_output(
         {
@@ -197,6 +251,85 @@ def test_make_multimodal_bench_input_repeats_processor_output_per_batch():
         bench_input.image_grid_thw,
         torch.tensor([[1, 2, 2], [1, 2, 2], [1, 2, 2]], dtype=torch.int64),
     )
+
+
+def test_make_multimodal_bench_input_pads_text_tokens_to_target_len():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 5, 5, 102]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=7,
+        pad_token_id=0,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 5, 5, 102, 0, 0, 0]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_does_not_pad_with_image_token_id():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 5, 5, 102]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=6,
+        pad_token_id=5,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 5, 5, 102, 0, 0]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_truncates_text_tokens_not_image_tokens():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 7, 5, 5, 102, 103]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=4,
+        pad_token_id=0,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 7, 5, 5]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_rejects_target_shorter_than_image_tokens():
+    with pytest.raises(ValueError, match="target_input_len"):
+        make_multimodal_bench_input_from_processor_output(
+            {
+                "input_ids": torch.tensor([[5, 5, 5, 102]], dtype=torch.int64),
+                "pixel_values": torch.arange(9, dtype=torch.float32).reshape(3, 3),
+                "image_grid_thw": torch.tensor([[1, 3, 1]], dtype=torch.int64),
+            },
+            batch_size=1,
+            image_token_id=5,
+            device="cpu",
+            target_input_len=2,
+            pad_token_id=0,
+        )
 
 
 def test_extend_attaches_multimodal_inputs_and_returns_vit_metrics():
