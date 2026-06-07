@@ -139,6 +139,19 @@ class LogitsProcessorOutput:
     hidden_states: Optional[torch.Tensor] = None
 
 
+@dataclass
+class MemoryProfileResult:
+    pre_model_available_gb: float
+    available_gb: float
+    mem_fraction: float
+    static_kv_budget_gb: float
+    cell_size_bytes: int
+    profiled_max_tokens: int
+    requested_max_total_tokens: Optional[int]
+    effective_max_tokens: int
+    gdn_pool_gb: float = 0.0
+
+
 # ---------------------------------------------------------------------------
 # Penalty helpers
 # ---------------------------------------------------------------------------
@@ -302,6 +315,7 @@ class ModelRunner:
         # match SGLang's mem_fraction_static semantics: static memory includes
         # both model weights and the KV cache pool.
         self._pre_model_load_available_gb: float = 0.0
+        self._last_memory_profile: Optional[MemoryProfileResult] = None
 
     # ------------------------------------------------------------------
     # Initialisation
@@ -737,11 +751,7 @@ class ModelRunner:
         self.max_running_requests = max_reqs
 
         if self.max_total_num_tokens <= 0:
-            raise RuntimeError(
-                "Not enough memory for KV cache.  "
-                "Try increasing mem_fraction_static, reducing context_length, "
-                "or using a smaller model."
-            )
+            raise RuntimeError(self._format_kv_cache_memory_error())
 
         # Create ReqToTokenPool
         self.req_to_token_pool = make_req_to_token_pool(
@@ -848,6 +858,7 @@ class ModelRunner:
 
         rest_memory_gb = available_gb - pre_model_available_gb * (1 - mem_fraction)
         rest_memory_bytes = int(rest_memory_gb * (1 << 30))
+        gdn_pool_gb = 0.0
 
         # Reserve memory for GDN pool if hybrid model
         if self.num_gdn_layers > 0:
@@ -894,12 +905,14 @@ class ModelRunner:
             )
             gdn_pool_bytes = recurrent_bytes + conv_bytes
             rest_memory_bytes -= gdn_pool_bytes
+            gdn_pool_gb = gdn_pool_bytes / (1 << 30)
             logger.info(
                 "GDN pool memory reservation: %.2f GB",
-                gdn_pool_bytes / (1 << 30),
+                gdn_pool_gb,
             )
 
-        max_num_tokens = rest_memory_bytes // cell_size
+        profiled_max_tokens = max(rest_memory_bytes // cell_size, 0)
+        max_num_tokens = profiled_max_tokens
 
         if self.server_config.max_total_tokens is not None:
             if self.server_config.max_total_tokens > max_num_tokens:
@@ -910,6 +923,18 @@ class ModelRunner:
                     max_num_tokens,
                 )
             max_num_tokens = min(max_num_tokens, self.server_config.max_total_tokens)
+
+        self._last_memory_profile = MemoryProfileResult(
+            pre_model_available_gb=pre_model_available_gb,
+            available_gb=available_gb,
+            mem_fraction=mem_fraction,
+            static_kv_budget_gb=rest_memory_gb,
+            cell_size_bytes=cell_size,
+            profiled_max_tokens=profiled_max_tokens,
+            requested_max_total_tokens=self.server_config.max_total_tokens,
+            effective_max_tokens=max_num_tokens,
+            gdn_pool_gb=gdn_pool_gb,
+        )
 
         logger.info(
             "Memory profiling: pre_model_avail=%.2f GB, avail=%.2f GB, "
@@ -924,6 +949,62 @@ class ModelRunner:
         )
 
         return max_num_tokens
+
+    def _format_kv_cache_memory_error(self) -> str:
+        profile = getattr(self, "_last_memory_profile", None)
+        if profile is None:
+            return (
+                "Not enough memory for KV cache. Try increasing "
+                "--server.mem_fraction_static, reducing --server.max_total_tokens, "
+                "lowering --server.max_running_requests, or using a "
+                "smaller/quantized model."
+            )
+
+        requested = (
+            "unset"
+            if profile.requested_max_total_tokens is None
+            else str(profile.requested_max_total_tokens)
+        )
+        message = [
+            "Not enough memory for KV cache.",
+            (
+                "Memory profile: "
+                f"pre_model_avail={profile.pre_model_available_gb:.2f} GB, "
+                f"avail_after_model={profile.available_gb:.2f} GB, "
+                f"mem_fraction_static={profile.mem_fraction:.2f}, "
+                f"static_kv_budget={profile.static_kv_budget_gb:.2f} GB, "
+                f"cell_size={profile.cell_size_bytes} bytes, "
+                f"profiled max_tokens={profile.profiled_max_tokens}, "
+                f"requested max_total_tokens={requested}."
+            ),
+        ]
+        if profile.static_kv_budget_gb <= 0:
+            message.append(
+                "The static KV budget is non-positive, so model weights and "
+                "other static allocations already exceed the requested static "
+                "memory fraction."
+            )
+        if profile.gdn_pool_gb > 0:
+            message.append(f"GDN pool reservation={profile.gdn_pool_gb:.2f} GB.")
+        if (
+            profile.requested_max_total_tokens is not None
+            and profile.profiled_max_tokens < profile.requested_max_total_tokens
+        ):
+            message.append(
+                "The requested max_total_tokens is above the profiled KV "
+                "capacity for this launch."
+            )
+        message.append(
+            "Try increasing --server.mem_fraction_static, reducing "
+            "--server.max_total_tokens, lowering --server.max_running_requests, "
+            "or using a smaller/quantized model."
+        )
+        message.append(
+            "Note: server mode may need a higher mem_fraction_static than "
+            "bench_one_batch because tokenizer/scheduler/detokenizer/HTTP "
+            "processes and IPC buffers consume additional Jetson unified memory."
+        )
+        return " ".join(message)
 
     # ------------------------------------------------------------------
     # Attention backend
