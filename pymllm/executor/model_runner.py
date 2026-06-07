@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -79,6 +80,9 @@ def get_available_gpu_memory(device: str = "cuda", gpu_id: int = 0) -> float:
     if device != "cuda" or not torch.cuda.is_available():
         return 0.0
     torch.cuda.set_device(gpu_id)
+    props = torch.cuda.get_device_properties(gpu_id)
+    if getattr(props, "is_integrated", False):
+        return _get_system_available_memory_gb()
     free, _ = torch.cuda.mem_get_info(gpu_id)
     return free / (1 << 30)
 
@@ -90,6 +94,26 @@ def get_total_gpu_memory(device: str = "cuda", gpu_id: int = 0) -> float:
     torch.cuda.set_device(gpu_id)
     _, total = torch.cuda.mem_get_info(gpu_id)
     return total / (1 << 30)
+
+
+def _get_system_available_memory_gb() -> float:
+    try:
+        import psutil
+
+        return psutil.virtual_memory().available / (1 << 30)
+    except Exception:
+        pass
+
+    if hasattr(os, "sysconf"):
+        try:
+            page_size = os.sysconf("SC_PAGE_SIZE")
+            avail_pages = os.sysconf("SC_AVPHYS_PAGES")
+            return (page_size * avail_pages) / (1 << 30)
+        except (OSError, ValueError):
+            pass
+
+    free, _ = torch.cuda.mem_get_info()
+    return free / (1 << 30)
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +298,11 @@ class ModelRunner:
         # Forward pass counter (monotonically increasing).
         self.forward_pass_id: int = 0
 
+        # GPU memory available before model weights are loaded. This is used to
+        # match SGLang's mem_fraction_static semantics: static memory includes
+        # both model weights and the KV cache pool.
+        self._pre_model_load_available_gb: float = 0.0
+
     # ------------------------------------------------------------------
     # Initialisation
     # ------------------------------------------------------------------
@@ -301,6 +330,11 @@ class ModelRunner:
         torch.set_default_dtype(self.dtype)
 
         # Load the model
+        if self.device == "cuda":
+            self._pre_model_load_available_gb = get_available_gpu_memory(
+                self.device,
+                self.gpu_id,
+            )
         self.load_model()
 
         # Extract model metadata from hf_config
@@ -705,7 +739,8 @@ class ModelRunner:
         if self.max_total_num_tokens <= 0:
             raise RuntimeError(
                 "Not enough memory for KV cache.  "
-                "Try reducing context_length or using a smaller model."
+                "Try increasing mem_fraction_static, reducing context_length, "
+                "or using a smaller model."
             )
 
         # Create ReqToTokenPool
@@ -774,24 +809,26 @@ class ModelRunner:
     def _profile_max_num_tokens(self) -> int:
         """Profile available memory to determine maximum KV-cache tokens.
 
-        If ``server_config.max_total_tokens`` is explicitly set that value
-        is used directly.  Otherwise a memory-fraction-based heuristic
-        similar to sglang's ``profile_max_num_token`` is applied.
+        ``mem_fraction_static`` follows SGLang's semantics: it is the fraction
+        of total static memory budget used by model weights plus KV cache pool.
+        ``server_config.max_total_tokens`` is an upper bound on the profiled
+        capacity, not a replacement for profiling.
         """
-        # If user explicitly set max_total_tokens, use that.
-        if self.server_config.max_total_tokens is not None:
-            return self.server_config.max_total_tokens
-
         if self.device != "cuda":
             # For CPU, use a conservative default.
+            if self.server_config.max_total_tokens is not None:
+                return self.server_config.max_total_tokens
             return 4096
 
         available_gb = get_available_gpu_memory(self.device, self.gpu_id)
+        pre_model_available_gb = getattr(self, "_pre_model_load_available_gb", 0.0)
+        if pre_model_available_gb <= 0:
+            pre_model_available_gb = available_gb
 
-        # Determine memory fraction for static allocation (KV cache).
+        # Determine memory fraction for static allocation (model weights + KV cache).
         mem_fraction = self.server_config.mem_fraction_static
         if mem_fraction is None:
-            mem_fraction = 0.85  # default: use 85% of remaining memory
+            mem_fraction = 0.85
 
         # Calculate per-token KV cache size in bytes.
         kv_element_size = torch.tensor([], dtype=self.kv_cache_dtype).element_size()
@@ -809,7 +846,8 @@ class ModelRunner:
             )
             return 4096
 
-        rest_memory_bytes = int(available_gb * mem_fraction * (1 << 30))
+        rest_memory_gb = available_gb - pre_model_available_gb * (1 - mem_fraction)
+        rest_memory_bytes = int(rest_memory_gb * (1 << 30))
 
         # Reserve memory for GDN pool if hybrid model
         if self.num_gdn_layers > 0:
@@ -863,16 +901,29 @@ class ModelRunner:
 
         max_num_tokens = rest_memory_bytes // cell_size
 
+        if self.server_config.max_total_tokens is not None:
+            if self.server_config.max_total_tokens > max_num_tokens:
+                logger.warning(
+                    "max_total_tokens=%d is larger than the profiled value %d. "
+                    "Use the profiled value instead.",
+                    self.server_config.max_total_tokens,
+                    max_num_tokens,
+                )
+            max_num_tokens = min(max_num_tokens, self.server_config.max_total_tokens)
+
         logger.info(
-            "Memory profiling: avail=%.2f GB, fraction=%.2f, "
-            "cell_size=%d bytes, max_tokens=%d",
+            "Memory profiling: pre_model_avail=%.2f GB, avail=%.2f GB, "
+            "fraction=%.2f, static_kv_budget=%.2f GB, cell_size=%d bytes, "
+            "max_tokens=%d",
+            pre_model_available_gb,
             available_gb,
             mem_fraction,
+            rest_memory_gb,
             cell_size,
             max_num_tokens,
         )
 
-        return max(max_num_tokens, 1)  # at least 1
+        return max_num_tokens
 
     # ------------------------------------------------------------------
     # Attention backend
