@@ -17,9 +17,11 @@ mllm
 
 ## Latest News
 
+- [2026 Jun 08] 🔥🔥🔥`pymllm` now covers Qwen3, Qwen3-VL, and Qwen3.5 on Jetson Orin with W4A16 / W8A8 serving; Qwen3-VL-2B W8A8 reaches up to 3.12x prefill speedup on AGX Orin 32GB, while decode throughput stays broadly close to llama.cpp.
 - [2026 May 02] 🔥🔥🔥 MLLM now supports the Ascend NPU backend, with ATB graph execution and Qwen3 W8A8 inference on Ascend devices.
-- [2026 Mar 18] 🔥🔥🔥 `pymllm` now supports CUDA on Jetson Orin and Jetson Thor devices (experimental; still under active development).
-- [2026 Feb 03] 🔥🔥🔥 MLLM Qnn AOT Support for Full Graph Execution on NPU! [Quick Start](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
+- [2026 Apr 30] 🔥🔥🔥`pymllm` adds Jetson-oriented Qwen3 / Qwen3-VL BF16, W4A16, and W8A8 serving support, including compressed-tensors AWQ and W8A8 INT8 paths.
+- [2026 Mar 18] `pymllm` now supports CUDA on Jetson Orin and Jetson Thor devices (experimental; still under active development).
+- [2026 Feb 03] MLLM Qnn AOT Support for Full Graph Execution on NPU! [Quick Start](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [Technical Report](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support-en/)
 - [2025 Nov 27] Android Demo Update: Enabled stable Qwen3 and DeepSeek-OCR streaming on Android via a novel In-App Go Server Architecture.
 - [2025 Nov 23] MLLM v2 released!
 - [2025 Aug 28] Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS. MLLM will then transition to V2, which can be viewed on the V2 branch. V2 will include brand-new capabilities:
@@ -28,6 +30,29 @@ mllm
   - Support for parallel execution of multiple models
   - A more refined engineering implementation
 - [2025 Jul 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B（ViT profiling will integrate in v2）
+
+## Jetson Orin CUDA Runtime
+
+`pymllm` now supports Qwen3, Qwen3-VL, and Qwen3.5 on Jetson Orin with BF16 serving plus W4A16 and W8A8 quantized serving. The W4A16 path uses AWQ compressed tensors and Marlin GEMM. The W8A8 path uses Triton per-token activation quantization and CUTLASS INT8 GEMM.
+
+For `input_len=2048` and `output_len=128`, `pymllm` shows strong prefill gains over llama.cpp on Jetson Orin. Qwen3-VL-2B W8A8 reaches up to **3.12x prefill speedup** on AGX Orin 32GB and about **12243 tok/s** prefill throughput. Decode throughput is generally close to llama.cpp, with small wins or losses depending on model, device, and quantization.
+
+<div align="center">
+  <img src="./assets/jetson/pymllm-jetson-speedup-summary-2048.jpg" width="90%">
+</div>
+
+<div align="center">
+  <img src="./assets/jetson/pymllm-jetson-prefill-throughput-2048.jpg" width="90%">
+</div>
+
+For multimodal prefill, `bench_one_batch --image` measures the full path of vision encoding plus image/text token prefill. The table below uses `input_len=2048` and reports mean TPS across repeated runs.
+
+| Device | Model | FP16 | W4A16 | W8A8 |
+|---|---|---:|---:|---:|
+| AGX Orin 32GB | Qwen3-VL-2B | 4875.75 | 4700.28 | 6443.59 |
+| AGX Orin 32GB | Qwen3-VL-4B | - | 2499.46 | 3837.07 |
+| Orin NX 16GB | Qwen3-VL-2B | 2438.27 | 2494.89 | 3200.40 |
+| Orin NX 16GB | Qwen3-VL-4B | - | 1231.21 | 1673.93 |
 
 ## Android Demo & Architecture
 

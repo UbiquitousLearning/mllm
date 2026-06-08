@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import pytest
 import torch
+from types import SimpleNamespace
 
 from pymllm.configs.global_config import GlobalConfig
 from pymllm.bench_one_batch import (
     BenchArgs,
     BenchSetting,
+    DecodeState,
+    PymllmBenchRunner,
     generate_settings,
+    make_multimodal_bench_input_from_processor_output,
     make_profile_trace_path,
     make_synthetic_input_ids,
+    make_vit_prefill_metrics,
     parse_args,
     summarize_latencies,
 )
@@ -53,6 +58,10 @@ def test_parse_args_accepts_server_config_and_list_bench_args(tmp_path):
             "--profile-activities",
             "CPU",
             "GPU",
+            "--image",
+            str(tmp_path / "image.jpg"),
+            "--prompt",
+            "What is in this image?",
         ]
     )
 
@@ -67,6 +76,26 @@ def test_parse_args_accepts_server_config_and_list_bench_args(tmp_path):
     assert bench_args.result_filename == result_file
     assert bench_args.profile_stage == "decode"
     assert bench_args.profile_activities == ["CPU", "GPU"]
+    assert bench_args.image_path == tmp_path / "image.jpg"
+    assert bench_args.prompt == "What is in this image?"
+    assert bench_args.input_len_was_provided is True
+
+
+def test_parse_args_detects_default_input_len_when_omitted_in_image_mode(tmp_path):
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+
+    _, bench_args = parse_args(
+        [
+            "--server.model_path",
+            str(model_dir),
+            "--image",
+            str(tmp_path / "image.jpg"),
+        ]
+    )
+
+    assert bench_args.input_len == [256, 512, 1024]
+    assert bench_args.input_len_was_provided is False
 
 
 def test_generate_settings_has_stable_batch_input_output_order(tmp_path):
@@ -82,6 +111,39 @@ def test_generate_settings_has_stable_batch_input_output_order(tmp_path):
         BenchSetting(batch_size=1, input_len=512, output_len=8),
         BenchSetting(batch_size=2, input_len=256, output_len=8),
         BenchSetting(batch_size=2, input_len=512, output_len=8),
+    ]
+
+
+def test_generate_settings_uses_processed_prompt_length_for_image_mode(tmp_path):
+    args = BenchArgs(
+        batch_size=[1, 2],
+        input_len=[256, 512],
+        output_len=[8],
+        result_filename=tmp_path / "out.jsonl",
+        image_path=tmp_path / "image.jpg",
+    )
+
+    assert generate_settings(args) == [
+        BenchSetting(batch_size=1, input_len=0, output_len=8),
+        BenchSetting(batch_size=2, input_len=0, output_len=8),
+    ]
+
+
+def test_generate_settings_sweeps_input_len_when_explicit_in_image_mode(tmp_path):
+    args = BenchArgs(
+        batch_size=[1, 2],
+        input_len=[512, 1024],
+        output_len=[8],
+        result_filename=tmp_path / "out.jsonl",
+        image_path=tmp_path / "image.jpg",
+        input_len_was_provided=True,
+    )
+
+    assert generate_settings(args) == [
+        BenchSetting(batch_size=1, input_len=512, output_len=8),
+        BenchSetting(batch_size=1, input_len=1024, output_len=8),
+        BenchSetting(batch_size=2, input_len=512, output_len=8),
+        BenchSetting(batch_size=2, input_len=1024, output_len=8),
     ]
 
 
@@ -136,6 +198,202 @@ def test_summarize_latencies_matches_sglang_style_metrics():
     assert result["cuda_graph"] is True
 
 
+def test_make_vit_prefill_metrics_reports_seconds_and_tps():
+    result = make_vit_prefill_metrics(vit_prefill_ms=12.5, vit_prefill_tokens=25)
+
+    assert result == {
+        "vit_prefill_latency": pytest.approx(0.0125),
+        "vit_prefill_ms": pytest.approx(12.5),
+        "vit_prefill_tokens": 25,
+        "vit_prefill_throughput": pytest.approx(2000.0),
+        "vit_prefill_tps": pytest.approx(2000.0),
+    }
+
+
+def test_make_multimodal_prefill_metrics_aliases_full_prefill_latency():
+    from pymllm.bench_one_batch import make_multimodal_prefill_metrics
+
+    result = make_multimodal_prefill_metrics(
+        prefill_latency=0.25,
+        batch_size=2,
+        input_len=128,
+    )
+
+    assert result == {
+        "multimodal_prefill_latency": pytest.approx(0.25),
+        "multimodal_prefill_ms": pytest.approx(250.0),
+        "multimodal_prefill_tokens": 256,
+        "multimodal_prefill_throughput": pytest.approx(1024.0),
+        "multimodal_prefill_tps": pytest.approx(1024.0),
+    }
+
+
+def test_make_multimodal_bench_input_repeats_processor_output_per_batch():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[1, 5, 5, 2]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=3,
+        image_token_id=5,
+        device="cpu",
+    )
+
+    assert bench_input.input_ids.shape == (3, 4)
+    assert bench_input.input_ids.dtype == torch.int32
+    assert bench_input.vit_prefill_tokens == 6
+    torch.testing.assert_close(
+        bench_input.pixel_values,
+        torch.arange(6, dtype=torch.float32).reshape(2, 3).repeat(3, 1),
+    )
+    torch.testing.assert_close(
+        bench_input.image_grid_thw,
+        torch.tensor([[1, 2, 2], [1, 2, 2], [1, 2, 2]], dtype=torch.int64),
+    )
+
+
+def test_make_multimodal_bench_input_pads_text_tokens_to_target_len():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 5, 5, 102]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=7,
+        pad_token_id=0,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 5, 5, 102, 0, 0, 0]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_does_not_pad_with_image_token_id():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 5, 5, 102]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=6,
+        pad_token_id=5,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 5, 5, 102, 0, 0]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_truncates_text_tokens_not_image_tokens():
+    bench_input = make_multimodal_bench_input_from_processor_output(
+        {
+            "input_ids": torch.tensor([[101, 7, 5, 5, 102, 103]], dtype=torch.int64),
+            "pixel_values": torch.arange(6, dtype=torch.float32).reshape(2, 3),
+            "image_grid_thw": torch.tensor([[1, 2, 2]], dtype=torch.int64),
+        },
+        batch_size=1,
+        image_token_id=5,
+        device="cpu",
+        target_input_len=4,
+        pad_token_id=0,
+    )
+
+    torch.testing.assert_close(
+        bench_input.input_ids,
+        torch.tensor([[101, 7, 5, 5]], dtype=torch.int32),
+    )
+    assert bench_input.vit_prefill_tokens == 2
+
+
+def test_make_multimodal_bench_input_rejects_target_shorter_than_image_tokens():
+    with pytest.raises(ValueError, match="target_input_len"):
+        make_multimodal_bench_input_from_processor_output(
+            {
+                "input_ids": torch.tensor([[5, 5, 5, 102]], dtype=torch.int64),
+                "pixel_values": torch.arange(9, dtype=torch.float32).reshape(3, 3),
+                "image_grid_thw": torch.tensor([[1, 3, 1]], dtype=torch.int64),
+            },
+            batch_size=1,
+            image_token_id=5,
+            device="cpu",
+            target_input_len=2,
+            pad_token_id=0,
+        )
+
+
+def test_extend_attaches_multimodal_inputs_and_returns_vit_metrics():
+    class _ReqPool:
+        def alloc(self, batch_size):
+            return list(range(batch_size))
+
+        def write(self, index, value):
+            del index, value
+
+        def clear(self):
+            pass
+
+    class _KvPool:
+        def alloc(self, count):
+            return torch.arange(count, dtype=torch.int64)
+
+        def clear(self):
+            pass
+
+    class _Runner:
+        def __init__(self):
+            self.device = "cpu"
+            self.dtype = torch.float32
+            self.req_to_token_pool = _ReqPool()
+            self.token_to_kv_pool_allocator = _KvPool()
+            self.gdn_pool = None
+            self.last_forward_batch = None
+
+        def prepare_forward_batch_extend(self, **kwargs):
+            return SimpleNamespace(batch_size=kwargs["req_pool_indices"].shape[0])
+
+        def forward(self, forward_batch):
+            self.last_forward_batch = forward_batch
+            forward_batch.vit_prefill_ms = 4.0
+            forward_batch.vit_prefill_tokens = 8
+            return object()
+
+        def sample(self, logits_output, forward_batch, **kwargs):
+            del logits_output, forward_batch, kwargs
+            return torch.tensor([7], dtype=torch.int32)
+
+    fake_runner = _Runner()
+    bench_runner = PymllmBenchRunner(fake_runner)
+    pixel_values = torch.ones((2, 3), dtype=torch.float32)
+    image_grid_thw = torch.tensor([[1, 2, 2]], dtype=torch.int64)
+
+    result = bench_runner.extend(
+        torch.tensor([[1, 5, 5, 2]], dtype=torch.int32),
+        pixel_values=pixel_values,
+        image_grid_thw=image_grid_thw,
+        benchmark_vision_timing=True,
+    )
+
+    assert result.vit_prefill_ms == pytest.approx(4.0)
+    assert result.vit_prefill_tokens == 8
+    torch.testing.assert_close(fake_runner.last_forward_batch.pixel_values, pixel_values)
+    torch.testing.assert_close(
+        fake_runner.last_forward_batch.image_grid_thw,
+        image_grid_thw,
+    )
+    assert fake_runner.last_forward_batch.benchmark_vision_timing is True
+
+
 def test_make_profile_trace_path_is_deterministic_and_sanitized(tmp_path):
     path = make_profile_trace_path(
         output_dir=tmp_path,
@@ -146,4 +404,70 @@ def test_make_profile_trace_path_is_deterministic_and_sanitized(tmp_path):
     )
 
     assert path.parent == tmp_path
-    assert path.name == "pymllm_profile_qwen3_vl_w8a8_bs1_in256_out8_decode.trace.json"
+    assert (
+        path.name
+        == "pymllm_profile_qwen3_vl_w8a8_bs1_in256_out8_decode.trace.json.gz"
+    )
+
+
+def test_decode_writes_batch_kv_mapping_with_tensor_indices():
+    from pymllm.mem_cache.memory_pool import ReqToTokenPool, TokenToKVPoolAllocator
+
+    class _Runner:
+        def __init__(self):
+            self.device = "cpu"
+            self.dtype = torch.float32
+            self.req_to_token_pool = ReqToTokenPool(
+                max_reqs=6,
+                max_context_len=8,
+                device="cpu",
+            )
+            self.token_to_kv_pool_allocator = TokenToKVPoolAllocator(
+                size=32,
+                device="cpu",
+            )
+            self.last_decode_kwargs = None
+
+        def prepare_forward_batch_decode(self, **kwargs):
+            self.last_decode_kwargs = kwargs
+            return SimpleNamespace(batch_size=kwargs["req_pool_indices"].shape[0])
+
+        def forward(self, forward_batch):
+            del forward_batch
+            return object()
+
+        def sample(self, logits_output, forward_batch, **kwargs):
+            del logits_output, forward_batch, kwargs
+            return torch.tensor([11, 12, 13], dtype=torch.int32)
+
+    fake_runner = _Runner()
+    bench_runner = PymllmBenchRunner(fake_runner)
+    state = DecodeState(
+        req_pool_indices=torch.tensor([2, 0, 4], dtype=torch.int64),
+        seq_lens=torch.tensor([4, 2, 6], dtype=torch.int32),
+    )
+
+    next_token_ids, next_state = bench_runner.decode(
+        torch.tensor([1, 2, 3], dtype=torch.int32),
+        state,
+    )
+
+    torch.testing.assert_close(
+        fake_runner.req_to_token_pool.req_to_token[
+            torch.tensor([2, 0, 4], dtype=torch.int64),
+            torch.tensor([4, 2, 6], dtype=torch.int64),
+        ],
+        torch.tensor([1, 2, 3], dtype=torch.int32),
+    )
+    torch.testing.assert_close(
+        next_state.seq_lens,
+        torch.tensor([5, 3, 7], dtype=torch.int32),
+    )
+    torch.testing.assert_close(
+        fake_runner.last_decode_kwargs["out_cache_loc"],
+        torch.tensor([1, 2, 3], dtype=torch.int64),
+    )
+    torch.testing.assert_close(
+        next_token_ids,
+        torch.tensor([11, 12, 13], dtype=torch.int32),
+    )

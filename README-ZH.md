@@ -17,6 +17,8 @@ mllm
 
 ## 最新动态
 
+- [2026 年 6 月 8 日] `pymllm` 已覆盖 Qwen3、Qwen3-VL 与 Qwen3.5 在 Jetson Orin 上的 W4A16 / W8A8 serving；Qwen3-VL-2B W8A8 在 AGX Orin 32GB 上最高达到 3.12x prefill 加速比，decode 吞吐整体与 llama.cpp 接近。
+- [2026 年 4 月 30 日] `pymllm` 新增面向 Jetson 的 Qwen3 / Qwen3-VL BF16、W4A16 和 W8A8 serving 支持，覆盖 compressed-tensors AWQ 与 W8A8 INT8 路径。
 - [2026 年 3 月 18 日] 🔥🔥🔥 `pymllm` 已支持在 Jetson Orin 和 Jetson Thor 设备上使用 CUDA（实验特性，仍在持续开发中）。
 - [2026 年 2 月 3 日] 🔥🔥🔥 MLLM Qnn AOT 已支持在 NPU 上全图执行！[快速开始](https://ubiquitouslearning.github.io/mllm/qnn_backend/aot_execute.html), [技术报告](https://chenghuawang.github.io/News/2026-01-29-mllm-qnn-aot-support/)
 - [2025 年 11 月 27 日] Android Demo 更新：通过一种全新的 In-App Go 服务架构，在 Android 上实现了 Qwen3 和 DeepSeek-OCR 的稳定流式推理。
@@ -28,6 +30,29 @@ mllm
   - 支持多模型并行执行
   - 更加完善、精细的工程实现
 - [2025 年 7 月 30 日] 为 QNN 后端模型新增旋转量化（Rotation Quantization）方法，并支持 Qwen-2-VL 2B（ViT 性能分析将在 v2 中集成）
+
+## Jetson Orin CUDA Runtime
+
+`pymllm` 现已支持 Qwen3、Qwen3-VL 与 Qwen3.5 在 Jetson Orin 上运行，覆盖 BF16 serving 以及 W4A16、W8A8 两种量化 serving 路径。其中，W4A16 使用 AWQ compressed tensors 与 Marlin GEMM，W8A8 使用 Triton per-token activation quantization 与 CUTLASS INT8 GEMM。
+
+在 `input_len=2048`、`output_len=128` 的测速口径下，`pymllm` 在 Jetson Orin 上的 prefill 性能相对 llama.cpp 有明显提升。Qwen3-VL-2B W8A8 在 AGX Orin 32GB 上最高达到 **3.12x prefill 加速比**，prefill 吞吐约 **12243 tok/s**。decode 吞吐整体与 llama.cpp 接近，不同模型、设备和量化格式下会有小幅领先或回落。
+
+<div align="center">
+  <img src="./assets/jetson/pymllm-jetson-speedup-summary-2048.jpg" width="90%">
+</div>
+
+<div align="center">
+  <img src="./assets/jetson/pymllm-jetson-prefill-throughput-2048.jpg" width="90%">
+</div>
+
+对于多模态 prefill，`bench_one_batch --image` 测量“视觉编码 + 图像/文本 token prefill”的完整路径。下表使用 `input_len=2048`，TPS 为多次运行的 mean latency 计算结果。
+
+| Device | Model | FP16 | W4A16 | W8A8 |
+|---|---|---:|---:|---:|
+| AGX Orin 32GB | Qwen3-VL-2B | 4875.75 | 4700.28 | 6443.59 |
+| AGX Orin 32GB | Qwen3-VL-4B | - | 2499.46 | 3837.07 |
+| Orin NX 16GB | Qwen3-VL-2B | 2438.27 | 2494.89 | 3200.40 |
+| Orin NX 16GB | Qwen3-VL-4B | - | 1231.21 | 1673.93 |
 
 ## Android Demo & Architecture
 
@@ -75,17 +100,21 @@ mllm 框架可以与主流社区框架的模型检查点无缝集成。通过 ml
 
 ### mllm v2
 
-| Model(v2)                                                                   | CPU  | Hexagon NPU <br> INT8 |
-|-----------------------------------------------------------------------------|------|-----------------------|
-| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  | 
-| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/summary) |
-| [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |
-| [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |
-| [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |
-| [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) ||
-| [Qwen2-VL-7B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-7B-Instruct-w4a32kai)||
-| [Qwen2.5-VL-3B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-3B-Instruct-w4a32kai)||
-| [Qwen2.5-VL-7B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-7B-Instruct-w4a32kai)||
+| Model(v2)                                                                   | CPU  | Jetson Orin CUDA | Hexagon NPU <br> INT8 |
+|-----------------------------------------------------------------------------|------|------------------|-----------------------|
+| [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  |  |
+| [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  |  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/summary) |
+| [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |  |
+| Qwen3.5-2B                                                       |  | ✔️ W4A16 / W8A8 |  |
+| Qwen3.5-4B                                                       |  | ✔️ W4A16 / W8A8 |  |
+| Qwen3-VL-2B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |
+| Qwen3-VL-4B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |
+| [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |  |
+| [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  |  |
+| [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/) | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) |  |  |
+| [Qwen2-VL-7B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/) | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-7B-Instruct-w4a32kai) |  |  |
+| [Qwen2.5-VL-3B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/) | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-3B-Instruct-w4a32kai) |  |  |
+| [Qwen2.5-VL-7B-Instruct](https://qwenlm.github.io/blog/qwen2.5-vl/) | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2.5-VL-7B-Instruct-w4a32kai) |  |  |
 
 ### mllm v1
 
