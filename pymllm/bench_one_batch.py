@@ -1217,7 +1217,7 @@ def run_benchmark(cfg: GlobalConfig, args: BenchArgs) -> list[dict[str, Any]]:
 
 DEFAULT_CORRECTNESS_PROMPTS = (
     "The capital of France is",
-    "The capital of the United Kindom is",
+    "The capital of the United Kingdom is",
     "Today is a sunny day and I like",
 )
 
