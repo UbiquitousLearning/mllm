@@ -3,12 +3,38 @@
 
 #include <iostream>
 #include <clocale>
+#include <cstdio>
+#include <iterator>
+#include <string>
 #include <fmt/core.h>
+#include <utfcpp/utf8.h>
 #include <mllm/mllm.hpp>
 #include <mllm/models/qwen_ascend/modeling_qwen_ascend.hpp>
 #include <mllm/models/qwen_ascend/tokenization_qwen_ascend.hpp>
 
 using mllm::Argparse;
+
+namespace {
+
+std::string takeValidUtf8Prefix(std::string& pending_text) {
+  auto invalid = utf8::find_invalid(pending_text.begin(), pending_text.end());
+  if (invalid == pending_text.begin()) {
+    return {};
+  }
+
+  if (invalid == pending_text.end()) {
+    std::string ready_text;
+    ready_text.swap(pending_text);
+    return ready_text;
+  }
+
+  auto ready_bytes = static_cast<size_t>(std::distance(pending_text.begin(), invalid));
+  auto ready_text = pending_text.substr(0, ready_bytes);
+  pending_text.erase(0, ready_bytes);
+  return ready_text;
+}
+
+}  // namespace
 
 MLLM_MAIN({
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
@@ -194,17 +220,27 @@ MLLM_MAIN({
       msg.prompt = prompt_text;
       auto inputs = tokenizer.convertMessage(msg);
 
-      // Clear KV cache before generation
+      // Run a prefill warmup outside ARGeneration timing so first-use Ascend
+      // graph/runtime setup is not counted as the measured prefill time.
       model.clearCache();
+      fmt::print("\nWarming up prefill path...\n");
+      (void)model.forward(inputs, {});
+      // Keep RoPE cache warmed, but reset KV state for the measured generation.
+      model.kvCache().clearCache();
 
       fmt::print("\nAnswer:\n");
       auto chat_start = std::chrono::high_resolution_clock::now();
 
       std::vector<int64_t> generated_ids;
-      // Use streaming generation with the ARGeneration chat interface
+      std::string pending_text;
       for (auto& step : model.chat(inputs)) {
         generated_ids.push_back(step.cur_token_id);
-        std::wcout << tokenizer.detokenize(step.cur_token_id) << std::flush;
+        pending_text += tokenizer.decode({step.cur_token_id});
+        auto ready_text = takeValidUtf8Prefix(pending_text);
+        if (!ready_text.empty()) {
+          fmt::print("{}", ready_text);
+          std::fflush(stdout);
+        }
         // Stop if we've reached max_new_tokens
         if (static_cast<int>(generated_ids.size()) >= gen_max_new_tokens) {
           if (step.current_step > 0) {
@@ -213,7 +249,10 @@ MLLM_MAIN({
           break;
         }
       }
-      std::wcout << std::endl;
+      if (!pending_text.empty()) {
+        fmt::print("{}", pending_text);
+      }
+      fmt::print("\n");
 
       auto chat_end = std::chrono::high_resolution_clock::now();
       auto chat_ms = std::chrono::duration_cast<std::chrono::milliseconds>(chat_end - chat_start).count();

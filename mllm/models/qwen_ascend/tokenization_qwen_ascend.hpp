@@ -22,7 +22,7 @@ struct QwenAscendMessage {
 class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   explicit QwenAscendTokenizer(const std::string& file_path) {
-    preprocessor::initLocal();
+    preprocessor::initLocal("C.UTF-8");
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
     bpe_.initFromSentencePieceJson(file_path);
