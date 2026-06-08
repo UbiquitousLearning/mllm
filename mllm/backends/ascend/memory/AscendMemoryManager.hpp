@@ -12,7 +12,7 @@ namespace mllm::ascend {
 
 
 class AscendMemoryManager {
-public:  
+public:
     AscendMemoryManager();
 
     void createMemoryPool(size_t pool_size);
@@ -26,6 +26,8 @@ public:
     void freeBlock(int block_id);
 
     void getBlockPtr(int block_id, void *&addr);
+
+    void printStats();
 
 private:
     std::vector<std::shared_ptr<AscendMemoryPool>> memory_pools_;

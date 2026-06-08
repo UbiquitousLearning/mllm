@@ -85,14 +85,12 @@ void AscendAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendAddOp::forward");
+    //ASCEND_TIME_SCOPE("AscendAddOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB AddOp Execute failed, status={}", static_cast<int>(st));
   }
-
-  
   syncGlobalAtbStream();
 
   if (workspace_block_id != -1) {
@@ -171,13 +169,12 @@ void AscendSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendSubOp::forward");
+    //ASCEND_TIME_SCOPE("AscendSubOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB SubOp Execute failed, status={}", static_cast<int>(st));
   }
-  
   syncGlobalAtbStream();
 
   if (workspace_block_id != -1) {
@@ -256,13 +253,12 @@ void AscendMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
     mem_mgr.getBlockPtr(workspace_block_id, workspace);
   }
   {
-    ASCEND_TIME_SCOPE("AscendMulOp::forward");
+    //ASCEND_TIME_SCOPE("AscendMulOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB MulOp Execute failed, status={}", static_cast<int>(st));
   }
-  
   syncGlobalAtbStream();
 
   if (workspace_block_id != -1) {

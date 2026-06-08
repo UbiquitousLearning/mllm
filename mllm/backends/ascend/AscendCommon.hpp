@@ -133,4 +133,7 @@ class AscendTimer {
 #define ASCEND_TIME_SCOPE(tag) ::mllm::ascend::AscendTimer timer_scope_##__LINE__(tag, true, true)
 #define ASCEND_TIME_SCOPE_NOSYNC(tag) ::mllm::ascend::AscendTimer timer_scope_##__LINE__(tag, false, false)
 
+/// Convert a CPU tensor (any dtype) to Ascend FP16 tensor.
+Tensor convertTensorToAscendFP16(const Tensor& cpu_tensor);
+
 }  // namespace mllm::ascend

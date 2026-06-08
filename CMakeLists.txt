@@ -49,6 +49,16 @@ option(MLLM_ASCEND_CPU_DEBUG_MODE "Enable CPU Debug mode in ascend" OFF)
 set(MLLM_RUN_MODE "npu" CACHE STRING "Run mode for mLLM backends: cpu/sim/npu")
 set(MLLM_SOC_VERSION "Ascend310B1" CACHE STRING "SOC version for Ascend backend")
 
+# ATB libraries with cxx_abi_0 require using the old C++ ABI globally
+if(MLLM_BUILD_ASCEND_BACKEND)
+  if(DEFINED ENV{ATB_HOME_PATH})
+    if("$ENV{ATB_HOME_PATH}" MATCHES "cxx_abi_0")
+      message(STATUS "Detected ATB cxx_abi_0, setting _GLIBCXX_USE_CXX11_ABI=0 globally for ABI compatibility")
+      add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+    endif()
+  endif()
+endif()
+
 # Threads
 option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
 option(MLLM_KERNEL_USE_THREADS_VENDOR_MLLM "Enable mllm's thread pool" ON)

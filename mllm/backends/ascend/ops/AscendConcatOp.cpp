@@ -92,7 +92,7 @@ void AscendConcatOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     }
 
     {
-      ASCEND_TIME_SCOPE("AscendConcatOp::forward");
+      //ASCEND_TIME_SCOPE("AscendConcatOp::forward");
       st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
     }
 

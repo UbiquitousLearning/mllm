@@ -108,7 +108,7 @@ void AscendSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendSoftmaxOp::forward");
+    //ASCEND_TIME_SCOPE("AscendSoftmaxOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
   if (st != atb::NO_ERROR) {

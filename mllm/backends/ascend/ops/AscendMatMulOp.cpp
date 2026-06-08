@@ -8,6 +8,7 @@
 #include <atb/types.h>
 #include <atb/utils.h>
 #include <atb/infer_op_params.h>
+#include <cstdlib>
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/DataTypes.hpp"
@@ -24,6 +25,11 @@ void AscendMatMulOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor
 }
 
 namespace {
+
+bool shouldDebugMatMulStats() {
+  const char* debug = std::getenv("MLLM_DEBUG_MATMUL_STATS");
+  return debug != nullptr && debug[0] == '1';
+}
 
 // Helper to fill ATB tensor with custom shape (for reshape without copy)
 void fillAtbTensorWithShape(const Tensor& t, atb::Tensor& atb_tensor, const std::vector<int64_t>& shape) {
@@ -100,6 +106,21 @@ void AscendMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   fillAtbTensorWithShape(A, atb_A, atb_a_shape);
   fillAtbTensorWithShape(B, atb_B, atb_b_shape);
   fillAtbTensorWithShape(C, atb_C, atb_c_shape);
+  if (shouldDebugMatMulStats()) {
+    static int matmul_dbg_count = 0;
+    if (matmul_dbg_count < 12) {
+      fmt::print("[MatMulDbg] call={} transposeA={} transposeB={} A_rank={} B_rank={} C_rank={}\n", matmul_dbg_count,
+                 linearParam.transposeA ? 1 : 0, linearParam.transposeB ? 1 : 0, A.shape().size(), B.shape().size(),
+                 C.shape().size());
+      fmt::print("[MatMulDbg] A dtype={} device={} bytes={} ptr={}\n", static_cast<int>(A.dtype()),
+                 static_cast<int>(A.device()), A.bytes(), fmt::ptr(A.ptr<void>()));
+      fmt::print("[MatMulDbg] B dtype={} device={} bytes={} ptr={}\n", static_cast<int>(B.dtype()),
+                 static_cast<int>(B.device()), B.bytes(), fmt::ptr(B.ptr<void>()));
+      fmt::print("[MatMulDbg] C dtype={} device={} bytes={} ptr={}\n", static_cast<int>(C.dtype()),
+                 static_cast<int>(C.device()), C.bytes(), fmt::ptr(C.ptr<void>()));
+    }
+    ++matmul_dbg_count;
+  }
 
   atb::SVector<atb::Tensor> inTensors;
   atb::SVector<atb::Tensor> outTensors;
@@ -116,6 +137,11 @@ void AscendMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   if (st != atb::NO_ERROR) {
     MLLM_ERROR_EXIT(ExitCode::kAscendError, "ATB MatMulOp Setup failed, status={}", static_cast<int>(st));
   }
+  if (shouldDebugMatMulStats()) {
+    static int matmul_ws_count = 0;
+    if (matmul_ws_count < 12) { fmt::print("[MatMulDbg] workspaceSize={} bytes\n", workspaceSize); }
+    ++matmul_ws_count;
+  }
 
   void* workspace = nullptr;
   int workspace_block_id = -1;
@@ -126,7 +152,7 @@ void AscendMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   }
 
   {
-    ASCEND_TIME_SCOPE("AscendMatMulOp::forward");
+    //ASCEND_TIME_SCOPE("AscendMatMulOp::forward");
     st = op->Execute(vp, reinterpret_cast<uint8_t*>(workspace), workspaceSize, atb_ctx);
   }
 

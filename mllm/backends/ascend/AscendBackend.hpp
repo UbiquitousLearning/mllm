@@ -11,6 +11,9 @@ namespace mllm::ascend {
 class AscendBackend final : public Backend {
  public:
   AscendBackend();
+
+  // Keep weights on Ascend so model.to(kAscend) re-instantiates Ascend ops.
+  [[nodiscard]] bool isWeightOnDevice() override { return true; }
 };
 
 std::shared_ptr<AscendBackend> createAscendBackend();

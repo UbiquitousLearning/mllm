@@ -14,6 +14,10 @@ if(MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen_npu)
 endif()
 
+if(MLLM_BUILD_ASCEND_BACKEND)
+  add_subdirectory(qwen_ascend)
+endif()
+
 if(MLLM_TRACY_ENABLE)
   add_subdirectory(tracy_example)
 endif()

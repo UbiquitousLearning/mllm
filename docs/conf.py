@@ -16,7 +16,6 @@ enable_doxygen = os.environ.get("MLLM_ENABLE_DOXYGEN", "false").lower() == "true
 
 extensions = [
     "sphinx_tabs.tabs",
-    "sphinx_toolbox.collapse",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
