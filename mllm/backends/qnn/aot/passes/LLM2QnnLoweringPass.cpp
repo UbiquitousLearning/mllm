@@ -1,7 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <functional>
 #include <regex>
+#include <utility>
 
 #include "mllm/backends/qnn/aot/passes/LLM2QnnLoweringPass.hpp"
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
@@ -16,9 +18,11 @@
 #include "mllm/backends/qnn/aot/visitor/Elewise.hpp"
 #include "mllm/backends/qnn/aot/visitor/Embedding.hpp"
 #include "mllm/backends/qnn/aot/visitor/Gather.hpp"
+#include "mllm/backends/qnn/aot/visitor/GELU.hpp"
 #include "mllm/backends/qnn/aot/visitor/CastType.hpp"
 #include "mllm/backends/qnn/aot/visitor/View.hpp"
 #include "mllm/backends/qnn/aot/visitor/Index.hpp"
+#include "mllm/backends/qnn/aot/visitor/LayerNorm.hpp"
 #include "mllm/backends/qnn/aot/visitor/RMSNorm.hpp"
 #include "mllm/backends/qnn/aot/visitor/Linear.hpp"
 #include "mllm/backends/qnn/aot/visitor/Concat.hpp"
@@ -34,12 +38,18 @@
 
 namespace mllm::qnn::aot {
 
-LLM2QnnLoweringPass::LLM2QnnLoweringPass() {
+namespace {
+
+}  // namespace
+
+LLM2QnnLoweringPass::LLM2QnnLoweringPass(std::string simple_qnn_graph_name)
+    : simple_qnn_graph_name_(std::move(simple_qnn_graph_name)) {
   registerPatterns<QnnAOTEmbeddingPattern, QnnAOTCastTypePattern, QnnAOTAddPattern, QnnAOTMulPattern, QnnAOTNegPattern,
                    QnnAOTViewPattern, QnnAOTIndexPattern, QnnAOTGatherPattern, QnnAOTRMSNormPattern, QnnAOTLinearPattern,
                    QnnAOTTransposePattern, QnnAOTSlicePattern, QnnAOTConcatPattern, QnnAOTRepeatPattern, QnnAOTMatMulPattern,
                    QnnAOTReduceMaxPattern, QnnAOTReduceMinPattern, QnnAOTReduceMeanPattern, QnnAOTReduceSumPattern,
-                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern, QnnAOTConv2DPattern>();
+                   QnnAOTEqualPattern, QnnAOTWherePattern, QnnAOTSoftmaxPattern, QnnAOTSigmoidPattern, QnnAOTConv2DPattern,
+                   QnnAOTGELUPattern, QnnAOTLayerNormPattern>();
 }
 
 uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
@@ -66,8 +76,12 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
   // Check call graph op point to a subgraph named "model"
   auto symbol_attr = call_graph_op->getSymbolAttr();
   if (symbol_attr == nullptr || symbol_attr->str() != "model") {
-    MLLM_ERROR("LLM2QnnLoweringPass: CallGraphOp should point to a subgraph named 'model'");
-    return ir::PASS_RET_FAILURE;
+    if (simple_qnn_graph_name_.empty()) {
+      MLLM_ERROR("LLM2QnnLoweringPass: CallGraphOp should point to a subgraph named 'model'");
+      return ir::PASS_RET_FAILURE;
+    }
+    auto root_name = symbol_attr ? symbol_attr->str() : "";
+    return runSimpleGraph(op, root_name, simple_qnn_graph_name_);
   }
 
   // Get the "model" subgraph
@@ -191,6 +205,101 @@ uint8_t LLM2QnnLoweringPass::run(const ir::node_ptr_t& op) {
   return ir::PASS_RET_SUCCESS;
 }
 
-ir::Pass::ptr_t createLLM2QnnLoweringPass() { return std::make_shared<LLM2QnnLoweringPass>(); }
+uint8_t LLM2QnnLoweringPass::runSimpleGraph(const ir::node_ptr_t& op, const std::string& root_graph_name,
+                                            const std::string& qnn_graph_name) {
+  MLLM_RT_ASSERT(op->isa_<ir::ModuleOp>());
+  if (root_graph_name.empty()) {
+    MLLM_ERROR("LLM2QnnLoweringPass: simple graph root name is empty");
+    return ir::PASS_RET_FAILURE;
+  }
+
+  auto root_ir = getCtx()->lookupSymbolTable(root_graph_name);
+  if (!root_ir || !root_ir->isa_<ir::graph::SubGraphOp>()) {
+    MLLM_ERROR("LLM2QnnLoweringPass: Cannot find simple root graph {}", root_graph_name);
+    return ir::PASS_RET_FAILURE;
+  }
+
+  auto root_graph = root_ir->cast_<ir::graph::SubGraphOp>();
+  auto aot_cfg = AOTCompileContext::getInstance().getConfig();
+  auto aot_env = AOTCompileContext::getInstance().getEnv();
+
+  int split_graph = aot_cfg.value("split_graph", 1);
+  MLLM_RT_ASSERT_EQ(split_graph, 1);
+  aot_env->createContext("context.0", true);
+  auto aot_graph = aot_env->captureAOTGraph("context.0", qnn_graph_name);
+
+  for (auto& input : root_graph->getTopRegion()->inputs()) {
+    auto tensor_input = input->cast_<ir::tensor::TensorValue>();
+    if (tensor_input) {
+      tensor_input->setAttr("qnn_graph_inputs", getCtx()->create<ir::BoolAttr>(true));
+      aot_env->captureQnnAOTNodeTensor("context.0", qnn_graph_name, tensor_input);
+    }
+  }
+  for (auto& output : root_graph->getTopRegion()->outputs()) {
+    auto tensor_output = output->cast_<ir::tensor::TensorValue>();
+    if (tensor_output) {
+      tensor_output->setAttr("qnn_graph_outputs", getCtx()->create<ir::BoolAttr>(true));
+      aot_env->captureQnnAOTNodeTensor("context.0", qnn_graph_name, tensor_output);
+    }
+  }
+
+  std::function<void(ir::graph::SubGraphOp::ptr_t)> lower_subgraph_inline;
+  lower_subgraph_inline = [&](ir::graph::SubGraphOp::ptr_t subgraph) {
+    auto region = subgraph->getTopRegion();
+    if (!region) { return; }
+
+    auto subgraph_writer = ir::IRWriter(getCtx(), region);
+    subgraph_writer.walk<ir::Op>(
+        [&](ir::IRWriter& this_tough_writer, const ir::Op::ptr_t& some_op) -> ir::IRWriter::WalkResult {
+          if (some_op->isa_<ir::graph::CallGraphOp>()) {
+            auto call_op = some_op->cast_<ir::graph::CallGraphOp>();
+            auto called = getCtx()->lookupSymbolTable(call_op->getSymbolAttr()->str());
+            if (!called || !called->isa_<ir::graph::SubGraphOp>()) {
+              MLLM_ERROR_EXIT(ExitCode::kCoreError, "Cannot find called subgraph {}", call_op->getSymbolAttr()->str());
+            }
+            lower_subgraph_inline(called->cast_<ir::graph::SubGraphOp>());
+            return ir::IRWriter::WalkResult::WALK_CONTINUE;
+          }
+
+          if (!some_op->isa_<ir::linalg::LinalgIROp>()) { return ir::IRWriter::WalkResult::WALK_CONTINUE; }
+
+          auto linalg_op = some_op->cast_<ir::linalg::LinalgIROp>();
+          if (!linalg_op->getAttr("using_qnn")) {
+            MLLM_WARN("Found non-qnn op: {} in graph: {}", linalg_op->getAOp()->getName(), qnn_graph_name);
+            return ir::IRWriter::WalkResult::WALK_BREAK;
+          }
+
+          linalg_op->setAttr("qnn_context_name", getCtx()->create<ir::StrAttr>("context.0"));
+          linalg_op->setAttr("qnn_graph_name", getCtx()->create<ir::StrAttr>(qnn_graph_name));
+
+          bool processed = false;
+          for (auto& [op_type, pass] : named_pattern_) {
+            if (pass->isMatch(linalg_op)) {
+              if (!pass->rewrite(this_tough_writer, linalg_op)) {
+                MLLM_ERROR_EXIT(ExitCode::kCoreError, "Failed when processing op {} with pass {}",
+                                linalg_op->getAOp()->getName(), optype2Str(op_type));
+              }
+              processed = true;
+              break;
+            }
+          }
+
+          if (!processed) {
+            MLLM_ERROR_EXIT(ExitCode::kCoreError, "Failed processing op {} on all passes", linalg_op->getAOp()->getName());
+          }
+
+          return ir::IRWriter::WALK_CONTINUE;
+        });
+  };
+
+  lower_subgraph_inline(root_graph);
+
+  MLLM_RT_ASSERT(aot_graph->compile());
+  return ir::PASS_RET_SUCCESS;
+}
+
+ir::Pass::ptr_t createLLM2QnnLoweringPass(std::string simple_qnn_graph_name) {
+  return std::make_shared<LLM2QnnLoweringPass>(std::move(simple_qnn_graph_name));
+}
 
 }  // namespace mllm::qnn::aot

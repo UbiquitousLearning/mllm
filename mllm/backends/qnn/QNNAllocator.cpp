@@ -6,6 +6,8 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include <dlfcn.h>
+#include <cstdio>
+#include <sstream>
 
 namespace mllm::qnn {
 
@@ -78,7 +80,25 @@ void QNNAllocator::free(Storage* storage) {
 
 void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_tensor) {
   // Make sure there has a memory that we can register to.
-  MLLM_RT_ASSERT(qnnMemPtrSet_.count(ptr));
+  if (!qnnMemPtrSet_.count(ptr)) {
+    std::ostringstream dims;
+    dims << "[";
+    const auto rank = QNN_TENSOR_GET_RANK(qnn_tensor);
+    const auto* shape = QNN_TENSOR_GET_DIMENSIONS(qnn_tensor);
+    for (uint32_t i = 0; i < rank; ++i) { dims << (i == 0 ? "" : ",") << shape[i]; }
+    dims << "]";
+    std::fprintf(stderr,
+                 "QNN shared-buffer register failed: tensor='%s', ptr=%p, dtype=%d, rank=%u, dims=%s is not owned by "
+                 "QNNAllocator (owned ptr count=%zu)\n",
+                 QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr,
+                 static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(qnn_tensor)), rank, dims.str().c_str(), qnnMemPtrSet_.size());
+    std::fflush(stderr);
+    MLLM_ERROR("QNN shared-buffer register failed: tensor='{}', ptr={}, dtype={}, rank={}, dims={} is not owned by "
+               "QNNAllocator (owned ptr count={})",
+               QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr,
+               static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(qnn_tensor)), rank, dims.str(), qnnMemPtrSet_.size());
+    MLLM_RT_ASSERT(qnnMemPtrSet_.count(ptr));
+  }
 
   // if already registered, just set the mem handle
   if (ptrToFdAndMemHandleMap_.count(ptr) > 0) {
@@ -90,7 +110,14 @@ void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_
 
   // Get the file id of this memory space.
   int mem_fd = rpcmem_to_fd(ptr);
-  MLLM_RT_ASSERT(mem_fd != -1);
+  if (mem_fd == -1) {
+    std::fprintf(stderr, "QNN shared-buffer register failed: rpcmem_to_fd returned -1 for tensor='%s', ptr=%p\n",
+                 QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr);
+    std::fflush(stderr);
+    MLLM_ERROR("QNN shared-buffer register failed: rpcmem_to_fd returned -1 for tensor='{}', ptr={}",
+               QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr);
+    MLLM_RT_ASSERT(mem_fd != -1);
+  }
 
   // Make qnn memory descriptor. Set ION.
   Qnn_MemDescriptor_t mem_descriptor = QNN_MEM_DESCRIPTOR_INIT;
@@ -106,7 +133,24 @@ void QNNAllocator::registerQnnTensorToSharedBuffer(void* ptr, Qnn_Tensor_t& qnn_
 
   // Register to QNN memory
   Qnn_MemHandle_t mem_handle = QNN_TENSOR_GET_MEM_HANDLE(qnn_tensor);
-  MLLM_RT_ASSERT_EQ(QNN_SUCCESS, qnnInterface_.memRegister(context_, &mem_descriptor, 1u, &mem_handle));
+  Qnn_ErrorHandle_t status = qnnInterface_.memRegister(context_, &mem_descriptor, 1u, &mem_handle);
+  if (QNN_SUCCESS != status) {
+    std::ostringstream dims;
+    dims << "[";
+    const auto rank = QNN_TENSOR_GET_RANK(qnn_tensor);
+    const auto* shape = QNN_TENSOR_GET_DIMENSIONS(qnn_tensor);
+    for (uint32_t i = 0; i < rank; ++i) { dims << (i == 0 ? "" : ",") << shape[i]; }
+    dims << "]";
+    std::fprintf(stderr, "QNN memRegister failed: status=%lu, tensor='%s', ptr=%p, fd=%d, dtype=%d, rank=%u, dims=%s\n",
+                 static_cast<unsigned long>(status),
+                 QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr, mem_fd,
+                 static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(qnn_tensor)), rank, dims.str().c_str());
+    std::fflush(stderr);
+    MLLM_ERROR("QNN memRegister failed: status={}, tensor='{}', ptr={}, fd={}, dtype={}, rank={}, dims={}", status,
+               QNN_TENSOR_GET_NAME(qnn_tensor) ? QNN_TENSOR_GET_NAME(qnn_tensor) : "<null>", ptr, mem_fd,
+               static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(qnn_tensor)), rank, dims.str());
+    MLLM_RT_ASSERT_EQ(QNN_SUCCESS, status);
+  }
 
   QNN_TENSOR_SET_MEM_HANDLE(qnn_tensor, mem_handle);
 
