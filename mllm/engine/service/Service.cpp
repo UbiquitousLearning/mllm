@@ -47,7 +47,7 @@ void ResponsePool::push(const std::string& req_id, ResponseItem item) {
   std::unique_lock lk(mtx_);
   auto& q = queues_[req_id];
   q.push(std::move(item));
-  cv_.notify_one();
+  cv_.notify_all();
 }
 
 std::optional<ResponseItem> ResponsePool::pop(const std::string& req_id) {
