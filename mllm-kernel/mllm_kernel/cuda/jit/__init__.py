@@ -11,6 +11,7 @@ __all__ = [
     "gptq_marlin_repack",
     "can_use_store_cache",
     "gdn_decode",
+    "gdn_extend",
     "gptq_marlin_gemm",
     "store_cache",
 ]

@@ -42,6 +42,28 @@ def _get_gdn_decode_backend_override() -> str:
         return "auto"
 
 
+def _get_gdn_extend_backend_override() -> str:
+    """Read GDN extend backend preference.
+
+    Checks (in order):
+    1. ``$PYMLLM_GDN_EXTEND_BACKEND`` env var
+    2. ``server.gdn_extend_backend`` config field
+    3. Falls back to ``"auto"``
+
+    Returns one of: ``"auto"``, ``"flashinfer"``, ``"mllm_kernel"``,
+    ``"cuda_chunkwise"``, ``"torch_chunkwise"``, ``"pytorch"``.
+    """
+    env = os.environ.get("PYMLLM_GDN_EXTEND_BACKEND", "").strip().lower()
+    if env in ("auto", "flashinfer", "mllm_kernel", "cuda_chunkwise",
+               "cuda_chunkwise_kernel", "torch_chunkwise", "pytorch"):
+        return env
+    try:
+        from pymllm.configs import get_global_config
+        return getattr(get_global_config().server, "gdn_extend_backend", "auto")
+    except Exception:
+        return "auto"
+
+
 # ---------------------------------------------------------------------------
 # mllm-kernel GDN decode (lazy import, SM80+)
 # ---------------------------------------------------------------------------
@@ -62,6 +84,81 @@ def _get_mllm_gdn_decode():
             logger.info("GDNAttnBackend: [probe] mllm-kernel GDN decode not available: %s", e)
             _mllm_gdn_decode = False
     return _mllm_gdn_decode if _mllm_gdn_decode is not False else None
+
+
+# ---------------------------------------------------------------------------
+# mllm-kernel GDN extend / prefill (lazy import, SM80+)
+# ---------------------------------------------------------------------------
+
+_mllm_gdn_extend = None
+
+
+def _get_mllm_gdn_extend():
+    """Lazy import for mllm-kernel fused GDN extend (prefill) CUDA kernel."""
+    global _mllm_gdn_extend
+    if _mllm_gdn_extend is None:
+        try:
+            from mllm_kernel.cuda.jit.gdn_extend import gdn_extend
+            _mllm_gdn_extend = gdn_extend
+            logger.info("GDNAttnBackend: [probe] mllm-kernel GDN extend available (SM80+)")
+        except (ImportError, RuntimeError) as e:
+            logger.info("GDNAttnBackend: [probe] mllm-kernel GDN extend not available: %s", e)
+            _mllm_gdn_extend = False
+    return _mllm_gdn_extend if _mllm_gdn_extend is not False else None
+
+
+# ---------------------------------------------------------------------------
+# mllm-kernel GDN chunkwise extend (lazy import + eager compile, SM80+)
+# ---------------------------------------------------------------------------
+
+_mllm_gdn_extend_cw = None
+
+
+def _get_mllm_gdn_extend_chunkwise():
+    """Import and eagerly compile the chunkwise GDN extend CUDA kernel.
+
+    Called from ``GDNAttnBackend.__init__`` when ``cuda_chunkwise`` is
+    explicitly configured, so the ~15 s JIT cost is paid at model-load time.
+    """
+    global _mllm_gdn_extend_cw
+    if _mllm_gdn_extend_cw is None:
+        try:
+            from mllm_kernel.cuda.jit.gdn_extend_chunkwise import gdn_extend_chunkwise
+            try:
+                from mllm_kernel.cuda.jit.gdn_extend_chunkwise import precompile as _cw_precompile
+            except ImportError:
+                _cw_precompile = None
+
+            if _cw_precompile is not None:
+                logger.info(
+                    "GDNAttnBackend: [probe] mllm-kernel GDN chunkwise — "
+                    "compiling CUDA kernel (first run may take ~15 s on Jetson) …"
+                )
+                ok = _cw_precompile()
+            else:
+                logger.info(
+                    "GDNAttnBackend: [probe] mllm-kernel GDN chunkwise — "
+                    "precompile not available, kernel will compile on first use"
+                )
+                ok = True
+
+            if ok:
+                _mllm_gdn_extend_cw = gdn_extend_chunkwise
+                logger.info("GDNAttnBackend: [probe] mllm-kernel GDN chunkwise extend available (SM80+)")
+            else:
+                _mllm_gdn_extend_cw = False
+                logger.warning(
+                    "GDNAttnBackend: [probe] mllm-kernel GDN chunkwise extend "
+                    "CUDA compilation failed — falling back to pytorch"
+                )
+        except Exception as e:
+            logger.warning(
+                "GDNAttnBackend: [probe] mllm-kernel GDN chunkwise extend "
+                "import/compile error (%s: %s) — falling back",
+                type(e).__name__, e, exc_info=True,
+            )
+            _mllm_gdn_extend_cw = False
+    return _mllm_gdn_extend_cw if _mllm_gdn_extend_cw is not False else None
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +269,13 @@ class GDNAttnBackend:
 
         # Pre-check FlashInfer availability
         self._use_flashinfer, _, _ = _get_flashinfer_gdn()
+
+        # Eagerly compile the raw chunkwise CUDA kernel only when it is
+        # explicitly requested (``cuda_chunkwise_kernel``).  The default
+        # ``cuda_chunkwise`` / ``auto`` paths now use the faster fully-batched
+        # ``torch_chunkwise`` implementation, which needs no JIT compile.
+        if _get_gdn_extend_backend_override() == "cuda_chunkwise_kernel":
+            _get_mllm_gdn_extend_chunkwise()
 
         # One-shot flags to log the selected backend on first actual forward call
         self._decode_backend_logged = False
@@ -404,6 +508,7 @@ class GDNAttnBackend:
         # L2 normalize q and k per-head (matching use_qk_l2norm_in_kernel=True)
         q = q / (q.norm(dim=-1, keepdim=True) + 1e-6)
         k = k / (k.norm(dim=-1, keepdim=True) + 1e-6)
+        q = q * (q.shape[-1] ** -0.5)
 
         decay = torch.exp(g.float())    # [bs, num_v_heads]
         beta_f = beta.float()           # [bs, num_v_heads]
@@ -472,30 +577,35 @@ class GDNAttnBackend:
         value_dim = layer.num_v_heads * layer.head_v_dim
 
         # --- Per-request causal conv1d ---
+        # Vectorised: unfold + weighted sum (depthwise causal conv) with no
+        # Python kernel loop.  Sequence boundaries are read once on the host
+        # (avoids a CUDA sync for every request inside the layer hot loop), and
+        # the unfold/sum form is faster than grouped F.conv1d for the very wide
+        # (conv_dim=6144) depthwise filter used here.
         conv_out = torch.empty_like(mixed_qkv)  # [total_tokens, conv_dim]
+        cu_host = cu_seqlens.tolist()
 
         for i in range(batch_size):
-            start = int(cu_seqlens[i].item())
-            end = int(cu_seqlens[i + 1].item())
+            start = int(cu_host[i])
+            end = int(cu_host[i + 1])
             seq_len = end - start
             if seq_len == 0:
                 continue
 
             idx = cache_indices[i]
-            x = mixed_qkv[start:end]  # [seq_len, conv_dim]
-            prev_state = conv_buf[idx]  # [conv_dim, K-1]
+            x = mixed_qkv[start:end]            # [seq_len, conv_dim]
+            prev_state = conv_buf[idx]          # [conv_dim, K-1]
 
-            # Pad with previous conv state
-            x_padded = torch.cat([prev_state.T, x], dim=0)  # [K-1+seq_len, conv_dim]
+            # [K-1 + seq_len, conv_dim] = prev state ++ new tokens
+            x_padded = torch.cat([prev_state.t(), x], dim=0)
 
-            # Save new conv state (last K-1 tokens)
-            conv_buf[idx] = x_padded[-(K - 1):].T.clone()
+            # Save new conv state (last K-1 rows -> [conv_dim, K-1]).
+            conv_buf[idx] = x_padded[-(K - 1):].t()
 
-            # Causal conv1d
-            out = torch.zeros(seq_len, x.shape[1], device=x.device, dtype=x.dtype)
-            for kk in range(K):
-                out += x_padded[kk: kk + seq_len] * conv_weight[:, kk]
-            conv_out[start:end] = out
+            # Causal conv: out[t] = sum_k x_padded[t+k] * w[:, k].
+            # unfold builds a [seq_len, conv_dim, K] sliding window in one shot.
+            windows = x_padded.unfold(0, K, 1)              # [seq_len, conv_dim, K]
+            conv_out[start:end] = (windows * conv_weight).sum(dim=-1)
 
         # --- SiLU activation ---
         conv_out = F.silu(conv_out)
@@ -506,51 +616,102 @@ class GDNAttnBackend:
         k = k.view(total_tokens, layer.num_k_heads, layer.head_k_dim)
         v = v.view(total_tokens, layer.num_v_heads, layer.head_v_dim)
 
-        # --- GDN gating ---
-        g, beta = _gdn_gating(a, b, layer.A_log, layer.dt_bias)
-
         # --- Recurrent computation ---
+        # Priority (when "auto"):
+        #   FlashInfer SM90+ > mllm_kernel SM80+ > cuda_chunkwise SM80+ > PyTorch
+        # Override via server.gdn_extend_backend or $PYMLLM_GDN_EXTEND_BACKEND
+        backend        = _get_gdn_extend_backend_override()
         use_fi, fi_prefill, _ = _get_flashinfer_gdn()
-        use_fi_extend = use_fi and fi_prefill is not None and mixed_qkv.is_cuda
+        mllm_extend    = _get_mllm_gdn_extend()
+        mllm_extend_cw = _get_mllm_gdn_extend_chunkwise()
+
+        use_fi_extend = (
+            (backend in ("auto", "flashinfer"))
+            and use_fi and fi_prefill is not None and mixed_qkv.is_cuda
+        )
+        use_mllm_extend = (
+            not use_fi_extend
+            and (backend in ("auto", "mllm_kernel"))
+            and mllm_extend is not None and mixed_qkv.is_cuda
+        )
+        # Fully-batched PyTorch chunkwise (cuBLAS) — the fastest + most
+        # numerically faithful prefill path on SM80-89 (no FlashInfer).  It
+        # supersedes the sequential ``cuda_chunkwise`` CUDA kernel, so an
+        # explicit ``cuda_chunkwise`` request is auto-upgraded to it.  The raw
+        # CUDA kernel stays reachable via ``cuda_chunkwise_kernel`` for A/B.
+        use_torch_chunkwise = (
+            mixed_qkv.is_cuda
+            and not use_fi_extend
+            and not use_mllm_extend
+            and backend in ("auto", "cuda_chunkwise", "torch_chunkwise")
+        )
+        use_cuda_chunkwise = (
+            (not use_torch_chunkwise)
+            and backend == "cuda_chunkwise_kernel"
+            and mllm_extend_cw is not None
+            and mixed_qkv.is_cuda
+        )
 
         if not self._extend_backend_logged:
+            selected = (
+                "flashinfer"      if use_fi_extend       else
+                "mllm_kernel"     if use_mllm_extend     else
+                "torch_chunkwise" if use_torch_chunkwise else
+                "cuda_chunkwise"  if use_cuda_chunkwise  else
+                "pytorch"
+            )
             logger.info(
-                "GDNAttnBackend: [extend] using backend=%s",
-                "flashinfer" if use_fi_extend else "pytorch",
+                "GDNAttnBackend: [extend] using backend=%s (config=%s)", selected, backend
             )
             self._extend_backend_logged = True
 
         if use_fi_extend:
-            # Gather initial states for this batch
+            g, beta = _gdn_gating(a, b, layer.A_log, layer.dt_bias)
             init_state = recurrent_buf[cache_indices].to(torch.float32)
-            # [batch_size, num_v_heads, head_v_dim, head_k_dim]
-
             alpha = torch.exp(g.to(torch.float32))
             beta_f32 = beta.to(torch.float32)
-
             # FlashInfer's use_qk_l2norm_in_kernel is silently ignored —
-            # the flag is declared in the Python wrapper but never forwarded
-            # to the CUDA kernel.  Pre-normalize q and k here, matching
-            # sglang's approach (l2norm_fwd before calling with False).
+            # pre-normalise q/k here to match sglang's approach.
             q_fi = q / (q.norm(dim=-1, keepdim=True) + 1e-6)
             k_fi = k / (k.norm(dim=-1, keepdim=True) + 1e-6)
-
+            q_fi = q_fi * (q_fi.shape[-1] ** -0.5)
             output, final_state = fi_prefill(
-                q=q_fi.contiguous(),
-                k=k_fi.contiguous(),
-                v=v.contiguous(),
-                g=alpha,
-                beta=beta_f32,
-                initial_state=init_state,
-                output_final_state=True,
-                cu_seqlens=cu_seqlens,
-                use_qk_l2norm_in_kernel=False,
+                q=q_fi.contiguous(), k=k_fi.contiguous(), v=v.contiguous(),
+                g=alpha, beta=beta_f32,
+                initial_state=init_state, output_final_state=True,
+                cu_seqlens=cu_seqlens, use_qk_l2norm_in_kernel=False,
+            )
+            recurrent_buf[cache_indices] = final_state.to(recurrent_buf.dtype)
+
+        elif use_mllm_extend:
+            # Sequential recurrent scan — all fused in one CUDA kernel.
+            output = mllm_extend(
+                q, k, v, a, b,
+                layer.A_log, layer.dt_bias,
+                recurrent_buf, cache_indices, cu_seqlens,
             )
 
-            # Scatter final states back to pool
-            recurrent_buf[cache_indices] = final_state.to(recurrent_buf.dtype)
+        elif use_torch_chunkwise:
+            # Fully-batched chunkwise (cuBLAS) — parallel across chunks/heads.
+            from pymllm.layers.attention.gdn_chunkwise import (
+                gdn_extend_chunkwise_torch,
+            )
+            output = gdn_extend_chunkwise_torch(
+                q, k, v, a, b,
+                layer.A_log, layer.dt_bias,
+                recurrent_buf, cache_indices, cu_seqlens,
+            )
+
+        elif use_cuda_chunkwise:
+            # Chunkwise WY-parallel CUDA kernel (SM80+).
+            output = mllm_extend_cw(
+                q, k, v, a, b,
+                layer.A_log, layer.dt_bias,
+                recurrent_buf, cache_indices, cu_seqlens,
+            )
+
         else:
-            # PyTorch fallback: per-request sequential scan
+            g, beta = _gdn_gating(a, b, layer.A_log, layer.dt_bias)
             output = self._extend_pytorch_fallback(
                 q, k, v, g, beta, recurrent_buf, cache_indices, cu_seqlens, layer
             )
@@ -585,6 +746,7 @@ class GDNAttnBackend:
         # L2 normalize q and k per-head
         q = q / (q.norm(dim=-1, keepdim=True) + 1e-6)
         k = k / (k.norm(dim=-1, keepdim=True) + 1e-6)
+        q = q * (q.shape[-1] ** -0.5)
 
         # GQA expansion
         if num_k_heads != num_v_heads:

@@ -373,6 +373,7 @@ class ModelRunnerProcess:
                 seq_lens=seq_lens_tensor,
                 out_cache_loc=out_cache_loc,
                 mrope_position_deltas=mrope_deltas_tensor,
+                seq_lens_cpu_list=batch.get("seq_lens"),
             )
 
         _forward_t0 = time.perf_counter()

@@ -35,6 +35,21 @@ Typical data flow
 
 from __future__ import annotations
 
+import os
+
+# Tight-/unified-memory devices (e.g. Jetson Orin, 15 GB shared) leave only a
+# small free arena once large weights are resident (a bf16 4B model is ~8 GB).
+# The default CUDA caching allocator fragments that arena, so a long-context
+# prefill — whose transient activations (GDN unfold/chunkwise buffers, attention
+# workspace) must be carved out of the remainder — spuriously OOMs or thrashes
+# into host swap even though the steady-state footprint fits.  ``expandable
+# _segments`` grows a single resizable segment instead of many fixed blocks,
+# removing that fragmentation and letting long prefills run.  ``setdefault``
+# keeps any user-provided PYTORCH_CUDA_ALLOC_CONF authoritative.  This must run
+# before the CUDA caching allocator initialises (first device allocation), which
+# is why it lives at import time of the GPU-owning module.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 import gc
 import logging
 import os
@@ -1195,6 +1210,7 @@ class ModelRunner:
         return_logprob: bool = False,
         top_logprobs_nums: Optional[List[int]] = None,
         mrope_position_deltas: Optional[torch.Tensor] = None,
+        seq_lens_cpu_list: Optional[List[int]] = None,
     ) -> ForwardBatch:
         """Build a :class:`ForwardBatch` for a decode step.
 
@@ -1220,7 +1236,18 @@ class ModelRunner:
             positions by the spatial extent of prefill images.
         """
         batch_size = req_pool_indices.shape[0]
-        seq_lens_sum = int(seq_lens.sum().item())
+
+        # Decode hot-path: avoid GPU->CPU syncs (`seq_lens.sum().item()` and
+        # `seq_lens.cpu()`) when the scheduler already has the per-request
+        # sequence lengths as a CPU list. Building both from the CPU list
+        # yields bit-identical metadata while removing two device syncs per
+        # token (which otherwise stall the decode pipeline).
+        if seq_lens_cpu_list is not None:
+            seq_lens_sum = int(sum(seq_lens_cpu_list))
+            seq_lens_cpu = torch.tensor(seq_lens_cpu_list, dtype=torch.int32)
+        else:
+            seq_lens_sum = int(seq_lens.sum().item())
+            seq_lens_cpu = seq_lens.cpu()
 
         # For decode, positions = seq_lens - 1 (the new token position)
         positions = (seq_lens - 1).to(torch.int64)
@@ -1233,7 +1260,7 @@ class ModelRunner:
             seq_lens=seq_lens,
             out_cache_loc=out_cache_loc,
             seq_lens_sum=seq_lens_sum,
-            seq_lens_cpu=seq_lens.cpu(),
+            seq_lens_cpu=seq_lens_cpu,
             positions=positions,
             return_logprob=return_logprob,
             top_logprobs_nums=top_logprobs_nums,

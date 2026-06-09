@@ -40,3 +40,8 @@ autotuner.log
 /models/
 # Keep source model adapters tracked
 !tools/mllm-llm-benchmark/models/
+
+# Local-only benchmark driver & in-progress tests (not for commit)
+benchmarks/bench_all_models.sh
+pymllm/tests/test_model_runner_sampling.py
+pymllm/tests/test_mrope_triton.py
