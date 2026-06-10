@@ -14,6 +14,8 @@
 #include "mllm/compile/ir/linalg/Attribute.hpp"
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/backends/qnn/aot/passes/LLMQuantRecipePass.hpp"
+#include "mllm/core/aops/LayerNormOp.hpp"
+#include "mllm/core/aops/LinearOp.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -500,6 +502,58 @@ bool LLMQuantRecipeRMSNormPattern::rewrite(ir::IRWriter& writer, const ir::op_pt
 }
 
 //===----------------------------------------------------------------------===//
+// LayerNorm Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeLayerNormPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::LayerNormOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeLayerNormPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  auto ret = noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
+  if (!ret) return false;
+
+  auto layer_norm_ir = node->cast_<ir::linalg::LayerNormOp>();
+  auto layer_norm_aop = dynamic_cast<mllm::aops::LayerNormOp*>(layer_norm_ir->getAOp());
+  MLLM_RETURN_FALSE_IF_NOT(layer_norm_aop);
+
+  auto annotation_attr =
+      node->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonAnnotationAttr>();
+
+  auto add_raw_weight_recipe = [&](const std::string& suffix) -> bool {
+    auto reg_tensor_ir = writer.getContext()->lookupSymbolTable(layer_norm_ir->getAOp()->getName() + suffix);
+    MLLM_RETURN_FALSE_IF_NOT(reg_tensor_ir);
+    MLLM_RETURN_FALSE_IF_NOT(reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+    MLLM_RETURN_FALSE_IF_NOT(reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+
+    auto t = reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+    auto weight_spec_attr = writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
+        ir::linalg::QuantizationSpecRaw::create(t->tensor_.dtype()));
+    t->setAttr("quant_recipe", weight_spec_attr);
+    annotation_attr->annotation_.weights.insert({suffix.substr(1), weight_spec_attr->spec_});
+
+    return true;
+  };
+
+  if (layer_norm_aop->options().elementwise_affine && !add_raw_weight_recipe(".weight")) { return false; }
+  if (layer_norm_aop->options().bias && !add_raw_weight_recipe(".bias")) { return false; }
+
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// GELU Pattern
+//===----------------------------------------------------------------------===//
+bool LLMQuantRecipeGELUPattern::isMatch(const mllm::ir::op_ptr_t& op) {
+  if (op->isa_<ir::linalg::GELUOp>()) { return true; }
+  return false;
+}
+
+bool LLMQuantRecipeGELUPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& node) {
+  return noSharingSingleInAndSingleOutQuantAnnoAttr(writer.getContext(), node->cast_<ir::linalg::LinalgIROp>());
+}
+
+//===----------------------------------------------------------------------===//
 // SiLU Pattern
 //===----------------------------------------------------------------------===//
 bool LLMQuantRecipeSiLUPattern::isMatch(const mllm::ir::op_ptr_t& op) {
@@ -609,9 +663,7 @@ bool LLMQuantRecipeElementwisePattern::rewrite(ir::IRWriter& writer, const ir::o
                                              i_0->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>()));
 
     } else {
-      MLLM_WARN("LLMQuantRecipeEqualPattern Only support constant Value as second inputs right now. Pls send us a issue or PR "
-                "if you want to compare two normal tensor(rather than static-tensor).");
-      return false;
+      i_1->setAttr("quant_recipe", genSimpleQuantizationSpecAttr(writer.getContext(), i_1->cast_<ir::tensor::TensorValue>()));
     }
   }
 
@@ -899,7 +951,26 @@ bool LLMQuantRecipeLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
     auto input_spec = linear_ir->inputs().front()->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonSpecAttr>();
     annotation_attr->annotation_.inputs.emplace_back(input_spec->spec_);
 
-    if (use_config["method"] == "LPBQ") {
+    auto weight_name = linear_ir->getAOp()->getName() + ".weight";
+    auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
+    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
+    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+    MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+    auto weight_tensor = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+
+    const bool allow_raw_float_linear = use_config.value("allow_raw_float_linear", false);
+    const bool float_weight = weight_tensor->tensor_.dtype() == kFloat32 || weight_tensor->tensor_.dtype() == kFloat16
+                              || weight_tensor->tensor_.dtype() == kBFloat16;
+
+    if (allow_raw_float_linear && float_weight) {
+      auto weight_quant_spec = ir::linalg::QuantizationSpecRaw::create(weight_tensor->tensor_.dtype());
+      weight_tensor->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(weight_quant_spec));
+      annotation_attr->annotation_.weights.insert({"weight", weight_quant_spec});
+
+      auto out_quant_spec = ir::linalg::QuantizationSpecRaw::create(linear_ir->outputs().front()->cast_<ir::tensor::TensorValue>()->tensor_.dtype());
+      linear_ir->outputs().front()->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(out_quant_spec));
+      annotation_attr->annotation_.outputs.emplace_back(out_quant_spec);
+    } else if (use_config["method"] == "LPBQ") {
       // Unpack
       std::string precision = use_config["precision"];
       bool sym = use_config["sym"];
@@ -922,16 +993,24 @@ bool LLMQuantRecipeLinearPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr
         annotation_attr->annotation_.weights.insert({"weight", weight_quant_spec});
       }
 
-      auto weight_name = linear_ir->getAOp()->getName() + ".weight";
-      auto weight_reg_tensor_ir = writer.getContext()->lookupSymbolTable(weight_name);
-      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir);
-      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
-      MLLM_RETURN_FALSE_IF_NOT(weight_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
-      auto t = weight_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
-      t->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(weight_quant_spec));
+      weight_tensor->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(weight_quant_spec));
     } else {
       std::string s = use_config["method"];
       MLLM_WARN("Currently not support method: {}", s);
+    }
+
+    auto real_linear_op = dynamic_cast<mllm::aops::LinearOp*>(linear_ir->getAOp());
+    if (real_linear_op && real_linear_op->options().bias) {
+      auto bias_name = linear_ir->getAOp()->getName() + ".bias";
+      auto bias_reg_tensor_ir = writer.getContext()->lookupSymbolTable(bias_name);
+      if (bias_reg_tensor_ir) {
+        MLLM_RETURN_FALSE_IF_NOT(bias_reg_tensor_ir->isa_<ir::tensor::RegisterOp>());
+        MLLM_RETURN_FALSE_IF_NOT(bias_reg_tensor_ir->outputs().front()->isa_<ir::tensor::TensorValue>());
+        auto bias_tensor = bias_reg_tensor_ir->outputs().front()->cast_<ir::tensor::TensorValue>();
+        auto bias_quant_spec = ir::linalg::QuantizationSpecRaw::create(bias_tensor->tensor_.dtype());
+        bias_tensor->setAttr("quant_recipe", writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(bias_quant_spec));
+        annotation_attr->annotation_.weights.insert({"bias", bias_quant_spec});
+      }
     }
 
     linear_ir->setAttr("quant_recipe", annotation_attr);
@@ -1116,6 +1195,8 @@ LLMQuantRecipePass::LLMQuantRecipePass() {
   addPattern(LLMQuantRecipeRoPEPattern::create(), "rope", 0);
   addPattern(LLMQuantRecipeCastTypePattern::create(), "cast_type", 0);
   addPattern(LLMQuantRecipeRMSNormPattern::create(), "rms_norm", 0);
+  addPattern(LLMQuantRecipeLayerNormPattern::create(), "layer_norm", 0);
+  addPattern(LLMQuantRecipeGELUPattern::create(), "gelu", 0);
   addPattern(LLMQuantRecipeSiLUPattern::create(), "silu", 0);
   addPattern(LLMQuantRecipeIndexPattern::create(), "index", 0);
   addPattern(LLMQuantRecipeElementwisePattern::create(), "elementwise", 0);

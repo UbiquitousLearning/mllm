@@ -38,6 +38,7 @@ autotuner.log
 
 # Downloaded models and build artifacts (root-only)
 /models/
+/logs/
 # Keep source model adapters tracked
 !tools/mllm-llm-benchmark/models/
 

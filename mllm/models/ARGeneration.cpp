@@ -69,6 +69,7 @@ void ARGenerationChatIterator::step() {
   }
 
   if (step_count_ >= max_length_) {
+    if (step_count_ > 1) { gen_->decodeEventEndTimePoint(); }
     finished_ = true;
     return;
   }
@@ -286,23 +287,50 @@ void ARGeneration::perfSummary() {
 
   auto ttft_duration =
       std::chrono::duration_cast<std::chrono::microseconds>(llm_decode_start_time_ - llm_prefill_start_time_).count();
+  int64_t vit_duration = 0;
+  auto vit_event = custom_event_time_.find("ViT");
+  if (vit_event != custom_event_time_.end()) {
+    vit_duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(vit_event->second.second - vit_event->second.first).count();
+  }
+  auto llm_prefill_duration = prefill_duration;
+  if (vit_duration > 0 && prefill_duration > vit_duration) { llm_prefill_duration = prefill_duration - vit_duration; }
+  double llm_prefill_tokens_per_sec = 0;
+  if (llm_prefill_duration > 0) {
+    llm_prefill_tokens_per_sec = (double)ar_prefill_tokens_ / (llm_prefill_duration / 1000000.0);
+  }
+  const double prefill_seconds = static_cast<double>(prefill_duration) / 1000000.0;
+  const double llm_prefill_seconds = static_cast<double>(llm_prefill_duration) / 1000000.0;
+  const double decode_seconds = static_cast<double>(decode_duration) / 1000000.0;
+  const double total_seconds = static_cast<double>(total_duration) / 1000000.0;
+  const double ttft_seconds = static_cast<double>(ttft_duration) / 1000000.0;
+  const double avg_decode_seconds = avg_decode_duration / 1000000.0;
 
   fmt::print(fg(fmt::color::cyan), "\n{:=^50}\n", " Performance Summary ");
   fmt::print(fg(fmt::color::white), "{:<20}: ", "Total time");
-  fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs\n", (double)total_duration);
+  fmt::print(fg(fmt::color::yellow), "{:>10.3f} s\n", total_seconds);
 
-  fmt::print(fg(fmt::color::white), "{:<20}: ", "Prefill time");
-  fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs", (double)prefill_duration);
+  fmt::print(fg(fmt::color::white), "{:<20}: ", "Prefill total time");
+  fmt::print(fg(fmt::color::yellow), "{:>10.3f} s", prefill_seconds);
   if (prefill_tokens_per_sec > 0) { fmt::print(fg(fmt::color::white), " ({:>6.2f} tokens/s)", prefill_tokens_per_sec); }
   fmt::print("\n");
 
+  if (vit_duration > 0) {
+    fmt::print(fg(fmt::color::white), "{:<20}: ", "LLM prefill time");
+    fmt::print(fg(fmt::color::yellow), "{:>10.3f} s", llm_prefill_seconds);
+    if (llm_prefill_tokens_per_sec > 0) {
+      fmt::print(fg(fmt::color::white), " ({:>6.2f} tokens/s)", llm_prefill_tokens_per_sec);
+    }
+    fmt::print("\n");
+  }
+
   fmt::print(fg(fmt::color::white), "{:<20}: ", "Decode time");
-  fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs", (double)decode_duration);
+  fmt::print(fg(fmt::color::yellow), "{:>10.3f} s", decode_seconds);
   if (decode_tokens_per_sec > 0) { fmt::print(fg(fmt::color::white), " ({:>6.2f} tokens/s)", decode_tokens_per_sec); }
   fmt::print("\n");
 
   fmt::print(fg(fmt::color::white), "{:<20}: ", "TTFT");
-  fmt::print(fg(fmt::color::magenta), "{:>10.2f} μs\n", (double)ttft_duration);
+  fmt::print(fg(fmt::color::magenta), "{:>10.3f} s\n", ttft_seconds);
 
   fmt::print(fg(fmt::color::white), "{:<20}: ", "Prefill tokens");
   fmt::print(fg(fmt::color::green), "{:>10}\n", ar_prefill_tokens_);
@@ -312,7 +340,7 @@ void ARGeneration::perfSummary() {
 
   if (ar_steps_ > 1) {
     fmt::print(fg(fmt::color::white), "{:<20}: ", "Avg decode time");
-    fmt::print(fg(fmt::color::yellow), "{:>10.2f} μs/token\n", avg_decode_duration);
+    fmt::print(fg(fmt::color::yellow), "{:>10.3f} s/token\n", avg_decode_seconds);
   }
 
   fmt::print(fg(fmt::color::cyan), "{:=^50}\n", "");

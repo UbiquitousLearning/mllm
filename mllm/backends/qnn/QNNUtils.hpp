@@ -209,9 +209,8 @@ class QNNTensorWrapper {
 
   bool isAlloc() { return isAlloc_; }
   void __setDataContainer(const Tensor& tensor) {
-    MLLM_RT_ASSERT(dataContainer_.isNil())
     dataContainer_ = tensor;
-    if (!tensor.isNil()) { isAlloc_ = true; }
+    isAlloc_ = !tensor.isNil();
   }
 
   // Helper to set complex quantization params and manage memory

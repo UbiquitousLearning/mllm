@@ -728,11 +728,13 @@ class Qwen2VLForCausalLM : public ARGeneration {
       auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
       auto [visual_embedding_sin, visual_embedding_cos] = makeVisualRotarySinCos(pos_emb);
 
+      customEventStartTimePoint("ViT");
       auto start_time = std::chrono::high_resolution_clock::now();
       auto visual_embeddings = visual(img, visual_embedding_sin, visual_embedding_cos)[0];
       auto end_time = std::chrono::high_resolution_clock::now();
-      auto all_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
-      print("ViT Processing: done, time cost: {} seconds", all_time.count());
+      customEventEndTimePoint("ViT");
+      auto all_time = std::chrono::duration<double>(end_time - start_time).count();
+      fmt::print("ViT Processing: done, time cost: {:.3f} seconds\n", all_time);
 
       // Insert visual embeddings into llm's embedding
       int32_t vision_pad_token_start = -1;
