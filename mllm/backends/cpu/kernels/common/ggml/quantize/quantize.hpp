@@ -106,6 +106,8 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 
 #else
 namespace mllm::cpu {
+// Extract a raw 16-bit fp16 bit pattern without numeric conversion. Integral inputs
+// are already bit patterns; non-integral fp16-like values are copied byte-for-byte.
 template<typename T>
 inline static uint16_t mllm_fp16_bits(const T& f) {
   if constexpr (std::is_integral_v<std::decay_t<T>>) {
@@ -118,6 +120,7 @@ inline static uint16_t mllm_fp16_bits(const T& f) {
   }
 }
 
+// Construct an mllm_fp16_t value from a raw 16-bit fp16 bit pattern.
 inline static mllm_fp16_t mllm_fp16_from_bits(uint16_t bits) {
   mllm_fp16_t f;
   memcpy(&f, &bits, sizeof(bits));
