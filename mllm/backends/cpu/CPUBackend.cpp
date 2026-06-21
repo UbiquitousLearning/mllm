@@ -33,6 +33,7 @@
 #include "mllm/backends/cpu/ops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/backends/cpu/ops/ReLUOp.hpp"
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
+#include "mllm/backends/cpu/ops/GDNOp.hpp"  
 #include "mllm/backends/cpu/ops/ISTFTOp.hpp"
 #include "mllm/backends/cpu/ops/IndexOp.hpp"
 #include "mllm/backends/cpu/ops/KVCacheOp.hpp"
@@ -63,6 +64,7 @@
 #include "mllm/backends/cpu/ops/X2XOp.hpp"
 #include "mllm/backends/cpu/ops/StackOp.hpp"
 
+
 // Context
 #include "mllm/engine/Context.hpp"
 
@@ -76,7 +78,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUStackOpFactory, CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory,
                CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory,
                CPUSiLUOpFactory, CPUSigmoidOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
-               CPUReLUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory,
+               CPUReLUOpFactory, GDNOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory,
                CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPURoPEOpFactory, CPUCausalMaskOpFactory, CPUConv1DOpFactory,
                CPUConv3DOpFactory, CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory,
                CPUMeanOpFactory, CPUKVCacheOpFactory, CPUPagedAttnOpFactory, CPUScatter2ShardsOpFactory, CPURadixAttnOpFactory,
@@ -84,6 +86,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
                CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory,
                CPUGatherOpFactory>();
+               
 }
 
 CPUBackend::~CPUBackend() {

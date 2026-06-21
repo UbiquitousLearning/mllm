@@ -35,24 +35,8 @@ Typical data flow
 
 from __future__ import annotations
 
-import os
-
-# Tight-/unified-memory devices (e.g. Jetson Orin, 15 GB shared) leave only a
-# small free arena once large weights are resident (a bf16 4B model is ~8 GB).
-# The default CUDA caching allocator fragments that arena, so a long-context
-# prefill — whose transient activations (GDN unfold/chunkwise buffers, attention
-# workspace) must be carved out of the remainder — spuriously OOMs or thrashes
-# into host swap even though the steady-state footprint fits.  ``expandable
-# _segments`` grows a single resizable segment instead of many fixed blocks,
-# removing that fragmentation and letting long prefills run.  ``setdefault``
-# keeps any user-provided PYTORCH_CUDA_ALLOC_CONF authoritative.  This must run
-# before the CUDA caching allocator initialises (first device allocation), which
-# is why it lives at import time of the GPU-owning module.
-os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-
 import gc
 import logging
-import os
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -95,9 +79,6 @@ def get_available_gpu_memory(device: str = "cuda", gpu_id: int = 0) -> float:
     if device != "cuda" or not torch.cuda.is_available():
         return 0.0
     torch.cuda.set_device(gpu_id)
-    props = torch.cuda.get_device_properties(gpu_id)
-    if getattr(props, "is_integrated", False):
-        return _get_system_available_memory_gb()
     free, _ = torch.cuda.mem_get_info(gpu_id)
     return free / (1 << 30)
 
@@ -109,26 +90,6 @@ def get_total_gpu_memory(device: str = "cuda", gpu_id: int = 0) -> float:
     torch.cuda.set_device(gpu_id)
     _, total = torch.cuda.mem_get_info(gpu_id)
     return total / (1 << 30)
-
-
-def _get_system_available_memory_gb() -> float:
-    try:
-        import psutil
-
-        return psutil.virtual_memory().available / (1 << 30)
-    except Exception:
-        pass
-
-    if hasattr(os, "sysconf"):
-        try:
-            page_size = os.sysconf("SC_PAGE_SIZE")
-            avail_pages = os.sysconf("SC_AVPHYS_PAGES")
-            return (page_size * avail_pages) / (1 << 30)
-        except (OSError, ValueError):
-            pass
-
-    free, _ = torch.cuda.mem_get_info()
-    return free / (1 << 30)
 
 
 # ---------------------------------------------------------------------------
@@ -152,19 +113,6 @@ class LogitsProcessorOutput:
 
     next_token_logits: torch.Tensor  # [batch_size, vocab_size]
     hidden_states: Optional[torch.Tensor] = None
-
-
-@dataclass
-class MemoryProfileResult:
-    pre_model_available_gb: float
-    available_gb: float
-    mem_fraction: float
-    static_kv_budget_gb: float
-    cell_size_bytes: int
-    profiled_max_tokens: int
-    requested_max_total_tokens: Optional[int]
-    effective_max_tokens: int
-    gdn_pool_gb: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -326,12 +274,6 @@ class ModelRunner:
         # Forward pass counter (monotonically increasing).
         self.forward_pass_id: int = 0
 
-        # GPU memory available before model weights are loaded. This is used to
-        # match SGLang's mem_fraction_static semantics: static memory includes
-        # both model weights and the KV cache pool.
-        self._pre_model_load_available_gb: float = 0.0
-        self._last_memory_profile: Optional[MemoryProfileResult] = None
-
     # ------------------------------------------------------------------
     # Initialisation
     # ------------------------------------------------------------------
@@ -359,11 +301,6 @@ class ModelRunner:
         torch.set_default_dtype(self.dtype)
 
         # Load the model
-        if self.device == "cuda":
-            self._pre_model_load_available_gb = get_available_gpu_memory(
-                self.device,
-                self.gpu_id,
-            )
         self.load_model()
 
         # Extract model metadata from hf_config
@@ -766,7 +703,10 @@ class ModelRunner:
         self.max_running_requests = max_reqs
 
         if self.max_total_num_tokens <= 0:
-            raise RuntimeError(self._format_kv_cache_memory_error())
+            raise RuntimeError(
+                "Not enough memory for KV cache.  "
+                "Try reducing context_length or using a smaller model."
+            )
 
         # Create ReqToTokenPool
         self.req_to_token_pool = make_req_to_token_pool(
@@ -834,26 +774,24 @@ class ModelRunner:
     def _profile_max_num_tokens(self) -> int:
         """Profile available memory to determine maximum KV-cache tokens.
 
-        ``mem_fraction_static`` follows SGLang's semantics: it is the fraction
-        of total static memory budget used by model weights plus KV cache pool.
-        ``server_config.max_total_tokens`` is an upper bound on the profiled
-        capacity, not a replacement for profiling.
+        If ``server_config.max_total_tokens`` is explicitly set that value
+        is used directly.  Otherwise a memory-fraction-based heuristic
+        similar to sglang's ``profile_max_num_token`` is applied.
         """
+        # If user explicitly set max_total_tokens, use that.
+        if self.server_config.max_total_tokens is not None:
+            return self.server_config.max_total_tokens
+
         if self.device != "cuda":
             # For CPU, use a conservative default.
-            if self.server_config.max_total_tokens is not None:
-                return self.server_config.max_total_tokens
             return 4096
 
         available_gb = get_available_gpu_memory(self.device, self.gpu_id)
-        pre_model_available_gb = getattr(self, "_pre_model_load_available_gb", 0.0)
-        if pre_model_available_gb <= 0:
-            pre_model_available_gb = available_gb
 
-        # Determine memory fraction for static allocation (model weights + KV cache).
+        # Determine memory fraction for static allocation (KV cache).
         mem_fraction = self.server_config.mem_fraction_static
         if mem_fraction is None:
-            mem_fraction = 0.85
+            mem_fraction = 0.85  # default: use 85% of remaining memory
 
         # Calculate per-token KV cache size in bytes.
         kv_element_size = torch.tensor([], dtype=self.kv_cache_dtype).element_size()
@@ -871,9 +809,7 @@ class ModelRunner:
             )
             return 4096
 
-        rest_memory_gb = available_gb - pre_model_available_gb * (1 - mem_fraction)
-        rest_memory_bytes = int(rest_memory_gb * (1 << 30))
-        gdn_pool_gb = 0.0
+        rest_memory_bytes = int(available_gb * mem_fraction * (1 << 30))
 
         # Reserve memory for GDN pool if hybrid model
         if self.num_gdn_layers > 0:
@@ -920,106 +856,23 @@ class ModelRunner:
             )
             gdn_pool_bytes = recurrent_bytes + conv_bytes
             rest_memory_bytes -= gdn_pool_bytes
-            gdn_pool_gb = gdn_pool_bytes / (1 << 30)
             logger.info(
                 "GDN pool memory reservation: %.2f GB",
-                gdn_pool_gb,
+                gdn_pool_bytes / (1 << 30),
             )
 
-        profiled_max_tokens = max(rest_memory_bytes // cell_size, 0)
-        max_num_tokens = profiled_max_tokens
-
-        if self.server_config.max_total_tokens is not None:
-            if self.server_config.max_total_tokens > max_num_tokens:
-                logger.warning(
-                    "max_total_tokens=%d is larger than the profiled value %d. "
-                    "Use the profiled value instead.",
-                    self.server_config.max_total_tokens,
-                    max_num_tokens,
-                )
-            max_num_tokens = min(max_num_tokens, self.server_config.max_total_tokens)
-
-        self._last_memory_profile = MemoryProfileResult(
-            pre_model_available_gb=pre_model_available_gb,
-            available_gb=available_gb,
-            mem_fraction=mem_fraction,
-            static_kv_budget_gb=rest_memory_gb,
-            cell_size_bytes=cell_size,
-            profiled_max_tokens=profiled_max_tokens,
-            requested_max_total_tokens=self.server_config.max_total_tokens,
-            effective_max_tokens=max_num_tokens,
-            gdn_pool_gb=gdn_pool_gb,
-        )
+        max_num_tokens = rest_memory_bytes // cell_size
 
         logger.info(
-            "Memory profiling: pre_model_avail=%.2f GB, avail=%.2f GB, "
-            "fraction=%.2f, static_kv_budget=%.2f GB, cell_size=%d bytes, "
-            "max_tokens=%d",
-            pre_model_available_gb,
+            "Memory profiling: avail=%.2f GB, fraction=%.2f, "
+            "cell_size=%d bytes, max_tokens=%d",
             available_gb,
             mem_fraction,
-            rest_memory_gb,
             cell_size,
             max_num_tokens,
         )
 
-        return max_num_tokens
-
-    def _format_kv_cache_memory_error(self) -> str:
-        profile = getattr(self, "_last_memory_profile", None)
-        if profile is None:
-            return (
-                "Not enough memory for KV cache. Try increasing "
-                "--server.mem_fraction_static, reducing --server.max_total_tokens, "
-                "lowering --server.max_running_requests, or using a "
-                "smaller/quantized model."
-            )
-
-        requested = (
-            "unset"
-            if profile.requested_max_total_tokens is None
-            else str(profile.requested_max_total_tokens)
-        )
-        message = [
-            "Not enough memory for KV cache.",
-            (
-                "Memory profile: "
-                f"pre_model_avail={profile.pre_model_available_gb:.2f} GB, "
-                f"avail_after_model={profile.available_gb:.2f} GB, "
-                f"mem_fraction_static={profile.mem_fraction:.2f}, "
-                f"static_kv_budget={profile.static_kv_budget_gb:.2f} GB, "
-                f"cell_size={profile.cell_size_bytes} bytes, "
-                f"profiled max_tokens={profile.profiled_max_tokens}, "
-                f"requested max_total_tokens={requested}."
-            ),
-        ]
-        if profile.static_kv_budget_gb <= 0:
-            message.append(
-                "The static KV budget is non-positive, so model weights and "
-                "other static allocations already exceed the requested static "
-                "memory fraction."
-            )
-        if profile.gdn_pool_gb > 0:
-            message.append(f"GDN pool reservation={profile.gdn_pool_gb:.2f} GB.")
-        if (
-            profile.requested_max_total_tokens is not None
-            and profile.profiled_max_tokens < profile.requested_max_total_tokens
-        ):
-            message.append(
-                "The requested max_total_tokens is above the profiled KV "
-                "capacity for this launch."
-            )
-        message.append(
-            "Try increasing --server.mem_fraction_static, reducing "
-            "--server.max_total_tokens, lowering --server.max_running_requests, "
-            "or using a smaller/quantized model."
-        )
-        message.append(
-            "Note: server mode may need a higher mem_fraction_static than "
-            "bench_one_batch because tokenizer/scheduler/detokenizer/HTTP "
-            "processes and IPC buffers consume additional Jetson unified memory."
-        )
-        return " ".join(message)
+        return max(max_num_tokens, 1)  # at least 1
 
     # ------------------------------------------------------------------
     # Attention backend
@@ -1210,7 +1063,6 @@ class ModelRunner:
         return_logprob: bool = False,
         top_logprobs_nums: Optional[List[int]] = None,
         mrope_position_deltas: Optional[torch.Tensor] = None,
-        seq_lens_cpu_list: Optional[List[int]] = None,
     ) -> ForwardBatch:
         """Build a :class:`ForwardBatch` for a decode step.
 
@@ -1236,18 +1088,7 @@ class ModelRunner:
             positions by the spatial extent of prefill images.
         """
         batch_size = req_pool_indices.shape[0]
-
-        # Decode hot-path: avoid GPU->CPU syncs (`seq_lens.sum().item()` and
-        # `seq_lens.cpu()`) when the scheduler already has the per-request
-        # sequence lengths as a CPU list. Building both from the CPU list
-        # yields bit-identical metadata while removing two device syncs per
-        # token (which otherwise stall the decode pipeline).
-        if seq_lens_cpu_list is not None:
-            seq_lens_sum = int(sum(seq_lens_cpu_list))
-            seq_lens_cpu = torch.tensor(seq_lens_cpu_list, dtype=torch.int32)
-        else:
-            seq_lens_sum = int(seq_lens.sum().item())
-            seq_lens_cpu = seq_lens.cpu()
+        seq_lens_sum = int(seq_lens.sum().item())
 
         # For decode, positions = seq_lens - 1 (the new token position)
         positions = (seq_lens - 1).to(torch.int64)
@@ -1260,7 +1101,7 @@ class ModelRunner:
             seq_lens=seq_lens,
             out_cache_loc=out_cache_loc,
             seq_lens_sum=seq_lens_sum,
-            seq_lens_cpu=seq_lens_cpu,
+            seq_lens_cpu=seq_lens.cpu(),
             positions=positions,
             return_logprob=return_logprob,
             top_logprobs_nums=top_logprobs_nums,
@@ -1446,7 +1287,6 @@ class ModelRunner:
         top_ps: Optional[torch.Tensor] = None,
         top_ks: Optional[torch.Tensor] = None,
         penalty_params: Optional[Dict[str, Any]] = None,
-        is_all_greedy: Optional[bool] = None,
     ) -> torch.Tensor:
         """Sample next-token IDs from logits.
 
@@ -1470,10 +1310,6 @@ class ModelRunner:
             ``frequency_penalties``, ``presence_penalties`` (tensors of
             shape ``[batch_size]``), and ``token_histories`` (list of
             list of int).
-        is_all_greedy
-            CPU-side metadata indicating that every request should use greedy
-            sampling.  Supplying this avoids a CUDA tensor reduction and
-            synchronization in the decode hot path.
 
         Returns
         -------
@@ -1502,14 +1338,12 @@ class ModelRunner:
             )
 
         # Greedy path: temperature=0 (or all zeros) → argmax, no sampling.
-        if is_all_greedy is None:
-            is_all_greedy = (
-                bool((temperatures < 1e-6).all())
-                if temperatures is not None
-                else False
-            )
+        if temperatures is not None:
+            all_greedy = bool((temperatures < 1e-6).all())
+        else:
+            all_greedy = False
 
-        if is_all_greedy:
+        if all_greedy:
             return logits.argmax(dim=-1).to(torch.int32)
 
         # Stochastic path: apply temperature then sample.

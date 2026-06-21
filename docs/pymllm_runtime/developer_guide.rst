@@ -4,13 +4,13 @@ pymllm Developer Guide
 总览
 ----------------------------------------
 
-这份文档写给想给 ``pymllm`` 加模型、加量化格式、加 kernel 或做性能优化的开发者。代码还在快速
-演进，建议的工作方式是“小步验证、边界清晰、先单测再服务级验证”。
+本文档面向希望为 ``pymllm`` 增加模型、量化格式、kernel 或性能优化的开发者。当前代码处在
+快速演进阶段，推荐遵循“小步验证、边界清晰、先单测后服务级验证”的工作方式。
 
 开发环境建议
 ----------------------------------------
 
-推荐用 editable install，改完 Python 代码能直接验证：
+推荐使用 editable install，便于修改 Python 代码后直接验证：
 
 .. code-block:: bash
 
@@ -28,9 +28,9 @@ pymllm Developer Guide
    print("ok")
    PY
 
-``mllm-kernel`` 的 JIT 编译产物写在 ``~/.cache/mllm_kernel``。正常改完代码重新跑，会按需触发
-对应 kernel 的加载或编译；只有在验证首次编译行为、排查失败缓存、或者换了 CUTLASS 之类外部头
-文件来源时，才需要手动清对应缓存：
+``mllm-kernel`` 的 JIT 编译产物会写入 ``~/.cache/mllm_kernel``。正常修改后重新运行
+会触发相应 kernel 的加载或编译；只有在验证首次编译行为、排查失败缓存、或更换 CUTLASS
+等外部头文件来源时，才需要清理对应缓存：
 
 .. code-block:: bash
 
@@ -39,17 +39,17 @@ pymllm Developer Guide
 新增模型
 ----------------------------------------
 
-加模型时，优先复用现有的 ``pymllm.layers`` 和 ``pymllm.executor`` 约定，别把 HuggingFace 模型
-整个塞进服务。
+新增模型时，优先复用现有 ``pymllm.layers`` 和 ``pymllm.executor`` 约定，而不是把
+HuggingFace 模型直接包进服务。
 
 推荐步骤：
 
 1. 新增 ``pymllm/models/<model_name>.py``。
 2. 在 ``pymllm/models/__init__.py`` 注册 architecture 字符串。
-3. 实现模型类，保持 ``forward(input_ids, positions, forward_batch)`` 的风格。
+3. 实现模型类，保持 ``forward(input_ids, positions, forward_batch)`` 风格。
 4. 所有 linear layer 都接受 ``quant_method``。
-5. 实现 ``load_weights``，处理好 checkpoint key、stacked projection 和 tied embedding。
-6. 补最小单测。
+5. 实现 ``load_weights``，处理 checkpoint key、stacked projection 和 tied embedding。
+6. 增加最小单测。
 7. 最后做服务级 smoke test。
 
 最小测试建议：
@@ -63,38 +63,38 @@ pymllm Developer Guide
 新增量化 scheme
 ----------------------------------------
 
-加量化路径时，别在模型文件里写格式判断。保持这三层：
+新增量化路径时，不建议在模型文件里写格式判断。推荐保持以下分层：
 
 .. code-block:: text
 
    QuantizationConfig
-       解析 checkpoint config
-       决定某个 layer 是否量化
+       parses checkpoint config
+       decides whether a layer is quantized
 
    LinearMethod
-       承接 linear layer 生命周期
+       owns linear layer lifecycle
 
    Scheme
-       管 checkpoint-facing 参数
-       管 post-load layout 转换
-       管 kernel apply 路径
+       owns checkpoint-facing params
+       owns post-load layout conversion
+       owns kernel apply path
 
-``create_weights`` 注册 checkpoint-facing 的参数名。``process_weights_after_loading`` 是
-checkpoint layout 转 runtime kernel layout 的唯一边界。``apply`` 里只做 forward 必需的 runtime
-计算，不要重复做权重 repack。
+``create_weights`` 应注册 checkpoint-facing 参数名。``process_weights_after_loading`` 应作为
+checkpoint layout 到 runtime kernel layout 的唯一转换边界。``apply`` 中只做 forward 必需的
+runtime 计算，不应重复做权重 repack。
 
-新增量化路径至少要覆盖：
+新增量化路径至少需要覆盖：
 
 - config 解析测试。
 - ``ignore`` / prefix 匹配测试。
-- 参数注册的 shape / dtype 测试。
+- 参数注册 shape/dtype 测试。
 - post-load layout 转换测试。
 - forward correctness 或 smoke test。
 
 新增 CUDA JIT kernel
 ----------------------------------------
 
-如果 kernel 适合走 ``mllm-kernel`` 的 TVM-FFI JIT 路径，推荐这个结构：
+若 kernel 适合走 ``mllm-kernel`` 的 TVM-FFI JIT 路径，推荐结构如下：
 
 .. code-block:: text
 
@@ -103,29 +103,28 @@ checkpoint layout 转 runtime kernel layout 的唯一边界。``apply`` 里只�
    mllm-kernel/tests/test_<kernel>.py
    mllm-kernel/benchmarks/bench_<kernel>.py
 
-Python wrapper 负责：
+Python wrapper 应负责：
 
-- 校验输入的 shape、dtype、device。
+- 校验输入 shape、dtype、device。
 - 分配输出 tensor。
-- 调 ``@jit`` 包好的 compiled module。
-- 对外暴露一个稳定、干净的 Python API。
+- 调用 ``@jit`` 包装后的 compiled module。
+- 暴露稳定、简洁的 Python API。
 
-CUDA / C++ source 尽量只表达 kernel 语义，别混进 checkpoint 配置解析或模型层逻辑。
+CUDA/C++ source 应尽量只表达 kernel 语义，不混入 checkpoint 配置解析或模型层逻辑。
 
-如果 kernel 依赖 CUTLASS 这种重模板库，建议先做一次编译 spike：把 Jetson 目标设备上的编译
-时间、缓存路径、include 来源和内存占用摸清楚，再决定用 TVM-FFI JIT、torch extension JIT 还是
-AOT 构建。
+如果 kernel 依赖 CUTLASS 等重模板库，可以先做编译 spike。确认 Jetson 目标设备上的编译时间、
+缓存路径、include 来源和内存占用后，再决定使用 TVM-FFI JIT、torch extension JIT 或 AOT 构建。
 
 服务级验证
 ----------------------------------------
 
-服务级 smoke test 至少要覆盖：
+服务级 smoke test 应覆盖：
 
-- ``/v1/models`` 能返回。
-- 文本 ``/v1/chat/completions`` 能跑完。
-- 图文模型能处理容器内的图片绝对路径。
-- streaming 和 non-streaming 各测一次。
-- 中止请求或客户端断连时不会泄漏 running request。
+- ``/v1/models`` 可返回。
+- 文本 ``/v1/chat/completions`` 可完成。
+- 图文模型能处理容器内图片绝对路径。
+- streaming 与 non-streaming 至少各测一次。
+- 中止请求或客户端断连不会泄漏 running request。
 
 示例：
 
@@ -146,7 +145,7 @@ AOT 构建。
 性能验证
 ----------------------------------------
 
-性能数据一定要固定口径，否则不同记录之间根本没法比。建议每次都记下：
+性能数据需要固定口径，否则不同记录之间很难比较。建议记录：
 
 - commit hash。
 - JetPack / L4T 版本。
@@ -155,11 +154,11 @@ AOT 构建。
 - 模型路径和量化格式。
 - 启动命令。
 - prompt token 数、max tokens、temperature。
-- 有没有开 radix cache、CUDA Graph、shared queue。
+- 是否启用 radix cache、CUDA Graph、shared queue。
 - 是否包含首次 JIT 编译。
 
-服务级请求建议丢掉第一次 warmup 的结果，记第 2 / 3 次请求的 prefill / decode 统计。kernel
-microbench 则要单独记 warmup、重复次数、输入 shape 和 dtype。
+对服务级请求，建议丢弃第一次 warmup 结果，记录第 2/3 次请求的 prefill/decode 统计。
+对 kernel microbench，建议单独记录 warmup、重复次数、输入 shape 和 dtype。
 
 常见问题定位
 ----------------------------------------
@@ -167,55 +166,55 @@ microbench 则要单独记 warmup、重复次数、输入 shape 和 dtype。
 启动失败
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-先看：
+优先确认：
 
-- ``pymllm`` 和 ``mllm_kernel`` 是不是来自预期的源码目录或安装版本。
-- ``model_path`` 和 ``tokenizer_path`` 在容器内能不能看到。
-- ``transformers`` 能不能读目标 ``config.json``。
-- CUDA 可不可用，``torch.cuda.get_device_capability()`` 满不满足量化 kernel 的要求。
+- ``pymllm`` 和 ``mllm_kernel`` 是否来自预期源码目录或安装版本。
+- ``model_path`` 和 ``tokenizer_path`` 是否在容器内可见。
+- ``transformers`` 是否能读取目标 ``config.json``。
+- CUDA 是否可用，``torch.cuda.get_device_capability()`` 是否符合量化 kernel 要求。
 
 W8A8 编译失败
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-先看：
+优先确认：
 
-- ``CUTLASS_HOME`` 设没设对。
-- ``flashinfer`` 里有没有 bundled CUTLASS。
-- ``~/.cache/mllm_kernel/cutlass_int8_scaled_mm/`` 是不是有旧的失败缓存。
-- 当前 GPU 是不是 SM80–SM89。
+- ``CUTLASS_HOME`` 是否设置正确。
+- ``flashinfer`` 是否包含 bundled CUTLASS。
+- ``~/.cache/mllm_kernel/cutlass_int8_scaled_mm/`` 是否存在旧的失败缓存。
+- 当前 GPU 是否为 SM80-SM89。
 
 请求卡住或 CPU 占用高
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-先看：
+优先确认：
 
-- scheduler 有没有启用 idle sleep。
-- tokenizer / scheduler / detokenizer 子进程是不是都还活着。
-- 是不是有请求已经断连但没 abort。
-- ``max_total_tokens`` 是不是太小，导致 KV allocation 反复失败和 eviction。
+- scheduler 是否启用了 idle sleep。
+- tokenizer / scheduler / detokenizer 子进程是否全部存活。
+- 是否有请求已经断连但未 abort。
+- ``max_total_tokens`` 是否过小导致 KV allocation 反复失败和 eviction。
 
 输出异常
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-先看：
+优先确认：
 
-- tokenizer 的 chat template 对不对得上目标模型。
-- EOS token 有没有从 config、generation_config 或 tokenizer 里正确解析出来。
-- 量化模型的 ``ignore`` 有没有覆盖视觉分支、embedding、norm、lm_head 这些不该量化的模块。
-- ``process_weights_after_loading`` 跑没跑。
+- tokenizer chat template 是否符合目标模型。
+- EOS token 是否从 config、generation_config 或 tokenizer 中正确解析。
+- 量化模型的 ``ignore`` 是否覆盖视觉分支、embedding、norm 和 lm_head 等不应量化模块。
+- ``process_weights_after_loading`` 是否已执行。
 
 贡献建议
 ----------------------------------------
 
-开发时尽量守住这些边界：
+开发时尽量保持以下边界：
 
-- 服务协议变化放 ``pymllm/server``。
-- 请求 / 响应结构放 ``pymllm/engine/io_struct.py``。
-- 调度策略放 ``pymllm/orchestrator/scheduler_process.py``。
-- GPU 资源和 forward 逻辑放 ``pymllm/executor``。
-- 模型结构放 ``pymllm/models``。
-- 基础层放 ``pymllm/layers``。
-- 量化格式放 ``pymllm/quantization``。
-- 自定义 kernel 放 ``mllm-kernel``。
+- 服务协议变化放在 ``pymllm/server``。
+- 请求/响应结构放在 ``pymllm/engine/io_struct.py``。
+- 调度策略放在 ``pymllm/orchestrator/scheduler_process.py``。
+- GPU 资源和 forward 逻辑放在 ``pymllm/executor``。
+- 模型结构放在 ``pymllm/models``。
+- 基础层放在 ``pymllm/layers``。
+- 量化格式放在 ``pymllm/quantization``。
+- 自定义 kernel 放在 ``mllm-kernel``。
 
-守住这些边界，一次模型适配就不会写成跨层补丁，后面把同一份能力复用到更多模型和设备也更省事。
+这样可以避免把一次模型适配写成跨层补丁，也方便后续把同一能力复用到更多模型和设备。

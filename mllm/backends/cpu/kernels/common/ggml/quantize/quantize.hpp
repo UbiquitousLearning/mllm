@@ -105,7 +105,7 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 
 #else
 namespace mllm::cpu {
-#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
+#define MLLM_COMPUTE_FP16_TO_FP32(x) ((float)(x))
 #define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
 
 static float table_f32_f16[1 << 16];

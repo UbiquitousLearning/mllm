@@ -3,15 +3,24 @@ Tasks:
       cmake_cfg_path: "build"
       cmake_build_type: "Release"
       cmake_extra_args:
-        # Optional, If use Highway
         - "-DHWY_ENABLE_TESTS=OFF"
         - "-DHWY_ENABLE_EXAMPLES=OFF"
         - "-DHWY_ENABLE_CONTRIB=OFF"
-        # Optional
-        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"'
+
+        # CPU compile
+        - "-DMLLM_CPU_BACKEND_COMPILE_OPTIONS=-march=native"
+
+        # threads (keep OpenMP only, simplest path)
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+
+        # ❗关键：关闭 mllm 自己的线程运行时（避免 stdexec）
         - "-DMLLM_KERNEL_USE_THREADS_VENDOR_MLLM=OFF"
+
+        # ❗新增：强制避免 stdexec / HPC backend
+        - "-DMLLM_KERNEL_USE_STDEXEC=OFF"
+        
+        
 
   - CMakeBuildTask:
       cmake_cfg_path: "build"

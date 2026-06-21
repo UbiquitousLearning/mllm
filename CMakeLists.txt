@@ -119,6 +119,7 @@ if(MLLM_ENABLE_PY_MLLM)
     set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "Disable HWY examples" FORCE)
     set(HWY_ENABLE_CONTRIB OFF CACHE BOOL "Disable HWY contrib" FORCE)
     set(MLLM_CPU_BACKEND_COMPILE_OPTIONS "-march=native" CACHE STRING "CPU compile options for x86" FORCE)
+   
     set(MLLM_KERNEL_USE_THREADS ON CACHE BOOL "Enable Threads" FORCE)
     set(MLLM_KERNEL_THREADS_VENDOR_OPENMP ON CACHE BOOL "Enable OpenMP Threads" FORCE)
     set(MLLM_BUILD_EXPERIMENTS ON CACHE BOOL "Build experimental features" FORCE)
@@ -130,7 +131,7 @@ set(STDEXEC_BUILD_EXAMPLES OFF)
 CPMAddPackage(
   NAME stdexec
   GITHUB_REPOSITORY NVIDIA/stdexec
-  GIT_TAG nvhpc-25.03.rc1
+  GIT_TAG main
 )
 
 # ONLY APPLE CAN DO !
