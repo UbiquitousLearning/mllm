@@ -1040,6 +1040,40 @@ class ModelRunnerProcess:
         decode_len = len(output_ids) if output_ids else 0
         total_len = prompt_len + decode_len
 
+        def _sanitize_kv_free_indices(
+            indices: Optional[torch.Tensor], where: str
+        ) -> Optional[torch.Tensor]:
+            if indices is None or indices.numel() == 0:
+                return indices
+
+            before = int(indices.numel())
+            raw = indices.reshape(-1).to(torch.int64)
+            allocator_size = int(runner.token_to_kv_pool_allocator.size)
+            bad_mask = (raw <= 0) | (raw > allocator_size)
+            bad_count = int(bad_mask.sum().item())
+            sanitized = raw[(raw > 0) & (raw <= allocator_size)]
+            if sanitized.numel() > 0:
+                sanitized = torch.unique(sanitized)
+
+            after = int(sanitized.numel())
+            if before != after or bad_count:
+                logger.warning(
+                    "[KV_FREE_SANITIZE] rid=%s slot=%s where=%s before=%d after=%d "
+                    "bad_count=%d prompt_len=%d decode_len=%d total_len=%d first10=%s last10=%s",
+                    rid,
+                    slot,
+                    where,
+                    before,
+                    after,
+                    bad_count,
+                    prompt_len,
+                    decode_len,
+                    total_len,
+                    raw[:10].detach().cpu().tolist(),
+                    raw[-10:].detach().cpu().tolist(),
+                )
+            return sanitized
+
         all_kv_indices: Optional[torch.Tensor] = None
         if slot is not None and input_ids is not None:
             all_kv_indices = runner.req_to_token_pool.req_to_token[slot, :total_len].to(
@@ -1062,12 +1096,16 @@ class ModelRunnerProcess:
 
                 # Free duplicate KV indices in the overlap region.
                 if new_prefix_len > cache_protected_len:
-                    dup_indices = prompt_kv[cache_protected_len:new_prefix_len]
-                    if dup_indices.numel() > 0:
+                    dup_indices = _sanitize_kv_free_indices(
+                        prompt_kv[cache_protected_len:new_prefix_len],
+                        "prompt_dup_indices",
+                    )
+                    if dup_indices is not None and dup_indices.numel() > 0:
                         runner.token_to_kv_pool_allocator.free(dup_indices)
 
                 # Free decode KV indices (tree does not own them)
-                if decode_kv.numel() > 0:
+                decode_kv = _sanitize_kv_free_indices(decode_kv, "decode_kv")
+                if decode_kv is not None and decode_kv.numel() > 0:
                     runner.token_to_kv_pool_allocator.free(decode_kv)
             else:
                 # Non-hybrid or no decode tokens: insert full sequence
@@ -1080,8 +1118,11 @@ class ModelRunnerProcess:
 
                 # Free duplicate KV indices in the overlap region.
                 if new_prefix_len > cache_protected_len:
-                    dup_indices = all_kv_indices[cache_protected_len:new_prefix_len]
-                    if dup_indices.numel() > 0:
+                    dup_indices = _sanitize_kv_free_indices(
+                        all_kv_indices[cache_protected_len:new_prefix_len],
+                        "all_dup_indices",
+                    )
+                    if dup_indices is not None and dup_indices.numel() > 0:
                         runner.token_to_kv_pool_allocator.free(dup_indices)
 
             did_insert = True
@@ -1101,15 +1142,21 @@ class ModelRunnerProcess:
                 # Cache enabled but insert skipped (shouldn't happen in
                 # normal flow).  Tree owns [0, cache_protected_len);
                 # free the rest.
-                tail = all_kv_indices[cache_protected_len:]
-                if tail.numel() > 0:
+                tail = _sanitize_kv_free_indices(
+                    all_kv_indices[cache_protected_len:],
+                    "tail",
+                )
+                if tail is not None and tail.numel() > 0:
                     runner.token_to_kv_pool_allocator.free(tail)
             elif not cache_enabled:
                 # Cache disabled — free all newly-allocated KV indices.
+                all_kv_indices = _sanitize_kv_free_indices(all_kv_indices, "all_kv_indices")
                 if all_kv_indices is not None and all_kv_indices.numel() > 0:
                     runner.token_to_kv_pool_allocator.free(all_kv_indices)
-                elif kv_indices is not None and kv_indices.numel() > 0:
-                    runner.token_to_kv_pool_allocator.free(kv_indices)
+                else:
+                    kv_indices = _sanitize_kv_free_indices(kv_indices, "kv_indices_fallback")
+                    if kv_indices is not None and kv_indices.numel() > 0:
+                        runner.token_to_kv_pool_allocator.free(kv_indices)
 
         # ----------------------------------------------------------
         # Phase 5: Free the req pool slot.
