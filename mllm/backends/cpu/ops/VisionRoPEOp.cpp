@@ -26,16 +26,32 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
       auto S = activation.shape()[1];
       auto H = activation.shape()[2];
       auto D = activation.shape()[3];
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
-#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-      auto activation_ptr = activation.ptr<float16_t>();
-      auto output_ptr = out.ptr<float16_t>();
-      auto sin_ptr = sin.ptr<float16_t>();
-      auto cos_ptr = cos.ptr<float16_t>();
-
+      auto activation_ptr = activation.ptr<mllm_fp16_t>();
+      auto output_ptr = out.ptr<mllm_fp16_t>();
+      auto sin_ptr = sin.ptr<mllm_fp16_t>();
+      auto cos_ptr = cos.ptr<mllm_fp16_t>();
       auto half_dim = D / 2;
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      for (int b = 0; b < B; ++b) {
+        for (int s = 0; s < S; ++s) {
+          for (int h = 0; h < H; ++h) {
+            auto act_base = activation_ptr + b * S * H * D + s * H * D + h * D;
+            auto out_base = output_ptr + b * S * H * D + s * H * D + h * D;
+            auto sin_base = sin_ptr + s * half_dim;
+            auto cos_base = cos_ptr + s * half_dim;
 
+            for (int d = 0; d < half_dim; ++d) {
+              const float a = static_cast<float>(act_base[d]);
+              const float b_val = static_cast<float>(act_base[d + half_dim]);
+              const float cos_val = static_cast<float>(cos_base[d]);
+              const float sin_val = static_cast<float>(sin_base[d]);
+              out_base[d] = static_cast<mllm_fp16_t>(a * cos_val - b_val * sin_val);
+              out_base[d + half_dim] = static_cast<mllm_fp16_t>(a * sin_val + b_val * cos_val);
+            }
+          }
+        }
+      }
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       for (int b = 0; b < B; ++b) {
         for (int s = 0; s < S; ++s) {
           for (int h = 0; h < H; ++h) {
@@ -89,7 +105,25 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
       auto cos_ptr = cos.ptr<float>();
 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+      for (int b = 0; b < B; ++b) {
+        for (int s = 0; s < S; ++s) {
+          for (int h = 0; h < H; ++h) {
+            auto act_base = activation_ptr + b * S * H * D + s * H * D + h * D;
+            auto out_base = output_ptr + b * S * H * D + s * H * D + h * D;
+            auto sin_base = sin_ptr + s * half_dim;
+            auto cos_base = cos_ptr + s * half_dim;
+
+            for (int d = 0; d < half_dim; ++d) {
+              const float a_front = act_base[d];
+              const float a_back = act_base[d + half_dim];
+              const float cos_val = cos_base[d];
+              const float sin_val = sin_base[d];
+              out_base[d] = a_front * cos_val - a_back * sin_val;
+              out_base[d + half_dim] = a_front * sin_val + a_back * cos_val;
+            }
+          }
+        }
+      }
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       for (int b = 0; b < B; ++b) {
         for (int s = 0; s < S; ++s) {

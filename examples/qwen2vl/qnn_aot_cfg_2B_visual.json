@@ -1,0 +1,30 @@
+{
+    "target_machine": {
+        "htp_arch": "V75",
+        "htp_chipset": "SM8650",
+        "htp_try_best_performance": "HtpBurst",
+        "htp_security_pd_session": "HtpUnsignedPd",
+        "htp_vtcm_capability_in_mb": 8
+    },
+    "graph_on_qnn": [
+        "visual"
+    ],
+    "op_on_qnn": [],
+    "split_graph": 1,
+    "quant_recipe": {
+        "llm_recipe": true,
+        "layers": 32,
+        "builtin_llm_pass": {
+            "model": "qwen2vl_visual",
+            "linear": {
+                "fallback": {
+                    "method": "LPBQ",
+                    "sym": true,
+                    "precision": "w4a16",
+                    "block_size": 32,
+                    "allow_raw_float_linear": true
+                }
+            }
+        }
+    }
+}

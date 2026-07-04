@@ -236,14 +236,16 @@ class Qwen2VLTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  ARGenerationOutputPast convertMessage(const Qwen2VLMessage& message) {
+  ARGenerationOutputPast convertMessage(const Qwen2VLMessage& message, int32_t image_grid_h = -1, int32_t image_grid_w = -1) {
     // process prompt
     auto applied_string = Qwen2VLMessage::message_template;
     size_t pos = applied_string.find("{{{prompt}}}");
     applied_string.replace(pos, 12, message.prompt);
 
     // process image
-    auto [img, grid_thw] = image_preprocessor_(message.img_file_path);
+    auto [img, grid_thw] = image_grid_h > 0 || image_grid_w > 0
+                                ? image_preprocessor_(message.img_file_path, image_grid_h, image_grid_w)
+                                : image_preprocessor_(message.img_file_path);
 
     // process sequence
     auto sequence_str = tokenize(applied_string);

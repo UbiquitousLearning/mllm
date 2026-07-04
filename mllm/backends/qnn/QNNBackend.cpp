@@ -657,13 +657,17 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
                inputs.size(), graphName);
     return;
   }
+  if (outputs.size() != model->getGraphOutputTensorWrappers().size()) {
+    MLLM_ERROR("Output size mismatch: expected {}, got {} for graph '{}'", model->getGraphOutputTensorWrappers().size(),
+               outputs.size(), graphName);
+    return;
+  }
 
   std::vector<Qnn_Tensor_t> qnn_inputs;
   std::vector<Qnn_Tensor_t> qnn_outputs;
   // Prepare QNN inputs
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
     auto wrapper = model->getGraphInputTensorWrappers()[i];
-    auto& wrapper_tensor = wrapper->getDataContainer();
     const auto& runtime_input = inputs[i];
 
     // Validate input tensors
@@ -672,9 +676,9 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
-    // Case of executing retrieved graph created by AOT
-    // input wrapper is empty, set wrapper's dataContainer(mllm::Tensor)
-    if (!wrapper->isAlloc()) { wrapper->__setDataContainer(runtime_input); }
+    // Retrieved AOT graphs may be executed repeatedly with different runtime buffers
+    // in diagnostic paths. Rebind on every execution so QNN sees the current tensor.
+    wrapper->__setDataContainer(runtime_input);
 
     // Allocate and register the wrapper tensor with QNN allocator
     // QNNAllocator will handle registered memory descriptor when needed
@@ -684,7 +688,6 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   // Prepare QNN outputs
   for (int j = 0; j < model->getGraphOutputTensorWrappers().size(); j++) {
     auto wrapper = model->getGraphOutputTensorWrappers()[j];
-    auto& wrapper_tensor = wrapper->getDataContainer();
     const auto& runtime_output = outputs[j];
 
     // Validate output tensors
@@ -693,8 +696,9 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
-    // output wrapper is empty, set wrapper's dataContainer(mllm::Tensor)
-    if (!wrapper->isAlloc()) { wrapper->__setDataContainer(runtime_output); }
+    // Retrieved AOT graphs may be executed repeatedly with different runtime buffers
+    // in diagnostic paths. Rebind on every execution so QNN writes to the current tensor.
+    wrapper->__setDataContainer(runtime_output);
 
     // alloc and register qnn tensor
     wrapper->alloc();  // QNNAllocator will handle registered memory descriptor

@@ -3,11 +3,33 @@
 
 #include "mllm/backends/qnn/QNNModel.hpp"
 #include <cassert>
+#include <cstdlib>
+#include <sstream>
 #include "mllm/backends/qnn/QNNTypeMacros.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
+
+namespace {
+
+bool shouldDumpQnnIO() {
+  const char* flag = std::getenv("MLLM_QNN_DUMP_IO");
+  return flag != nullptr && std::string(flag) != "0";
+}
+
+std::string dimsToString(const std::vector<uint32_t>& dims) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < dims.size(); ++i) {
+    if (i > 0) { oss << ", "; }
+    oss << dims[i];
+  }
+  oss << "]";
+  return oss.str();
+}
+
+}  // namespace
 
 template<typename... Args>
 void freeMultiPtr(Args... args) {
@@ -112,6 +134,11 @@ ModelError_t QNNModel::loadGraphTensorInfo(const Qnn_Tensor_t* inputTensors, uin
 
     inputTensorWrappers_.push_back(wrapper);
     tensorWrapperMap_[tensorName] = wrapper;
+
+    if (shouldDumpQnnIO()) {
+      MLLM_INFO("QNN graph {} input[{}]: name='{}', dtype={}, dims={}", graphName_, i, tensorName,
+                static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(tensor)), dimsToString(dimensions));
+    }
   }
 
   // Create wrappers for output tensors
@@ -134,6 +161,11 @@ ModelError_t QNNModel::loadGraphTensorInfo(const Qnn_Tensor_t* inputTensors, uin
 
     outputTensorWrappers_.push_back(wrapper);
     tensorWrapperMap_[tensorName] = wrapper;
+
+    if (shouldDumpQnnIO()) {
+      MLLM_INFO("QNN graph {} output[{}]: name='{}', dtype={}, dims={}", graphName_, i, tensorName,
+                static_cast<int>(QNN_TENSOR_GET_DATA_TYPE(tensor)), dimsToString(dimensions));
+    }
   }
 
   MLLM_INFO("QNNModel::loadGraphTensorInfo() loaded {} input tensors and {} output tensors for graph: {}", numInputTensors,
