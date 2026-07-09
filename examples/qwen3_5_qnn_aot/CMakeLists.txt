@@ -1,0 +1,11 @@
+# AOT compile target runs on x86 (cross-compilation for Qualcomm HTP)
+if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE)
+  add_executable(mllm-qwen3_5-aot-c compile.cpp)
+  target_link_libraries(mllm-qwen3_5-aot-c PRIVATE MllmRT MllmCPUBackend MllmQNNBackend)
+  target_include_directories(mllm-qwen3_5-aot-c PRIVATE ${MLLM_INCLUDE_DIR})
+endif()
+
+# Hybrid CPU+QNN runtime (runs on device: CPU for GDN, QNN for full attention)
+add_executable(mllm-qwen3_5-aot-runner aot_run.cpp)
+target_link_libraries(mllm-qwen3_5-aot-runner PRIVATE MllmRT MllmCPUBackend MllmQNNBackend)
+target_include_directories(mllm-qwen3_5-aot-runner PRIVATE ${MLLM_INCLUDE_DIR})
