@@ -11,6 +11,7 @@ buffers is reserved as a padding / dummy-output slot and is never allocated.
 """
 
 import logging
+import os
 from typing import List, Optional, Tuple, Union
 
 import torch
@@ -258,7 +259,7 @@ class TokenToKVPoolAllocator:
                 1, self.size + 1, dtype=torch.int32, device=self.device
             )
         else:
-            num_pages = self.size // self.page_size
+            num_pages = self._num_pages()
             self.free_slots = torch.arange(
                 1, num_pages + 1, dtype=torch.int32, device=self.device
             )
@@ -268,16 +269,74 @@ class TokenToKVPoolAllocator:
 
     def available_size(self) -> int:
         """Number of tokens that can still be allocated."""
-        return (len(self.free_slots) + len(self.release_slots)) * self.page_size
+        if self.page_size == 1:
+            return len(self.free_slots) + len(self.release_slots)
+        free_pages = torch.cat((self.free_slots, self.release_slots))
+        if free_pages.numel() == 0:
+            return 0
+        return int(self._page_ids_to_kv_indices(free_pages).numel())
+
+    def _debug_assert_enabled(self) -> bool:
+        return os.environ.get("PYMLLM_DEBUG_KV_ASSERT") == "1"
+
+    def _num_pages(self) -> int:
+        return (self.size + self.page_size - 1) // self.page_size
+
+    def _max_free_slot_value(self) -> int:
+        # page_size == 1 stores real KV indices; page mode stores page ids.
+        return self.size if self.page_size == 1 else self._num_pages()
+
+    def _page_ids_to_kv_indices(self, pages: torch.Tensor) -> torch.Tensor:
+        """Convert 1-based page ids to 1-based KV indices."""
+        offsets = torch.arange(self.page_size, dtype=torch.int64, device=self.device)
+        pages64 = pages.reshape(-1).to(torch.int64)
+        out = ((pages64 - 1)[:, None] * self.page_size + offsets + 1).reshape(-1)
+        out = out[(out > 0) & (out <= self.size)]
+        return out.to(torch.int32)
+
+    def _kv_indices_to_page_ids(self, indices: torch.Tensor) -> torch.Tensor:
+        """Convert 1-based KV indices to 1-based page ids."""
+        indices64 = indices.reshape(-1).to(torch.int64)
+        pages = ((indices64 - 1) // self.page_size) + 1
+        pages = pages[(pages > 0) & (pages <= self._num_pages())]
+        return pages.to(torch.int32)
+
+    def _assert_valid_allocator_state(self, where: str) -> None:
+        if not self._debug_assert_enabled():
+            return
+        max_value = self._max_free_slot_value()
+        for name, slots in (("free_slots", self.free_slots), ("release_slots", self.release_slots)):
+            if slots.numel() == 0:
+                continue
+            if bool(((slots <= 0) | (slots > max_value)).any().item()):
+                raise RuntimeError(
+                    f"[KV_ALLOC_ASSERT] {where}: invalid {name}, "
+                    f"max_value={max_value}, first50={slots[:50].detach().cpu().tolist()}"
+                )
+            if torch.unique(slots).numel() != slots.numel():
+                raise RuntimeError(
+                    f"[KV_ALLOC_ASSERT] {where}: duplicate {name}, "
+                    f"first100={slots[:100].detach().cpu().tolist()}"
+                )
+        if self.available_size() > self.size:
+            raise RuntimeError(
+                f"[KV_ALLOC_ASSERT] {where}: available_size={self.available_size()} > size={self.size}"
+            )
 
     def merge_and_sort_free(self) -> None:
         """Merge ``release_slots`` into ``free_slots`` (and sort if ``need_sort``)."""
         if len(self.release_slots) == 0:
             return
+        max_value = self._max_free_slot_value()
         self.free_slots = torch.cat((self.free_slots, self.release_slots))
+        self.free_slots = self.free_slots[
+            (self.free_slots > 0) & (self.free_slots <= max_value)
+        ]
+        self.free_slots = torch.unique(self.free_slots, sorted=self.need_sort)
         if self.need_sort:
             self.free_slots, _ = torch.sort(self.free_slots)
         self.release_slots = torch.empty((0,), dtype=torch.int32, device=self.device)
+        self._assert_valid_allocator_state("merge_and_sort_free")
 
     def free_group_begin(self) -> None:
         """Start collecting ``free()`` calls; actual release is deferred to ``free_group_end``."""
@@ -304,35 +363,150 @@ class TokenToKVPoolAllocator:
                 return None
             out = self.free_slots[:need_size]
             self.free_slots = self.free_slots[need_size:]
+            if self._debug_assert_enabled():
+                if out.numel() != need_size:
+                    raise RuntimeError(
+                        f"[KV_ALLOC_ASSERT] alloc count mismatch need={need_size} got={out.numel()}"
+                    )
+                if bool(((out <= 0) | (out > self.size)).any().item()):
+                    raise RuntimeError(
+                        f"[KV_ALLOC_ASSERT] alloc returned invalid KV indices: "
+                        f"need={need_size}, out_first50={out[:50].detach().cpu().tolist()}, "
+                        f"free_first50={self.free_slots[:50].detach().cpu().tolist()}, "
+                        f"release_first50={self.release_slots[:50].detach().cpu().tolist()}"
+                    )
+                if torch.unique(out).numel() != out.numel():
+                    raise RuntimeError(
+                        f"[KV_ALLOC_ASSERT] alloc returned duplicate KV indices: "
+                        f"need={need_size}, out_first100={out[:100].detach().cpu().tolist()}"
+                    )
+                self._assert_valid_allocator_state("alloc")
             return out
+
+        if need_size > self.available_size():
+            self.merge_and_sort_free()
+        if need_size > self.available_size():
+            return None
 
         num_pages = (need_size + self.page_size - 1) // self.page_size
         if num_pages > len(self.free_slots):
             self.merge_and_sort_free()
-        if num_pages > len(self.free_slots):
-            return None
         pages = self.free_slots[:num_pages]
         self.free_slots = self.free_slots[num_pages:]
-        offsets = torch.arange(self.page_size, device=self.device)
-        out = (pages[:, None] * self.page_size + offsets).reshape(-1)
-        return out[:need_size]
+        out = self._page_ids_to_kv_indices(pages)
+        while out.numel() < need_size and len(self.free_slots) > 0:
+            extra_page = self.free_slots[:1]
+            self.free_slots = self.free_slots[1:]
+            pages = torch.cat((pages, extra_page))
+            out = self._page_ids_to_kv_indices(pages)
+        out = out[:need_size]
+        if out.numel() != need_size:
+            self.free_slots = torch.cat((pages, self.free_slots))
+            if self.need_sort:
+                self.free_slots, _ = torch.sort(torch.unique(self.free_slots))
+            else:
+                self.free_slots = torch.unique(self.free_slots, sorted=False)
+            return None
+        if self._debug_assert_enabled():
+            if out.numel() != need_size:
+                raise RuntimeError(
+                    f"[KV_ALLOC_ASSERT] paged alloc count mismatch need={need_size} got={out.numel()}"
+                )
+            if bool(((out <= 0) | (out > self.size)).any().item()):
+                raise RuntimeError(
+                    f"[KV_ALLOC_ASSERT] paged alloc returned invalid KV indices: "
+                    f"need={need_size}, out_first50={out[:50].detach().cpu().tolist()}, "
+                    f"free_first50={self.free_slots[:50].detach().cpu().tolist()}, "
+                    f"release_first50={self.release_slots[:50].detach().cpu().tolist()}"
+                )
+            if torch.unique(out).numel() != out.numel():
+                raise RuntimeError(
+                    f"[KV_ALLOC_ASSERT] paged alloc returned duplicate KV indices: "
+                    f"need={need_size}, out_first100={out[:100].detach().cpu().tolist()}"
+                )
+            self._assert_valid_allocator_state("paged_alloc")
+        return out
 
     def free(self, indices: torch.Tensor) -> None:
         """Return *indices* to the free pool."""
         if indices.numel() == 0:
             return
 
+        before = int(indices.numel())
+        indices64 = indices.reshape(-1).to(torch.int64)
+        invalid_mask = (indices64 <= 0) | (indices64 > self.size)
+        invalid_count = int(invalid_mask.sum().item())
+        indices64 = indices64[(indices64 > 0) & (indices64 <= self.size)]
+        indices = indices64.to(torch.int32)
+        if indices.numel() == 0:
+            if invalid_count:
+                logger.warning(
+                    "[KV_ALLOC_SANITIZE] free dropped all invalid indices: before=%d invalid=%d size=%d",
+                    before,
+                    invalid_count,
+                    self.size,
+                )
+            return
+
+        unique_indices = torch.unique(indices)
+        duplicate_count = int(indices.numel() - unique_indices.numel())
+        indices = unique_indices
+
         if not self._is_not_in_free_group:
+            if invalid_count or duplicate_count:
+                logger.warning(
+                    "[KV_ALLOC_SANITIZE] grouped free sanitized: before=%d after=%d invalid=%d duplicate=%d size=%d",
+                    before,
+                    int(indices.numel()),
+                    invalid_count,
+                    duplicate_count,
+                    self.size,
+                )
             self._free_group.append(indices)
             return
 
         if self.page_size != 1:
-            indices = torch.unique(indices // self.page_size)
+            indices = torch.unique(self._kv_indices_to_page_ids(indices))
+            if indices.numel() == 0:
+                return
+
+        existing = torch.cat((self.free_slots, self.release_slots))
+        duplicate_release_count = 0
+        if existing.numel() > 0:
+            duplicate_mask = torch.isin(indices, existing)
+            duplicate_release_count = int(duplicate_mask.sum().item())
+            indices = indices[~duplicate_mask]
+        if indices.numel() == 0:
+            if invalid_count or duplicate_count or duplicate_release_count:
+                logger.warning(
+                    "[KV_ALLOC_SANITIZE] free skipped sanitized duplicate release: "
+                    "before=%d invalid=%d duplicate=%d already_free=%d size=%d",
+                    before,
+                    invalid_count,
+                    duplicate_count,
+                    duplicate_release_count,
+                    self.size,
+                )
+            return
+
+        if invalid_count or duplicate_count or duplicate_release_count:
+            logger.warning(
+                "[KV_ALLOC_SANITIZE] free sanitized: before=%d after=%d invalid=%d duplicate=%d already_free=%d size=%d",
+                before,
+                int(indices.numel()),
+                invalid_count,
+                duplicate_count,
+                duplicate_release_count,
+                self.size,
+            )
 
         if self.need_sort:
             self.release_slots = torch.cat((self.release_slots, indices))
+            self.release_slots = torch.unique(self.release_slots, sorted=True)
         else:
             self.free_slots = torch.cat((self.free_slots, indices))
+            self.free_slots = torch.unique(self.free_slots, sorted=False)
+        self._assert_valid_allocator_state("free")
 
 
 class ReqToTokenPool:
