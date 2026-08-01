@@ -1,0 +1,4 @@
+{"text":"Large language models use transformer layers to predict tokens from context. During on-device inference, prompt prefilling processes a sequence in parallel, while autoregressive decoding generates one token at a time. Quantization reduces memory bandwidth and model size, but representative calibration data is important for preserving activation ranges and output quality."}
+{"text":"请解释端侧大语言模型部署中的三个关键步骤：首先准备 tokenizer 和权重；其次根据目标芯片完成 INT8 或 INT4 量化；最后在真机上验证首 token 延迟、生成速度、峰值内存以及输出正确性。对于 Qualcomm NPU，还需要匹配设备的 HTP 架构版本和 QNN runtime。"}
+{"text":"A mobile assistant receives a user question, applies a chat template, tokenizes the prompt, runs attention and feed-forward layers, then streams the answer. The system should handle technical prose, punctuation, numbers such as 256 and 4096, and short code fragments like int main() without producing invalid tokens."}
+{"text":"人工智能系统在真实应用中需要兼顾准确性、性能、隐私和能耗。模型在云端训练后，可以通过旋转量化、静态激活校准和图优化迁移到移动设备。测试时应覆盖中文、英文、长短句、专有名词以及多轮对话格式。"}

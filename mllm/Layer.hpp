@@ -32,7 +32,9 @@ class Layer {
 public:
     Layer() = default;
     ~Layer() {
-        delete op_; // 手动添加 delete
+        if (owns_op_) {
+            delete op_;
+        }
         op_ = nullptr;
     }
     void init(std::string name, OpType type) {
@@ -186,6 +188,7 @@ public:
 
     bool inited_loaded = false;
     bool loaded_param = false;
+    bool owns_op_ = true;
 
     static map<string, string> layername_2_tensorname;
     static bool use_layername_2_tensorname;
@@ -207,6 +210,7 @@ private:
             } else {
                 // for the decoding part, we need to get created op from global container
                 op_ = kv_cache_map[name_];
+                owns_op_ = false;
             }
             op_->type() = (OpType)param_["type"];
             return true;

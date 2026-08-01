@@ -761,6 +761,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     // #endif
                     // for the decoding part, we need to get created op from global container
                     layer->op_ = kv_cache_map[layer->name_];
+                    layer->owns_op_ = false;
                 }
             } else {
                 layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);

@@ -153,6 +153,8 @@ Building mllm requires following tools:
 
 *`NOTE:` The QNN backend is preliminary version which can do end-to-end inference. It is still under active development for better performance and more supported models.*
 
+For the tested WSL-to-Android deployment of Qwen2.5-1.5B on Snapdragon HTP v79, including model layout, toolchain versions, build commands, device push, one-click inference, result collection, and current quality limitations, see [Qwen2.5 QNN HTP v79 deployment](docs/qwen2.5-qnn-v79-wsl.md).
+
 We support running several Qwen family models including Qwen-2-vl using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./mllm/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
 
 Specifically, we support the following models (similar architecture models are also supported):

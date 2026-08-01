@@ -1,0 +1,29 @@
+{
+    "profile_config": {
+        "dataset_path": "calibration/qwen2.5",
+        "output_path": "../../../models/Qwen2.5-1.5B-Instruct-NPU/dis/qwen2.5-1.5b-rot-dis.json",
+        "num_samples": 4,
+        "no_bias": true,
+        "model_config": {
+            "model_type": "qwen2",
+            "tokenizer_name": "../../../models/Qwen2.5-1.5B-Instruct",
+            "model_name": "../../../models/Qwen2.5-1.5B-Instruct",
+            "online_rotation": true,
+            "random_rotate": true,
+            "save_rotation": "../../../models/Qwen2.5-1.5B-Instruct-NPU/R/qwen2.5-1.5b-rotation-matrix.bin"
+        }
+    },
+    "export_config": {
+        "scale_file": "../../../models/Qwen2.5-1.5B-Instruct-NPU/dis/qwen2.5-1.5b-rot-dis.json",
+        "output_model": "../../../models/Qwen2.5-1.5B-Instruct-NPU/Qwen2.5-1.5B-Instruct_rotated-noshadow.pth",
+        "t01m_clip_threshold": 64,
+        "quant_bias": false,
+        "model_config": {
+            "model_type": "qwen2",
+            "tokenizer_name": "../../../models/Qwen2.5-1.5B-Instruct",
+            "model_name": "../../../models/Qwen2.5-1.5B-Instruct",
+            "online_rotation": true,
+            "R_path": "../../../models/Qwen2.5-1.5B-Instruct-NPU/R/qwen2.5-1.5b-rotation-matrix.bin"
+        }
+    }
+}

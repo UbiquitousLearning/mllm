@@ -212,9 +212,12 @@ endif()
 # =========
 
 if(QNN) # QNN lib
+    set(QNN_SDK_ROOT "$ENV{QNN_SDK_ROOT}" CACHE PATH "Path to the Qualcomm AI Runtime SDK")
+    if(NOT EXISTS "${QNN_SDK_ROOT}/include/QNN")
+        message(FATAL_ERROR "QNN_SDK_ROOT must point to a QAIRT/QNN SDK containing include/QNN")
+    endif()
     include_directories(
-        # $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
-        ${PROJECT_SOURCE_DIR}/mllm/backends/qnn/sdk/include/QNN # QNN SDK include
+        ${QNN_SDK_ROOT}/include/QNN
         ${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn
     )   
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/mllm/backends/qnn)

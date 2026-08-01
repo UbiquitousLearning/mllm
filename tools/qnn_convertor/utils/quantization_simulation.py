@@ -928,7 +928,7 @@ def quantize_qwen2vl_qkvnobias_like(
                     n_scale_bits = 8,
                     n_bits = 8,
                 )
-                print(f"{"visual." + name + ".fc1"}: {decoder_scales['visual.' + name + '.fc1']} {layer_clip['visual.' + name + '.fc1']}")
+                print(f"visual.{name}.fc1: {decoder_scales['visual.' + name + '.fc1']} {layer_clip['visual.' + name + '.fc1']}")
                 m.fc2 = W8AX_Nobias_LinearStatic.from_float(
                     m.fc2,
                     decoder_scales["visual." + name + ".fc2"],
@@ -937,7 +937,7 @@ def quantize_qwen2vl_qkvnobias_like(
                     n_scale_bits = 8,
                     n_bits = 8,
                 )
-                print(f"{"visual." + name + ".fc2"}: {decoder_scales['visual.' + name + '.fc2']} {layer_clip['visual.' + name + '.fc2']}")
+                print(f"visual.{name}.fc2: {decoder_scales['visual.' + name + '.fc2']} {layer_clip['visual.' + name + '.fc2']}")
             
             if isinstance(m, VisionSdpaAttention):
                 print(f"quantize: {name}.qkv/proj")
@@ -950,7 +950,7 @@ def quantize_qwen2vl_qkvnobias_like(
                     n_bits = 16,
                     name= "visual." + name + ".qkv",
                 )
-                print(f"{"visual." + name + ".qkv"}: {decoder_scales['visual.' + name + '.qkv']} {layer_clip['visual.' + name + '.qkv']}")
+                print(f"visual.{name}.qkv: {decoder_scales['visual.' + name + '.qkv']} {layer_clip['visual.' + name + '.qkv']}")
                 m.proj = W8AX_Nobias_LinearStatic.from_float(
                     m.proj,
                     decoder_scales["visual." + name + ".proj"],
@@ -960,7 +960,7 @@ def quantize_qwen2vl_qkvnobias_like(
                     n_bits = 8,
                     name= "visual." + name + ".proj",
                 )
-                print(f"{"visual." + name + ".proj"}: {decoder_scales['visual.' + name + '.proj']} {layer_clip['visual.' + name + '.proj']}")
+                print(f"visual.{name}.proj: {decoder_scales['visual.' + name + '.proj']} {layer_clip['visual.' + name + '.proj']}")
 
     for name, m in model.model.named_modules():
         if isinstance(m, Qwen2MLP):
@@ -974,7 +974,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_scale_bits = 8,
                 n_bits = 8,
             )
-            print(f"{"model." + name + ".gate_proj"}: {decoder_scales['model.' + name + '.gate_proj']} {layer_clip['model.' + name + '.gate_proj']}")
+            print(f"model.{name}.gate_proj: {decoder_scales['model.' + name + '.gate_proj']} {layer_clip['model.' + name + '.gate_proj']}")
             m.up_proj = W8AX_LinearStatic.from_float(
                 m.up_proj,
                 decoder_scales["model." + name + ".up_proj"],
@@ -983,7 +983,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_scale_bits = 8,
                 n_bits = 8,
             )
-            print(f"{"model." + name + ".up_proj"}: {decoder_scales['model.' + name + '.up_proj']} {layer_clip['model.' + name + '.up_proj']}")
+            print(f"model.{name}.up_proj: {decoder_scales['model.' + name + '.up_proj']} {layer_clip['model.' + name + '.up_proj']}")
             m.down_proj = W8AX_LinearStatic.from_float(
                 m.down_proj,
                 decoder_scales["model." + name + ".down_proj"],
@@ -993,7 +993,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_bits = nbits_dict.get("model." + name + ".down_proj", 8),
                 name = "model." + name + ".down_proj",
             )
-            print(f"{"model." + name + ".down_proj"}: {decoder_scales['model.' + name + '.down_proj']} {layer_clip['model.' + name + '.down_proj']}")
+            print(f"model.{name}.down_proj: {decoder_scales['model.' + name + '.down_proj']} {layer_clip['model.' + name + '.down_proj']}")
         elif isinstance(m, Qwen2VLSdpaAttention):
             print(f"quantize: {name}.q_proj/k_proj/v_proj/o_proj")
             # Here we simulate quantizing BMM inputs by quantizing the output of q_proj, k_proj, v_proj
@@ -1006,7 +1006,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_bits = 16,
                 name= "model." + name + ".q_proj",
             )
-            print(f"{"model." + name + ".q_proj"}: {decoder_scales['model.' + name + '.q_proj']} {layer_clip['model.' + name + '.q_proj']}")
+            print(f"model.{name}.q_proj: {decoder_scales['model.' + name + '.q_proj']} {layer_clip['model.' + name + '.q_proj']}")
             m.k_proj = W8AX_Nobias_LinearStatic.from_float(
                 m.k_proj,
                 decoder_scales["model." + name + ".k_proj"],
@@ -1016,7 +1016,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_bits = 16,
                 name= "model." + name + ".k_proj",
             )
-            print(f"{"model." + name + ".k_proj"}: {decoder_scales['model.' + name + '.k_proj']} {layer_clip['model.' + name + '.k_proj']}")
+            print(f"model.{name}.k_proj: {decoder_scales['model.' + name + '.k_proj']} {layer_clip['model.' + name + '.k_proj']}")
             m.v_proj = W8AX_Nobias_LinearStatic.from_float(
                 m.v_proj,
                 decoder_scales["model." + name + ".v_proj"],
@@ -1026,7 +1026,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_bits = 16,
                 name= "model." + name + ".v_proj",
             )
-            print(f"{"model." + name + ".v_proj"}: {decoder_scales['model.' + name + '.v_proj']} {layer_clip['model.' + name + '.v_proj']}")
+            print(f"model.{name}.v_proj: {decoder_scales['model.' + name + '.v_proj']} {layer_clip['model.' + name + '.v_proj']}")
             m.o_proj = W8AX_LinearStatic.from_float(
                 m.o_proj,
                 decoder_scales["model." + name + ".o_proj"],
@@ -1036,7 +1036,7 @@ def quantize_qwen2vl_qkvnobias_like(
                 n_bits = 8,
                 name= "model." + name + ".o_proj",
             )
-            print(f"{"model." + name + ".o_proj"}: {decoder_scales['model.' + name + '.o_proj']} {layer_clip['model.' + name + '.o_proj']}")
+            print(f"model.{name}.o_proj: {decoder_scales['model.' + name + '.o_proj']} {layer_clip['model.' + name + '.o_proj']}")
     return model
 
 def quantize_gemma_like(
