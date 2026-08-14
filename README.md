@@ -445,10 +445,10 @@ For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE
 
 ## Star History
 
-<a href="https://www.star-history.com/#UbiquitousLearning/mllm&Date">
+<a href="https://star-history.dera.page/#UbiquitousLearning/mllm&type=Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=UbiquitousLearning/mllm&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=UbiquitousLearning/mllm&type=Date" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=UbiquitousLearning/mllm&type=Date" />
  </picture>
 </a>
