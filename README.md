@@ -29,6 +29,7 @@ mllm is a lightweight, fast, and easy-to-use (multimodal) on-device LLM inferenc
 
 ## Recent update
 
+- [ShadowNPU sparse attention: profiling, HMX bank, runtime, and reproduction](docs/shadownpu_sparse_attention.md)
 - [2025 July 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B
 - [2025 August 28] 🔥🔥🔥 Support for MLLM V1 is ending soon. Before its retirement, V1 will integrate the following features: GPT-OSS and NPU QWEN2-VL. MLLM will then transition to V2, which can be viewed on the V2 branch.
 V2 will include brand-new capabilities:
@@ -437,5 +438,4 @@ located in the relevant subdirectories.
   url = {https://github.com/UbiquitousLearning/mllm}
 }
 ```
-
 

@@ -1,5 +1,6 @@
 #include "Context.hpp"
 #include "QNNLinearINT8.hpp"
+#include "QNNActivationScaleOverride.hpp"
 #include "Backend.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
@@ -184,7 +185,10 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     auto biasBuffer = (int8_t *)malloc(bias_.count() * sizeof(int8_t));
 #pragma omp parallel for
     for (int i = 0; i < out_features_; i++) {
-        int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i) + 128;
+        const int32_t quantized_bias = bias_.dtype() == MLLM_TYPE_I8
+            ? static_cast<int32_t>(bias_.dataAt<int8_t>(0, 0, 0, i))
+            : bias_.dataAt<int32_t>(0, 0, 0, i);
+        const int32_t val = quantized_bias + 128;
         biasBuffer[i] = val;
     }
 
@@ -362,8 +366,9 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     auto biasBuffer = (int32_t *)malloc(bias_.count() * sizeof(int32_t));
 #pragma omp parallel for
     for (int i = 0; i < out_features_; i++) {
-        // int32_t val = bias_.dataAt<uint8_t>(0, 0, 0, i) - 128;
-        int32_t val = bias_.dataAt<int32_t>(0, 0, 0, i);
+        const int32_t val = bias_.dtype() == MLLM_TYPE_I8
+            ? static_cast<int32_t>(bias_.dataAt<int8_t>(0, 0, 0, i))
+            : bias_.dataAt<int32_t>(0, 0, 0, i);
         biasBuffer[i] = val;
     }
 
@@ -415,7 +420,15 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
 
     bias_.setName(name() + ".bias");
     bias_.reshape(1, 1, 1, out_features_);
-    bias_.setDtype(MLLM_TYPE_I32);
+    DataType bias_dtype = MLLM_TYPE_I32;
+    if (support_bias_) {
+        const DataType stored_bias_dtype = loader.getDataType(bias_.name());
+        if (stored_bias_dtype == MLLM_TYPE_I8
+            || stored_bias_dtype == MLLM_TYPE_I32) {
+            bias_dtype = stored_bias_dtype;
+        }
+    }
+    bias_.setDtype(bias_dtype);
     bias_.alloc();
     if (support_bias_) {
         loader.load(&bias_);
@@ -446,6 +459,14 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
+    if (const auto value = qnnActivationScaleOverride(
+            outputScale_.name(), outputScale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << outputScale_.name() << " old="
+                             << outputScale_.hostPtr<float>()[0] << " new="
+                             << *value << std::endl;
+        qnnSetPrivateActivationScale(outputScale_, *value);
+    }
     return Op::load(loader);
 }
 

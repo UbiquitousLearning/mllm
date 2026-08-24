@@ -4,11 +4,16 @@
 #include "Tensor.hpp"
 #include "backends/cpu/third_party/ggml/Quantize.hpp"
 #include "backends/cpu/third_party/ggml/VecDotFP32.hpp"
+#include "../AttentionProfiler.hpp"
+#include "../AttentionWorkerExecutor.hpp"
 #include "../compute/ActivationFunction.hpp"
 namespace mllm {
 
-CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, bool do_causal_mask, int threadCount) :
+CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis,
+                       bool do_causal_mask, int threadCount,
+                       bool attention_worker) :
     thread_count(threadCount),
+    attention_worker_(attention_worker),
     Op(bn, opName) {
     axis_ = axis;
     do_causal_mask_ = do_causal_mask;
@@ -27,7 +32,19 @@ ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    return AttentionWorkerExecutor::run(attention_worker_, [&]() {
+        return executeOnAttentionThread(inputs, outputs);
+    });
+}
+
+ErrorCode CPUSoftMax::executeOnAttentionThread(
+    vector<shared_ptr<Tensor>> inputs,
+    vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPUSoftMax()" << std::endl;
+    ScopedAttentionProfile profile(
+        AttentionProfileStage::DENSE_SOFTMAX,
+        CPUAttentionProfiler::enabled() && axis_ == DIMENSION
+            && do_causal_mask_ && inputs[0]->sequence() > 1);
     auto &input = inputs[0];
     auto &output = outputs[0];
     int num_classes_in = -1;

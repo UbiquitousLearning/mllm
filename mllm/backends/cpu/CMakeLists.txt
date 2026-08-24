@@ -170,6 +170,6 @@ if(OpenMP_FOUND)
     endif()
 endif()
 
-target_link_libraries(mllm_cpu PUBLIC fmt::fmt-header-only)
+target_link_libraries(mllm_cpu PUBLIC fmt::fmt-header-only ${CMAKE_DL_LIBS})
 
 set_target_properties(mllm_cpu PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

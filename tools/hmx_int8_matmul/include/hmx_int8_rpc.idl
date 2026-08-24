@@ -1,0 +1,207 @@
+/* Internal ARM <-> Hexagon FastRPC interface. */
+
+#ifndef HMX_INT8_RPC_IDL
+#define HMX_INT8_RPC_IDL
+
+#include "AEEStdDef.idl"
+#include "remote.idl"
+
+const string IDL_VERSION = "8.0.0";
+
+interface hmx_int8_rpc : remote_handle64 {
+    AEEResult init_backend();
+
+    /* Pin a persistently fastrpc_mmap'ed RpcMem arena in the DSP process.
+     * Calls using a registered fd reuse the HAP mapping instead of acquiring
+     * and releasing it at every RPC boundary. */
+    AEEResult register_arena(in int32 buffer_fd);
+    AEEResult unregister_arena(in int32 buffer_fd);
+
+    AEEResult get_fixed_shape(
+        rout int32 m,
+        rout int32 k,
+        rout int32 n);
+
+    AEEResult get_fixed_heads(rout int32 heads);
+
+    /* An operator build returns its graph-bucket scales. A generic build
+     * returns an error because it has no compile-time scale bucket. */
+    AEEResult get_fixed_scales(
+        rout float q_scale,
+        rout float k_scale,
+        rout float output_scale);
+
+    /* All three matrices occupy one mapped RpcMem allocation. Dimensions are
+     * already padded: m % 64 == 0, k % 32 == 0, n % 32 == 0. */
+    AEEResult matmul(
+        in int32 buffer_fd,
+        in int32 lhs_offset,
+        in int32 rhs_offset,
+        in int32 output_offset,
+        in int32 m,
+        in int32 k,
+        in int32 n);
+
+    /* M/K/N are compiled into both the ARM stub and Hexagon skel. */
+    AEEResult matmul_fixed(
+        in int32 buffer_fd,
+        in int32 lhs_offset,
+        in int32 rhs_offset,
+        in int32 output_offset);
+
+    /* Fixed-shape GEMM with signed INT8 output. output_scale is the
+     * accumulator-to-output requantization multiplier. */
+    AEEResult matmul_i8_fixed(
+        in int32 buffer_fd,
+        in int32 lhs_offset,
+        in int32 rhs_offset,
+        in int32 output_offset,
+        in float output_scale);
+
+    /* Batched QK attention estimator. Q is [H,M,K], K is [H,N,K], and the
+     * INT8 score is [H,M,N]. H/M/K/N and all scales are compile-time fixed. */
+    AEEResult matmul_qk_i8_fixed(
+        in int32 buffer_fd,
+        in int32 query_offset,
+        in int32 key_offset,
+        in int32 output_offset);
+
+    /* Direct-path QK: the mapped arena remains owned by the ARM context and
+     * only the active compact prefix is consumed. M/K are compile-time fixed;
+     * heads and N are runtime values bounded by the compiled capacities. */
+    AEEResult execute_qk_i8_direct(
+        in int32 buffer_fd,
+        in int32 query_offset,
+        in int32 key_offset,
+        in int32 output_offset,
+        in int32 heads,
+        in int32 n);
+
+    /* Prepacked attention path. begin/end keep one HMX/VTCM lease across all
+     * query chunks in a layer, but release it before control returns to QNN. */
+    AEEResult begin_qk_i8_packed(in int32 n);
+    AEEResult end_qk_i8_packed();
+    AEEResult execute_qk_i8_packed(
+        in int32 buffer_fd,
+        in int32 query_offset,
+        in int32 key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 heads,
+        in int32 n,
+        in float requant_scale);
+
+    /* CPU-packed heterogeneous-scale path. The ARM worker writes AH/WH Q/K,
+     * K sums, then publishes ready[head] in the uncached raw-Q arena. One
+     * FastRPC invocation consumes heads as they become ready, allowing CPU
+     * packing to overlap HMX without sharing HVX execution resources. */
+    AEEResult execute_qk_i8_cpu_packed_per_head(
+        in int32 buffer_fd,
+        in int32 query_offset,
+        in int32 key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 scales_offset,
+        in int32 ready_offset,
+        in int32 heads,
+        in int32 n);
+
+    /* Raw-input path. Q is ordinary FP32 [H,M,K] and K is ordinary IEEE
+     * FP16 [H,N,K]. HVX performs quantization, AH/WH packing, and K sums.
+     * key_begin allows an already packed prefix to remain resident. */
+    AEEResult prepare_qk_i8_raw_key(
+        in int32 buffer_fd,
+        in int32 raw_key_offset,
+        in int32 packed_key_offset,
+        in int32 key_sums_offset,
+        in int32 heads,
+        in int32 n,
+        in int32 key_begin,
+        in float inverse_k_scale);
+    AEEResult execute_qk_i8_raw_query(
+        in int32 buffer_fd,
+        in int32 raw_query_offset,
+        in int32 packed_query_offset,
+        in int32 packed_key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 heads,
+        in int32 query_rows,
+        in int32 n,
+        in float inverse_q_scale,
+        in float requant_scale);
+
+    /* Fused incremental K preparation and raw-Q execution. The packed K
+     * suffix remains DSP-owned between the HVX pack and HMX DMA, avoiding a
+     * second RPC boundary and a redundant full-K cache invalidate. */
+    AEEResult prepare_execute_qk_i8_raw(
+        in int32 buffer_fd,
+        in int32 raw_query_offset,
+        in int32 raw_key_offset,
+        in int32 packed_query_offset,
+        in int32 packed_key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 heads,
+        in int32 query_rows,
+        in int32 n,
+        in int32 key_begin,
+        in float inverse_q_scale,
+        in float inverse_k_scale,
+        in float requant_scale);
+
+    /* Heterogeneous static-bucket variant. scales contains three contiguous
+     * head arrays in the shared arena: inverse_q, inverse_k, and requant.
+     * This preserves each head's independently selected bucket while all
+     * heads share one HMX/VTCM lease and one FastRPC invocation. */
+    AEEResult prepare_execute_qk_i8_raw_per_head(
+        in int32 buffer_fd,
+        in int32 raw_query_offset,
+        in int32 raw_key_offset,
+        in int32 packed_query_offset,
+        in int32 packed_key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 scales_offset,
+        in int32 heads,
+        in int32 query_rows,
+        in int32 n,
+        in int32 key_begin);
+
+    /* Preserve the corrected INT32 accumulator and run an exact signed
+     * Top-k on the DSP. One head is processed per call. The compact, ascending
+     * index lists overwrite the beginning of output. row_offsets resides in
+     * the same mapped arena and contains query_rows + 1 cumulative offsets. */
+    AEEResult execute_qk_i32_topk_raw_query(
+        in int32 buffer_fd,
+        in int32 raw_query_offset,
+        in int32 packed_query_offset,
+        in int32 packed_key_offset,
+        in int32 key_sums_offset,
+        in int32 output_offset,
+        in int32 row_offsets_offset,
+        in int32 query_rows,
+        in int32 key_len,
+        in int32 n,
+        in int32 causal_prefix_tokens,
+        in float inverse_q_scale);
+
+    /* Profile one raw Q/K group on the DSP. scales is laid out as
+     * q_scale[heads], k_scale[heads], where scale = absmax / 127.
+     * profile_key=1 scans the complete K. Values >=2 encode an incremental
+     * scan beginning at profile_key-2; in that mode the incoming k_scale
+     * array supplies the prefix maxima and is updated in place. Keeping this
+     * encoding inside the existing int32 field preserves the wire ABI. */
+    AEEResult profile_qk_raw_scales(
+        in int32 buffer_fd,
+        in int32 raw_query_offset,
+        in int32 raw_key_offset,
+        in int32 scales_offset,
+        in int32 heads,
+        in int32 query_rows,
+        in int32 n,
+        in int32 profile_query,
+        in int32 profile_key);
+};
+
+#endif /* HMX_INT8_RPC_IDL */

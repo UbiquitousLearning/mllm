@@ -200,6 +200,28 @@ cd ../scripts
 ```
 If you modify or re-export the model, make sure to delete the old cache file (qnn_context.bin) on your device before running the script again. The cache will be automatically regenerated.
 
+### Long-context benchmark
+
+Build the `benchmark_qwen_npu` target to measure chunked NPU prefill TTFT and
+CPU decode TPOT with a deterministic synthetic prompt. For example, after
+deploying the executable, models, tokenizer files, QNN libraries, and a context
+generated with a 256-token graph:
+
+```bash
+./benchmark_qwen_npu \
+  --prompt-tokens 1024 \
+  --decode-tokens 32 \
+  --chunk-size 256 \
+  --limits 2048 \
+  --qnn-profile off
+```
+
+`--prompt-tokens` may be any positive length. The input is padded to the next
+chunk boundary while TTFT reports the effective, unpadded prompt length.
+`--qnn-profile` accepts `off`, `basic`, or `detailed`; use `off` for performance
+measurements. The QNN context and the `--chunk-size` value must describe the
+same graph shape.
+
 Result are as followed:
 
 ```

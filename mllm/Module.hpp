@@ -13,6 +13,7 @@
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include "backends/cpu/AttentionProfiler.hpp"
 #include <cassert>
 #ifdef USE_OPENCL
 #include "backends/opencl/OpenCLBackend.hpp"
@@ -331,6 +332,31 @@ public:
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         // get chunk_id from args
         int chunk_id = std::any_cast<int>(args[0]);
+        const bool profile_attention_graph = [&]() {
+            if (!CPUAttentionProfiler::enabled()) return false;
+            for (const auto &callable : traces_) {
+                if (callable->type_ != CallableType::OP
+                    || callable->op == nullptr) {
+                    continue;
+                }
+                const OpType type = callable->op->type();
+                const std::string op_name = callable->op->name();
+                if (type == OpType::KVCACHE
+                    || type == OpType::KVCACHENPU
+                    || type == OpType::KVCACHESAGE
+                    // CPUBackend::opCreate currently does not copy the
+                    // OpParam type into Op::type_.  KV-cache names are the
+                    // stable trace-level marker for these attention graphs.
+                    || op_name.find("k_cache") != std::string::npos
+                    || op_name.find("v_cache") != std::string::npos) {
+                    return true;
+                }
+            }
+            return false;
+        }();
+        ScopedAttentionProfile outer_attention_profile(
+            AttentionProfileStage::ATTENTION_OUTER,
+            profile_attention_graph);
         if (chunk_id != 0) {
             for (auto &callable : traces_) {
                 callable->reshape();

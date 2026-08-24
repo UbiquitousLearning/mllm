@@ -4,6 +4,7 @@
 #include "backends/cpu/third_party/ggml/VecDotFP32.hpp"
 #include "backends/cpu/third_party/ggml/VecDotFP16.hpp"
 #include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
+#include "backends/qnn/op/QNNActivationScaleOverride.hpp"
 #include <cstdint>
 
 namespace mllm {
@@ -77,12 +78,28 @@ ErrorCode CPULinearINT8Shadow::load(AbstructLoader &loader) {
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
+    if (const auto value = qnnActivationScaleOverride(
+            outputScale_.name(), outputScale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << outputScale_.name() << " old="
+                             << outputScale_.hostPtr<float>()[0] << " new="
+                             << *value << " consumer=shadow" << std::endl;
+        qnnSetPrivateActivationScale(outputScale_, *value);
+    }
 
     inputScale_.setName(opName + ".input_scale");
     inputScale_.reshape(1, 1, 1, 1);
     inputScale_.setDtype(MLLM_TYPE_F32);
     inputScale_.alloc();
     loader.load(&inputScale_);
+    if (const auto value = qnnActivationScaleOverride(
+            inputScale_.name(), inputScale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << inputScale_.name() << " old="
+                             << inputScale_.hostPtr<float>()[0] << " new="
+                             << *value << " consumer=shadow" << std::endl;
+        qnnSetPrivateActivationScale(inputScale_, *value);
+    }
 
     inputClip_.setName(opName + ".clip_input");
     inputClip_.reshape(1, 1, 1, 1);

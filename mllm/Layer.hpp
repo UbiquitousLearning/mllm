@@ -32,7 +32,9 @@ class Layer {
 public:
     Layer() = default;
     ~Layer() {
-        delete op_; // 手动添加 delete
+        if (owns_op_) {
+            delete op_;
+        }
         op_ = nullptr;
     }
     void init(std::string name, OpType type) {
@@ -183,6 +185,8 @@ public:
     OpParam param_;
     bool init_ = false;
     int saved_list_idx;
+    // QNN prefill and decoding layers can point at the same KV-cache Op.
+    bool owns_op_ = true;
 
     bool inited_loaded = false;
     bool loaded_param = false;
@@ -207,6 +211,7 @@ private:
             } else {
                 // for the decoding part, we need to get created op from global container
                 op_ = kv_cache_map[name_];
+                owns_op_ = false;
             }
             op_->type() = (OpType)param_["type"];
             return true;
@@ -404,6 +409,13 @@ public:
     explicit Softmax(Chl axis, bool do_causal_mask, std::string name) {
         param_["axis"] = axis;
         param_["do_causal_mask"] = do_causal_mask;
+        init(std::move(name), OpType::SOFTMAX);
+    }
+    explicit Softmax(Chl axis, bool do_causal_mask, bool attention_worker,
+                     std::string name) {
+        param_["axis"] = axis;
+        param_["do_causal_mask"] = do_causal_mask;
+        param_["attention_worker"] = attention_worker;
         init(std::move(name), OpType::SOFTMAX);
     }
     Tensor operator()(Tensor input) {

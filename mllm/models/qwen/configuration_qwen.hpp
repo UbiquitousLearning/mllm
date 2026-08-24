@@ -14,7 +14,11 @@
 #include "Types.hpp"
 #include "models/transformer/configuration_transformer.hpp"
 #include <cctype>
+#include <cstdlib>
 #include <iterator>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
 
 using namespace mllm;
 
@@ -102,7 +106,8 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = true;
-        } else if (billionsType == "0.5b-lm") {
+        } else if ((billionsType == "0.5b-lm")
+                   || (billionsType == "0.5b-rotated")) {
             attention_dropout = 0.0;
             bos_token_id = 151643;
             eos_token_id = 151645;
@@ -260,11 +265,64 @@ struct QWenNPUConfig : virtual public QWenConfig {
         string billionsType;
         std::transform(billions.begin(), billions.end(), std::back_inserter(billionsType),
                        ::tolower);
-        if (billionsType == "1.8b") {
-            shadow_layers = {1, 2, 26};
-        } else if (billionsType == "1.8b-rotated") {
+        if ((billionsType == "0.5b-lm")
+            || (billionsType == "0.5b-rotated")) {
+            // Rotation folds the final RMSNorm into a cloned lm_head, so the
+            // exported model no longer shares lm_head and token embeddings.
             shadow_layers = {};
             use_i32_bias = false;
+            use_high_precision_silu = true;
+        } else if (billionsType == "1.8b") {
+            shadow_layers = {1, 2, 26};
+        } else if (billionsType == "1.8b-rotated") {
+            // Preserve the unclipped boundaries used by the published 1.8B
+            // checkpoint and keep its W8A16 activation path.
+            shadow_layers = {1, 2, 6};
+            use_i32_bias = false;
+            use_i16_attention_output = true;
+            use_i16_mlp_activations = true;
+            use_high_precision_silu = true;
+            if (const char *override_layers =
+                    std::getenv("MLLM_QWEN18_SHADOW_LAYERS")) {
+                shadow_layers.clear();
+                const std::string spec(override_layers);
+                if (!spec.empty() && spec != "none") {
+                    std::stringstream stream(spec);
+                    std::string item;
+                    while (std::getline(stream, item, ',')) {
+                        if (item.empty()) {
+                            throw std::invalid_argument(
+                                "empty Qwen1.8B shadow layer override");
+                        }
+                        const int layer = std::stoi(item);
+                        if (layer < 0 || layer >= num_hidden_layers) {
+                            throw std::invalid_argument(
+                                "Qwen1.8B shadow layer out of range");
+                        }
+                        shadow_layers.insert(layer);
+                    }
+                }
+            }
+            if (const char *i16_mlp_layers =
+                    std::getenv("MLLM_QWEN18_I16_MLP_LAYERS")) {
+                const std::string spec(i16_mlp_layers);
+                if (!spec.empty() && spec != "none") {
+                    std::stringstream stream(spec);
+                    std::string item;
+                    while (std::getline(stream, item, ',')) {
+                        if (item.empty()) {
+                            throw std::invalid_argument(
+                                "empty Qwen1.8B I16 MLP layer override");
+                        }
+                        const int layer = std::stoi(item);
+                        if (layer < 0 || layer >= num_hidden_layers) {
+                            throw std::invalid_argument(
+                                "Qwen1.8B I16 MLP layer out of range");
+                        }
+                        i16_mlp_layers_override.insert(layer);
+                    }
+                }
+            }
         } else if (billionsType == "1.5b") { // qwen2.5 1.5B
             shadow_layers = {1, 2, 4, 5, 26};
             use_high_precision_silu = true;
@@ -292,6 +350,87 @@ struct QWenNPUConfig : virtual public QWenConfig {
     // there are two types of QNNSiLU, a approximate int version and a (sigmoid * x) version
     // for qwen2.5, input of silu act has a large range, config here to use the (sigmoid * x)
     bool use_high_precision_silu = false;
+    // Compatibility controls for calibration-sensitive Qwen1.5 exports.
+    bool use_i16_attention_output = false;
+    bool use_i16_mlp_activations = false;
+    std::set<int> i16_mlp_layers_override;
+
+    bool useI16MLPActivationsForLayer(int layer_idx) const {
+        return use_i16_mlp_activations
+            || i16_mlp_layers_override.find(layer_idx)
+                != i16_mlp_layers_override.end();
+    }
+
+    // Sparse prefill is opt-in. Decoding remains dense.
+    float prefill_attention_sparsity = 0.0F;
+    bool prefill_attention_pattern_sparse = false;
+    bool prefill_attention_hmx_selector = false;
+    bool prefill_attention_keep_dense_edge_layers = true;
+    std::vector<float> prefill_attention_layer_sparsities;
+    std::vector<std::vector<float>> prefill_attention_head_retentions;
+
+    std::vector<float> prefillAttentionHeadRetentionsForLayer(
+        int layer_idx) const {
+        if (prefill_attention_head_retentions.empty()) return {};
+        if (prefill_attention_head_retentions.size()
+            != static_cast<std::size_t>(num_hidden_layers)) {
+            throw std::invalid_argument(
+                "Qwen per-head retention layer count must match the model");
+        }
+        if (layer_idx < 0 || layer_idx >= num_hidden_layers) return {};
+        const auto &retentions = prefill_attention_head_retentions[layer_idx];
+        if (retentions.size()
+            != static_cast<std::size_t>(num_attention_heads)) {
+            throw std::invalid_argument(
+                "Qwen per-head retention count must match the model");
+        }
+        for (float retention : retentions) {
+            if (!(retention > 0.0F && retention <= 1.0F)) {
+                throw std::invalid_argument(
+                    "Qwen per-head retention must be in (0, 1]");
+            }
+        }
+        return retentions;
+    }
+
+    float prefillAttentionSparsityForLayer(int layer_idx) const {
+        if (layer_idx < 0 || layer_idx >= num_hidden_layers) return 0.0F;
+        if (!prefill_attention_layer_sparsities.empty()) {
+            if (prefill_attention_layer_sparsities.size()
+                != static_cast<std::size_t>(num_hidden_layers)) {
+                throw std::invalid_argument(
+                    "Qwen per-layer sparsity count must match the model");
+            }
+            const float sparsity =
+                prefill_attention_layer_sparsities[layer_idx];
+            if (!(sparsity >= 0.0F && sparsity < 1.0F)) {
+                throw std::invalid_argument(
+                    "Qwen per-layer sparsity must be in [0, 1)");
+            }
+            return sparsity;
+        }
+        if (!(prefill_attention_sparsity > 0.0F
+              && prefill_attention_sparsity < 1.0F)) {
+            return 0.0F;
+        }
+        if (!prefill_attention_keep_dense_edge_layers) {
+            return prefill_attention_sparsity;
+        }
+        return layer_idx >= 2 && layer_idx < num_hidden_layers - 1
+            ? prefill_attention_sparsity
+            : 0.0F;
+    }
+
+    bool useSparsePrefillAttention(int layer_idx) const {
+        const auto retentions =
+            prefillAttentionHeadRetentionsForLayer(layer_idx);
+        if (!retentions.empty()) {
+            return std::any_of(
+                retentions.begin(), retentions.end(),
+                [](float retention) { return retention < 1.0F; });
+        }
+        return prefillAttentionSparsityForLayer(layer_idx) > 0.0F;
+    }
 };
 
 #endif //! CONFIG_QWEN_HPP

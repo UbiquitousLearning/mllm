@@ -646,6 +646,15 @@ Tensor Tensor::mm(Tensor input0, Tensor input1) {
         {input0, input1})[0];
 }
 
+Tensor Tensor::attention_mm(Tensor input0, Tensor input1,
+                            float output_divisor) {
+    OpParam param;
+    param["attention_worker"] = 1.0F;
+    param["output_divisor"] = output_divisor;
+    string nname = input0.name() + "-attention-mm-" + input1.name();
+    return runFunc({nname}, F_MM, param, {input0, input1})[0];
+}
+
 Tensor Tensor::range(int start, int end) {
     OpParam param;
     param["start"] = (float)start;
@@ -732,6 +741,56 @@ Tensor Tensor::sage_attention_forward(Tensor q, Tensor k, Tensor v, bool causal_
     param["causal_mask"] = causal_mask ? 1.0f : 0.0f;
     return runFunc({q.name() + "-" + k.name() + "-sage_attn"}, F_SAGEATTN, param,
                    {q, k, v})[0];
+};
+Tensor Tensor::sparse_softmax_value(Tensor logits, Tensor value, float sparsity,
+                                    bool causal_mask, int topk_sample_size,
+                                    const std::vector<float> &head_retentions) {
+    OpParam param;
+    param["sparsity"] = sparsity;
+    param["causal_mask"] = causal_mask ? 1.0f : 0.0f;
+    param["topk_sample_size"] = static_cast<float>(topk_sample_size);
+    param["head_retention_count"] =
+        static_cast<float>(head_retentions.size());
+    for (std::size_t head = 0; head < head_retentions.size(); ++head) {
+        param["head_retention_" + std::to_string(head)] =
+            head_retentions[head];
+    }
+    return runFunc({logits.name() + "-sparse-softmax-value"},
+                   F_SPARSE_SOFTMAX_VALUE, param, {logits, value})[0];
+};
+Tensor Tensor::pattern_sparse_attention(Tensor query, Tensor key, Tensor value,
+                                        float sparsity, bool causal_mask,
+                                        float local_ratio, int prefix_tokens,
+                                        int dense_tokens, bool random_pattern,
+                                        int random_seed,
+                                        int pack_reserve_tokens,
+                                        bool hmx_selector,
+                                        const std::vector<float> &head_retentions,
+                                        int layer_id) {
+    OpParam param;
+    param["sparsity"] = sparsity;
+    param["causal_mask"] = causal_mask ? 1.0F : 0.0F;
+    param["local_ratio"] = local_ratio;
+    param["prefix_tokens"] = static_cast<float>(prefix_tokens);
+    param["dense_tokens"] = static_cast<float>(dense_tokens);
+    param["random_pattern"] = random_pattern ? 1.0F : 0.0F;
+    param["random_seed"] = static_cast<float>(random_seed);
+    param["pack_reserve_tokens"] =
+        static_cast<float>(pack_reserve_tokens);
+    param["hmx_selector"] = hmx_selector ? 1.0F : 0.0F;
+    param["layer_id"] = static_cast<float>(layer_id);
+    param["head_retention_count"] =
+        static_cast<float>(head_retentions.size());
+    for (std::size_t head = 0; head < head_retentions.size(); ++head) {
+        param["head_retention_" + std::to_string(head)] =
+            head_retentions[head];
+    }
+    return runFunc({query.name() + "-" + key.name()
+                        + (hmx_selector
+                               ? "-hmx-topk"
+                               : (random_pattern ? "-random" : "-structured"))
+                        + "-pattern-sparse-attention"},
+                   F_PATTERN_SPARSE_ATTN, param, {query, key, value})[0];
 };
 Tensor Tensor::apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb) {
     Module *module = input.module();

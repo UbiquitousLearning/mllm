@@ -79,13 +79,16 @@ ErrorCode CPUHeadLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
     int seqLength = Context::Instance().inference_state().getTotalSequenceLength();
     int chunk_size = Context::Instance().inference_state().getChunkSize();
+    assert(seqLength > 0);
+    assert(chunk_size > 0);
+    const int last_token_index = (seqLength - 1) % chunk_size;
 
     shared_ptr<Tensor> tmp_in = std::make_shared<Tensor>(backend_);
     tmp_in->reshape(1, 1, 1, inputs[0]->dimension());
-    tmp_in->shallowCopyFrom(inputs[0], false, {0, 0, seqLength % chunk_size - 1, 0});
+    tmp_in->shallowCopyFrom(inputs[0], false, {0, 0, last_token_index, 0});
     shared_ptr<Tensor> tmp_out = std::make_shared<Tensor>(backend_);
     tmp_out->reshape(1, 1, 1, out_features_);
-    tmp_out->shallowCopyFrom(outputs[0], false, {0, 0, seqLength % chunk_size - 1, 0});
+    tmp_out->shallowCopyFrom(outputs[0], false, {0, 0, last_token_index, 0});
 
     //    auto start = mllm::mllm_time_us();
     if (inputs[0]->count() == 0) {

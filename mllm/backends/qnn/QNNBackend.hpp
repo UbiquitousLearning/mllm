@@ -9,10 +9,16 @@
 #include "QNNModel.hpp"
 #include "QnnTypes.h"
 #include "HTP/QnnHtpDevice.h"
+#include "HTP/QnnHtpContext.h"
 #include "System/QnnSystemInterface.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace mllm {
 class Module;
@@ -54,10 +60,11 @@ public:
         return std::unique_ptr<QNNRuntime>(initRuntime(profilingLevel, qnnLogLevel));
     }
 
-    bool createContext(Qnn_ContextHandle_t &context, QnnContext_Config_t **contextConfig = nullptr);
+    bool createContext(Qnn_ContextHandle_t &context,
+                       const QnnContext_Config_t **contextConfig = nullptr);
     bool retrieveContext(Qnn_ContextHandle_t &context,
                          std::vector<GraphInfo_t *> &graphsInfo,
-                         QnnContext_Config_t **contextConfig = nullptr);
+                         const QnnContext_Config_t **contextConfig = nullptr);
 
 private:
     QNN_INTERFACE_VER_TYPE qnnInterface;
@@ -67,6 +74,9 @@ private:
     Qnn_BackendHandle_t backendHandle = nullptr;
     Qnn_DeviceHandle_t deviceHandle = nullptr;
     Qnn_ProfileHandle_t profileHandle = nullptr;
+    // Kept alive when QNN_CONTEXT_CONFIG_PERSISTENT_BINARY is enabled for
+    // low-memory graph switching.
+    std::shared_ptr<uint8_t> contextBinaryBuffer;
 
     QNNRuntime(QNN_INTERFACE_VER_TYPE qnnInterface,
                QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface,
@@ -91,6 +101,20 @@ private:
 
 class QNNBackend : public Backend {
 public:
+    struct SequenceTileProfile {
+        uint64_t input_copy_us = 0;
+        uint64_t execute_us = 0;
+        uint64_t output_copy_us = 0;
+        uint64_t graph_calls = 0;
+        uint64_t tile_calls = 0;
+        size_t scratch_bytes = 0;
+    };
+
+    // Configure profiling before the QNN backend is first initialized.
+    // Existing applications retain the historical DETAILED default.
+    static void setDefaultProfilingLevel(ProfilingLevel level);
+    static ProfilingLevel defaultProfilingLevel();
+
     QNNBackend(shared_ptr<MemoryManager> mm);
     ~QNNBackend();
 
@@ -154,9 +178,26 @@ public:
         currentOutputBuffers->push_back(ptr);
     }
 
-    void saveQNNContext();
+    bool saveQNNContext();
+
+    SequenceTileProfile sequenceTileProfile() const {
+        auto profile = sequenceTileProfile_;
+        profile.scratch_bytes = sequenceTileScratchBytes_;
+        return profile;
+    }
 
 private:
+    struct SequenceTileGraphState {
+        int tile_sequence = 0;
+        int tile_count = 0;
+        std::vector<std::shared_ptr<Tensor>> logical_inputs;
+        std::vector<std::shared_ptr<Tensor>> logical_outputs;
+        std::vector<std::shared_ptr<Tensor>> tile_inputs;
+        std::vector<std::shared_ptr<Tensor>> tile_outputs;
+        std::vector<bool> flat_token_inputs;
+        std::vector<bool> flat_token_outputs;
+    };
+
     bool graphFinilize();
 
     void registerOps() override;
@@ -171,6 +212,13 @@ private:
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap, outputBufferMap;
     // still use this, as in Express frontend, mllm inputs and outputs num may not match
     std::vector<uint8_t *> *currentInputBuffers, *currentOutputBuffers;
+
+    std::map<std::string, std::vector<std::shared_ptr<Tensor>>>
+        sequenceTilePendingInputs_;
+    std::map<std::string, SequenceTileGraphState> sequenceTileGraphs_;
+    std::map<std::string, std::shared_ptr<Tensor>> sequenceTileBufferPool_;
+    size_t sequenceTileScratchBytes_ = 0;
+    SequenceTileProfile sequenceTileProfile_;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
 
