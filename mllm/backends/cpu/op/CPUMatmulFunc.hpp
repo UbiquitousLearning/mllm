@@ -5,17 +5,26 @@
 #ifndef CPUMATMULFUNC_HPP
 #define CPUMATMULFUNC_HPP
 
-#include "CPUBackend.hpp"
+#include "../CPUBackend.hpp"
 #include "DataType.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "../compute/Matmul.hpp"
+#include "../compute/Arithmetic.hpp"
 #include <cassert>
 #include <vector>
 #include <memory>
 #include <algorithm> // For std::equal
+#include <cmath>
+#include <cstring>
+#include <cstdlib>
+#include <iostream>
+#include <limits>
 #include "../compute/GemmKleidiai.hpp"
 #include "../compute/GemmFp.hpp"
+#include "../AttentionProfiler.hpp"
+#include "../AttentionWorkerExecutor.hpp"
+#include "CPUAttentionValueLayout.hpp"
 
 namespace mllm {
 class Tensor;
@@ -23,69 +32,20 @@ class Tensor;
 class CPUmmFunction : public Op {
 private:
     int thread_count = 4;
+    bool attention_worker_ = false;
+    float output_divisor_ = 1.0F;
 
     static void tranTensorChl(Tensor &input) {
-        assert(input.ctype() == BSHD);
-        auto b = input.batch();
-        auto h = input.head();
-        auto d = input.dimension();
-        auto s = input.sequence();
-        auto ori_seq_idx = input.chls()[SEQUENCE];
-        auto ori_head_idx = input.chls()[HEAD];
-        auto ori_dim_idx = input.chls()[DIMENSION];
-        input.chls()[HEAD] = ori_seq_idx;
-        input.chls()[DIMENSION] = ori_head_idx;
-        input.chls()[SEQUENCE] = ori_dim_idx;
-        input.changeCtype();
-        input.reshape(b, h, s, d);
-        input.transed() = true;
-        input.undiffusion() = false;
-
-        // [FIX] Correctly handle the master tensor and its children
-        if (auto master = input.masterTensor()) { // master is now a shared_ptr
-            auto batch = master->batch();
-            auto head = master->head();
-            auto dimension = master->dimension();
-            auto sequence = master->sequence();
-            master->chls() = input.chls();
-            master->changeCtype();
-            master->reshape(batch, head, sequence, dimension);
-
-            // Loop through the master's children
-            for (auto &child_wp : master->childTensors()) {
-                // Lock the weak_ptr to get a shared_ptr
-                if (auto child_sp = child_wp.lock()) {
-                    // Now, use the shared_ptr to access members
-                    auto b_c = child_sp->batch();
-                    auto h_c = child_sp->head();
-                    auto d_c = child_sp->dimension();
-                    auto s_c = child_sp->sequence();
-                    child_sp->chls() = input.chls();
-                    child_sp->changeCtype();
-                    child_sp->reshape(b_c, h_c, s_c, d_c);
-                }
-            }
-        } else {
-            // [FIX] Correctly handle this tensor's own children
-            for (auto &child_wp : input.childTensors()) {
-                // Lock the weak_ptr to get a shared_ptr
-                if (auto child_sp = child_wp.lock()) {
-                    // Now, use the shared_ptr to access members
-                    auto b_c = child_sp->batch();
-                    auto h_c = child_sp->head();
-                    auto d_c = child_sp->dimension();
-                    auto s_c = child_sp->sequence();
-                    child_sp->chls() = input.chls();
-                    child_sp->changeCtype();
-                    child_sp->reshape(b_c, h_c, s_c, d_c);
-                }
-            }
-        }
+        transposeAttentionValueChannels(input);
     }
 
 public:
-    CPUmmFunction(Backend *bn, string name, int threadCount) :
-        Op(bn, name), thread_count(threadCount) {
+    CPUmmFunction(Backend *bn, string name, int threadCount,
+                  bool attention_worker = false,
+                  float output_divisor = 1.0F) :
+        Op(bn, name), thread_count(threadCount),
+        attention_worker_(attention_worker),
+        output_divisor_(output_divisor) {
     }
 
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
@@ -99,6 +59,7 @@ public:
             assert(inputs[0]->dimension() == inputs[1]->sequence());
         }
         outputs[0]->alloc();
+        AttentionWorkerExecutor::warmUp(attention_worker_);
         return MLLM_NO_ERROR;
     }
 
@@ -120,6 +81,126 @@ public:
     }
 
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
+        return AttentionWorkerExecutor::run(attention_worker_, [&]() {
+            return executeOnAttentionThread(inputs, outputs);
+        });
+    }
+
+private:
+    struct DiagnosticStats {
+        double max_abs = 0.0;
+        double mean_abs = 0.0;
+        std::size_t non_finite = 0;
+    };
+
+    static DiagnosticStats diagnosticStats(Tensor &tensor) {
+        DiagnosticStats stats;
+        double sum_abs = 0.0;
+        for (int b = 0; b < tensor.batch(); ++b) {
+            for (int h = 0; h < tensor.head(); ++h) {
+                for (int s = 0; s < tensor.sequence(); ++s) {
+                    for (int d = 0; d < tensor.dimension(); ++d) {
+                        double value = 0.0;
+                        if (tensor.dtype() == MLLM_TYPE_F32) {
+                            value = tensor.dataAt<float>(b, h, s, d);
+                        } else if (tensor.dtype() == MLLM_TYPE_F16) {
+                            value = static_cast<float>(
+                                tensor.dataAt<mllm_fp16_t>(b, h, s, d));
+                        } else {
+                            continue;
+                        }
+                        if (!std::isfinite(value)) {
+                            ++stats.non_finite;
+                            continue;
+                        }
+                        const double magnitude = std::abs(value);
+                        stats.max_abs = std::max(stats.max_abs, magnitude);
+                        sum_abs += magnitude;
+                    }
+                }
+            }
+        }
+        if (tensor.count() > stats.non_finite) {
+            stats.mean_abs = sum_abs / static_cast<double>(
+                tensor.count() - stats.non_finite);
+        }
+        return stats;
+    }
+
+    void logAttentionInputs(
+        const vector<shared_ptr<Tensor>> &inputs,
+        const vector<shared_ptr<Tensor>> &outputs) const {
+        const char *diagnostics =
+            std::getenv("MLLM_QWEN_ATTN_INPUT_DIAGNOSTICS");
+        if (diagnostics == nullptr || std::strcmp(diagnostics, "0") == 0
+            || inputs[0]->sequence() <= 1) {
+            return;
+        }
+        const auto lhs = diagnosticStats(*inputs[0]);
+        const auto rhs = diagnosticStats(*inputs[1]);
+        std::cout << "QWEN_ATTN_INPUT"
+                  << " op=" << name()
+                  << " lhs_shape=" << inputs[0]->batch() << 'x'
+                  << inputs[0]->head() << 'x' << inputs[0]->sequence()
+                  << 'x' << inputs[0]->dimension()
+                  << " lhs_dtype=" << static_cast<int>(inputs[0]->dtype())
+                  << " lhs_max_abs=" << lhs.max_abs
+                  << " lhs_mean_abs=" << lhs.mean_abs
+                  << " lhs_nonfinite=" << lhs.non_finite
+                  << " rhs_shape=" << inputs[1]->batch() << 'x'
+                  << inputs[1]->head() << 'x' << inputs[1]->sequence()
+                  << 'x' << inputs[1]->dimension()
+                  << " rhs_dtype=" << static_cast<int>(inputs[1]->dtype())
+                  << " rhs_max_abs=" << rhs.max_abs
+                  << " rhs_mean_abs=" << rhs.mean_abs
+                  << " rhs_nonfinite=" << rhs.non_finite
+                  << " out_shape=" << outputs[0]->batch() << 'x'
+                  << outputs[0]->head() << 'x' << outputs[0]->sequence()
+                  << 'x' << outputs[0]->dimension() << std::endl;
+    }
+
+    void logAttentionOutput(const shared_ptr<Tensor> &output) const {
+        const char *diagnostics =
+            std::getenv("MLLM_QWEN_ATTN_INPUT_DIAGNOSTICS");
+        if (diagnostics == nullptr || std::strcmp(diagnostics, "0") == 0
+            || output->sequence() <= 1) {
+            return;
+        }
+        const auto stats = diagnosticStats(*output);
+        std::cout << "QWEN_ATTN_OUTPUT"
+                  << " op=" << name()
+                  << " shape=" << output->batch() << 'x' << output->head()
+                  << 'x' << output->sequence() << 'x'
+                  << output->dimension()
+                  << " dtype=" << static_cast<int>(output->dtype())
+                  << " max_abs=" << stats.max_abs
+                  << " mean_abs=" << stats.mean_abs
+                  << " nonfinite=" << stats.non_finite << std::endl;
+    }
+
+    void applyOutputDivisor(const shared_ptr<Tensor> &output) const {
+        if (output_divisor_ == 1.0F) return;
+        mllm_div_fp32(output->hostPtr<float>(), output_divisor_,
+                      output->hostPtr<float>(),
+                      static_cast<int>(output->count()));
+    }
+
+    ErrorCode executeOnAttentionThread(
+        vector<shared_ptr<Tensor>> inputs,
+        vector<shared_ptr<Tensor>> outputs) {
+        logAttentionInputs(inputs, outputs);
+        const bool profile_attention = CPUAttentionProfiler::enabled()
+            && inputs[0]->sequence() > 1;
+        // PhoneLM uses D=160 and chunked K lengths that are multiples of 64.
+        // QK has lhs.dimension()==160, while P*V has output.dimension()==160.
+        // Tensor names aren't used because traced cache views can rename them.
+        const bool profile_dense_pv = profile_attention
+            && inputs[0]->dimension() != 160
+            && outputs[0]->dimension() == 160;
+        ScopedAttentionProfile profile(
+            profile_dense_pv ? AttentionProfileStage::DENSE_PV
+                             : AttentionProfileStage::QK,
+            profile_attention);
         if (inputs[0]->ctype() == BHSD) {
 #ifdef ARM
             auto M = inputs[0]->sequence();
@@ -149,6 +230,8 @@ public:
                     }
                 }
             }
+            applyOutputDivisor(outputs[0]);
+            logAttentionOutput(outputs[0]);
             return MLLM_NO_ERROR;
 #else
             auto M = inputs[0]->sequence();
@@ -171,12 +254,16 @@ public:
                     }
                 }
             }
+            applyOutputDivisor(outputs[0]);
+            logAttentionOutput(outputs[0]);
             return MLLM_NO_ERROR;
 #endif
         }
         bool isSame = std::equal(inputs[0]->chls().begin(), inputs[0]->chls().end(), inputs[1]->chls().begin());
         assert(inputs[0]->dtype() == MLLM_TYPE_F32);
         mat_mul(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, false, isSame, thread_count);
+        applyOutputDivisor(outputs[0]);
+        logAttentionOutput(outputs[0]);
         return MLLM_NO_ERROR;
     }
 };
@@ -184,7 +271,12 @@ public:
 class CPUmmFunctionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const override {
-        return new CPUmmFunction(bn, name, threadCount);
+        const auto attention_it = op_param.find("attention_worker");
+        const auto divisor_it = op_param.find("output_divisor");
+        return new CPUmmFunction(
+            bn, name, threadCount,
+            attention_it != op_param.end() && attention_it->second != 0.0F,
+            divisor_it == op_param.end() ? 1.0F : divisor_it->second);
     }
 };
 

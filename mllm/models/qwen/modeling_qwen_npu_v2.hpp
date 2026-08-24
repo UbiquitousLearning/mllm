@@ -2,16 +2,30 @@
 #define MODELING_QWENNPU_V2_HPP
 
 #include "Backend.hpp"
+#include "Context.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "configuration_qwen.hpp"
+#include <algorithm>
+#include <cmath>
 #include <memory>
+#include <regex>
+#include <vector>
 
 using namespace mllm;
 
 namespace v2 {
+
+inline int qwenLayerIndexFromBaseName(const string &base_name) {
+    static const std::regex layer_pattern(R"(model\.layers\.(\d+)\.)");
+    std::smatch match;
+    if (!std::regex_search(base_name, match, layer_pattern)) {
+        throw std::invalid_argument("invalid Qwen decoder layer base name");
+    }
+    return std::stoi(match[1]);
+}
 
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {
@@ -169,14 +183,45 @@ class QwenQKVmm final : public Module {
     int num_key_value_heads;
     int num_key_value_groups;
 
+    float prefill_attention_sparsity = 0.0F;
+    bool prefill_attention_pattern_sparse = false;
+    bool prefill_attention_hmx_selector = false;
+    int prefill_attention_selector_seed = 1;
+    int prefill_attention_pack_reserve_tokens = 0;
+    std::vector<float> prefill_attention_head_retentions;
+    int layer_id_ = -1;
+
     bool isScale = false;
 
 public:
     QwenQKVmm() = default;
-    QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names,
+              int chunk_size, const string &base_name, int layer_idx) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
+        layer_id_ = layer_idx;
+
+        prefill_attention_sparsity =
+            config.prefillAttentionSparsityForLayer(layer_idx);
+        prefill_attention_pattern_sparse =
+            config.prefill_attention_pattern_sparse;
+        prefill_attention_hmx_selector =
+            config.prefill_attention_hmx_selector;
+        prefill_attention_selector_seed = 1 + layer_idx * 4099;
+        prefill_attention_pack_reserve_tokens = config.cache_limit;
+        prefill_attention_head_retentions =
+            config.prefillAttentionHeadRetentionsForLayer(layer_idx);
+        if (!prefill_attention_head_retentions.empty()
+            && std::all_of(
+                prefill_attention_head_retentions.begin(),
+                prefill_attention_head_retentions.end(),
+                [](float retention) { return retention == 1.0F; })) {
+            prefill_attention_sparsity = 0.0F;
+            prefill_attention_head_retentions.clear();
+        }
 
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
@@ -187,9 +232,11 @@ public:
         // k_cache = KVCache(config.num_key_value_heads, head_dim, config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
         // v_cache = KVCache(config.num_key_value_heads, head_dim, config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
 
-        softmax = Softmax(DIMENSION, true, base_name + "softmax");
+        softmax = Softmax(DIMENSION, true, true, base_name + "softmax");
 
-        o_quantize = Quantize(true, base_name + names._o_proj_name + ".quantize");
+        o_quantize = Quantize(
+            true, base_name + names._o_proj_name + ".quantize",
+            config.use_i16_attention_output ? MLLM_TYPE_I16 : MLLM_TYPE_I8);
 
         if (!config.use_i32_bias)
             isScale = true;
@@ -206,10 +253,35 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        qk = qk / sqrt(head_dim);
-        qk = softmax(qk);
-        auto o = Tensor::mm(qk, v);
+        const bool sparse_prompt =
+            (prefill_attention_sparsity > 0.0F
+             || !prefill_attention_head_retentions.empty())
+            && Context::Instance().inference_state().getExecutionType()
+                == PROMPT;
+
+        Tensor o;
+        if (sparse_prompt && prefill_attention_pattern_sparse) {
+            o = Tensor::pattern_sparse_attention(
+                q, k, v, prefill_attention_sparsity, true,
+                0.5F, 0, 0, false,
+                prefill_attention_selector_seed,
+                prefill_attention_pack_reserve_tokens,
+                prefill_attention_hmx_selector,
+                prefill_attention_head_retentions,
+                layer_id_);
+        } else {
+            auto qk = Tensor::attention_mm(
+                q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION),
+                std::sqrt(static_cast<float>(head_dim)));
+            if (sparse_prompt) {
+                o = Tensor::sparse_softmax_value(
+                    qk, v, prefill_attention_sparsity, true, 0,
+                    prefill_attention_head_retentions);
+            } else {
+                qk = softmax(qk);
+                o = Tensor::attention_mm(qk, v);
+            }
+        }
 
         o = o_quantize(o);
 
@@ -265,7 +337,12 @@ public:
         // for QNN linear speed up
         pre_oproj_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
-        post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
+        post_oproj_dequantize = Dequantize(
+            true,
+            base_name + names._attn_base_name + names._o_proj_name
+                + ".dequantize",
+            true,
+            config.use_i16_attention_output ? MLLM_TYPE_I16 : MLLM_TYPE_I8);
         post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
@@ -273,7 +350,14 @@ public:
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
-        pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
+        const bool use_i16_mlp_activations =
+            config.useI16MLPActivationsForLayer(
+                qwenLayerIndexFromBaseName(base_name));
+        const DataType mlp_activation_dtype = use_i16_mlp_activations
+            ? MLLM_TYPE_I16 : MLLM_TYPE_I8;
+        pre_mlp_quantize = Quantize(
+            true, mlp_base_name + names._up_proj_name + ".quantize",
+            mlp_activation_dtype);
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
 
@@ -284,8 +368,12 @@ public:
         }
 
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
+        post_up_proj_dequantize = Dequantize(
+            true, mlp_base_name + names._up_proj_name + ".dequantize",
+            use_i16_mlp_activations, mlp_activation_dtype);
+        post_gate_proj_dequantize = Dequantize(
+            true, mlp_base_name + names._gate_proj_name + ".dequantize",
+            use_i16_mlp_activations, mlp_activation_dtype);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize", MLLM_TYPE_I16);
@@ -348,7 +436,12 @@ public:
         // for QNN linear speed up
         pre_oproj_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
-        post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
+        post_oproj_dequantize = Dequantize(
+            true,
+            base_name + names._attn_base_name + names._o_proj_name
+                + ".dequantize",
+            true,
+            config.use_i16_attention_output ? MLLM_TYPE_I16 : MLLM_TYPE_I8);
         post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
@@ -356,7 +449,14 @@ public:
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
-        pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
+        const bool use_i16_mlp_activations =
+            config.useI16MLPActivationsForLayer(
+                qwenLayerIndexFromBaseName(base_name));
+        const DataType mlp_activation_dtype = use_i16_mlp_activations
+            ? MLLM_TYPE_I16 : MLLM_TYPE_I8;
+        pre_mlp_quantize = Quantize(
+            true, mlp_base_name + names._up_proj_name + ".quantize",
+            mlp_activation_dtype);
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
 
@@ -367,8 +467,12 @@ public:
         }
 
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
+        post_up_proj_dequantize = Dequantize(
+            true, mlp_base_name + names._up_proj_name + ".dequantize", true,
+            mlp_activation_dtype);
+        post_gate_proj_dequantize = Dequantize(
+            true, mlp_base_name + names._gate_proj_name + ".dequantize", true,
+            mlp_activation_dtype);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -467,7 +571,8 @@ public:
             part1 = make_unique<QwenDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
         }
 
-        qkv_mm = QwenQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
+        qkv_mm = QwenQKVmm(config, names, chunk_size,
+                           base_name + names._attn_base_name, layer_idx);
 
         part2 = make_unique<QwenDecoderNPUPart2>(config, names, chunk_size, base_name);
 
@@ -561,7 +666,8 @@ public:
             part1 = make_unique<QwenDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
         }
 
-        qkv_mm = QwenQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
+        qkv_mm = QwenQKVmm(config, names, chunk_size,
+                           base_name + names._attn_base_name, layer_idx);
 
         part2 = make_unique<QwenDecoderNPUPart2WithShadow>(config, names, chunk_size, base_name);
 

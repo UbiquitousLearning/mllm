@@ -7,6 +7,7 @@ build*/
 build/
 bin/
 bin*/
+results/
 .clangd/
 compile_commands.json
 *.bin

@@ -131,6 +131,8 @@ enum OpType {
     // models use only
     F_FUYU_GATHER_EMBD, // 112
     F_PHI3V_HD_MERGE,   // 113
+    F_SPARSE_SOFTMAX_VALUE, // 114
+    F_PATTERN_SPARSE_ATTN,  // 115
 };
 
 enum TensorFuncType {

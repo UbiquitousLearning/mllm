@@ -888,6 +888,11 @@ public:
     Tensor expand(int b, int h, int s, int d);
     static Tensor cat(vector<Tensor> input_tensors, Chl dims);
     static Tensor mm(Tensor input0, Tensor input1);
+    // Dense-attention matmul executed by the optional persistent attention
+    // worker. output_divisor is fused into the matmul task so QK scaling does
+    // not fall back to the model thread between QK and softmax.
+    static Tensor attention_mm(Tensor input0, Tensor input1,
+                               float output_divisor = 1.0F);
     Tensor norm(int L_n);
     Tensor where(float value, Chl axis);
     static Tensor range(int start, int end);
@@ -911,6 +916,22 @@ public:
     static Tensor zero_like(Tensor input);
     static Tensor flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool is_causal = true);
     static Tensor sage_attention_forward(Tensor q, Tensor k, Tensor v, bool causal_mask = false);
+    static Tensor sparse_softmax_value(Tensor logits, Tensor value, float sparsity,
+                                       bool causal_mask = true,
+                                       int topk_sample_size = 0,
+                                       const std::vector<float> &head_retentions = {});
+    static Tensor pattern_sparse_attention(Tensor query, Tensor key, Tensor value,
+                                           float sparsity,
+                                           bool causal_mask = true,
+                                           float local_ratio = 0.5F,
+                                           int prefix_tokens = 0,
+                                           int dense_tokens = 0,
+                                           bool random_pattern = false,
+                                           int random_seed = 1,
+                                           int pack_reserve_tokens = 0,
+                                           bool hmx_selector = false,
+                                           const std::vector<float> &head_retentions = {},
+                                           int layer_id = -1);
     static Tensor apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb);
 
     // models use only

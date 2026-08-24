@@ -1,5 +1,6 @@
 
 #include "QNNQuantize.hpp"
+#include "QNNActivationScaleOverride.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -173,6 +174,14 @@ ErrorCode QNNQuantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
+    if (const auto value = qnnActivationScaleOverride(
+            scale_.name(), scale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << scale_.name() << " old="
+                             << scale_.hostPtr<float>()[0] << " new="
+                             << *value << std::endl;
+        qnnSetPrivateActivationScale(scale_, *value);
+    }
 
     return Op::load(loader);
 }

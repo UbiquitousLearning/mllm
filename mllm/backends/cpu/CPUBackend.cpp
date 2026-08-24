@@ -100,6 +100,7 @@
 #include "op/CPUVisionRoPEFunc.hpp"
 #include "op/CPUFlashAttention2Func.hpp"
 #include "op/CPUSageAttentionFunc.hpp"
+#include "op/CPUSparseSoftmaxValueFunc.hpp"
 #include "op/CPUScatter.hpp"
 #include "op/CPUTilde.hpp"
 #include "op/CPUMaskedFill.hpp"
@@ -235,6 +236,8 @@ void CPUBackend::registerOps() {
     addCreator(F_APPLY_VISIOROPE, (CPUBackend::Creator *)(new CPUVisionRoPEFuncFunctionCreator()));
     addCreator(F_FA2, (CPUBackend::Creator *)(new CPUFlashAttention2FuncCreator()));
     addCreator(F_SAGEATTN, (CPUBackend::Creator *)(new CPUSageAttentionFuncCreator()));
+    addCreator(F_SPARSE_SOFTMAX_VALUE, (CPUBackend::Creator *)(new CPUSparseSoftmaxValueFuncCreator()));
+    addCreator(F_PATTERN_SPARSE_ATTN, (CPUBackend::Creator *)(new CPUPatternSparseAttentionFuncCreator()));
     addCreator(SCATTER, (CPUBackend::Creator *)(new CPUScatterCreator()));
     addCreator(TILDE, (CPUBackend::Creator *)(new CPUTildeCreator()));
     addCreator(MASKEDFILL, (CPUBackend::Creator *)(new CPUMaskedFillCreator()));

@@ -1,5 +1,6 @@
 
 #include "QNNDequantizeAdd.hpp"
+#include "QNNActivationScaleOverride.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -181,6 +182,14 @@ ErrorCode QNNDequantizeAdd::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
+    if (const auto value = qnnActivationScaleOverride(
+            scale_.name(), scale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << scale_.name() << " old="
+                             << scale_.hostPtr<float>()[0] << " new="
+                             << *value << std::endl;
+        qnnSetPrivateActivationScale(scale_, *value);
+    }
 
     string biasName = name();
     wordToRemove = "dequantize";
@@ -195,7 +204,36 @@ ErrorCode QNNDequantizeAdd::load(AbstructLoader &loader) {
     bias_.reshape(1, 1, 1, out_features_);
     bias_.setDtype(MLLM_TYPE_F32);
     bias_.alloc();
-    loader.load(&bias_);
+
+    const DataType stored_bias_dtype = loader.getDataType(bias_.name());
+    if (stored_bias_dtype == MLLM_TYPE_I8
+        || stored_bias_dtype == MLLM_TYPE_I32) {
+        Tensor quantized_bias(Backend::global_backends[MLLM_CPU].get());
+        quantized_bias.setName(bias_.name());
+        quantized_bias.reshape(1, 1, 1, out_features_);
+        quantized_bias.setDtype(stored_bias_dtype);
+        quantized_bias.alloc();
+        if (!loader.load(&quantized_bias)) return ::INVALID_VALUE;
+
+        Tensor bias_scale(Backend::global_backends[MLLM_CPU].get());
+        bias_scale.setName(bias_.name() + ".scale");
+        bias_scale.reshape(1, 1, 1, 1);
+        bias_scale.setDtype(MLLM_TYPE_F32);
+        bias_scale.alloc();
+        if (!loader.load(&bias_scale)) return ::INVALID_VALUE;
+
+        const float scale = bias_scale.hostPtr<float>()[0];
+        for (int i = 0; i < out_features_; ++i) {
+            const float value = stored_bias_dtype == MLLM_TYPE_I8
+                ? static_cast<float>(
+                      quantized_bias.dataAt<int8_t>(0, 0, 0, i))
+                : static_cast<float>(
+                      quantized_bias.dataAt<int32_t>(0, 0, 0, i));
+            bias_.setDataAt<float>(0, 0, 0, i, value * scale);
+        }
+    } else if (!loader.load(&bias_)) {
+        return ::INVALID_VALUE;
+    }
 
     return Op::load(loader);
 }

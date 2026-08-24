@@ -1,5 +1,6 @@
 
 #include "QNNDequantize.hpp"
+#include "QNNActivationScaleOverride.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -156,32 +157,13 @@ ErrorCode QNNDequantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    if (name().find("q_proj") != -1 || name().find("k_proj") != -1 || name().find("v_proj") != -1) {
-        // std::cout << name() << std::endl;
-
-        string biasName = name();
-        wordToRemove = "dequantize";
-        string biasTypeName = "bias";
-
-        int pos = biasName.find(wordToRemove);
-        if (pos != -1) {
-            biasName.erase(pos, wordToRemove.length());
-        }
-
-        // std::cout << biasName + biasTypeName << std::endl;
-
-        int hidden_size = 1536;
-        if (name().find("k_proj") != -1 || name().find("v_proj") != -1)
-            hidden_size = 256;
-
-        bias_.setName(biasName + biasTypeName);
-        bias_.reshape(1, 1, 1, hidden_size);
-        bias_.setDtype(MLLM_TYPE_F32);
-        bias_.alloc();
-        loader.load(&bias_);
-
-        // bias_.printData<float>();
+    if (const auto value = qnnActivationScaleOverride(
+            scale_.name(), scale_.hostPtr<float>()[0])) {
+        MLLM_LOG_INFO_STREAM << "ACTIVATION_SCALE_OVERRIDE tensor="
+                             << scale_.name() << " old="
+                             << scale_.hostPtr<float>()[0] << " new="
+                             << *value << std::endl;
+        qnnSetPrivateActivationScale(scale_, *value);
     }
 
     return Op::load(loader);
