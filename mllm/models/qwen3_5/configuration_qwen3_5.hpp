@@ -11,6 +11,7 @@
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/engine/ConfigFile.hpp"
+#include "mllm/preprocessor/chat_template/ChatTemplate.hpp"
 
 namespace mllm::models::qwen3_5 {
 
@@ -85,6 +86,8 @@ struct Qwen3_5Config : protected ConfigFile {
         throw std::invalid_argument("Qwen3.5 contains an unsupported linear_impl_type: " + linear_impl_name);
       }
     }
+
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
 
     vision_enabled = data().contains("vision_config");
     if (vision_enabled) {
@@ -239,6 +242,7 @@ struct Qwen3_5Config : protected ConfigFile {
   int32_t max_cache_length = 2048;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
 
   // Helpers
   [[nodiscard]] bool isFullAttentionLayer(int layer_idx) const {

@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <filesystem>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include <fstream>
@@ -9,6 +11,8 @@
 
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen_npu/configuration_qwen_npu.hpp"
+#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -143,20 +147,24 @@ inline bool qwenRegex(const std::string& str, std::vector<std::wstring>& splitte
 
 struct QwenMessage {
   std::string prompt;
-  static inline std::string message_template =
-      "<|im_start|>system\nYou are a helpful "
-      "assistant.<|im_end|>\n<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n";
 };
+
+// The pre-Jinja NPU runner always sent this system message; it stays the
+// explicit system turn so the official Qwen2 template renders the same bytes.
+inline constexpr char kQwenNpuDefaultSystemPrompt[] = "You are a helpful assistant.";
 
 class QwenTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
-  explicit QwenTokenizer(const std::string& vocab_file, const std::string& merge_file, bool split_special_tokens = false)
-      : split_special_tokens_(split_special_tokens) {
+  explicit QwenTokenizer(const std::string& vocab_file, const std::string& merge_file, bool split_special_tokens = false,
+                         preprocessor::ChatPreprocessorConfig chat_template = {})
+      : split_special_tokens_(split_special_tokens),
+        chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
 
     bpe_.initFromSentencePieceJson(vocab_file);
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
     initBpeRanks(merge_file);
     initSpecialTokens();
   }
@@ -282,11 +290,24 @@ class QwenTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return std::make_pair(realLength, ret);
   }
 
+  QwenTokenizer(const std::string& vocab_file, const std::string& merge_file, const QwenNPUConfig& config,
+                std::filesystem::path model_directory = {}, bool split_special_tokens = false)
+      : QwenTokenizer(vocab_file, merge_file, split_special_tokens,
+                      preprocessor::ChatPreprocessorConfig{
+                          .backend = config.chat_template_backend,
+                          .template_options = {.model_directory = model_directory.empty()
+                                                                      ? std::filesystem::path(vocab_file).parent_path()
+                                                                      : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // Renders the single-turn runner prompt through the configured backend.
+  std::string renderChatTemplate(const QwenMessage& message) const {
+    return chat_preprocessor_.render(preprocessor::makeSingleTurnChatTemplateRequest(message.prompt, kQwenNpuDefaultSystemPrompt, std::nullopt));
+  }
+
   ARGenerationOutputPast convertMessage(const QwenMessage& message) {
-    // process prompt
-    auto applied_string = QwenMessage::message_template;
-    size_t pos = applied_string.find("{{{prompt}}}");
-    applied_string.replace(pos, 12, message.prompt);
+    auto applied_string = renderChatTemplate(message);
 
     // process sequence
     auto sequence_str = tokenize(applied_string);
@@ -317,6 +338,7 @@ class QwenTokenizer final : public mllm::preprocessor::AutoTokenizer {
  private:
   // For text
   preprocessor::BPE bpe_;
+  preprocessor::ChatPreprocessor chat_preprocessor_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
   std::unordered_map<std::string, unsigned int> bpe_ranks_;

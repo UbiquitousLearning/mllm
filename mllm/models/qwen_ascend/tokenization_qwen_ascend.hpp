@@ -3,9 +3,13 @@
 #pragma once
 
 #include <unordered_map>
+#include <filesystem>
+#include <utility>
 #include <vector>
 
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen_ascend/configuration_qwen_ascend.hpp"
+#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
@@ -15,17 +19,17 @@ namespace mllm::models::qwen_ascend {
 
 struct QwenAscendMessage {
   std::string prompt;
-  static inline std::string message_template =
-      "<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
 };
 
 class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
-  explicit QwenAscendTokenizer(const std::string& file_path) {
+  explicit QwenAscendTokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
     preprocessor::initLocal("C.UTF-8");
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
     bpe_.initFromSentencePieceJson(file_path);
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
     special_tokens_trie_.add(L"<|endoftext|>");
     special_tokens_trie_.add(L"<|im_start|>");
     special_tokens_trie_.add(L"<|im_end|>");
@@ -42,6 +46,12 @@ class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<|video_pad|>");
     special_tokens_trie_.add(L"<think>");
     special_tokens_trie_.add(L"</think>");
+    // Tool markers are added tokens in the official Qwen3 tokenizer; the chat
+    // template emits them as literal text around tool calls and responses.
+    special_tokens_trie_.add(L"<tool_call>");
+    special_tokens_trie_.add(L"</tool_call>");
+    special_tokens_trie_.add(L"<tool_response>");
+    special_tokens_trie_.add(L"</tool_response>");
   }
 
   std::vector<std::wstring> _tokenize(const std::string& str) override {
@@ -103,10 +113,23 @@ class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
+  QwenAscendTokenizer(const std::string& file_path, const QwenAscendConfig& config, std::filesystem::path model_directory = {})
+      : QwenAscendTokenizer(file_path,
+                            preprocessor::ChatPreprocessorConfig{
+                                .backend = config.chat_template_backend,
+                                .template_options = {.model_directory = model_directory.empty()
+                                                                            ? std::filesystem::path(file_path).parent_path()
+                                                                            : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // Renders the single-turn runner prompt through the configured backend.
+  std::string renderChatTemplate(const QwenAscendMessage& message) const {
+    return chat_preprocessor_.render(preprocessor::makeSingleTurnChatTemplateRequest(message.prompt, "", false));
+  }
+
   ARGenerationOutputPast convertMessage(const QwenAscendMessage& message) {
-    auto applied_string = QwenAscendMessage::message_template;
-    size_t pos = applied_string.find("{{{prompt}}}");
-    applied_string.replace(pos, 12, message.prompt);
+    auto applied_string = renderChatTemplate(message);
 
     auto sequence_str = tokenize(applied_string);
     std::vector<int64_t> ids;
@@ -122,6 +145,7 @@ class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
 
  private:
   preprocessor::BPE bpe_;
+  preprocessor::ChatPreprocessor chat_preprocessor_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
 };

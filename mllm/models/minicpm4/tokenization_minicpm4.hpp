@@ -1,10 +1,14 @@
 // tokenization_minicpm4.hpp
 #pragma once
 
+#include <filesystem>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include "mllm/preprocessor/tokenizers/BPEUTF8.hpp"  //BPEUTF8, MiniCPM4 use LlamaTokenizer!
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/minicpm4/configuration_minicpm4.hpp"
+#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -12,13 +16,15 @@ namespace mllm::models::minicpm4 {
 
 struct MiniCPM4Message {
   std::string prompt;
-  static inline std::string message_template = "<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n";
 };
 
 class MiniCPM4Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
  public:
-  explicit MiniCPM4Tokenizer(const std::string& file_path) {
+  // The chat-template backend is selected explicitly; see Qwen3Tokenizer.
+  explicit MiniCPM4Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
     bpe_.initFromSentencePieceJson(file_path);
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
 
     special_tokens_trie_.add("<|im_start|>");
     special_tokens_trie_.add("<|im_end|>");
@@ -109,10 +115,23 @@ class MiniCPM4Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
     return decode_string(result);
   }
 
+  MiniCPM4Tokenizer(const std::string& file_path, const MiniCPM4Config& config, std::filesystem::path model_directory = {})
+      : MiniCPM4Tokenizer(file_path,
+                          preprocessor::ChatPreprocessorConfig{
+                              .backend = config.chat_template_backend,
+                              .template_options = {.model_directory = model_directory.empty()
+                                                                          ? std::filesystem::path(file_path).parent_path()
+                                                                          : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // Renders the single-turn runner prompt through the configured backend.
+  std::string renderChatTemplate(const MiniCPM4Message& message) const {
+    return chat_preprocessor_.render(preprocessor::makeSingleTurnChatTemplateRequest(message.prompt, "", std::nullopt));
+  }
+
   ARGenerationOutputPast convertMessage(const MiniCPM4Message& message) {
-    auto applied_string = MiniCPM4Message::message_template;
-    size_t pos = applied_string.find("{{{prompt}}}");
-    applied_string.replace(pos, 12, message.prompt);
+    auto applied_string = renderChatTemplate(message);
 
     auto tokens = tokenize(applied_string);
 
@@ -130,6 +149,7 @@ class MiniCPM4Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
   }
 
  private:
+  preprocessor::ChatPreprocessor chat_preprocessor_;
   preprocessor::BPEUTF8 bpe_;
 
   std::string decode_token(const std::string& token) {

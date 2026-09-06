@@ -23,6 +23,7 @@
 #include "mllm/nn/Functional.hpp"
 #include "mllm/utils/Enumerate.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen3/chat_template_qwen3.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
@@ -161,7 +162,7 @@ class ProbeClassifier : public Module {
     float val = 0.0f;
     if (logits.dtype() == mllm::kFloat32) {
       val = logits.ptr<float>()[0];
-    } 
+    }
 
     return 1.0f / (1.0f + std::exp(-val));
   }
@@ -606,7 +607,11 @@ class Qwen3ProbingSession final : public ::mllm::service::Session {
       sys_msg["content"] = "You are a helpful assistant." + concise_instruction;
       messages.insert(messages.begin(), sys_msg);
     }
-    auto inputs = applyChatTemplate(messages, {}, true, request.value("enable_thinking", false));
+    preprocessor::ChatTemplateRequest chat_request;
+    chat_request.messages = std::move(messages);
+    if (request.contains("tools")) { chat_request.tools = request.at("tools"); }
+    chat_request.extra_context["enable_thinking"] = request.value("enable_thinking", false);
+    auto inputs = chat_preprocessor_->render(chat_request);
     auto full_seq_idx = tokenizer_->convert2Ids(tokenizer_->tokenize(inputs)).toVector<int64_t>();
 
     ARGenerationArgs args;
@@ -893,9 +898,14 @@ class Qwen3ProbingSession final : public ::mllm::service::Session {
     namespace fs = std::filesystem;
     fs::path root = fs::path(model_path).lexically_normal();
     auto cfg = Qwen3Config((root / "config.json").string());
+    chat_preprocessor_ = std::make_unique<preprocessor::ChatPreprocessor>(
+        preprocessor::ChatPreprocessorConfig{.backend = cfg.chat_template_backend,
+                                             .template_options = {.model_directory = root}},
+        renderLegacyQwen3ChatTemplate);
     model_ = std::make_shared<Qwen3ProbingForCausalLM>(cfg);
     model_->load(mllm::load((root / "model.mllm").string(), ModelFileVersion::kV2));
     tokenizer_ = std::make_shared<Qwen3Tokenizer>((root / "tokenizer.json").string());
+    chat_preprocessor_->setControlTokens(tokenizer_->controlTokens());
     cache_ = std::make_shared<prefix_cache::Cache>(prefix_cache::CacheOptions{
         .radix_tree_options = {.enable_lru_eviction = false,
                                .eviction_threshold = 0.9f,
@@ -923,126 +933,13 @@ class Qwen3ProbingSession final : public ::mllm::service::Session {
                               }}});
   }
 
-  std::string ltrim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \n\r\t\f\v");
-    return (start == std::string::npos) ? "" : s.substr(start);
-  }
-  std::string rtrim(const std::string& s) {
-    size_t end = s.find_last_not_of(" \n\r\t\f\v");
-    return (end == std::string::npos) ? "" : s.substr(0, end + 1);
-  }
-  std::string trim(const std::string& s) { return rtrim(ltrim(s)); }
-
-  std::string applyChatTemplate(const nlohmann::json& messages, const std::vector<nlohmann::json>& tools = {},
-                                bool add_generation_prompt = true, bool enable_thinking = true,
-                                const std::string& bos_token = "", const std::string& eos_token = "<|im_end|>") {
-    std::ostringstream oss;
-    if (!tools.empty()) {
-      oss << "<|im_start|>system\n";
-      if (!messages.empty() && messages[0].value("role", "") == "system") { oss << messages[0].value("content", "") << "\n\n"; }
-      oss << "# Tools\n\nYou may call one or more functions to assist with the user query.\n";
-      oss << "You are provided with function signatures within <tools></tools> XML tags:\n<tools>";
-      for (const auto& tool : tools) { oss << "\n" << tool.dump(); }
-      oss << "\n</tools>\n\nFor each function call, return a json object with function name and arguments within "
-             "<tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": "
-             "<args-json-object>}\n</tool_call><|im_end|>\n";
-    } else {
-      if (!messages.empty() && messages[0].value("role", "") == "system") {
-        oss << "<|im_start|>system\n" << messages[0].value("content", "") << "<|im_end|>\n";
-      }
-    }
-
-    size_t last_query_index = messages.empty() ? 0 : messages.size() - 1;
-    bool found_last_query = false;
-    if (!messages.empty()) {
-      for (int i = messages.size() - 1; i >= 0; --i) {
-        const auto& msg = messages[i];
-        if (msg.value("role", "") == "user" && msg.contains("content") && msg["content"].is_string()) {
-          std::string content_str = msg["content"].get<std::string>();
-          if (!(content_str.starts_with("<tool_response>")
-                && content_str.find("</tool_response>") == content_str.length() - std::string("</tool_response>").length())) {
-            last_query_index = i;
-            found_last_query = true;
-            break;
-          }
-        }
-      }
-    }
-    if (messages.empty()) { found_last_query = false; }
-
-    for (size_t i = 0; i < messages.size(); ++i) {
-      const auto& message = messages[i];
-      std::string role = message.value("role", "");
-      std::string content;
-      if (message.contains("content") && message["content"].is_string()) { content = message["content"].get<std::string>(); }
-
-      if (role == "user" || (role == "system" && i > 0)) {
-        oss << "<|im_start|>" << role << "\n" << content << "<|im_end|>\n";
-      } else if (role == "assistant") {
-        std::string reasoning_content;
-        if (message.contains("reasoning_content") && message["reasoning_content"].is_string()) {
-          reasoning_content = message["reasoning_content"].get<std::string>();
-        } else {
-          auto think_end_pos = content.find("</think>");
-          if (think_end_pos != std::string::npos) {
-            auto think_start_pos = content.rfind("<think>", think_end_pos);
-            if (think_start_pos != std::string::npos) {
-              reasoning_content = content.substr(think_start_pos + 7, think_end_pos - (think_start_pos + 7));
-              content = content.substr(think_end_pos + 8);
-            }
-          }
-        }
-
-        oss << "<|im_start|>" << role << "\n";
-        if (found_last_query && i > last_query_index) {
-          if ((i == messages.size() - 1) || !reasoning_content.empty()) {
-            oss << "<think>\n" << trim(reasoning_content) << "\n</think>\n\n" << ltrim(content);
-          } else {
-            oss << content;
-          }
-        } else {
-          oss << content;
-        }
-
-        if (message.contains("tool_calls")) {
-          bool is_first_tool = true;
-          for (const auto& tool_call_item : message["tool_calls"]) {
-            if ((is_first_tool && !content.empty()) || !is_first_tool) { oss << "\n"; }
-            is_first_tool = false;
-            const nlohmann::json* tool_call_ptr = &tool_call_item;
-            if (tool_call_item.contains("function")) { tool_call_ptr = &tool_call_item["function"]; }
-            const nlohmann::json& tool_call = *tool_call_ptr;
-            oss << "<tool_call>\n{\"name\": \"" << tool_call.value("name", "") << R"(", "arguments": )";
-            const auto& args = tool_call["arguments"];
-            if (args.is_string()) {
-              oss << args.get<std::string>();
-            } else {
-              oss << args.dump();
-            }
-            oss << "}\n</tool_call>";
-          }
-        }
-        oss << "<|im_end|>\n";
-      } else if (role == "tool") {
-        if (i == 0 || messages[i - 1].value("role", "") != "tool") { oss << "<|im_start|>user"; }
-        oss << "\n<tool_response>\n" << content << "\n</tool_response>";
-        if (i == messages.size() - 1 || messages[i + 1].value("role", "") != "tool") { oss << "<|im_end|>\n"; }
-      }
-    }
-
-    if (add_generation_prompt) {
-      oss << "<|im_start|>assistant\n";
-      if (!enable_thinking) { oss << "<think>\n\n</think>\n\n"; }
-    }
-    return oss.str();
-  }
-
  private:
   std::vector<std::vector<prefix_cache::vp_addr_t>> k_cache_addrs_;
   std::vector<std::vector<prefix_cache::vp_addr_t>> v_cache_addrs_;
   std::shared_ptr<Qwen3ProbingForCausalLM> model_;
   std::shared_ptr<Qwen3Tokenizer> tokenizer_;
   std::shared_ptr<prefix_cache::Cache> cache_;
+  std::unique_ptr<preprocessor::ChatPreprocessor> chat_preprocessor_;
   ProbingArgs probing_args_;
 
  public:

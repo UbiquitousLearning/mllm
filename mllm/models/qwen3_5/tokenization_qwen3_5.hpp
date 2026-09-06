@@ -4,15 +4,19 @@
 
 #include <algorithm>
 #include <cwctype>
+#include <filesystem>
 #include <stdexcept>
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
 #include "mllm/preprocessor/StreamingUtf8Decoder.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen3_5/chat_template_qwen3_5.hpp"
+#include "mllm/models/qwen3_5/configuration_qwen3_5.hpp"
 #include "mllm/models/qwen3_5/image_preprocessor_qwen3_5.hpp"
 #include "mllm/models/qwen3_5/multimodal_qwen3_5.hpp"
 #include "mllm/models/qwen3_5/video_preprocessor_qwen3_5.hpp"
@@ -168,26 +172,30 @@ struct Qwen3_5Message {
   Tensor video_frames_thwc = Tensor::nil();
   std::vector<int32_t> video_frame_indices;
   double video_frames_per_second = 0.0;
-  static inline std::string message_template =
-      "<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
 };
 
 class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
+  // The chat-template backend is selected explicitly. The default keeps the
+  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // official template from its model directory and fails here when it cannot.
   explicit Qwen3_5Tokenizer(const std::string& file_path, int32_t image_min_pixels = 256 * 256,
                             int32_t image_max_pixels = 512 * 512, int32_t vision_patch_size = 16,
                             int32_t vision_temporal_patch_size = 2, int32_t vision_spatial_merge_size = 2,
-                            int32_t video_min_pixels = 4 * 32 * 32, int32_t video_max_pixels = 24 * 32 * 32 * 1024)
+                            int32_t video_min_pixels = 4 * 32 * 32, int32_t video_max_pixels = 24 * 32 * 32 * 1024,
+                            preprocessor::ChatPreprocessorConfig chat_template = {})
       : image_preprocessor_(image_min_pixels, image_max_pixels, vision_patch_size, vision_temporal_patch_size,
                             vision_spatial_merge_size),
         video_preprocessor_(video_min_pixels, video_max_pixels, vision_patch_size, vision_temporal_patch_size,
                             vision_spatial_merge_size),
         vision_temporal_patch_size_(vision_temporal_patch_size),
-        vision_spatial_merge_size_(vision_spatial_merge_size) {
+        vision_spatial_merge_size_(vision_spatial_merge_size),
+        chat_preprocessor_(std::move(chat_template), renderLegacyQwen3_5ChatTemplate) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
     bpe_.initFromSentencePieceJson(file_path);
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
     // Qwen3.5 special tokens
     special_tokens_trie_.add(L"<|endoftext|>");
     special_tokens_trie_.add(L"<|im_start|>");
@@ -215,6 +223,30 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"</tool_call>");
     special_tokens_trie_.add(L"<tool_response>");
     special_tokens_trie_.add(L"</tool_response>");
+  }
+
+  // Product constructor: geometry and chat-template backend come from the
+  // model configuration; the template is discovered next to tokenizer.json
+  // unless another model directory is given.
+  Qwen3_5Tokenizer(const std::string& file_path, const Qwen3_5Config& config, std::filesystem::path model_directory = {})
+      : Qwen3_5Tokenizer(file_path, config.image_min_pixels, config.image_max_pixels, config.vision_patch_size,
+                         config.vision_temporal_patch_size, config.vision_spatial_merge_size, 4 * 32 * 32,
+                         24 * 32 * 32 * 1024,
+                         preprocessor::ChatPreprocessorConfig{
+                             .backend = config.chat_template_backend,
+                             .template_options = {.model_directory = model_directory.empty()
+                                                                         ? std::filesystem::path(file_path).parent_path()
+                                                                         : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // The checkpoint's control tokens; see BPE::controlTokens().
+  const std::vector<std::string>& controlTokens() const { return bpe_.controlTokens(); }
+
+  // Renders the prompt text for one runner turn without media expansion.
+  std::string renderChatTemplate(const Qwen3_5Message& message) const {
+    return chat_preprocessor_.render(
+        makeQwen3_5ChatTemplateRequest(message.prompt, message.image_paths.size(), !message.video_frames_thwc.isNil()));
   }
 
   std::vector<std::wstring> _tokenize(const std::string& str) override {
@@ -300,27 +332,26 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     if (!has_video && (!message.video_frame_indices.empty() || message.video_frames_per_second != 0.0)) {
       throw std::invalid_argument("Qwen3.5 video metadata requires video frames");
     }
-    auto applied_string = Qwen3_5Message::message_template;
+    // Stage 1: chat template (legacy or official Jinja) renders the prompt with
+    // one placeholder per media block. Stage 2 expands those placeholders the
+    // way the official processor does, then the tokenizer stage expands per
+    // patch tokens from the image/video geometry.
+    auto applied_string = renderChatTemplate(message);
     if (has_image) {
-      const auto user_content = applied_string.find("user\n");
-      if (user_content == std::string::npos) { throw std::runtime_error("Qwen3.5 message template is malformed"); }
-      std::string image_markers;
-      image_markers.reserve(message.image_paths.size() * 48);
-      for (size_t i = 0; i < message.image_paths.size(); ++i) {
-        image_markers += "<|vision_start|><|image_pad|><|vision_end|>";
+      const auto placeholder_count = countOccurrences(applied_string, kQwen3_5ImagePlaceholder);
+      if (placeholder_count != message.image_paths.size()) {
+        throw std::runtime_error("Qwen3.5 chat template rendered " + std::to_string(placeholder_count)
+                                 + " image placeholders for " + std::to_string(message.image_paths.size()) + " images");
       }
-      applied_string.insert(user_content + 5, image_markers);
     } else if (has_video) {
-      const auto user_content = applied_string.find("user\n");
-      if (user_content == std::string::npos) { throw std::runtime_error("Qwen3.5 message template is malformed"); }
+      const auto placeholder = applied_string.find(kQwen3_5VideoPlaceholder);
+      if (placeholder == std::string::npos || countOccurrences(applied_string, kQwen3_5VideoPlaceholder) != 1) {
+        throw std::runtime_error("Qwen3.5 chat template must render exactly one video placeholder");
+      }
       const auto timestamps = calculateQwen3_5VideoTimestamps(message.video_frame_indices, message.video_frames_per_second,
                                                               vision_temporal_patch_size_);
-      applied_string.insert(user_content + 5, makeQwen3_5VideoMarkers(timestamps));
+      applied_string.replace(placeholder, sizeof(kQwen3_5VideoPlaceholder) - 1, makeQwen3_5VideoMarkers(timestamps));
     }
-    static constexpr char kPromptPlaceholder[] = "{{{prompt}}}";
-    size_t pos = applied_string.find(kPromptPlaceholder);
-    if (pos == std::string::npos) { throw std::runtime_error("Qwen3.5 message template is missing the prompt placeholder"); }
-    applied_string.replace(pos, sizeof(kPromptPlaceholder) - 1, message.prompt);
 
     auto sequence_str = tokenize(applied_string);
     std::vector<int64_t> ids;
@@ -386,6 +417,12 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
   }
 
  private:
+  static size_t countOccurrences(const std::string& text, std::string_view needle) {
+    size_t count = 0;
+    for (auto pos = text.find(needle); pos != std::string::npos; pos = text.find(needle, pos + needle.size())) { ++count; }
+    return count;
+  }
+
   Qwen3_5ImagePreprocessor image_preprocessor_;
   Qwen3_5VideoPreprocessor video_preprocessor_;
   int32_t vision_temporal_patch_size_ = 2;
@@ -393,6 +430,7 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
   preprocessor::BPE bpe_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
+  preprocessor::ChatPreprocessor chat_preprocessor_;
 };
 
 }  // namespace mllm::models::qwen3_5

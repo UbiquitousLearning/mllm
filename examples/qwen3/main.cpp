@@ -35,7 +35,7 @@ MLLM_MAIN({
 
   {
     auto qwen3_cfg = mllm::models::qwen3::Qwen3Config(config_path.get());
-    auto qwen3_tokenizer = mllm::models::qwen3::Qwen3Tokenizer(tokenizer_path.get());
+    auto qwen3_tokenizer = mllm::models::qwen3::Qwen3Tokenizer(tokenizer_path.get(), qwen3_cfg);
     auto qwen3 = mllm::models::qwen3::Qwen3ForCausalLM(qwen3_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);

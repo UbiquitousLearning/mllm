@@ -30,6 +30,12 @@ add_library(
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec xxHash::xxhash flatbuffers)
+if(MLLM_ENABLE_JINJA_CHAT_TEMPLATE)
+  target_link_libraries(MllmRT PRIVATE mllm_jinja_cpp)
+  target_compile_definitions(MllmRT PRIVATE MLLM_ENABLE_JINJA_CHAT_TEMPLATE=1)
+else()
+  target_compile_definitions(MllmRT PRIVATE MLLM_ENABLE_JINJA_CHAT_TEMPLATE=0)
+endif()
 
 # Compiler stack need mlir
 if(MLLM_ENABLE_MLLM_COMPILE_STACK)

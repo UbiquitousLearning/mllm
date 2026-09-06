@@ -5,15 +5,19 @@
 
 #include <algorithm>
 #include <cwctype>
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/minicpm5/chat_template_minicpm5.hpp"
+#include "mllm/models/minicpm5/configuration_minicpm5.hpp"
 #include "mllm/preprocessor/StreamingUtf8Decoder.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
@@ -142,13 +146,18 @@ struct MiniCPM5Message {
 
 class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
  public:
-  explicit MiniCPM5Tokenizer(const std::string& file_path) {
+  // The chat-template backend is selected explicitly. The default keeps the
+  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // official template from its model directory and fails here when it cannot.
+  explicit MiniCPM5Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
+      : chat_preprocessor_(std::move(chat_template), renderLegacyMiniCPM5ChatTemplate) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_to_unicode_);
     for (const auto& [byte, codepoint] : bytes_to_unicode_) { unicode_to_bytes_.insert({codepoint, byte}); }
     if (!bpe_.initFromSentencePieceJson(file_path)) {
       throw std::invalid_argument("MiniCPM5 tokenizer JSON must contain a BPE vocabulary and merge table");
     }
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
 
     std::ifstream tokenizer_stream(file_path);
     if (!tokenizer_stream) { throw std::invalid_argument("Unable to read MiniCPM5 tokenizer JSON: " + file_path); }
@@ -183,13 +192,34 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
     });
   }
 
+  // Product constructor: the chat-template backend comes from the model
+  // configuration; the template is discovered next to tokenizer.json unless
+  // another model directory is given.
+  MiniCPM5Tokenizer(const std::string& file_path, const MiniCPM5Config& config, std::filesystem::path model_directory = {})
+      : MiniCPM5Tokenizer(file_path,
+                          preprocessor::ChatPreprocessorConfig{
+                              .backend = config.chat_template_backend,
+                              .template_options = {.model_directory = model_directory.empty()
+                                                                          ? std::filesystem::path(file_path).parent_path()
+                                                                          : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // The checkpoint's control tokens; see BPE::controlTokens().
+  const std::vector<std::string>& controlTokens() const { return bpe_.controlTokens(); }
+
+  // Migration formatter: the exact pre-Jinja runner prompt. It stays available
+  // as the legacy backend's renderer and as a fixed reference for tests.
   static std::string applyChatTemplate(const MiniCPM5Message& message) {
     if (message.prompt.empty()) { throw std::invalid_argument("MiniCPM5 prompt must not be empty"); }
-    std::string formatted = "<s>";
-    if (!message.system.empty()) { formatted += "<|im_start|>system\n" + message.system + "<|im_end|>\n"; }
-    formatted += "<|im_start|>user\n" + message.prompt + "<|im_end|>\n<|im_start|>assistant\n";
-    formatted += message.enable_thinking ? "<think>\n" : "<think>\n\n</think>\n\n";
-    return formatted;
+    return renderLegacyMiniCPM5ChatTemplate(
+        makeMiniCPM5ChatTemplateRequest(message.prompt, message.system, message.enable_thinking));
+  }
+
+  // Renders the prompt through the configured chat-template backend.
+  std::string renderChatTemplate(const MiniCPM5Message& message) const {
+    if (message.prompt.empty()) { throw std::invalid_argument("MiniCPM5 prompt must not be empty"); }
+    return chat_preprocessor_.render(makeMiniCPM5ChatTemplateRequest(message.prompt, message.system, message.enable_thinking));
   }
 
   std::vector<std::wstring> _tokenize(const std::string& input) override {
@@ -268,7 +298,7 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
   }
 
   ARGenerationOutputPast convertMessage(const MiniCPM5Message& message) {
-    const auto tokens = tokenize(applyChatTemplate(message));
+    const auto tokens = tokenize(renderChatTemplate(message));
     auto sequence = Tensor::empty({1, static_cast<int32_t>(tokens.size())}, kInt64, kCPU)
                         .setMemType(kNormal)
                         .setName("minicpm5-tokenizer-i0")
@@ -283,6 +313,7 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
   preprocessor::BPE bpe_;
   std::unordered_map<std::wint_t, wchar_t> bytes_to_unicode_;
   std::unordered_map<wchar_t, std::wint_t> unicode_to_bytes_;
+  preprocessor::ChatPreprocessor chat_preprocessor_;
   std::vector<std::wstring> added_tokens_;
 };
 

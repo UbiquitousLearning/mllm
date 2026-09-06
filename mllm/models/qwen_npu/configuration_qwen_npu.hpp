@@ -4,6 +4,7 @@
 
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/engine/ConfigFile.hpp"
+#include "mllm/preprocessor/chat_template/ChatTemplate.hpp"
 
 namespace mllm::models::qwen_npu {
 
@@ -30,6 +31,8 @@ struct QwenNPUConfig : protected ConfigFile {
     tie_word_embeddings = data()["tie_word_embeddings"];
     max_cache_length = data()["max_cache_length"];
 
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
+
     linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
 
@@ -53,6 +56,7 @@ struct QwenNPUConfig : protected ConfigFile {
   int32_t end_of_text_token_id = 151645;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
 };
 
 }  // namespace mllm::models::qwen_npu

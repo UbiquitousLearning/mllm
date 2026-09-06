@@ -108,7 +108,10 @@ MLLM_MAIN({
 
     auto parameters = mllm::load(model_path.get(), file_version);
     mllm::models::minicpm5::validateModelConfigMatch(config, parameters);
-    auto tokenizer = mllm::models::minicpm5::MiniCPM5Tokenizer(tokenizer_path.get());
+    // The chat-template backend comes from config.json (chat_template_backend);
+    // a Jinja template is discovered next to tokenizer.json.
+    auto tokenizer = mllm::models::minicpm5::MiniCPM5Tokenizer(tokenizer_path.get(), config);
+    fmt::print("chat template backend: {}\n", mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend()));
     auto model = mllm::models::minicpm5::MiniCPM5ForCausalLM(config);
     model.load(parameters);
 

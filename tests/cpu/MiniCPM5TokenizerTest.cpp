@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -11,6 +12,17 @@
 
 #include "mllm/mllm.hpp"
 #include "mllm/models/minicpm5/tokenization_minicpm5.hpp"
+
+namespace {
+// The runtime context is process-global; tests that allocate tensors share one initialization.
+void ensureContext() {
+  static const bool initialized = [] {
+    mllm::initializeContext();
+    return true;
+  }();
+  (void)initialized;
+}
+}  // namespace
 
 TEST(MiniCPM5TokenizerTest, SplitsDigitsIntoAtMostThreeCharacterChunks) {
   std::vector<std::wstring> pieces;
@@ -28,6 +40,40 @@ TEST(MiniCPM5TokenizerTest, AppliesOfficialNoToolTemplates) {
             "<|im_start|>assistant\n<think>\n");
 }
 
+TEST(MiniCPM5TokenizerTest, RendersThroughTheConfiguredChatTemplateBackend) {
+  const char* tokenizer_path = std::getenv("MLLM_MINICPM5_TOKENIZER_JSON");
+  if (tokenizer_path == nullptr) GTEST_SKIP() << "Set MLLM_MINICPM5_TOKENIZER_JSON for the official-tokenizer oracle";
+  ensureContext();
+
+  // Legacy stays byte-identical to the migration formatter.
+  mllm::models::minicpm5::MiniCPM5Tokenizer legacy(tokenizer_path);
+  EXPECT_EQ(legacy.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::Legacy);
+  const mllm::models::minicpm5::MiniCPM5Message message{.prompt = "Hello", .system = "Be concise.", .enable_thinking = true};
+  EXPECT_EQ(legacy.renderChatTemplate(message), mllm::models::minicpm5::MiniCPM5Tokenizer::applyChatTemplate(message));
+
+  // jinja_required loads the official template next to tokenizer.json and must
+  // reproduce the same runner prompt; without Jinja support it fails closed.
+  const mllm::preprocessor::ChatPreprocessorConfig jinja_config{
+      .backend = mllm::preprocessor::ChatTemplateBackend::JinjaRequired,
+      .template_options = {.model_directory = std::filesystem::path(tokenizer_path).parent_path()}};
+  if (!mllm::preprocessor::jinjaChatTemplatesAvailable()) {
+    EXPECT_THROW(mllm::models::minicpm5::MiniCPM5Tokenizer(tokenizer_path, jinja_config), mllm::preprocessor::ChatTemplateError);
+    return;
+  }
+  if (!std::filesystem::exists(std::filesystem::path(tokenizer_path).parent_path() / "chat_template.jinja")) {
+    GTEST_SKIP() << "tokenizer.json is not inside an official checkpoint directory with chat_template.jinja";
+  }
+  mllm::models::minicpm5::MiniCPM5Tokenizer jinja(tokenizer_path, jinja_config);
+  EXPECT_EQ(jinja.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::JinjaRequired);
+  for (const auto& probe : {mllm::models::minicpm5::MiniCPM5Message{.prompt = "Hello"}, message}) {
+    EXPECT_EQ(jinja.renderChatTemplate(probe), legacy.renderChatTemplate(probe));
+    const auto jinja_ids = jinja.convertMessage(probe).at("sequence");
+    const auto legacy_ids = legacy.convertMessage(probe).at("sequence");
+    EXPECT_EQ(std::vector<int64_t>(jinja_ids.ptr<int64_t>(), jinja_ids.ptr<int64_t>() + jinja_ids.numel()),
+              std::vector<int64_t>(legacy_ids.ptr<int64_t>(), legacy_ids.ptr<int64_t>() + legacy_ids.numel()));
+  }
+}
+
 TEST(MiniCPM5TokenizerTest, StreamsUtf8AcrossTokenBoundaries) {
   mllm::models::minicpm5::MiniCPM5StreamingUtf8Decoder decoder;
   EXPECT_EQ(decoder.append("\xF0\x9F"), "");
@@ -39,7 +85,7 @@ TEST(MiniCPM5TokenizerTest, MatchesPinnedOfficialTokenizerWhenProvided) {
   const char* tokenizer_path = std::getenv("MLLM_MINICPM5_TOKENIZER_JSON");
   if (tokenizer_path == nullptr) GTEST_SKIP() << "Set MLLM_MINICPM5_TOKENIZER_JSON for the official-tokenizer oracle";
 
-  mllm::initializeContext();
+  ensureContext();
   mllm::models::minicpm5::MiniCPM5Tokenizer tokenizer(tokenizer_path);
   const auto input = tokenizer.convertMessage({.prompt = "Hello"});
   const auto sequence = input.at("sequence");

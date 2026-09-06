@@ -71,6 +71,22 @@ registers `Qwen35PortableVideoDecoderSmoke`. This backend-specific smoke checks
 the committed MP4 fixture, exact sampled indices and RGB hash, and Qwen3.5 patch
 geometry. It is separate from the default model correctness tests.
 
+### Chat template backend
+
+`config.json` selects how the runner renders the prompt through
+`chat_template_backend`: `legacy` (default) keeps the byte-stable single-turn
+runner prompt; `jinja_required` renders the checkpoint's own official `chat_template.jinja`,
+discovered next to `tokenizer.json`, with the vendored `jinja.cpp` engine and
+requires a build with `-DMLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON`. A
+`jinja_required` model fails at load time instead of falling back when Jinja
+support or the template is missing. See
+`mllm/preprocessor/chat_template/README.md` for the pipeline and the
+Transformers parity gate.
+Both backends emit one `<|vision_start|><|image_pad|><|vision_end|>` or
+`<|vision_start|><|video_pad|><|vision_end|>` placeholder per media input;
+the runner then expands video placeholders into timestamped frame markers and
+image/video placeholders into per-patch tokens exactly as before.
+
 ## Quantization
 
 The user-facing W4A8 configuration uses dynamic INT8 activations with INT4

@@ -2,11 +2,15 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <filesystem>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
 #include "mllm/models/ARGeneration.hpp"
+#include "mllm/models/qwen3/configuration_qwen3.hpp"
+#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -149,17 +153,20 @@ inline bool qwen3Regex(const std::string& str, std::vector<std::wstring>& splitt
 
 struct Qwen3Message {
   std::string prompt;
-  static inline std::string message_template =
-      "<|im_start|>user\n{{{prompt}}}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
 };
 
 class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
-  explicit Qwen3Tokenizer(const std::string& file_path) {
+  // The chat-template backend is selected explicitly. The default keeps the
+  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // official template from its model directory and fails here when it cannot.
+  explicit Qwen3Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
     bpe_.initFromSentencePieceJson(file_path);
+    chat_preprocessor_.setControlTokens(bpe_.controlTokens());
     special_tokens_trie_.add(L"<|endoftext|>");
     special_tokens_trie_.add(L"<|im_start|>");
     special_tokens_trie_.add(L"<|im_end|>");
@@ -176,6 +183,12 @@ class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"<|video_pad|>");
     special_tokens_trie_.add(L"<think>");
     special_tokens_trie_.add(L"</think>");
+    // Tool markers are added tokens in the official Qwen3 tokenizer; the chat
+    // template emits them as literal text around tool calls and responses.
+    special_tokens_trie_.add(L"<tool_call>");
+    special_tokens_trie_.add(L"</tool_call>");
+    special_tokens_trie_.add(L"<tool_response>");
+    special_tokens_trie_.add(L"</tool_response>");
   }
 
   std::vector<std::wstring> _tokenize(const std::string& str) override {
@@ -233,11 +246,29 @@ class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
+  // Product constructor: the chat-template backend comes from the model
+  // configuration; the template is discovered next to tokenizer.json unless
+  // another model directory is given.
+  Qwen3Tokenizer(const std::string& file_path, const Qwen3Config& config, std::filesystem::path model_directory = {})
+      : Qwen3Tokenizer(file_path,
+                       preprocessor::ChatPreprocessorConfig{
+                           .backend = config.chat_template_backend,
+                           .template_options = {.model_directory = model_directory.empty()
+                                                                       ? std::filesystem::path(file_path).parent_path()
+                                                                       : std::move(model_directory)}}) {}
+
+  preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
+
+  // The checkpoint's control tokens; see BPE::controlTokens().
+  const std::vector<std::string>& controlTokens() const { return bpe_.controlTokens(); }
+
+  // Renders the single-turn runner prompt through the configured backend.
+  std::string renderChatTemplate(const Qwen3Message& message) const {
+    return chat_preprocessor_.render(preprocessor::makeSingleTurnChatTemplateRequest(message.prompt, "", false));
+  }
+
   ARGenerationOutputPast convertMessage(const Qwen3Message& message) {
-    // process prompt
-    auto applied_string = Qwen3Message::message_template;
-    size_t pos = applied_string.find("{{{prompt}}}");
-    applied_string.replace(pos, 12, message.prompt);
+    auto applied_string = renderChatTemplate(message);
 
     // process sequence
     auto sequence_str = tokenize(applied_string);
@@ -262,6 +293,7 @@ class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  private:
   // For text
   preprocessor::BPE bpe_;
+  preprocessor::ChatPreprocessor chat_preprocessor_;
   std::unordered_map<std::wint_t, wchar_t> bytes_2_unicode_dict_;
   std::unordered_map<wchar_t, std::wint_t> bytes_2_unicode_dict_inverse_;
 };

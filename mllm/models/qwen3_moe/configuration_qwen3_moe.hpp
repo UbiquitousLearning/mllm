@@ -4,6 +4,7 @@
 
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/engine/ConfigFile.hpp"
+#include "mllm/preprocessor/chat_template/ChatTemplate.hpp"
 
 namespace mllm::models::qwen3_moe {
 // Configuration for Qwen3 Mixture-of-Experts model
@@ -41,6 +42,8 @@ struct Qwen3MoeConfig : protected ConfigFile {
     mlp_only_layers = data()["mlp_only_layers"].get<std::vector<int>>();
 
     // Linear implementation type
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
+
     linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
 
@@ -71,6 +74,7 @@ struct Qwen3MoeConfig : protected ConfigFile {
   std::vector<int> mlp_only_layers;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
 };
 
 }  // namespace mllm::models::qwen3_moe

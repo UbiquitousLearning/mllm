@@ -6,6 +6,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -33,6 +34,12 @@ class BPE {
 
   std::wstring _lookup_inverse_vocab(int64_t idx);
 
+  // Contents of `added_tokens` entries whose `special` flag is set. These are
+  // the checkpoint's control tokens: turn boundaries, vision markers, and the
+  // like. They may only enter a prompt from a chat template, never from
+  // message content, so ChatPreprocessor rejects them in a request.
+  const std::vector<std::string>& controlTokens() const { return control_tokens_; }
+
  private:
   std::unordered_set<std::pair<std::wstring, std::wstring>, BPEPairHash> _get_pairs(const std::vector<std::wstring>& word);
 
@@ -44,6 +51,7 @@ class BPE {
   // rebuilt from the merge table. Roughly 2% of such entries are unreachable
   // by merges alone, so ignoring the flag silently changes the token ids.
   bool ignore_merges_ = false;
+  std::vector<std::string> control_tokens_;
 };
 
 }  // namespace mllm::preprocessor

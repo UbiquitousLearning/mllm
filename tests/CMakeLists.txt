@@ -6,6 +6,7 @@ add_subdirectory(plugin)
 add_subdirectory(engine)
 add_subdirectory(compile)
 add_subdirectory(async_io)
+add_subdirectory(preprocessor)
 
 # Backends
 add_subdirectory(cpu)
