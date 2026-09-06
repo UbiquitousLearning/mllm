@@ -14,6 +14,7 @@
 #include "mllm/core/aops/InterpolateOp.hpp"
 #include "mllm/core/aops/GroupedQueryAttentionOp.hpp"
 #include "mllm/core/aops/GatedDeltaRuleOp.hpp"
+#include "mllm/core/aops/KimiDeltaAttentionOp.hpp"
 #include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/engine/Context.hpp"
 
@@ -177,6 +178,10 @@ mllm::Tensor radixAttnRelax(const mllm::Tensor& Q, const mllm::Tensor& K_idx, co
 mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v);
 
 mllm::Tensor sigmoid(const Tensor& x);
+
+std::array<Tensor, 2> kimiDeltaAttention(const Tensor& q, const Tensor& k, const Tensor& v, const Tensor& gate_logits,
+                                         const Tensor& beta, const Tensor& a_log, const Tensor& dt_bias, const Tensor& state,
+                                         bool safe_gate = true, float lower_bound = -5.0F, bool state_inplace = false);
 
 mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices);
 

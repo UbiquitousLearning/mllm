@@ -36,3 +36,4 @@
 #include "mllm/nn/layers/LayerNorm2D.hpp"     // IWYU pragma: export
 #include "mllm/nn/layers/CausalDepthwiseConv1D.hpp"  // IWYU pragma: export
 #include "mllm/nn/layers/GatedDeltaRule.hpp"         // IWYU pragma: export
+#include "mllm/nn/layers/KimiDeltaAttention.hpp"     // IWYU pragma: export

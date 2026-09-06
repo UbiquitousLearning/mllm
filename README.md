@@ -108,6 +108,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | [Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B)               | [✔️ w4a8](./examples/qwen3_5/README.md) | | |
 | [MiniCPM5-1B](https://huggingface.co/openbmb/MiniCPM5-1B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
 | [LFM2.5-2.6B](https://huggingface.co/LiquidAI/LFM2.5-2.6B)         | [✔️ w4a8](./examples/lfm2/README.md) | | |
+| [Ling-3.0-tiny](https://huggingface.co/inclusionAI/Ling-3.0-tiny)   | [✔️ W4A32, ARM64 macOS/Android](./examples/ling3/README.md) | | |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  | |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  | |
 | [Qwen2-VL-2B-Instruct](https://qwenlm.github.io/zh/blog/qwen2-vl/)|[✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen2-VL-2B-Instruct-w4a32kai) || |

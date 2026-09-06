@@ -631,6 +631,38 @@ TEST_F(GatedDeltaRuleKernelTest, ProductionGroupedHeadGeometry8LaneIsBitwiseStab
 }
 
 //===----------------------------------------------------------------------===//
+// Kimi delta attention
+//===----------------------------------------------------------------------===//
+#include "KimiDeltaAttentionKernelTest.hpp"
+TEST_F(KimiDeltaAttentionKernelTest, MatchesScalarReferenceAcrossGateVariants) {
+  EXPECT_NO_FATAL_FAILURE(testMatchesScalarReference({
+      // Scalar tails only (D < 4) and exact NEON lane blocks, both gates.
+      {/*batch=*/1, /*sequence=*/1, /*heads=*/1, /*dim=*/3, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/1},
+      {/*batch=*/2, /*sequence=*/5, /*heads=*/3, /*dim=*/8, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/1},
+      {/*batch=*/2, /*sequence=*/5, /*heads=*/3, /*dim=*/8, /*safe_gate=*/false, /*lower_bound=*/0.0F, /*threads=*/1},
+      {/*batch=*/1, /*sequence=*/4, /*heads=*/2, /*dim=*/6, /*safe_gate=*/true, /*lower_bound=*/-2.5F, /*threads=*/1},
+      // Ling-3.0-tiny head geometry with the multi-threaded (batch, head) partition.
+      {/*batch=*/1, /*sequence=*/9, /*heads=*/16, /*dim=*/128, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/8},
+  }));
+}
+
+TEST_F(KimiDeltaAttentionKernelTest, PrefillAndTokenwiseDecodeAreBitwiseEqual) {
+  EXPECT_NO_FATAL_FAILURE(testPrefillAndTokenwiseDecodeAreBitwiseEqual(
+      {/*batch=*/1, /*sequence=*/7, /*heads=*/2, /*dim=*/8, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/1}));
+  EXPECT_NO_FATAL_FAILURE(testPrefillAndTokenwiseDecodeAreBitwiseEqual(
+      {/*batch=*/1, /*sequence=*/49, /*heads=*/16, /*dim=*/128, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/8}));
+}
+
+TEST_F(KimiDeltaAttentionKernelTest, ParallelLanesMatchSerialBitwise) {
+  EXPECT_NO_FATAL_FAILURE(testParallelLanesMatchSerialBitwise(
+      {/*batch=*/2, /*sequence=*/16, /*heads=*/16, /*dim=*/128, /*safe_gate=*/true, /*lower_bound=*/-5.0F, /*threads=*/8}));
+}
+
+TEST_F(KimiDeltaAttentionKernelTest, RejectsNullBuffersAndInvalidGeometry) {
+  EXPECT_NO_FATAL_FAILURE(testRejectsNullBuffersAndInvalidGeometry());
+}
+
+//===----------------------------------------------------------------------===//
 // Parallel linear
 //===----------------------------------------------------------------------===//
 #include "ParallelLinearKernelTest.hpp"

@@ -32,6 +32,7 @@
 #include "mllm/core/aops/LayerNormOp.hpp"
 #include "mllm/core/aops/VisionRoPEOp.hpp"
 #include "mllm/core/aops/QuickGELUOp.hpp"
+#include "mllm/core/aops/KimiDeltaAttentionOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
 #include "mllm/core/aops/ConcatOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
@@ -129,6 +130,8 @@ BaseOp::ptr_t aopsFromJson(const nlohmann::json& json) {
       return __visionRopeFromJson(json);
     } else if (op_type == "QuickGELU") {
       return __quickGeluFromJson(json);
+    } else if (op_type == "KimiDeltaAttention") {
+      return __kimiDeltaAttentionFromJson(json);
     } else if (op_type == "Copy") {
       return __copyFromJson(json);
     } else if (op_type == "Clone") {
@@ -791,6 +794,20 @@ BaseOp::ptr_t __quickGeluFromJson(const nlohmann::json& json) {
   // Use Context to create op
   auto op = Context::instance().getBackend(backend)->createOp(OpTypes::kQuickGELU, options);
   return op;
+}
+
+BaseOp::ptr_t __kimiDeltaAttentionFromJson(const nlohmann::json& json) {
+  aops::KimiDeltaAttentionOpOptions options;
+  if (json.contains("op_options")) {
+    const auto& opts = json["op_options"];
+    if (opts.contains("safe_gate")) options.safe_gate = opts["safe_gate"];
+    if (opts.contains("lower_bound")) options.lower_bound = opts["lower_bound"];
+    if (opts.contains("state_inplace")) options.state_inplace = opts["state_inplace"];
+  }
+
+  DeviceTypes backend = DeviceTypes::kCPU;
+  if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
+  return Context::instance().getBackend(backend)->createOp(OpTypes::kKimiDeltaAttention, options);
 }
 
 BaseOp::ptr_t __copyFromJson(const nlohmann::json& json) {

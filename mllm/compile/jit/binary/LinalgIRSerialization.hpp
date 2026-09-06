@@ -51,6 +51,7 @@ nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op)
 nlohmann::json dumpMultimodalRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpVisionRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpQuickGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
+nlohmann::json dumpKimiDeltaAttentionOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpCopyOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpCloneOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpNegOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);

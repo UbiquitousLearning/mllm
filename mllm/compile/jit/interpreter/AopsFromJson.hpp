@@ -47,6 +47,7 @@ BaseOp::ptr_t __layerNormFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __multimodalRopeFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __visionRopeFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __quickGeluFromJson(const nlohmann::json& json);
+BaseOp::ptr_t __kimiDeltaAttentionFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __copyFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __cloneFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __negFromJson(const nlohmann::json& json);

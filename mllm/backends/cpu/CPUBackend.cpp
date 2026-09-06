@@ -40,6 +40,7 @@
 #include "mllm/backends/cpu/ops/ISTFTOp.hpp"
 #include "mllm/backends/cpu/ops/IndexOp.hpp"
 #include "mllm/backends/cpu/ops/KVCacheOp.hpp"
+#include "mllm/backends/cpu/ops/KimiDeltaAttentionOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNormOp.hpp"
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
@@ -88,7 +89,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
                CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory,
                CPUGatherOpFactory, CPUCausalDepthwiseConv1DOpFactory, CPUGatedDeltaRuleOpFactory,
-               CPUGroupedQueryAttentionOpFactory, CPUParallelLinearOpFactory>();
+               CPUGroupedQueryAttentionOpFactory, CPUParallelLinearOpFactory, CPUKimiDeltaAttentionOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {

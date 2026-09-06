@@ -39,6 +39,7 @@
 #include "mllm/core/aops/STFTOp.hpp"
 #include "mllm/core/aops/Conv1DOp.hpp"
 #include "mllm/core/aops/LayerNormOp.hpp"
+#include "mllm/core/aops/KimiDeltaAttentionOp.hpp"
 #include "mllm/compile/jit/binary/LinalgIRSerialization.hpp"
 
 namespace mllm::jit::binary {
@@ -87,6 +88,7 @@ nlohmann::json dumpLinalgIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
     CASE(MultimodalRoPE)
     CASE(VisionRoPE)
     CASE(QuickGELU)
+    CASE(KimiDeltaAttention)
     CASE(Copy)
     CASE(Clone)
     CASE(Neg)
@@ -345,6 +347,11 @@ nlohmann::json dumpVisionRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op
 }
 
 nlohmann::json dumpQuickGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+
+nlohmann::json dumpKimiDeltaAttentionOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  const auto options = static_cast<aops::KimiDeltaAttentionOp*>(op->getAOp())->options();
+  return {{"safe_gate", options.safe_gate}, {"lower_bound", options.lower_bound}, {"state_inplace", options.state_inplace}};
+}
 
 nlohmann::json dumpCopyOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
 

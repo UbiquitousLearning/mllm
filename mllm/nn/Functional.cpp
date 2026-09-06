@@ -27,6 +27,7 @@
 #include "mllm/core/aops/RadixAttnWithSinkAndSwaDiffDimOp.hpp"
 #include "mllm/core/aops/WhereOp.hpp"
 #include "mllm/core/aops/GatedDeltaRuleOp.hpp"
+#include "mllm/core/aops/KimiDeltaAttentionOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -248,6 +249,16 @@ mllm::Tensor where(const Tensor& mask, const Tensor& original, const Tensor& v) 
 mllm::Tensor sigmoid(const Tensor& x) {
   auto& ctx = mllm::Context::instance();
   return ctx.buildOpAndSubmitTask(OpTypes::kSigmoid, aops::SigmoidOpOptions{}, {x})[0];
+}
+
+std::array<Tensor, 2> kimiDeltaAttention(const Tensor& q, const Tensor& k, const Tensor& v, const Tensor& gate_logits,
+                                         const Tensor& beta, const Tensor& a_log, const Tensor& dt_bias, const Tensor& state,
+                                         bool safe_gate, float lower_bound, bool state_inplace) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kKimiDeltaAttention,
+      aops::KimiDeltaAttentionOpOptions{.safe_gate = safe_gate, .lower_bound = lower_bound, .state_inplace = state_inplace},
+      {q, k, v, gate_logits, beta, a_log, dt_bias, state});
+  return {outputs[0], outputs[1]};
 }
 
 mllm::Tensor gather(const Tensor& x, int dim, const Tensor& indices) {

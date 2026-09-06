@@ -49,6 +49,7 @@ class LayerNormOp;
 class MultimodalRoPEOp;
 class VisionRoPEOp;
 class QuickGELUOp;
+class KimiDeltaAttentionOp;
 class CopyOp;
 class CloneOp;
 class NegOp;
@@ -219,6 +220,7 @@ LINALG_AOPS_DEFINE(MultimodalRoPEOp, MULTIMODALROPEOP);
 LINALG_AOPS_DEFINE(VisionRoPEOp, VISIONROPEOP);
 
 LINALG_AOPS_DEFINE(QuickGELUOp, QUICKGELUOP);
+LINALG_AOPS_DEFINE(KimiDeltaAttentionOp, KIMIDELTAATTENTIONOP);
 
 LINALG_AOPS_DEFINE(CopyOp, COPYOP);
 LINALG_AOPS_DEFINE(CloneOp, CLONEOP);

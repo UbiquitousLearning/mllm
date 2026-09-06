@@ -107,6 +107,7 @@ mllm 框架可以与主流社区框架的模型检查点无缝集成。通过 ml
 | [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |  |
 | Qwen3.5-2B                                                       |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3.5-4B                                                       |  | ✔️ W4A16 / W8A8 |  |
+| [Ling-3.0-tiny](https://huggingface.co/inclusionAI/Ling-3.0-tiny) | [✔️ W4A32，ARM64 macOS/Android](./examples/ling3/README.md) |  |  |
 | Qwen3-VL-2B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3-VL-4B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  |  |

@@ -1,0 +1,47 @@
+{
+  "^model\\.layers\\.\\d+\\.attention\\.(q_proj|k_proj|v_proj|f_proj)\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [2048, 1536], "replace": true}
+  },
+  "^model\\.layers\\.(?:[0-2]|[4-6]|8|9|10|12|13|14|16|17|18|20|21|22)\\.attention\\.g_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [2048, 1536], "replace": true}
+  },
+  "^model\\.layers\\.(?:3|7|11|15|19|23)\\.attention\\.g_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [16, 1536], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.b_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [16, 1536], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.o_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [1536, 2048], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.q_a_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [256, 1536], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.q_b_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [3072, 256], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.kv_a_proj_with_mqa\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [576, 1536], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.kv_b_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [4096, 512], "replace": true}
+  },
+  "^model\\.layers\\.\\d+\\.attention\\.dense\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [1536, 2048], "replace": true}
+  },
+  "^model\\.layers\\.0\\.mlp\\.(gate_proj|up_proj)\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [4608, 1536], "replace": true}
+  },
+  "^model\\.layers\\.0\\.mlp\\.down_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [1536, 4608], "replace": true}
+  },
+  "^model\\.layers\\.(?:[1-9]|1\\d|2[0-3])\\.mlp\\.(?:experts\\.\\d+|shared_experts)\\.(gate_proj|up_proj)\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [512, 1536], "replace": true}
+  },
+  "^model\\.layers\\.(?:[1-9]|1\\d|2[0-3])\\.mlp\\.(?:experts\\.\\d+|shared_experts)\\.down_proj\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [1536, 512], "replace": true}
+  },
+  "^lm_head\\.weight$": {
+    "hints": {"quant_method": "kai", "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p", "kai_matmul_layout": "mxk_nxk", "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32", "shape": [157184, 1536], "replace": true}
+  }
+}

@@ -14,6 +14,7 @@
 #include <arm_neon.h>
 #include "mllm/backends/cpu/kernels/arm/math.hpp"
 #elif defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+#include <immintrin.h>
 #else
 #endif
 
@@ -36,9 +37,8 @@ struct VectorDotProduct {
 template<>
 struct VectorDotProduct<any_arch_tag, kFloat32, kFloat32, kFloat32> {
   __MLLM_UNSAFE_OPT_BEGIN_O3  // Do not open fast math here
-      static MLLM_FORCE_INLINE void
-      run(const mllm_fp32_t* __restrict__ __lhs, const mllm_fp32_t* __restrict__ __rhs, mllm_fp32_t* __restrict__ __out,
-          size_t len) {
+      static MLLM_FORCE_INLINE void run(const mllm_fp32_t* __restrict__ __lhs, const mllm_fp32_t* __restrict__ __rhs,
+                                        mllm_fp32_t* __restrict__ __out, size_t len) {
     mllm_fp32_t sum = 0.0f;
     for (size_t i = 0; i < len; ++i) { sum += __lhs[i] * __rhs[i]; }
     *__out = sum;

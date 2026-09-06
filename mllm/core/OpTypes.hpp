@@ -106,6 +106,7 @@ enum class OpTypes : int32_t {
   kGroupedQueryAttention = 78,
   kParallelLinear = 79,
   kGatedDeltaRule = 80,
+  kKimiDeltaAttention = 81,
 
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
@@ -195,6 +196,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kGroupedQueryAttention: return "GroupedQueryAttention";
     case OpTypes::kParallelLinear: return "ParallelLinear";
     case OpTypes::kGatedDeltaRule: return "GatedDeltaRule";
+    case OpTypes::kKimiDeltaAttention: return "KimiDeltaAttention";
     case OpTypes::kDynamicOp_Start: return "DynamicOp_Start";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";

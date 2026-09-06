@@ -84,6 +84,7 @@ LINALG_AOPS_DECL(OpTypes::kMultimodalRoPE, MultimodalRoPEOp);
 LINALG_AOPS_DECL(OpTypes::kVisionRoPE, VisionRoPEOp);
 
 LINALG_AOPS_DECL(OpTypes::kQuickGELU, QuickGELUOp);
+LINALG_AOPS_DECL(OpTypes::kKimiDeltaAttention, KimiDeltaAttentionOp);
 
 LINALG_AOPS_DECL(OpTypes::kCopy, CopyOp);
 LINALG_AOPS_DECL(OpTypes::kClone, CloneOp);
