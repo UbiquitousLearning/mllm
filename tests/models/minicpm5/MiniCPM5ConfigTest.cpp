@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -10,8 +11,13 @@
 
 namespace {
 
+auto exampleDir() -> std::string {
+  const char* example_dir_override = std::getenv("MLLM_MINICPM5_EXAMPLE_DIR");
+  return example_dir_override == nullptr ? std::string(MINICPM5_EXAMPLE_DIR) : std::string(example_dir_override);
+}
+
 auto loadConfig() -> mllm::models::minicpm5::MiniCPM5Config {
-  return mllm::models::minicpm5::MiniCPM5Config(std::string(MINICPM5_EXAMPLE_DIR) + "/config_1B_w4a32_kai.json");
+  return mllm::models::minicpm5::MiniCPM5Config(exampleDir() + "/config_1B_w4a32_kai.json");
 }
 
 auto parameterFile(mllm::ModelFileVersion version, const std::vector<int32_t>& embedding_shape, bool include_lm_head = true)

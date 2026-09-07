@@ -3,14 +3,24 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <string>
 
 #include "mllm/mllm.hpp"
 #include "mllm/models/minicpm5/modeling_minicpm5.hpp"
 
+namespace {
+
+auto exampleDir() -> std::string {
+  const char* example_dir_override = std::getenv("MLLM_MINICPM5_EXAMPLE_DIR");
+  return example_dir_override == nullptr ? std::string(MINICPM5_EXAMPLE_DIR) : std::string(example_dir_override);
+}
+
+}  // namespace
+
 TEST(MiniCPM5ModelTest, BuildsNativeKVHeadLogicalSlotsAndResetsThem) {
   mllm::initializeContext();
-  const auto config = mllm::models::minicpm5::MiniCPM5Config(std::string(MINICPM5_EXAMPLE_DIR) + "/config_1B_w4a32_kai.json");
+  const auto config = mllm::models::minicpm5::MiniCPM5Config(exampleDir() + "/config_1B_w4a32_kai.json");
   auto model = mllm::models::minicpm5::MiniCPM5ForCausalLM(config);
   auto& cache = model.kvCache();
 
