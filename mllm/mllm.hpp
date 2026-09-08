@@ -330,12 +330,12 @@ inline void print_stack_trace() {
       const char* name = demangled ? demangled : info.dli_sname;
       char line[256];
       int len = snprintf(line, sizeof(line), "#%d %p %s\n", i, buffer[i], name);
-      safe_write(line, len);
+      safe_write(line, std::min(static_cast<size_t>(std::max(len, 0)), sizeof(line) - 1));
       free(demangled);
     } else {
       char line[256];
       int len = snprintf(line, sizeof(line), "#%d %p\n", i, buffer[i]);
-      safe_write(line, len);
+      safe_write(line, std::min(static_cast<size_t>(std::max(len, 0)), sizeof(line) - 1));
     }
   }
 #endif

@@ -9,6 +9,7 @@
 #include "mllm/backends/qnn/aot/visitor/Conv2D.hpp"
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
 #include "mllm/core/aops/Conv2DOp.hpp"
+#include "mllm/compile/ir/linalg/Attribute.hpp"
 
 namespace mllm::qnn::aot {
 
@@ -61,6 +62,11 @@ bool QnnAOTConv2DPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
                         ->outputs()
                         .front()
                         ->cast_<ir::tensor::TensorValue>();
+    if (!bias_val->getAttr("quant_recipe")) {
+      bias_val->setAttr("quant_recipe",
+                        writer.create<ir::linalg::LinalgIRQuantizatonSpecAttr>(
+                            ir::linalg::QuantizationSpecRaw::create(bias_val->tensor_.dtype())));
+    }
     qnn_op_node->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, bias_val, true));
   }
 
