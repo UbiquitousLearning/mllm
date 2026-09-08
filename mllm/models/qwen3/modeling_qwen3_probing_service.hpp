@@ -159,9 +159,7 @@ class ProbeClassifier : public Module {
     auto logits = linear_(x);
 
     float val = 0.0f;
-    if (logits.dtype() == mllm::kFloat32) {
-      val = logits.ptr<float>()[0];
-    } 
+    if (logits.dtype() == mllm::kFloat32) { val = logits.ptr<float>()[0]; }
 
     return 1.0f / (1.0f + std::exp(-val));
   }
@@ -589,6 +587,30 @@ class Qwen3ProbingSession final : public ::mllm::service::Session {
                       const std::function<void(const nlohmann::json&, bool)>& callback) override {
     mllm::cpu::wakeupHpcThreadPool();
     auto messages = request["messages"];
+
+    // Keep probing-chat behavior aligned with main_probing:
+    // if a previous turn ended with hallucination early-exit, drop that
+    // assistant payload and its paired user turn from incoming history.
+    if (messages.is_array()) {
+      nlohmann::json sanitized_messages = nlohmann::json::array();
+      for (const auto& msg : messages) {
+        if (!msg.is_object()) continue;
+
+        const auto role = msg.value("role", "");
+        std::string content;
+        if (msg.contains("content") && msg["content"].is_string()) { content = msg["content"].get<std::string>(); }
+
+        if (role == "assistant" && content.find("early_exit_hallucination") != std::string::npos) {
+          if (!sanitized_messages.empty() && sanitized_messages.back().value("role", "") == "user") {
+            sanitized_messages.erase(sanitized_messages.end() - 1);
+          }
+          continue;
+        }
+
+        sanitized_messages.push_back(msg);
+      }
+      messages = std::move(sanitized_messages);
+    }
 
     // 简短指令
     std::string concise_instruction = " Please answer in a single, complete sentence. Keep it concise.";

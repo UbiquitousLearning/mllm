@@ -50,10 +50,9 @@ func main() {
 			history = history[:len(history)-1]
 			continue
 		}
-		defer resp.Body.Close()
-
 		if resp.StatusCode != http.StatusOK {
 			bodyBytes, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
 			log.Printf("ERROR: Server returned status %s: %s", resp.Status, string(bodyBytes))
 			history = history[:len(history)-1]
 			continue
@@ -83,6 +82,7 @@ func main() {
 		}
 		fmt.Println()
 		if err := scanner.Err(); err != nil { log.Printf("ERROR reading stream: %v", err) }
+		resp.Body.Close()
 		history = append(history, api.RequestMessage{Role: "assistant", Content: fullResponse.String()})
 	}
 }
