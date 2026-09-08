@@ -1,0 +1,62 @@
+{
+  "^model\\.layers\\.\\d+\\.self_attn\\.q_proj\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [2048, 2048],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.self_attn\\.(k_proj|v_proj)\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [256, 2048],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.self_attn\\.o_proj\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [2048, 2048],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.mlp\\.(gate_proj|up_proj)\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [6144, 2048],
+      "replace": true
+    }
+  },
+  "^model\\.layers\\.\\d+\\.mlp\\.down_proj\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [2048, 6144],
+      "replace": true
+    }
+  },
+  "^lm_head\\.(bias|weight)": {
+    "hints": {
+      "quant_method": "kai",
+      "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+      "kai_matmul_layout": "mxk_nxk",
+      "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p8x8_1x8x32",
+      "shape": [130560, 2048],
+      "replace": true
+    }
+  }
+}
