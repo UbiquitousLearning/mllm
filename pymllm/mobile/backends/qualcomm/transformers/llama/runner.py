@@ -13,7 +13,9 @@ from pymllm.mobile.backends.qualcomm.transformers.core.qlinear import (
     QLinearW8A16_PerChannelSym,
 )
 from pymllm.mobile.backends.qualcomm.transformers.core.embedding import QEmbedding
-from pymllm.mobile.backends.qualcomm.transformers.llama.modeling_llama import LlamaForCausalLM
+from pymllm.mobile.backends.qualcomm.transformers.llama.modeling_llama import (
+    LlamaForCausalLM,
+)
 from pymllm.mobile.backends.qualcomm.transformers.core.observer import ConcatObserver
 
 
@@ -194,6 +196,7 @@ def convert_weight(m):
     if isinstance(m, QEmbedding):
         m.convert_to_deploy()
 
+
 def _check_datasets_compatibility():
     try:
         ds_ver = version("datasets")
@@ -209,6 +212,7 @@ def _check_datasets_compatibility():
             "Current Qualcomm calibration depends on a modelscope-compatible "
             "datasets version. Please use datasets==2.21.0."
         )
+
 
 class LlamaQuantizer:
     def __init__(self, model_path: str, mllm_qualcomm_max_length=2048):
@@ -251,6 +255,12 @@ class LlamaQuantizer:
         print("Compile done.")
 
     def infer(self, prompt: str):
+        messages = [{"role": "user", "content": prompt}]
+        prompt = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
         # Llama models typically don't use chat templates, so we tokenize directly
         model_inputs = self.tokenizer([prompt], return_tensors="pt").to(
             self.model.device
@@ -292,6 +302,7 @@ class LlamaQuantizer:
         # Use streaming=True to download and process on the fly, without downloading the full几十G dataset
         _check_datasets_compatibility()
         from modelscope.msdatasets import MsDataset
+
         dataset = MsDataset.load(
             "modelscope/wikitext",
             subset_name="wikitext-103-v1",
@@ -309,11 +320,12 @@ class LlamaQuantizer:
                 if samples_processed >= num_samples:
                     break
 
-                if len(entry["text"].strip()) < 1024:
+                text = entry["text"].strip()
+                if len(text) < 50:
                     continue
 
                 # Llama models typically don't use chat templates
-                text = entry["text"]
+                # text = entry["text"]
                 model_inputs = self.tokenizer(
                     [text],
                     return_tensors="pt",
@@ -322,16 +334,18 @@ class LlamaQuantizer:
                     padding=False,
                 ).to(self.model.device)
 
-                # Only need Prefill stage: directly call forward
-                # This will trigger observer update statistics in ActivationQDQ
-                self.model.generate(
-                    **model_inputs,
-                    max_new_tokens=1,
-                    do_sample=False,
-                    temperature=None,
-                    top_p=None,
-                    top_k=None,
-                )
+                self.model(**model_inputs)
+
+                # # Only need Prefill stage: directly call forward
+                # # This will trigger observer update statistics in ActivationQDQ
+                # self.model.generate(
+                #     **model_inputs,
+                #     max_new_tokens=1,
+                #     do_sample=False,
+                #     temperature=None,
+                #     top_p=None,
+                #     top_k=None,
+                # )
 
                 samples_processed += 1
                 pbar.update(1)
