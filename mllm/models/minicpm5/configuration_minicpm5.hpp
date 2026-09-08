@@ -95,23 +95,29 @@ struct MiniCPM5Config : protected ConfigFile {
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
 };
 
-inline auto matchesOfficialMiniCPM5_1BRuntimeContract(const MiniCPM5Config& config) -> bool {
+inline auto matchesOfficialMiniCPM5RuntimeContract(const MiniCPM5Config& config) -> bool {
   constexpr auto kKaiLinearImpl = aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32;
-  return config.vocab_size == 130560 && config.hidden_size == 1536 && config.intermediate_size == 4608
-         && config.num_hidden_layers == 24 && config.num_attention_heads == 16 && config.num_key_value_heads == 2
-         && config.head_dim == 128 && config.hidden_act == "silu" && config.max_position_embeddings == 131072
-         && config.rms_norm_eps == 1.0e-6F && config.rope_theta == 5000000.0F && !config.attention_bias
-         && !config.tie_word_embeddings && config.bos_token_id == 0 && config.pad_token_id == 1
+  const bool supported_dimensions =
+      (config.hidden_size == 1536 && config.intermediate_size == 4608 && config.num_hidden_layers == 24)
+      || (config.hidden_size == 2048 && config.intermediate_size == 6144 && config.num_hidden_layers == 42);
+  return supported_dimensions && config.vocab_size == 130560 && config.num_attention_heads == 16
+         && config.num_key_value_heads == 2 && config.head_dim == 128 && config.hidden_act == "silu"
+         && config.max_position_embeddings == 131072 && config.rms_norm_eps == 1.0e-6F && config.rope_theta == 5000000.0F
+         && !config.attention_bias && !config.tie_word_embeddings && config.bos_token_id == 0 && config.pad_token_id == 1
          && config.eos_token_ids == std::vector<int64_t>({1, 130073}) && config.max_cache_length == 2048
          && config.linear_impl_type == kKaiLinearImpl;
+}
+
+inline auto matchesOfficialMiniCPM5_1BRuntimeContract(const MiniCPM5Config& config) -> bool {
+  return matchesOfficialMiniCPM5RuntimeContract(config) && config.hidden_size == 1536;
 }
 
 inline void validateModelConfigMatch(const MiniCPM5Config& config, const ParameterFile::ptr_t& parameter_file) {
   constexpr auto kEmbeddingWeight = "model.embed_tokens.weight";
   constexpr auto kLmHeadWeight = "lm_head.weight";
-  if (!matchesOfficialMiniCPM5_1BRuntimeContract(config)) {
+  if (!matchesOfficialMiniCPM5RuntimeContract(config)) {
     throw std::invalid_argument(
-        "MiniCPM5 model/config mismatch: CPU runner supports only the official MiniCPM5-1B runtime contract");
+        "MiniCPM5 model/config mismatch: CPU runner supports only the official MiniCPM5-1B and MiniCPM5-2B runtime contracts");
   }
   if (parameter_file == nullptr || !parameter_file->has(kEmbeddingWeight) || !parameter_file->has(kLmHeadWeight)) {
     throw std::invalid_argument("MiniCPM5 model/config mismatch: checkpoint requires model.embed_tokens.weight and "
@@ -132,7 +138,7 @@ inline void validateModelConfigMatch(const MiniCPM5Config& config, const Paramet
 
   const auto shape = embedding.shape();
   if (shape.size() != 2 || shape[0] != config.vocab_size || shape[1] != config.hidden_size) {
-    throw std::invalid_argument("MiniCPM5 model/config mismatch: embedding shape must be [130560, 1536]");
+    throw std::invalid_argument("MiniCPM5 model/config mismatch: embedding shape must match [vocab_size, hidden_size]");
   }
 }
 

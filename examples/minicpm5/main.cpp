@@ -216,7 +216,7 @@ MLLM_MAIN({
       }
       if (exit_code == 0) { fmt::print("Benchmark records: {}\n", benchmark_jsonl.get()); }
     } else {
-      fmt::print("\n{:*^60}\n", prompt.isSet() ? " MiniCPM5-1B One-shot CLI " : " MiniCPM5-1B Interactive CLI ");
+      fmt::print("\n{:*^60}\n", prompt.isSet() ? " MiniCPM5 One-shot CLI " : " MiniCPM5 Interactive CLI ");
       if (!prompt.isSet()) fmt::print("Enter 'exit' or 'quit' to end the session\n\n");
 
       while (true) {

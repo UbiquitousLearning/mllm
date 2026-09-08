@@ -18,8 +18,12 @@ auto exampleDir() -> std::string {
 
 }  // namespace
 
-TEST(MiniCPM5ModelTest, BuildsNativeKVHeadLogicalSlotsAndResetsThem) {
-  mllm::initializeContext();
+class MiniCPM5ModelTest : public ::testing::Test {
+ protected:
+  static void SetUpTestSuite() { mllm::initializeContext(); }
+};
+
+TEST_F(MiniCPM5ModelTest, BuildsNativeKVHeadLogicalSlotsAndResetsThem) {
   const auto config = mllm::models::minicpm5::MiniCPM5Config(exampleDir() + "/config_1B_w4a32_kai.json");
   auto model = mllm::models::minicpm5::MiniCPM5ForCausalLM(config);
   auto& cache = model.kvCache();
@@ -37,4 +41,18 @@ TEST(MiniCPM5ModelTest, BuildsNativeKVHeadLogicalSlotsAndResetsThem) {
   EXPECT_EQ(cache.getCurrentSeqCnt(6), 0);
   model.resetState();
   EXPECT_EQ(cache.getCurrentSeqCnt(7), 0);
+}
+
+TEST_F(MiniCPM5ModelTest, TwoBillionParameterModelResetsLastLogicalSlot) {
+  const auto config = mllm::models::minicpm5::MiniCPM5Config(exampleDir() + "/config_2B_w4a32_kai.json");
+  auto model = mllm::models::minicpm5::MiniCPM5ForCausalLM(config);
+  auto& cache = model.kvCache();
+  EXPECT_EQ(cache.getLayerNums(), 42);
+  EXPECT_EQ(cache.getKCacheBuffer(41).shape(), (mllm::Tensor::shape_t{1, 2, 2048, 128}));
+  auto key = mllm::Tensor::zeros({1, 2, 1, 128}, mllm::kFloat32, mllm::kCPU);
+  cache.updateKVCache(41, key, key);
+  EXPECT_EQ(cache.getCurrentSeqCnt(41), 1);
+  EXPECT_EQ(cache.getCurrentSeqCnt(0), 0);
+  model.resetState();
+  EXPECT_EQ(cache.getCurrentSeqCnt(41), 0);
 }
