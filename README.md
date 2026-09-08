@@ -17,6 +17,7 @@ mllm
 
 ## Latest News
 
+- [2026 Sep 08] MLLM now supports **[MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)**! Run it locally on your phone with ARM CPU inference. [Get started](./examples/minicpm5/README.md).
 - [2026 Jun 08] 🔥🔥🔥`pymllm` now covers Qwen3, Qwen3-VL, and Qwen3.5 on Jetson Orin with W4A16 / W8A8 serving; Qwen3-VL-2B W8A8 reaches up to 3.12x prefill speedup on AGX Orin 32GB, while decode throughput stays broadly close to llama.cpp.
 - [2026 May 02] 🔥🔥🔥 MLLM now supports the Ascend NPU backend, with ATB graph execution and Qwen3 W8A8 inference on Ascend devices.
 - [2026 Apr 30] 🔥🔥🔥`pymllm` adds Jetson-oriented Qwen3 / Qwen3-VL BF16, W4A16, and W8A8 serving support, including compressed-tensors AWQ and W8A8 INT8 paths.
@@ -107,6 +108,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | [Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B)           | [✔️ w4a8](./examples/qwen3_5/README.md) | | |
 | [Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B)               | [✔️ w4a8](./examples/qwen3_5/README.md) | | |
 | [MiniCPM5-1B](https://huggingface.co/openbmb/MiniCPM5-1B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
+| [MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
 | [LFM2.5-2.6B](https://huggingface.co/LiquidAI/LFM2.5-2.6B)         | [✔️ w4a8](./examples/lfm2/README.md) | | |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  | |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  | |
