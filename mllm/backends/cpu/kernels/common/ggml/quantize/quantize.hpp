@@ -30,6 +30,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <type_traits>
 
 #include "mllm/core/DataTypes.hpp"
 
@@ -105,8 +106,29 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 
 #else
 namespace mllm::cpu {
-#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
-#define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
+// Extract a raw 16-bit fp16 bit pattern without numeric conversion. Integral inputs
+// are already bit patterns; non-integral fp16-like values are copied byte-for-byte.
+template<typename T>
+inline static uint16_t mllm_fp16_bits(const T& f) {
+  if constexpr (std::is_integral_v<std::decay_t<T>>) {
+    return static_cast<uint16_t>(f);
+  } else {
+    static_assert(sizeof(T) == sizeof(uint16_t), "fp16 type must be 16 bits");
+    uint16_t s;
+    memcpy(&s, &f, sizeof(s));
+    return s;
+  }
+}
+
+// Construct an mllm_fp16_t value from a raw 16-bit fp16 bit pattern.
+inline static mllm_fp16_t mllm_fp16_from_bits(uint16_t bits) {
+  mllm_fp16_t f;
+  memcpy(&f, &bits, sizeof(bits));
+  return f;
+}
+
+#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(mllm_fp16_bits(x))
+#define MLLM_COMPUTE_FP32_TO_FP16(x) mllm_fp16_from_bits(_cvtss_sh(x, 0))
 
 static float table_f32_f16[1 << 16];
 static bool table_f32_f16_init = false;
@@ -127,7 +149,7 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 }
 
 #ifndef MLLM_FP16_TO_FP32
-#define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
+#define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(mllm_fp16_bits(x))
 #endif
 #ifndef MLLM_FP32_TO_FP16
 #define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
