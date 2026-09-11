@@ -28,6 +28,9 @@ void GroupedQueryAttentionOp::forward(const std::vector<Tensor>& inputs, std::ve
 }
 
 void GroupedQueryAttentionOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (options_.sliding_window < 0
+      || (options_.sliding_window != 0 && options_.implementation != GroupedQueryAttentionImplementation::kDirectStrided))
+    throw std::invalid_argument("Sliding window requires DirectStrided and a nonnegative window");
   if (inputs.size() != 3) { throw std::invalid_argument("GroupedQueryAttention expects query, key, and value"); }
   const auto& query = inputs[0];
   const auto& key = inputs[1];

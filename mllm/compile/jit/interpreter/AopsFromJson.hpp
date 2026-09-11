@@ -42,6 +42,7 @@ BaseOp::ptr_t __gatedDeltaRuleFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __repeatFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __permuteFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __conv2dFromJson(const nlohmann::json& json);
+BaseOp::ptr_t __sigmoidFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __geluFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __layerNormFromJson(const nlohmann::json& json);
 BaseOp::ptr_t __multimodalRopeFromJson(const nlohmann::json& json);

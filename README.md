@@ -13,6 +13,8 @@ mllm
 
 [📚 Documentation](https://ubiquitouslearning.github.io/mllm/) • [🚀 Quick Start](#quick-starts) • [💡 Examples](./examples/) • [🛠️ Installation](#installation)
 
+[简体中文](./README-ZH.md)
+
 </div>
 
 ## Latest News
@@ -109,6 +111,7 @@ The mllm framework integrates seamlessly with popular community frameworks' chec
 | [Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B)               | [✔️ w4a8](./examples/qwen3_5/README.md) | | |
 | [MiniCPM5-1B](https://huggingface.co/openbmb/MiniCPM5-1B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
 | [MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
+| [Spark-X2.5-1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B) | [✔️ FP32 / KAI W4A32](./examples/spark2_5/README.md) | | |
 | [LFM2.5-2.6B](https://huggingface.co/LiquidAI/LFM2.5-2.6B)         | [✔️ w4a8](./examples/lfm2/README.md) | | |
 | [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)       | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/DeepSeek-OCR-w4a8-i8mm-kai)  |  | |
 | [SmolLM3](https://huggingface.co/blog/smollm3)| [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/SmolLM3-3B-w4a8-i8mm-kai)  |  | |

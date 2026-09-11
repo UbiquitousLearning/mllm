@@ -8,7 +8,10 @@
 
 namespace mllm::aops {
 
-struct SigmoidOpOptions : public BaseOpOptions<SigmoidOpOptions> {};
+struct SigmoidOpOptions : public BaseOpOptions<SigmoidOpOptions> {
+  // Preserve the existing backend approximation unless accurate logistic is requested.
+  bool approximate = true;
+};
 
 class SigmoidOp : public BaseOp {
  public:

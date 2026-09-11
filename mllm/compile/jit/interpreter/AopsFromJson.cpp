@@ -29,6 +29,7 @@
 #include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/GELUOp.hpp"
+#include "mllm/core/aops/SigmoidOp.hpp"
 #include "mllm/core/aops/LayerNormOp.hpp"
 #include "mllm/core/aops/VisionRoPEOp.hpp"
 #include "mllm/core/aops/QuickGELUOp.hpp"
@@ -121,6 +122,8 @@ BaseOp::ptr_t aopsFromJson(const nlohmann::json& json) {
       return __repeatFromJson(json);
     } else if (op_type == "Permute") {
       return __permuteFromJson(json);
+    } else if (op_type == "Sigmoid") {
+      return __sigmoidFromJson(json);
     } else if (op_type == "GELU") {
       return __geluFromJson(json);
     } else if (op_type == "LayerNorm") {
@@ -648,6 +651,7 @@ BaseOp::ptr_t __causalDepthwiseConv1DFromJson(const nlohmann::json& json) {
 
 BaseOp::ptr_t __groupedQueryAttentionFromJson(const nlohmann::json& json) {
   aops::GroupedQueryAttentionOpOptions options;
+  if (json.contains("op_options")) options.sliding_window = json["op_options"].value("sliding_window", 0);
   if (json.contains("op_options") && json["op_options"].contains("implementation")) {
     options.implementation =
         aops::str2GroupedQueryAttentionImplementation(json["op_options"]["implementation"].get<std::string>());
@@ -727,12 +731,25 @@ BaseOp::ptr_t __permuteFromJson(const nlohmann::json& json) {
 
 BaseOp::ptr_t __geluFromJson(const nlohmann::json& json) {
   aops::GELUOpOptions options;
+  if (json.contains("op_options")) options.approximate = json["op_options"].value("approximate", true);
 
   DeviceTypes backend = DeviceTypes::kCPU;
   if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
 
   // Use Context to create op
   auto op = Context::instance().getBackend(backend)->createOp(OpTypes::kGELU, options);
+  return op;
+}
+
+BaseOp::ptr_t __sigmoidFromJson(const nlohmann::json& json) {
+  aops::SigmoidOpOptions options;
+  if (json.contains("op_options")) options.approximate = json["op_options"].value("approximate", true);
+
+  DeviceTypes backend = DeviceTypes::kCPU;
+  if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
+
+  // Use Context to create op
+  auto op = Context::instance().getBackend(backend)->createOp(OpTypes::kSigmoid, options);
   return op;
 }
 

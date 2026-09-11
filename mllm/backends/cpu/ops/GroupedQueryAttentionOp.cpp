@@ -16,7 +16,8 @@ namespace mllm::cpu {
 namespace {
 
 template<typename Scalar>
-void groupedQueryAttentionDirectStrided(const Tensor& query, const Tensor& key, const Tensor& value, Tensor& output) {
+void groupedQueryAttentionDirectStrided(const Tensor& query, const Tensor& key, const Tensor& value, Tensor& output,
+                                        int32_t sliding_window) {
   const auto q_shape = query.shape();
   const auto k_shape = key.shape();
   const auto v_shape = value.shape();
@@ -70,11 +71,12 @@ void groupedQueryAttentionDirectStrided(const Tensor& query, const Tensor& key, 
     std::vector<float> scores(static_cast<size_t>(k_shape[2]));
     for (int32_t query_index = 0; query_index < q_shape[2]; ++query_index) {
       const int32_t visible_keys = context_offset + query_index + 1;
+      const int32_t first_key = sliding_window > 0 ? std::max(0, visible_keys - sliding_window) : 0;
       const size_t query_row_index = query_row_base + query_index;
       const Scalar* query_row = query_row_data[query_row_index];
       Scalar* output_row = output_row_data[query_row_index];
       float maximum = std::numeric_limits<float>::lowest();
-      for (int32_t key_index = 0; key_index < visible_keys; ++key_index) {
+      for (int32_t key_index = first_key; key_index < visible_keys; ++key_index) {
         float dot = 0.0F;
         const Scalar* key_row = key_row_data[key_row_base + key_index];
         // Keep the contiguous dot expression separate: folding it into the
@@ -98,14 +100,14 @@ void groupedQueryAttentionDirectStrided(const Tensor& query, const Tensor& key, 
       }
 
       float denominator = 0.0F;
-      for (int32_t key_index = 0; key_index < visible_keys; ++key_index) {
+      for (int32_t key_index = first_key; key_index < visible_keys; ++key_index) {
         scores[key_index] = std::exp(scores[key_index] - maximum);
         denominator += scores[key_index];
       }
       const float inverse_denominator = 1.0F / denominator;
       for (int32_t value_dim = 0; value_dim < v_shape[3]; ++value_dim) {
         float accumulated = 0.0F;
-        for (int32_t key_index = 0; key_index < visible_keys; ++key_index) {
+        for (int32_t key_index = first_key; key_index < visible_keys; ++key_index) {
           accumulated +=
               (scores[key_index] * static_cast<float>(value_row_data[value_row_base + key_index][value_dim * v_stride[3]]))
               * inverse_denominator;
@@ -119,8 +121,7 @@ void groupedQueryAttentionDirectStrided(const Tensor& query, const Tensor& key, 
 
 // Scalar fallback for the decode variant, used when the vectorized decode
 // kernel declines the given geometry.
-void groupedQueryAttentionDecodeFloat32Reference(const Tensor& query, const Tensor& key, const Tensor& value,
-                                                 Tensor& output) {
+void groupedQueryAttentionDecodeFloat32Reference(const Tensor& query, const Tensor& key, const Tensor& value, Tensor& output) {
   const auto q_shape = query.shape();
   const auto k_shape = key.shape();
   const auto v_shape = value.shape();
@@ -212,9 +213,10 @@ void CPUGroupedQueryAttentionOp::forward(const std::vector<Tensor>& inputs, std:
   switch (options_.implementation) {
     case aops::GroupedQueryAttentionImplementation::kDirectStrided:
       if (inputs[0].dtype() == kFloat32) {
-        groupedQueryAttentionDirectStrided<float>(inputs[0], inputs[1], inputs[2], outputs[0]);
+        groupedQueryAttentionDirectStrided<float>(inputs[0], inputs[1], inputs[2], outputs[0], options_.sliding_window);
       } else {
-        groupedQueryAttentionDirectStrided<half_float::half>(inputs[0], inputs[1], inputs[2], outputs[0]);
+        groupedQueryAttentionDirectStrided<half_float::half>(inputs[0], inputs[1], inputs[2], outputs[0],
+                                                             options_.sliding_window);
       }
       return;
     case aops::GroupedQueryAttentionImplementation::kDecodeNativeKV:

@@ -1,0 +1,6 @@
+add_executable(Mllm-Test-Spark25 SparkTest.cpp)
+target_link_libraries(Mllm-Test-Spark25 PRIVATE gtest_main MllmRT MllmCPUBackend)
+target_include_directories(Mllm-Test-Spark25 PRIVATE ${MLLM_INCLUDE_DIR})
+target_compile_definitions(Mllm-Test-Spark25 PRIVATE SPARK_EXAMPLE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../../examples/spark2_5")
+add_test(NAME Spark25Focused COMMAND Mllm-Test-Spark25)
+set_tests_properties(Spark25Focused PROPERTIES LABELS spark25)
