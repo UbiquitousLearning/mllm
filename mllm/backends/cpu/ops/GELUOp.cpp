@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 #include <cstring>
+#include <cmath>
+#include <stdexcept>
 #include "mllm/backends/cpu/ops/GELUOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 
@@ -16,6 +18,13 @@ void CPUGELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   // Only Support Contiguous Tensor
   MLLM_RT_ASSERT(X.isContiguous());
 
+  if (!options_.approximate) {
+    if (X.dtype() != kFloat32) throw std::invalid_argument("Exact CPU GELU requires float32");
+    const auto* x = X.ptr<float>();
+    auto* y = Y.ptr<float>();
+    for (size_t i = 0; i < X.numel(); ++i) y[i] = 0.5F * x[i] * (1.0F + std::erf(x[i] * 0.7071067811865475F));
+    return;
+  }
   switch (X.dtype()) {
     case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)

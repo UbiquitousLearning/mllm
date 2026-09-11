@@ -17,6 +17,7 @@
 #include "mllm/compile/jit/interpreter/AopsFromJson.hpp"
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/nn/Functional.hpp"
+#include "mllm/nn/layers/GroupedQueryAttention.hpp"
 #include "mllm/nn/llm_components/GroupedQueryAttention.hpp"
 
 namespace {
@@ -39,13 +40,18 @@ class GroupedQueryAttentionDecodeTraceModule final : public mllm::nn::Module {
 
 class GroupedQueryAttentionTraceModule final : public mllm::nn::Module {
  public:
-  GroupedQueryAttentionTraceModule() : Module("gqa_trace") {}
+  GroupedQueryAttentionTraceModule(mllm::aops::GroupedQueryAttentionImplementation implementation =
+                                       mllm::aops::GroupedQueryAttentionImplementation::kDirectStrided,
+                                   int window = 512)
+      : Module("gqa_trace") {
+    op = reg<mllm::nn::GroupedQueryAttention>("attn", implementation, window);
+  }
+  mllm::nn::GroupedQueryAttention op;
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<mllm::AnyValue>& args) override {
-    return {mllm::nn::functional::groupedQueryAttention(inputs[0], inputs[1], inputs[2])};
+    return {op(inputs[0], inputs[1], inputs[2])};
   }
 };
-
 
 mllm::ir::linalg::GroupedQueryAttentionOp::ptr_t findGroupedQueryAttentionOp(const mllm::ir::node_ptr_t& node) {
   if (node->isa_<mllm::ir::linalg::GroupedQueryAttentionOp>()) {
@@ -68,7 +74,7 @@ Tensor sequential(const Tensor::shape_t& shape, float scale) {
   return tensor;
 }
 
-Tensor gqaReference(const Tensor& query, const Tensor& key, const Tensor& value) {
+Tensor gqaReference(const Tensor& query, const Tensor& key, const Tensor& value, int32_t window = 0) {
   const auto q_shape = query.shape();
   const auto k_shape = key.shape();
   const auto v_shape = value.shape();
@@ -82,9 +88,9 @@ Tensor gqaReference(const Tensor& query, const Tensor& key, const Tensor& value)
       const int32_t kv_head = query_head / groups;
       for (int32_t query_index = 0; query_index < q_shape[2]; ++query_index) {
         const int32_t allowed_keys = context_offset + query_index + 1;
-        std::vector<float> probabilities(static_cast<size_t>(allowed_keys));
+        std::vector<float> probabilities(static_cast<size_t>(allowed_keys), -std::numeric_limits<float>::infinity());
         float maximum = -std::numeric_limits<float>::infinity();
-        for (int32_t key_index = 0; key_index < allowed_keys; ++key_index) {
+        for (int32_t key_index = (window ? std::max(0, allowed_keys - window) : 0); key_index < allowed_keys; ++key_index) {
           float score = 0.0F;
           for (int32_t dim = 0; dim < q_shape[3]; ++dim) {
             score += *query.cptrAt<float>({batch, query_head, query_index, dim})
@@ -100,7 +106,7 @@ Tensor gqaReference(const Tensor& query, const Tensor& key, const Tensor& value)
         }
         for (int32_t value_dim = 0; value_dim < v_shape[3]; ++value_dim) {
           float result = 0.0F;
-          for (int32_t key_index = 0; key_index < allowed_keys; ++key_index) {
+          for (int32_t key_index = (window ? std::max(0, allowed_keys - window) : 0); key_index < allowed_keys; ++key_index) {
             result += probabilities[static_cast<size_t>(key_index)] / denominator
                       * *value.cptrAt<float>({batch, kv_head, key_index, value_dim});
           }
@@ -231,7 +237,7 @@ TEST_F(GroupedQueryAttentionTest, DirectStridedMatchesLegacyReductionAtLfm25Geom
   }
 }
 
-TEST_F(GroupedQueryAttentionTest, DirectStridedOpTraceAndSerializationRoundTrip) {
+TEST_F(GroupedQueryAttentionTest, SlidingOpTraceAndSerializationRoundTrip) {
   GroupedQueryAttentionTraceModule module;
   auto ir_ctx = mllm::ir::trace(module, Tensor::empty({1, 4, 2, 5}, mllm::kFloat32, mllm::kCPU),
                                 Tensor::empty({1, 2, 4, 5}, mllm::kFloat32, mllm::kCPU),
@@ -242,6 +248,7 @@ TEST_F(GroupedQueryAttentionTest, DirectStridedOpTraceAndSerializationRoundTrip)
 
   const auto options = mllm::jit::binary::dumpLinalgIROptions(ir_op);
   EXPECT_EQ(options.at("implementation"), "DirectStrided");
+  EXPECT_EQ(options.at("sliding_window"), 512);
   const auto restored = mllm::jit::interpreter::aopsFromJson(
       nlohmann::json{{"op_type", "GroupedQueryAttention"}, {"backend", "CPU"}, {"op_options", options}});
   ASSERT_NE(restored, nullptr);
@@ -361,3 +368,35 @@ TEST_F(GroupedQueryAttentionTest, SupportsTransposedNonContiguousHeadViews) {
   expectNear(actual, expected);
 }
 }  // namespace
+
+TEST_F(GroupedQueryAttentionTest, SlidingWindowBoundaryAndChunks) {
+  for (int n : {511, 512, 513, 1025}) {
+    auto q = sequential({1, 4, n, 8}, 0.023F), k = sequential({1, 2, n, 8}, 0.031F), v = sequential({1, 2, n, 8}, 0.017F);
+    GroupedQueryAttentionTraceModule module;
+    auto& op = module.op;
+    auto actual = op(q, k, v);
+    auto expected = gqaReference(q, k, v, 512);
+    for (size_t i = 0; i < actual.numel(); ++i) EXPECT_NEAR(actual.ptr<float>()[i], expected.ptr<float>()[i], 2e-5F);
+    int pos = 0;
+    while (pos < n) {
+      int end = std::min(n, pos + 137), begin = std::max(0, pos - 511);
+      auto part = op(q[{mllm::kAll, mllm::kAll, {pos, end}, mllm::kAll}], k[{mllm::kAll, mllm::kAll, {begin, end}, mllm::kAll}],
+                     v[{mllm::kAll, mllm::kAll, {begin, end}, mllm::kAll}]);
+      for (int h = 0; h < 4; ++h)
+        for (int t = pos; t < end; ++t)
+          for (int d = 0; d < 8; ++d)
+            EXPECT_NEAR(part.ptr<float>()[(h * (end - pos) + t - pos) * 8 + d], actual.ptr<float>()[(h * n + t) * 8 + d],
+                        2e-5F);
+      pos = end;
+    }
+  }
+}
+TEST_F(GroupedQueryAttentionTest, InvalidWindow) {
+  auto q = sequential({1, 2, 1, 8}, 0.1F);
+  GroupedQueryAttentionTraceModule bad_module(mllm::aops::GroupedQueryAttentionImplementation::kDirectStrided, -1);
+  auto& bad = bad_module.op;
+  EXPECT_THROW(bad(q, q, q), std::invalid_argument);
+  GroupedQueryAttentionTraceModule decode_module(mllm::aops::GroupedQueryAttentionImplementation::kDecodeNativeKV, 512);
+  auto& decode = decode_module.op;
+  EXPECT_THROW(decode(q, q, q), std::invalid_argument);
+}

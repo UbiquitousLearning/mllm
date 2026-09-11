@@ -13,6 +13,8 @@ mllm
 
 [📚 文档](https://ubiquitouslearning.github.io/mllm/) • [🚀 快速开始](#quick-starts) • [💡 示例](./examples/) • [🛠️ 安装](#installation)
 
+[English](./README.md)
+
 </div>
 
 ## 最新动态
@@ -108,6 +110,7 @@ mllm 框架可以与主流社区框架的模型检查点无缝集成。通过 ml
 | [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |  |
 | [MiniCPM5-1B](https://huggingface.co/openbmb/MiniCPM5-1B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
 | [MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
+| [Spark-X2.5-1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B) | [✔️ FP32 / KAI W4A32](./examples/spark2_5/README.md) | | |
 | Qwen3.5-2B                                                       |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3.5-4B                                                       |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3-VL-2B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |

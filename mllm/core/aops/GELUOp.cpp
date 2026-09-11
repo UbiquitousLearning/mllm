@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/aops/GELUOp.hpp"
+#include <stdexcept>
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
@@ -25,7 +26,10 @@ void GELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
 }
 
 void GELUOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (inputs.size() != 1) throw std::invalid_argument("GELU expects one input");
   const auto& i = inputs[0];
+  if (!options_.approximate && (i.dtype() != kFloat32 || i.device() != kCPU || !i.isContiguous()))
+    throw std::invalid_argument("Exact GELU requires contiguous float32 CPU input");
   outputs.emplace_back(Tensor::empty(i.shape(), i.dtype(), i.device()));
 }
 

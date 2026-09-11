@@ -1,0 +1,77 @@
+{
+  "architectures": [
+    "Spark2_5ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "auto_map": {
+    "AutoConfig": "configuration_spark.Spark2_5Config",
+    "AutoModel": "modeling_spark.Spark2_5Model",
+    "AutoModelForCausalLM": "modeling_spark.Spark2_5ForCausalLM"
+  },
+  "bos_token_id": 0,
+  "dtype": "bfloat16",
+  "eos_token_id": 1,
+  "gate_attn_act_mode": "sigmoid",
+  "head_dim": 256,
+  "headwise_attn_output_gate": true,
+  "hidden_act": "gelu",
+  "hidden_size": 2048,
+  "initializer_range": 0.0221,
+  "intermediate_size": 6656,
+  "layer_types": [
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "sliding_attention",
+    "full_attention"
+  ],
+  "max_position_embeddings": 1048576,
+  "mlp_bias": false,
+  "model_type": "spark2_5",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 28,
+  "num_key_value_heads": 2,
+  "pad_token_id": 2,
+  "rms_norm_eps": 1e-06,
+  "rope_parameters": {
+    "full_attention": {
+      "partial_rotary_factor": 0.25,
+      "rope_theta": 5000000
+    },
+    "sliding_attention": {
+      "partial_rotary_factor": 1.0,
+      "rope_theta": 10000
+    }
+  },
+  "sliding_window": 512,
+  "tie_word_embeddings": true,
+  "transformers_version": "4.57.1",
+  "use_cache": true,
+  "vocab_size": 131072,
+  "max_cache_length": 4096,
+  "linear_impl_type": "Default"
+}

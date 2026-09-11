@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include <cstring>
+#include <cmath>
 #include "mllm/backends/cpu/ops/SigmoidOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 
@@ -13,6 +14,10 @@ void CPUSigmoidOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   const auto& X = inputs[0];
   auto& Y = outputs[0];
 
+  if (!options_.approximate) {
+    for (size_t i = 0; i < X.numel(); ++i) Y.ptr<float>()[i] = 1.0F / (1.0F + std::exp(-X.ptr<float>()[i]));
+    return;
+  }
   switch (X.dtype()) {
     case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)

@@ -8,7 +8,10 @@
 
 namespace mllm::aops {
 
-struct GELUOpOptions : public BaseOpOptions<GELUOpOptions> {};
+// Preserve the historical tanh approximation unless exact erf is requested.
+struct GELUOpOptions : public BaseOpOptions<GELUOpOptions> {
+  bool approximate = true;
+};
 
 class GELUOp : public BaseOp {
  public:
