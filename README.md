@@ -437,9 +437,17 @@ For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE
   booktitle={International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
   year={2025}
 }
+@inproceedings{xu2023niagara,
+  title={Niagara: Scheduling dnn inference services on heterogeneous edge processors},
+  author={Xu, Daliang and Li, Qing and Xu, Mengwei and Huang, Kang and Huang, Gang and Wang, Shangguang and Jin, Xin and Ma, Yun and Liu, Xuanzhe},
+  booktitle={International Conference on Service-Oriented Computing},
+  pages={67--85},
+  year={2023},
+  organization={Springer}
+}
 @misc{yi2023mllm,
   title = {mllm: fast and lightweight multimodal LLM inference engine for mobile and edge devices},
-  author = {Rongjie Yi and Xiang Li and Zhenyan Lu and Hao Zhang and Daliang Xu and Liming Yang and Weikai Xie and Chenghua Wang and Xuanzhe Liu and Mengwei Xu},
+  author = {Rongjie Yi and Xiang Li and Zhenyan Lu and Hao Zhang and Daliang Xu and Liming Yang and Weikai Xie and Chenghua Wang and Yun Ma and Xuanzhe Liu and Mengwei Xu},
   year = {2023},
   publisher = {mllm Team},
   url = {https://github.com/UbiquitousLearning/mllm}
