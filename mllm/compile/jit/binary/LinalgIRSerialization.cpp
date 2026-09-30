@@ -13,6 +13,8 @@
 #include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/CausalDepthwiseConv1DOp.hpp"
 #include "mllm/core/aops/GroupedQueryAttentionOp.hpp"
+#include "mllm/core/aops/GELUOp.hpp"
+#include "mllm/core/aops/SigmoidOp.hpp"
 #include "mllm/core/aops/ParallelLinearOp.hpp"
 #include "mllm/core/aops/GatedDeltaRuleOp.hpp"
 #include "mllm/core/aops/KVCacheOp.hpp"
@@ -83,6 +85,7 @@ nlohmann::json dumpLinalgIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
     CASE(Conv2D)
     CASE(Conv3D)
     CASE(GELU)
+    CASE(Sigmoid)
     CASE(LayerNorm)
     CASE(MultimodalRoPE)
     CASE(VisionRoPE)
@@ -164,7 +167,8 @@ nlohmann::json dumpGatedDeltaRuleOpIROptions(const ir::linalg::LinalgIROp::ptr_t
 
 nlohmann::json dumpGroupedQueryAttentionOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   const auto options = static_cast<aops::GroupedQueryAttentionOp*>(op->getAOp())->options();
-  return {{"implementation", aops::groupedQueryAttentionImplementation2Str(options.implementation)}};
+  return {{"implementation", aops::groupedQueryAttentionImplementation2Str(options.implementation)},
+          {"sliding_window", options.sliding_window}};
 }
 
 nlohmann::json dumpParallelLinearOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
@@ -254,7 +258,6 @@ nlohmann::json dumpFlashAttention2OpIROptions(const ir::linalg::LinalgIROp::ptr_
           {"D", options.D}, {"hp_exp", options.hp_exp}, {"causal_mask", options.causal_mask}};
 }
 
-
 nlohmann::json dumpRepeatOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::RepeatOp*)op->getAOp())->options();
   return {{"dim", options.dim}, {"repeat_times", options.repeat_times}};
@@ -295,7 +298,13 @@ nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   return j;
 }
 
-nlohmann::json dumpGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) { return {}; }
+nlohmann::json dumpGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  return {{"approximate", static_cast<aops::GELUOp*>(op->getAOp())->options().approximate}};
+}
+
+nlohmann::json dumpSigmoidOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  return {{"approximate", static_cast<aops::SigmoidOp*>(op->getAOp())->options().approximate}};
+}
 
 nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::LayerNormOp*)op->getAOp())->options();

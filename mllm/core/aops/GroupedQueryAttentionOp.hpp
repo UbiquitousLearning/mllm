@@ -40,6 +40,9 @@ inline GroupedQueryAttentionImplementation str2GroupedQueryAttentionImplementati
 
 struct GroupedQueryAttentionOpOptions : public BaseOpOptions<GroupedQueryAttentionOpOptions> {
   GroupedQueryAttentionImplementation implementation = GroupedQueryAttentionImplementation::kDirectStrided;
+  // Zero: full causal history. Positive: at most this many keys, including self.
+  // Queries align with the last Sq positions of the chronological KV inputs.
+  int32_t sliding_window = 0;
 };
 
 class GroupedQueryAttentionOp : public BaseOp {

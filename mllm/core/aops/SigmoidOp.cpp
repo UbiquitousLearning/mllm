@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/aops/SigmoidOp.hpp"
+#include <stdexcept>
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
@@ -25,6 +26,10 @@ void SigmoidOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 }
 
 void SigmoidOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  if (inputs.size() != 1) throw std::invalid_argument("Sigmoid expects one input");
+  const auto& x = inputs[0];
+  if (!options_.approximate && (x.dtype() != kFloat32 || x.device() != kCPU || !x.isContiguous()))
+    throw std::invalid_argument("Accurate Sigmoid requires contiguous float32 CPU input");
   if (options_.isInplace()) {
     outputs.emplace_back(inputs[0]);
   } else {

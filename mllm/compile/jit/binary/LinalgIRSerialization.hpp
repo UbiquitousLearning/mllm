@@ -46,6 +46,7 @@ nlohmann::json dumpPermuteOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpConv1DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpConv2DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpConv3DOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
+nlohmann::json dumpSigmoidOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpGELUOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpLayerNormOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);
 nlohmann::json dumpMultimodalRoPEOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op);

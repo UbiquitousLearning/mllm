@@ -30,3 +30,5 @@ if(MLLM_QUALCOMM_QNN_AOT_ON_X86_ENABLE OR MLLM_BUILD_QNN_BACKEND)
   add_subdirectory(qwen2_qnn_aot)
   add_subdirectory(llama_qnn_aot)
 endif()
+
+add_subdirectory(spark2_5)
