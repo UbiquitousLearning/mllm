@@ -534,14 +534,12 @@ class MambaRadixCache(BasePrefixCache):
         value: torch.Tensor,
         mamba_value: Optional[torch.Tensor] = None,
     ) -> MambaTreeNode:
-        # Parent may lose leaf status
-        if (
-            len(parent.children) == 0
-            and parent != self.root_node
-            and parent.full_lock_ref == 0
-            and not parent.evicted
-        ):
-            self._full_evictable -= len(parent.key)
+        # Note: we intentionally do NOT subtract parent's tokens from
+        # _full_evictable when a leaf gains its first child.  Internal
+        # nodes are still reclaimable via cascade eviction (evict children
+        # first, then the childless parent cascades).  Subtracting here
+        # would break the invariant that evictable + protected == total
+        # tree tokens.  See RadixCache._add_leaf for full rationale.
 
         new_node = MambaTreeNode()
         new_node.parent = parent
