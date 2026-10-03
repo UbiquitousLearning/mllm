@@ -20,6 +20,7 @@ target_include_directories(xxhash INTERFACE
 )
 
 add_library(xxhash_impl OBJECT ${_src})
+set_target_properties(xxhash_impl PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(xxhash_impl PUBLIC include)
 if(XXH_ENABLE_DISPATCH)
   target_compile_definitions(xxhash_impl PUBLIC XXH_DISPATCH_ENABLE=1)
