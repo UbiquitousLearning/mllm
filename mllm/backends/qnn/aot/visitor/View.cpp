@@ -35,6 +35,22 @@ bool QnnAOTViewPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) {
   // Output
   auto output = op->outputs().front()->cast_<ir::tensor::TensorValue>();
 
+  // mllm ViewOp can be a metadata-only no-op and reuse the same TensorValue name
+  // for input/output. QNN Reshape cannot write back to the exact same graph
+  // tensor, so keep true no-op views as aliases. Shape-changing views should be
+  // traced with enable_ssa=true by model code so that QNN receives a distinct
+  // output tensor with the new shape.
+  if (input->name() == output->name()) {
+    if (input->tensor_.shape() == output->tensor_.shape()) {
+      env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, input);
+      return true;
+    }
+    MLLM_ERROR("QNN AOT ViewOp {} changes shape from [{}] to [{}] but input/output share tensor name {}. "
+               "Use Tensor::view(..., true) for this path.",
+               view_op->getAOp()->getName(), input->tensor_.shape(), output->tensor_.shape(), input->name());
+    return false;
+  }
+
   // Create Shape Tensor
   auto output_shape = output->tensor_.shape();
   std::vector<int32_t> shape_data;

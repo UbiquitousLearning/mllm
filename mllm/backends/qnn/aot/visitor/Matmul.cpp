@@ -4,6 +4,7 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/backends/qnn/aot/QnnWrappersAPI.hpp"
 #include "mllm/backends/qnn/aot/visitor/Matmul.hpp"
 #include "mllm/backends/qnn/aot/passes/AOTCompileContext.hpp"
@@ -20,6 +21,11 @@ bool QnnAOTMatMulPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
   auto matmul_op = op->cast_<mllm::ir::linalg::MatMulOp>();
   if (!matmul_op) {
     MLLM_ERROR("Failed to cast to linalg::MatMulOp");
+    return false;
+  }
+  auto aop = dynamic_cast<mllm::aops::MatMulOp*>(matmul_op->getAOp());
+  if (!aop) {
+    MLLM_ERROR("Failed to cast AOp to aops::MatMulOp");
     return false;
   }
 
@@ -43,6 +49,10 @@ bool QnnAOTMatMulPattern::rewrite(ir::IRWriter& writer, const ir::op_ptr_t& op) 
       ->emplaceInput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, input1))
       ->emplaceOutput(env->captureQnnAOTNodeTensor(qnn_context_name, qnn_graph_name, output))
       ->setName(matmul_op->getAOp()->getName());
+
+  const auto& options = aop->options();
+  qnn_op_node->emplaceParamScalar(QNNParamScalarWrapper::create("transpose_in0", options.transpose_a));
+  qnn_op_node->emplaceParamScalar(QNNParamScalarWrapper::create("transpose_in1", options.transpose_b));
 
   // Register this op node into one graph.
   env->captureAOTNodeOp(qnn_context_name, qnn_graph_name, qnn_op_node);

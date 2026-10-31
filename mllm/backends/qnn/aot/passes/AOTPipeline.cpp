@@ -37,4 +37,22 @@ std::vector<std::shared_ptr<ir::Pass>> createQnnAOTLoweringPipeline(QnnAOTEnv* e
 
   return ret;
 }
+
+std::vector<std::shared_ptr<ir::Pass>> createQnnAOTSimpleLoweringPipeline(QnnAOTEnv* env, const std::string& config_path,
+                                                                          const ParameterFile::ptr_t& pf,
+                                                                          const std::string& qnn_graph_name) {
+  std::vector<ir::Pass::ptr_t> ret;
+
+  AOTCompileContext::getInstance().setEnv(env);
+  AOTCompileContext::getInstance().setConfig(config_path);
+  AOTCompileContext::getInstance().setParamFile(pf);
+
+  ret.emplace_back(createMarkQnnGraphPass());
+  ret.emplace_back(createOpNamingPass());
+  ret.emplace_back(createLLMQuantRecipePass());
+  ret.emplace_back(createPTQPass());
+  ret.emplace_back(createLLM2QnnLoweringPass(qnn_graph_name));
+
+  return ret;
+}
 }  // namespace mllm::qnn::aot

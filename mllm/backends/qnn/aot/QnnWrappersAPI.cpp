@@ -23,9 +23,18 @@
 
 namespace mllm::qnn::aot {
 
+namespace {
+
+std::string qnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v) {
+  if (v && v->hasSymbolAttr()) { return v->getSymbolAttr()->str(); }
+  return v ? v->name() : "";
+}
+
+}  // namespace
+
 QnnAOTNodeTensor::QnnAOTNodeTensor(const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
   auto type = parseQnnTensorTypeFromIR(v);
-  auto name = v->name();
+  auto name = parseQnnTensorNameFromIR(v);
   auto quant = parseQnnQuantizeParamFromIR(v);
 
   if (force_static_weight || type == QNN_TENSOR_TYPE_STATIC) {
@@ -103,7 +112,9 @@ Qnn_DataType_t QnnAOTNodeTensor::parseQnnDataTypeFromIR(const ir::tensor::Tensor
   return mllm::qnn::mllmDataTypeToQnnDataType(v->tensor_.dtype());
 }
 
-std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v) { return v->name(); }
+std::string QnnAOTNodeTensor::parseQnnTensorNameFromIR(const ir::tensor::TensorValue::ptr_t& v) {
+  return qnnTensorNameFromIR(v);
+}
 
 Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::tensor::TensorValue::ptr_t& v) {
   Qnn_QuantizeParams_t ret = QNN_QUANTIZE_PARAMS_INIT;
@@ -139,10 +150,30 @@ Qnn_QuantizeParams_t QnnAOTNodeTensor::parseQnnQuantizeParamFromIR(const ir::ten
         MLLM_ERROR_EXIT(ExitCode::kCoreError, "SymPerTensor quant recipe has no scale. tensor: {}", v->name());
       }
 
-      MLLM_RT_ASSERT_EQ(cfg->quant_to_type, kUInt8);
+      int32_t offset = 0;
+      switch (cfg->quant_to_type) {
+        case kUInt8: {
+          offset = -128;
+          break;
+        }
+        case kUInt16: {
+          offset = -32768;
+          break;
+        }
+        case kInt8:
+        case kInt16: {
+          offset = 0;
+          break;
+        }
+        default: {
+          MLLM_ERROR_EXIT(ExitCode::kCoreError, "Unsupported SymPerTensor quant target type {} for tensor: {}",
+                          nameOfType(cfg->quant_to_type), v->name());
+        }
+      }
 
-      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = -128};
-      MLLM_INFO("Configuring SymPerTensor quantization for tensor: {}, scale: {}", v->name(), cfg->scale.item<float>());
+      ret.scaleOffsetEncoding = Qnn_ScaleOffset_t{.scale = cfg->scale.item<float>(), .offset = offset};
+      MLLM_INFO("Configuring SymPerTensor quantization for tensor: {}, scale: {}, offset: {}", v->name(),
+                cfg->scale.item<float>(), offset);
       break;
     }
     default: {
@@ -335,8 +366,13 @@ void QnnAOTGraph::addOperation(const QnnAOTNodeOperation::ptr_t& qnn_op) {
   for (auto& in : qnn_op->inputs) qnn_model_->addTensorWrapper(in->getWrapper());
   for (auto& out : qnn_op->outputs) qnn_model_->addTensorWrapper(out->getWrapper());
 
-  qnn_model_->addNode(QNN_OPCONFIG_VERSION_1, qnn_op->name_, qnn_op->package_name_, qnn_op->op_name_, qnn_op->param_tensor,
-                      qnn_op->param_scalar, inputNames, outputNames);
+  auto add_node_status =
+      qnn_model_->addNode(QNN_OPCONFIG_VERSION_1, qnn_op->name_, qnn_op->package_name_, qnn_op->op_name_,
+                          qnn_op->param_tensor, qnn_op->param_scalar, inputNames, outputNames);
+  if (add_node_status != mllm::qnn::MODEL_NO_ERROR) {
+    MLLM_ERROR_EXIT(ExitCode::kCoreError, "QNN AOT failed to add node {} (op type {}) to graph.", qnn_op->name_,
+                    qnn_op->op_name_);
+  }
 
   op_node_.insert({qnn_op->getName(), qnn_op});
 }
@@ -686,7 +722,7 @@ void QnnAOTEnv::captureAOTNodeOp(const std::string& qnn_context_name, const std:
 
 QnnAOTNodeTensor::ptr_t QnnAOTEnv::captureQnnAOTNodeTensor(const std::string& qnn_context_name, const std::string& graph_name,
                                                            const ir::tensor::TensorValue::ptr_t& v, bool force_static_weight) {
-  auto __qnn_tensor_name = v->name();
+  auto __qnn_tensor_name = qnnTensorNameFromIR(v);
 
   bool __qnn_enable_static_weight = force_static_weight;
 

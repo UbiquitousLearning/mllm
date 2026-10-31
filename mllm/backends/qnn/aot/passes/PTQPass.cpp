@@ -33,31 +33,38 @@ void checkTypeLimits(Tensor in, int quant_min, int quant_max) {  // NOLINT
 void solveLinearWeight(const ir::IRContext::ptr_t& ctx, const ParameterFile::ptr_t& pf,
                        const ir::linalg::LinalgIROp::ptr_t& op) {
   auto mllm_op = op->getAOp();
-  MLLM_INFO("PTQPass working on Op: {}'s weight", mllm_op->getName());
-  auto weight_spec =
-      op->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonAnnotationAttr>()->annotation_.weights.at("weight");
+  MLLM_INFO("PTQPass working on Op: {}'s linear weights", mllm_op->getName());
+  auto annotation =
+      op->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonAnnotationAttr>()->annotation_;
 
-  if (weight_spec->solved) return;
+  for (const auto& [name, weight_spec] : annotation.weights) {
+    if (weight_spec->solved) continue;
 
-  switch (weight_spec->type) {
-    case ir::linalg::QuantizationSpecType::kLPBQ: {
-      auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(weight_spec);
-      auto scale1 = pf->pull(mllm_op->getName() + ".scale1");  // using uint8 to store uint4
-      auto scale2 = pf->pull(mllm_op->getName() + ".scale2");
-      auto weight = pf->pull(mllm_op->getName() + ".weight");
+    switch (weight_spec->type) {
+      case ir::linalg::QuantizationSpecType::kRaw: {
+        weight_spec->solved = true;
+        break;
+      }
+      case ir::linalg::QuantizationSpecType::kLPBQ: {
+        if (name != "weight") { NYI("LPBQ quant recipe only supports Linear weight, got '{}'.", name); }
+        auto this_spec = std::static_pointer_cast<ir::linalg::QuantizationSpecLPBQ>(weight_spec);
+        auto scale1 = pf->pull(mllm_op->getName() + ".scale1");  // using uint8 to store uint4
+        auto scale2 = pf->pull(mllm_op->getName() + ".scale2");
+        auto weight = pf->pull(mllm_op->getName() + ".weight");
 
-      // FIXME weight maybe error, Check qnn eats int8 or uint8. Here weight using int8 to store int4.
-      checkTypeLimits<int8_t>(weight, 0, 15);   // Int4
-      checkTypeLimits<uint8_t>(scale1, 0, 16);  // UInt4
+        // FIXME weight maybe error, Check qnn eats int8 or uint8. Here weight using int8 to store int4.
+        checkTypeLimits<int8_t>(weight, 0, 15);   // Int4
+        checkTypeLimits<uint8_t>(scale1, 0, 16);  // UInt4
 
-      this_spec->scale_level_0_int = scale1;
-      this_spec->scale_level_1_fp = scale2;
+        this_spec->scale_level_0_int = scale1;
+        this_spec->scale_level_1_fp = scale2;
 
-      weight_spec->solved = true;
-      break;
-    }
-    default: {
-      NYI("quant recipe type not support");
+        weight_spec->solved = true;
+        break;
+      }
+      default: {
+        NYI("quant recipe type not support");
+      }
     }
   }
 }
@@ -94,6 +101,28 @@ void solveRMSNormWeight(const ir::IRContext::ptr_t& ctx, const ParameterFile::pt
     }
     default: {
       NYI("quant recipe type not support");
+    }
+  }
+}
+
+void solveLayerNormWeights(const ir::IRContext::ptr_t& ctx, const ParameterFile::ptr_t& pf,
+                           const ir::linalg::LinalgIROp::ptr_t& op) {
+  auto mllm_op = op->getAOp();
+  MLLM_INFO("PTQPass working on Op: {}'s layernorm weights", mllm_op->getName());
+  auto annotation =
+      op->getAttr("quant_recipe")->cast_<ir::linalg::LinalgIRQuantizatonAnnotationAttr>()->annotation_;
+
+  for (const auto& [name, weight_spec] : annotation.weights) {
+    if (weight_spec->solved) continue;
+
+    switch (weight_spec->type) {
+      case ir::linalg::QuantizationSpecType::kRaw: {
+        weight_spec->solved = true;
+        break;
+      }
+      default: {
+        NYI("LayerNorm weight '{}' only supports raw quant recipe for now.", name);
+      }
     }
   }
 }
@@ -144,6 +173,9 @@ void recursiveSolveWeights(const std::shared_ptr<ir::IRContext>& ir_ctx, const i
       solveLinearWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>());
     }
     if (op->isa_<ir::linalg::RMSNormOp>()) { solveRMSNormWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>()); }
+    if (op->isa_<ir::linalg::LayerNormOp>()) {
+      solveLayerNormWeights(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>());
+    }
     if (op->isa_<ir::linalg::EmbeddingOp>()) { solveEmbeddingWeight(w.getContext(), pf, op->cast_<ir::linalg::LinalgIROp>()); }
     if (op->isa_<ir::graph::CallGraphOp>()) {
       auto ns = op->cast_<ir::graph::CallGraphOp>()->getSymbolAttr()->str();

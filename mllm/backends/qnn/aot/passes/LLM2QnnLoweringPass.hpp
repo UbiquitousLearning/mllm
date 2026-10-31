@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <string>
 #include <unordered_map>
 
 #include "mllm/core/OpTypes.hpp"
@@ -15,11 +16,13 @@ namespace mllm::qnn::aot {
 
 class LLM2QnnLoweringPass final : public ir::Pass {
  public:
-  LLM2QnnLoweringPass();
+  explicit LLM2QnnLoweringPass(std::string simple_qnn_graph_name = "");
 
   ~LLM2QnnLoweringPass() override = default;
 
   uint8_t run(const ir::node_ptr_t& op) override;
+
+  uint8_t runSimpleGraph(const ir::node_ptr_t& op, const std::string& root_graph_name, const std::string& qnn_graph_name);
 
  private:
   template<typename... Patterns>
@@ -29,8 +32,9 @@ class LLM2QnnLoweringPass final : public ir::Pass {
 
   std::unordered_map<OpTypes, std::shared_ptr<QnnAOTBasePattern>> named_pattern_;
   std::unordered_map<std::string, ir::graph::SubGraphOp::ptr_t> subgraph_map_;
+  std::string simple_qnn_graph_name_;
 };
 
-ir::Pass::ptr_t createLLM2QnnLoweringPass();
+ir::Pass::ptr_t createLLM2QnnLoweringPass(std::string simple_qnn_graph_name = "");
 
 }  // namespace mllm::qnn::aot
