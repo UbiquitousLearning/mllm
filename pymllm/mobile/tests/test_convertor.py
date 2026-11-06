@@ -1,6 +1,7 @@
 # Copyright (c) MLLM Team.
 # Licensed under the MIT License.
 
+import json
 import struct
 
 import pytest
@@ -62,3 +63,49 @@ def test_model_file_v2_preserves_parameter_offsets_above_uint32():
 
     assert len(packed) == ModelFileV2ParamsDescriptor.SIZE
     assert unpacked_offset == parameter_offset
+
+
+def _write_indexed_model(model_dir, shard_name):
+    from safetensors.torch import save_file
+
+    model_dir.mkdir(parents=True)
+    save_file({"probe.weight": torch.full((1,), 23.0)}, model_dir / "shard.safetensors")
+    (model_dir / "model.safetensors.index.json").write_text(
+        json.dumps({"weight_map": {"probe.weight": shard_name}})
+    )
+
+
+def test_load_model_reads_indexed_shard_inside_model_dir(tmp_path):
+    _write_indexed_model(tmp_path / "model", "shard.safetensors")
+
+    state_dict = load_model(tmp_path / "model")
+
+    assert state_dict["probe.weight"].item() == 23.0
+
+
+@pytest.mark.parametrize("escape", ["relative", "absolute"])
+def test_load_model_rejects_index_shard_outside_model_dir(tmp_path, escape):
+    from safetensors.torch import save_file
+
+    outside = tmp_path / "outside.safetensors"
+    save_file({"probe.weight": torch.full((1,), 183.0)}, outside)
+    shard_name = "../outside.safetensors" if escape == "relative" else str(outside)
+    _write_indexed_model(tmp_path / "model", shard_name)
+
+    with pytest.raises(ValueError, match="outside the model directory"):
+        load_model(tmp_path / "model")
+
+
+def test_load_model_follows_symlinked_shard_inside_model_dir(tmp_path):
+    # Hugging Face cache snapshots store shards as symlinks into ../../blobs.
+    from safetensors.torch import save_file
+
+    blob = tmp_path / "blobs" / "abc123"
+    blob.parent.mkdir()
+    save_file({"probe.weight": torch.full((1,), 42.0)}, blob)
+    _write_indexed_model(tmp_path / "snapshot", "linked.safetensors")
+    (tmp_path / "snapshot" / "linked.safetensors").symlink_to(blob)
+
+    state_dict = load_model(tmp_path / "snapshot")
+
+    assert state_dict["probe.weight"].item() == 42.0
