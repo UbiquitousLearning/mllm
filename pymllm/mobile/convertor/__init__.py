@@ -18,6 +18,33 @@ if MLLM_FIND_SAFETENSORS_AVAILABLE:
     from safetensors import safe_open
 
 
+def _resolve_shard_path(index_dir: str, shard_file: str) -> str:
+    """Resolve a shard name from a safetensors index inside its directory.
+
+    Shard names come from the index file, so an absolute path or a ``..``
+    segment must not let them point outside the directory that holds the
+    index. The check is lexical on purpose: shards that are symlinks (as in a
+    Hugging Face cache snapshot) keep working.
+
+    Raises:
+        ValueError: If the shard name escapes ``index_dir``.
+    """
+    if not isinstance(shard_file, str) or not shard_file:
+        raise ValueError(f"Invalid shard file name in index: {shard_file!r}")
+    normalized = os.path.normpath(shard_file)
+    if (
+        os.path.isabs(shard_file)
+        or os.path.splitdrive(shard_file)[0]
+        or normalized == os.pardir
+        or normalized.startswith(os.pardir + os.sep)
+    ):
+        raise ValueError(
+            f"Shard file {shard_file!r} in index points outside the model "
+            f"directory {index_dir!r}"
+        )
+    return os.path.join(index_dir, normalized)
+
+
 def load_model(file_path: str, include_prefixes: Sequence[str] = ()) -> Dict:
     """
     Load a model from file. Supports safetensors and torch formats.
@@ -99,7 +126,7 @@ def load_model(file_path: str, include_prefixes: Sequence[str] = ()) -> Dict:
 
             # Load tensors from each shard
             for shard_file, tensor_names in shard_tensors.items():
-                shard_path = os.path.join(index_dir, shard_file)
+                shard_path = _resolve_shard_path(index_dir, shard_file)
                 with safe_open(shard_path, framework="pt", device="cpu") as f:
                     for tensor_name in tensor_names:
                         state_dict[tensor_name] = f.get_tensor(tensor_name)
