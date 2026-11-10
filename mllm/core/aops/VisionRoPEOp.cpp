@@ -9,7 +9,7 @@
 
 namespace mllm::aops {
 
-VisionRoPEOp::VisionRoPEOp(const VisionRoPEOpOptions& options) : BaseOp(OpTypes::kSiLU), options_(options) {}
+VisionRoPEOp::VisionRoPEOp(const VisionRoPEOpOptions& options) : BaseOp(OpTypes::kVisionRoPE), options_(options) {}
 
 void VisionRoPEOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
