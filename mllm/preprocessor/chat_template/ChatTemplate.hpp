@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -63,6 +64,13 @@ struct ChatPreprocessorConfig {
   // and is only appropriate for a caller that has already sanitized its input.
   std::vector<std::string> control_tokens;
 };
+
+// Unless overridden, discover the checkpoint template alongside its tokenizer.
+inline ChatPreprocessorConfig tokenizerChatConfig(ChatTemplateBackend backend, const std::string& tokenizer_file,
+                                                 std::filesystem::path model_directory = {}) {
+  if (model_directory.empty()) { model_directory = std::filesystem::path(tokenizer_file).parent_path(); }
+  return {.backend = backend, .template_options = {.model_directory = std::move(model_directory)}};
+}
 
 class ChatTemplateError : public std::runtime_error {
  public:

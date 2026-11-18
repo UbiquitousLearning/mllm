@@ -25,31 +25,32 @@ inline ChatTemplateRequest makeSingleTurnChatTemplateRequest(const std::string& 
   return request;
 }
 
-// Migration renderer for the pre-Jinja ChatML runner prompts. It accepts only
-// the shape produced by makeSingleTurnChatTemplateRequest and keeps those bytes
-// stable; every other shape fails closed so a missing official template is
-// never approximated. The empty-thinking block follows the official Qwen3
-// semantics: emitted only when enable_thinking is defined and false.
-inline std::string renderLegacyChatMlSingleTurn(const ChatTemplateRequest& request) {
+// Only the message bytes are shared: the caller owns BOS and the assistant prefix.
+inline void appendLegacyChatMlMessages(std::string& output, const ChatTemplateRequest& request, const char* model) {
+  auto error = [model](const char* reason) { return ChatTemplateError(std::string("legacy ") + model + " chat template " + reason); };
   if (request.tools.has_value()) {
-    throw ChatTemplateError("legacy ChatML chat template does not support tools; select the jinja_required backend");
+    throw error("does not support tools; select the jinja_required backend");
   }
   const auto& messages = request.messages;
   std::size_t index = 0;
-  std::string output;
   if (index < messages.size() && messages[index].value("role", "") == "system") {
     const auto& content = messages[index].at("content");
-    if (!content.is_string()) { throw ChatTemplateError("legacy ChatML chat template requires string system content"); }
+    if (!content.is_string()) { throw error("requires string system content"); }
     output += "<|im_start|>system\n" + content.get<std::string>() + "<|im_end|>\n";
     ++index;
   }
   if (index + 1 != messages.size() || messages[index].value("role", "") != "user") {
-    throw ChatTemplateError("legacy ChatML chat template supports an optional system message followed by exactly one "
-                            "user message; select the jinja_required backend for multi-turn requests");
+    throw error("supports an optional system message followed by exactly one user message; "
+                "select the jinja_required backend for multi-turn requests");
   }
   const auto& content = messages[index].at("content");
-  if (!content.is_string()) { throw ChatTemplateError("legacy ChatML chat template requires string user content"); }
+  if (!content.is_string()) { throw error("requires string user content"); }
   output += "<|im_start|>user\n" + content.get<std::string>() + "<|im_end|>\n";
+}
+
+inline std::string renderLegacyChatMlSingleTurn(const ChatTemplateRequest& request) {
+  std::string output;
+  appendLegacyChatMlMessages(output, request, "ChatML");
   if (request.add_generation_prompt) {
     output += "<|im_start|>assistant\n";
     const auto thinking = request.extra_context.find("enable_thinking");

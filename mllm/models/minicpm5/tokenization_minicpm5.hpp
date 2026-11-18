@@ -197,11 +197,7 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
   // another model directory is given.
   MiniCPM5Tokenizer(const std::string& file_path, const MiniCPM5Config& config, std::filesystem::path model_directory = {})
       : MiniCPM5Tokenizer(file_path,
-                          preprocessor::ChatPreprocessorConfig{
-                              .backend = config.chat_template_backend,
-                              .template_options = {.model_directory = model_directory.empty()
-                                                                          ? std::filesystem::path(file_path).parent_path()
-                                                                          : std::move(model_directory)}}) {}
+                          preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

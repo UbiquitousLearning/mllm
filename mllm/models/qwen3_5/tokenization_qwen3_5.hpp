@@ -232,11 +232,7 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
       : Qwen3_5Tokenizer(file_path, config.image_min_pixels, config.image_max_pixels, config.vision_patch_size,
                          config.vision_temporal_patch_size, config.vision_spatial_merge_size, 4 * 32 * 32,
                          24 * 32 * 32 * 1024,
-                         preprocessor::ChatPreprocessorConfig{
-                             .backend = config.chat_template_backend,
-                             .template_options = {.model_directory = model_directory.empty()
-                                                                         ? std::filesystem::path(file_path).parent_path()
-                                                                         : std::move(model_directory)}}) {}
+                         preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

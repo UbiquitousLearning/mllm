@@ -10,7 +10,6 @@
 // Output is one JSON object on stdout.
 #include <iostream>
 #include <iterator>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -114,21 +113,22 @@ std::vector<int64_t> tokenizeStdin(Tokenizer& tokenizer) {
   }
 }
 
-// Text-only runners: tokenize mode or the product path with an explicit backend.
-template<typename Tokenizer, typename Config, typename Message, typename MakeTokenizer>
-void runTextModel(const Options& options, nlohmann::json& output, MakeTokenizer make_tokenizer) {
+// All runners use the same tokenize/product paths; only the message fields and
+// tokenizer inputs (an extra merges file for Qwen NPU) vary by model.
+template<typename Tokenizer, typename Config, typename Message, typename... Files>
+void runModel(const Options& options, nlohmann::json& output, const Message& message, const Files&... extra_files) {
   if (options.tokenize) {
-    auto tokenizer = make_tokenizer(std::optional<Config>{});
-    output["token_ids"] = tokenizeStdin(*tokenizer);
+    Tokenizer tokenizer(options.tokenizer, extra_files...);
+    output["token_ids"] = tokenizeStdin(tokenizer);
     return;
   }
+
   Config cfg(options.config);
   if (options.backend) { cfg.chat_template_backend = mllm::preprocessor::parseChatTemplateBackend(*options.backend); }
-  auto tokenizer = make_tokenizer(std::optional<Config>{cfg});
-  Message message{.prompt = options.prompt};
-  output["backend"] = mllm::preprocessor::chatTemplateBackendName(tokenizer->chatTemplateBackend());
-  output["prompt_text"] = tokenizer->renderChatTemplate(message);
-  output["token_ids"] = toVector(tokenizer->convertMessage(message).at("sequence"));
+  Tokenizer tokenizer(options.tokenizer, extra_files..., cfg, options.model_dir);
+  output["backend"] = mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend());
+  output["prompt_text"] = tokenizer.renderChatTemplate(message);
+  output["token_ids"] = toVector(tokenizer.convertMessage(message).at("sequence"));
 }
 
 }  // namespace
@@ -140,64 +140,29 @@ int main(int argc, char** argv) {
     nlohmann::json output;
     output["model"] = options.model;
     output["jinja_available"] = mllm::preprocessor::jinjaChatTemplatesAvailable();
-    const std::filesystem::path model_dir = options.model_dir;
 
     if (options.model == "qwen3_5") {
-      if (options.tokenize) {
-        mllm::models::qwen3_5::Qwen3_5Tokenizer tokenizer(options.tokenizer);
-        output["token_ids"] = tokenizeStdin(tokenizer);
-      } else {
-        auto cfg = mllm::models::qwen3_5::Qwen3_5Config(options.config);
-        if (options.backend) { cfg.chat_template_backend = mllm::preprocessor::parseChatTemplateBackend(*options.backend); }
-        mllm::models::qwen3_5::Qwen3_5Tokenizer tokenizer(options.tokenizer, cfg, model_dir);
-        mllm::models::qwen3_5::Qwen3_5Message message{.prompt = options.prompt};
-        output["backend"] = mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend());
-        output["prompt_text"] = tokenizer.renderChatTemplate(message);
-        output["token_ids"] = toVector(tokenizer.convertMessage(message).at("sequence"));
-      }
+      using namespace mllm::models::qwen3_5;
+      runModel<Qwen3_5Tokenizer, Qwen3_5Config>(options, output, Qwen3_5Message{.prompt = options.prompt});
     } else if (options.model == "qwen3") {
       using namespace mllm::models::qwen3;
-      runTextModel<Qwen3Tokenizer, Qwen3Config, Qwen3Message>(options, output, [&](const std::optional<Qwen3Config>& cfg) {
-        return cfg ? std::make_unique<Qwen3Tokenizer>(options.tokenizer, *cfg, model_dir) : std::make_unique<Qwen3Tokenizer>(options.tokenizer);
-      });
+      runModel<Qwen3Tokenizer, Qwen3Config>(options, output, Qwen3Message{.prompt = options.prompt});
     } else if (options.model == "qwen3_moe") {
       using namespace mllm::models::qwen3_moe;
-      runTextModel<Qwen3Tokenizer, Qwen3MoeConfig, Qwen3Message>(options, output, [&](const std::optional<Qwen3MoeConfig>& cfg) {
-        return cfg ? std::make_unique<Qwen3Tokenizer>(options.tokenizer, *cfg, model_dir) : std::make_unique<Qwen3Tokenizer>(options.tokenizer);
-      });
+      runModel<Qwen3Tokenizer, Qwen3MoeConfig>(options, output, Qwen3Message{.prompt = options.prompt});
     } else if (options.model == "qwen_ascend") {
       using namespace mllm::models::qwen_ascend;
-      runTextModel<QwenAscendTokenizer, QwenAscendConfig, QwenAscendMessage>(
-          options, output, [&](const std::optional<QwenAscendConfig>& cfg) {
-            return cfg ? std::make_unique<QwenAscendTokenizer>(options.tokenizer, *cfg, model_dir)
-                       : std::make_unique<QwenAscendTokenizer>(options.tokenizer);
-          });
+      runModel<QwenAscendTokenizer, QwenAscendConfig>(options, output, QwenAscendMessage{.prompt = options.prompt});
     } else if (options.model == "minicpm4") {
       using namespace mllm::models::minicpm4;
-      runTextModel<MiniCPM4Tokenizer, MiniCPM4Config, MiniCPM4Message>(options, output, [&](const std::optional<MiniCPM4Config>& cfg) {
-        return cfg ? std::make_unique<MiniCPM4Tokenizer>(options.tokenizer, *cfg, model_dir)
-                   : std::make_unique<MiniCPM4Tokenizer>(options.tokenizer);
-      });
+      runModel<MiniCPM4Tokenizer, MiniCPM4Config>(options, output, MiniCPM4Message{.prompt = options.prompt});
     } else if (options.model == "qwen_npu") {
       using namespace mllm::models::qwen_npu;
-      runTextModel<QwenTokenizer, QwenNPUConfig, QwenMessage>(options, output, [&](const std::optional<QwenNPUConfig>& cfg) {
-        return cfg ? std::make_unique<QwenTokenizer>(options.tokenizer, options.merges, *cfg, model_dir)
-                   : std::make_unique<QwenTokenizer>(options.tokenizer, options.merges);
-      });
+      runModel<QwenTokenizer, QwenNPUConfig>(options, output, QwenMessage{.prompt = options.prompt}, options.merges);
     } else {
-      if (options.tokenize) {
-        mllm::models::minicpm5::MiniCPM5Tokenizer tokenizer(options.tokenizer);
-        output["token_ids"] = tokenizeStdin(tokenizer);
-      } else {
-        auto cfg = mllm::models::minicpm5::MiniCPM5Config(options.config);
-        if (options.backend) { cfg.chat_template_backend = mllm::preprocessor::parseChatTemplateBackend(*options.backend); }
-        mllm::models::minicpm5::MiniCPM5Tokenizer tokenizer(options.tokenizer, cfg, model_dir);
-        mllm::models::minicpm5::MiniCPM5Message message{
-            .prompt = options.prompt, .system = options.system, .enable_thinking = options.enable_thinking};
-        output["backend"] = mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend());
-        output["prompt_text"] = tokenizer.renderChatTemplate(message);
-        output["token_ids"] = toVector(tokenizer.convertMessage(message).at("sequence"));
-      }
+      using namespace mllm::models::minicpm5;
+      runModel<MiniCPM5Tokenizer, MiniCPM5Config>(
+          options, output, MiniCPM5Message{.prompt = options.prompt, .system = options.system, .enable_thinking = options.enable_thinking});
     }
     std::cout << output.dump() << "\n";
     return 0;

@@ -114,6 +114,14 @@ TEST(ChatPreprocessorTest, RejectsMissingLegacyRenderer) {
   EXPECT_THROW(ChatPreprocessor({.backend = ChatTemplateBackend::Legacy}), ChatTemplateError);
 }
 
+TEST(ChatPreprocessorTest, TokenizerConfigUsesSiblingTemplatesUnlessOverridden) {
+  const auto sibling = tokenizerChatConfig(ChatTemplateBackend::Legacy, "checkpoint/tokenizer.json");
+  EXPECT_EQ(sibling.template_options.model_directory, "checkpoint");
+  const auto override_dir = tokenizerChatConfig(ChatTemplateBackend::JinjaRequired, "checkpoint/tokenizer.json", "templates");
+  EXPECT_EQ(override_dir.template_options.model_directory, "templates");
+  EXPECT_EQ(override_dir.backend, ChatTemplateBackend::JinjaRequired);
+}
+
 TEST(ChatPreprocessorTest, ParsesOnlyExplicitBackendNames) {
   EXPECT_EQ(parseChatTemplateBackend("legacy"), ChatTemplateBackend::Legacy);
   EXPECT_EQ(parseChatTemplateBackend("jinja_required"), ChatTemplateBackend::JinjaRequired);
