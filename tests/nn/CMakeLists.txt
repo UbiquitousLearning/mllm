@@ -28,3 +28,6 @@ target_include_directories(Mllm-Test-Nn-GatedDeltaRule PRIVATE ${MLLM_INCLUDE_DI
 
 include(GoogleTest)
 add_test(NAME GatedDeltaRuleFocused COMMAND Mllm-Test-Nn-GatedDeltaRule)
+add_test(NAME GroupedQueryAttentionFocused COMMAND Mllm-Test-Nn-GroupedQueryAttention)
+add_test(NAME KVHeadStaticCacheFocused COMMAND Mllm-Test-Nn-KVHeadStaticCache)
+set_tests_properties(GroupedQueryAttentionFocused KVHeadStaticCacheFocused PROPERTIES LABELS nn-op)

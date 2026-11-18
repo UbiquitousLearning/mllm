@@ -17,6 +17,7 @@ mllm
 
 ## 最新动态
 
+- [2026 年 9 月 8 日] MLLM 现已支持 **[MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)**！在手机上通过 ARM CPU 本地运行。[快速上手](./examples/minicpm5/README.md)。
 - [2026 年 6 月 8 日] `pymllm` 已覆盖 Qwen3、Qwen3-VL 与 Qwen3.5 在 Jetson Orin 上的 W4A16 / W8A8 serving；Qwen3-VL-2B W8A8 在 AGX Orin 32GB 上最高达到 3.12x prefill 加速比，decode 吞吐整体与 llama.cpp 接近。
 - [2026 年 4 月 30 日] `pymllm` 新增面向 Jetson 的 Qwen3 / Qwen3-VL BF16、W4A16 和 W8A8 serving 支持，覆盖 compressed-tensors AWQ 与 W8A8 INT8 路径。
 - [2026 年 3 月 18 日] 🔥🔥🔥 `pymllm` 已支持在 Jetson Orin 和 Jetson Thor 设备上使用 CUDA（实验特性，仍在持续开发中）。
@@ -105,6 +106,8 @@ mllm 框架可以与主流社区框架的模型检查点无缝集成。通过 ml
 | [Qwen3-0.6B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-0.6B-w4a32kai)  |  |  |
 | [Qwen3-1.7B](https://github.com/QwenLM/Qwen3)                     | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-1.7B-w4a8-i8mm-kai)  |  | [W4A16-SM8650](https://modelscope.cn/models/mllmTeam/Qwen3-1.7B-Qnn-AOT-SM8650/summary) |
 | [Qwen3-4B](https://github.com/QwenLM/Qwen3)                      | [✔️ w4a8](https://www.modelscope.cn/models/mllmTeam/Qwen3-4B-w4a8-i8mm-kai)  |  |  |
+| [MiniCPM5-1B](https://huggingface.co/openbmb/MiniCPM5-1B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
+| [MiniCPM5-2B](https://huggingface.co/openbmb/MiniCPM5-2B)          | [✔️ w4a8](./examples/minicpm5/README.md) | | |
 | Qwen3.5-2B                                                       |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3.5-4B                                                       |  | ✔️ W4A16 / W8A8 |  |
 | Qwen3-VL-2B-Instruct                                            |  | ✔️ W4A16 / W8A8 |  |

@@ -61,6 +61,12 @@ MODELS = {
     },
 }
 
+MINICPM5_2B = {
+    "revision": "0e9c66dce9fedde5ba8663bbcdd54b6810bb929a",
+    "template_sha256": "cc945752db555d60949b16989df4ccfeb52a313d6b4b5c5229dd786e2e9fcf1c",
+    "tokenizer_sha256": "3e065a558a034185fe299917b398685c1facd0169a9eea1e629eb30c171fed81",
+}
+
 TOOL = {
     "type": "function",
     "function": {
@@ -229,13 +235,16 @@ def render_cpp(renderer: Path, template: Path, case: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=sorted(MODELS), required=True)
+    parser.add_argument("--minicpm5-checkpoint", choices=("1b", "2b"), default="1b")
     parser.add_argument("--model-dir", type=Path, required=True, help="official checkpoint directory")
     parser.add_argument("--renderer", type=Path, required=True, help="Mllm-ChatTemplate-Render")
     parser.add_argument("--probe", type=Path, help="Mllm-ChatTemplate-Probe (enables tokenizer and product-path stages)")
     parser.add_argument("--config", type=Path, help="mllm config.json for the product-path stage")
     args = parser.parse_args()
 
-    pins = MODELS[args.model]
+    if args.model != "minicpm5" and args.minicpm5_checkpoint != "1b":
+        parser.error("--minicpm5-checkpoint=2b requires --model minicpm5")
+    pins = MINICPM5_2B if args.model == "minicpm5" and args.minicpm5_checkpoint == "2b" else MODELS[args.model]
     template = args.model_dir / pins.get("template_file", "chat_template.jinja")
     render_source = args.model_dir if pins.get("template_file") == "tokenizer_config.json" else template
     tokenizer_json = args.model_dir / "tokenizer.json"

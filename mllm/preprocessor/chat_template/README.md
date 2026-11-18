@@ -127,6 +127,10 @@ python3 tests/preprocessor/compare_transformers_chat_template.py \
   --probe <build>/bin/Mllm-ChatTemplate-Probe --config <mllm config.json>
 ```
 
+For the 2B checkpoint, pass `--minicpm5-checkpoint 2b`, use its model directory,
+and supply `config_2B_w4a32_kai.json` as the config. The harness checks the
+checkpoint-specific template and tokenizer hashes before running the cases.
+
 Stage A compares rendered bytes, Transformers token IDs, and mllm tokenizer
 IDs for pinned cases. Stage B runs the product path (`convertMessage`) with
 both backends and compares the final token IDs with each other and with

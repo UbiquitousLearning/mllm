@@ -631,6 +631,49 @@ TEST_F(GatedDeltaRuleKernelTest, ProductionGroupedHeadGeometry8LaneIsBitwiseStab
 }
 
 //===----------------------------------------------------------------------===//
+// Grouped-query attention decode (native KV-head cache views)
+//===----------------------------------------------------------------------===//
+#include "GqaDecodeKernelTest.hpp"
+TEST_F(GqaDecodeKernelTest, MatchesScalarReferenceAcrossFocusedMatrix) {
+  EXPECT_NO_FATAL_FAILURE(testMatchesScalarReference({
+      // Scalar path and single KV head.
+      {1, 1, 1, 1, 1, 1},
+      {1, 2, 1, 3, 3, 3},
+      {2, 4, 1, 5, 4, 4},
+      // Exact NEON vector blocks, group size 1 and 2.
+      {1, 2, 2, 7, 8, 8},
+      {1, 4, 2, 16, 16, 16},
+      // Vector loop with scalar tails in qk and value dims.
+      {1, 4, 2, 9, 5, 7},
+      {2, 6, 3, 11, 13, 6},
+      {1, 8, 2, 33, 127, 130},
+      // Production 128-dim heads at several cache fills.
+      {1, 8, 2, 1, 128, 128},
+      {1, 16, 2, 69, 128, 128},
+      {1, 16, 2, 517, 128, 128},
+      {2, 16, 2, 40, 128, 128},
+  }));
+}
+
+TEST_F(GqaDecodeKernelTest, NativeCacheViewAndTransposedQueryMatchContiguousBitwise) {
+  EXPECT_NO_FATAL_FAILURE(testNativeCacheAndTransposedQueryStrides({1, 16, 2, 69, 128, 128}, /*cache_capacity=*/2048));
+  EXPECT_NO_FATAL_FAILURE(testNativeCacheAndTransposedQueryStrides({2, 6, 3, 11, 13, 6}, /*cache_capacity=*/32));
+}
+
+TEST_F(GqaDecodeKernelTest, GroupedSlicesMatchSingleHeadCallsBitwise) {
+  EXPECT_NO_FATAL_FAILURE(testGroupedSlicesMatchSingleHeadCallsBitwise({2, 16, 2, 69, 128, 128}));
+  EXPECT_NO_FATAL_FAILURE(testGroupedSlicesMatchSingleHeadCallsBitwise({1, 6, 3, 11, 13, 6}));
+}
+
+TEST_F(GqaDecodeKernelTest, RepeatedCallsAreBitwiseStable) {
+  EXPECT_NO_FATAL_FAILURE(testRepeatedCallsAreBitwiseStable({1, 16, 2, 517, 128, 128}, /*repeats=*/8));
+}
+
+TEST_F(GqaDecodeKernelTest, RejectsInvalidGeometryAndStrides) {
+  EXPECT_NO_FATAL_FAILURE(testRejectsInvalidGeometryAndStrides());
+}
+
+//===----------------------------------------------------------------------===//
 // Parallel linear
 //===----------------------------------------------------------------------===//
 #include "ParallelLinearKernelTest.hpp"

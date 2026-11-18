@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -10,8 +11,13 @@
 
 namespace {
 
-auto loadConfig() -> mllm::models::minicpm5::MiniCPM5Config {
-  return mllm::models::minicpm5::MiniCPM5Config(std::string(MINICPM5_EXAMPLE_DIR) + "/config_1B_w4a32_kai.json");
+auto exampleDir() -> std::string {
+  const char* example_dir_override = std::getenv("MLLM_MINICPM5_EXAMPLE_DIR");
+  return example_dir_override == nullptr ? std::string(MINICPM5_EXAMPLE_DIR) : std::string(example_dir_override);
+}
+
+auto loadConfig(const std::string& variant = "1B") -> mllm::models::minicpm5::MiniCPM5Config {
+  return mllm::models::minicpm5::MiniCPM5Config(exampleDir() + "/config_" + variant + "_w4a32_kai.json");
 }
 
 auto parameterFile(mllm::ModelFileVersion version, const std::vector<int32_t>& embedding_shape, bool include_lm_head = true)
@@ -47,6 +53,42 @@ TEST(MiniCPM5ConfigTest, RejectsRuntimeContractDrift) {
   auto config = loadConfig();
   config.head_dim = config.hidden_size / config.num_attention_heads;
   EXPECT_FALSE(mllm::models::minicpm5::matchesOfficialMiniCPM5_1BRuntimeContract(config));
+}
+
+TEST(MiniCPM5ConfigTest, SupportsTwoBillionParameterContractAndRejectsMixedVariants) {
+  const auto config = loadConfig("2B");
+  EXPECT_TRUE(mllm::models::minicpm5::matchesOfficialMiniCPM5RuntimeContract(config));
+  EXPECT_FALSE(mllm::models::minicpm5::matchesOfficialMiniCPM5_1BRuntimeContract(config));
+  EXPECT_EQ(config.hidden_size, 2048);
+  EXPECT_EQ(config.intermediate_size, 6144);
+  EXPECT_EQ(config.num_hidden_layers, 42);
+  EXPECT_EQ(config.num_attention_heads * config.head_dim, 2048);
+  EXPECT_EQ(config.num_key_value_heads * config.head_dim, 256);
+  for (int field = 0; field < 3; ++field) {
+    auto mixed = config;
+    if (field == 0) mixed.hidden_size = 1536;
+    if (field == 1) mixed.intermediate_size = 4608;
+    if (field == 2) mixed.num_hidden_layers = 24;
+    EXPECT_FALSE(mllm::models::minicpm5::matchesOfficialMiniCPM5RuntimeContract(mixed));
+  }
+  auto drift = config;
+  drift.tie_word_embeddings = true;
+  EXPECT_FALSE(mllm::models::minicpm5::matchesOfficialMiniCPM5RuntimeContract(drift));
+  drift = config;
+  drift.rope_theta = 10000;
+  EXPECT_FALSE(mllm::models::minicpm5::matchesOfficialMiniCPM5RuntimeContract(drift));
+}
+
+TEST(MiniCPM5ConfigTest, RejectsCrossVariantModelPairing) {
+  const auto one_b = loadConfig();
+  const auto two_b = loadConfig("2B");
+  for (const auto version : {mllm::ModelFileVersion::kV1, mllm::ModelFileVersion::kV2}) {
+    const auto parameters = parameterFile(version, {two_b.vocab_size, two_b.hidden_size});
+    EXPECT_NO_THROW(mllm::models::minicpm5::validateModelConfigMatch(two_b, parameters));
+    EXPECT_THROW(mllm::models::minicpm5::validateModelConfigMatch(one_b, parameters), std::invalid_argument);
+    const auto one_parameters = parameterFile(version, {one_b.vocab_size, one_b.hidden_size});
+    EXPECT_THROW(mllm::models::minicpm5::validateModelConfigMatch(two_b, one_parameters), std::invalid_argument);
+  }
 }
 
 TEST(MiniCPM5ConfigTest, ValidatesEmbeddingAndIndependentLmHead) {
