@@ -14,6 +14,7 @@ import hashlib
 import json
 import subprocess
 import tempfile
+from importlib.metadata import version
 from pathlib import Path
 
 from transformers import AutoTokenizer
@@ -24,11 +25,13 @@ MODELS = {
         "revision": "2fc06364715b967f1860aea9cf38778875588b17",
         "template_sha256": "273d8e0e683b885071fb17e08d71e5f2a5ddfb5309756181681de4f5a1822d80",
         "tokenizer_sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+        "tokenizer_config_sha256": "49e2b6e395f959f077f1e992b338919c0d4a9732fc6e613995e06557f843500c",
     },
     "minicpm5": {
         "revision": "4e9de7a0778dc1c362e983e6858f0e77542cbdca",
         "template_sha256": "7451a05cf1e28a79d97d7c0bc951028c0b1915119bf9046acd06a0e3d931f47c",
         "tokenizer_sha256": "3e065a558a034185fe299917b398685c1facd0169a9eea1e629eb30c171fed81",
+        "tokenizer_config_sha256": "094efb3cf1ff412284cc5945fc99dff58673a912760d04483a04aa1c716f66fd",
     },
     # Qwen3 dense checkpoints ship the template inside tokenizer_config.json.
     # The runner sends enable_thinking=false; the official template emits the
@@ -65,6 +68,7 @@ MINICPM5_2B = {
     "revision": "0e9c66dce9fedde5ba8663bbcdd54b6810bb929a",
     "template_sha256": "cc945752db555d60949b16989df4ccfeb52a313d6b4b5c5229dd786e2e9fcf1c",
     "tokenizer_sha256": "3e065a558a034185fe299917b398685c1facd0169a9eea1e629eb30c171fed81",
+    "tokenizer_config_sha256": "e9b1064649e771d7a8e15637c68b2d2749724877ba3648bd74a4ece31c26303b",
 }
 
 TOOL = {
@@ -90,6 +94,60 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def multiturn_cases():
+    # Test text-only structured requests separately from the single-turn runner
+    # interfaces. The omitted flag must stay absent: explicit False is not the
+    # same as undefined in the MiniCPM5 templates.
+    system = {"role": "system", "content": "请简洁回答。"}
+    first_user = {"role": "user", "content": "  先介绍杭州。  "}
+    plain = {"role": "assistant", "content": "杭州是浙江的省会。"}
+    inline = {"role": "assistant", "content": "<think>\ninline history marker\n</think>\n\n杭州是浙江的省会。"}
+    second_user = {"role": "user", "content": "有什么景点？"}
+    structured = {
+        "role": "assistant",
+        "reasoning_content": "\nstructured history marker\n",
+        "content": "西湖和灵隐寺。",
+    }
+    followup = {"role": "user", "content": "再推荐一个，带表情。🌿\n"}
+    histories = {
+        "plain": [system, first_user, plain, second_user],
+        "reasoning": [system, first_user, inline, second_user, structured, followup],
+    }
+    for name, messages in histories.items():
+        for mode, context in (
+            ("thinking_on", {"enable_thinking": True}),
+            ("thinking_off", {"enable_thinking": False}),
+            ("thinking_omitted", {}),
+        ):
+            yield {
+                "name": f"multiturn_{name}_{mode}",
+                "messages": messages,
+                "add_generation_prompt": True,
+                "extra_context": context,
+            }
+        yield {
+            "name": f"multiturn_{name}_no_generation_prompt",
+            "messages": messages,
+            "add_generation_prompt": False,
+            "extra_context": {"enable_thinking": True},
+        }
+    # Exercise assistant answers after the last user as well as earlier
+    # history. The checkpoints differ in which reasoning blocks they retain.
+    final_inline = {"role": "assistant", "content": "<think>\ninline final marker\n</think>\n\n西湖。"}
+    final_plain = {"role": "assistant", "content": "西湖。"}
+    for name, messages in (
+        ("inline", [system, first_user, plain, second_user, final_inline]),
+        ("structured", [system, first_user, inline, second_user, structured]),
+        ("plain", [system, first_user, inline, second_user, final_plain]),
+    ):
+        yield {
+            "name": f"multiturn_completed_{name}",
+            "messages": messages,
+            "add_generation_prompt": False,
+            "extra_context": {},
+        }
 
 
 def renderer_cases(model: str):
@@ -141,6 +199,8 @@ def renderer_cases(model: str):
             "extra_context": {"enable_thinking": False},
         },
     ]
+    if model in ("minicpm5", "qwen3_5"):
+        common.extend(multiturn_cases())
     if model == "qwen3_5":
         common.append(
             {
@@ -208,6 +268,28 @@ def product_messages(case: dict):
     return messages
 
 
+def apply_chat_template_ids(tokenizer, messages, **kwargs):
+    # Transformers 4.x can return a list, while 5.x can return a BatchEncoding.
+    ids = tokenizer.apply_chat_template(messages, tokenize=True, **kwargs)
+    if not isinstance(ids, list):
+        ids = ids["input_ids"]
+    return list(ids)
+
+
+def report_difference(label, expected, actual):
+    """Print the first differing byte or token, including prefix-length mismatches."""
+    index = next(
+        (i for i, (a, b) in enumerate(zip(expected, actual)) if a != b),
+        min(len(expected), len(actual)),
+    )
+    before = max(0, index - 3)
+    after = index + 4
+    print(
+        f"  {label}: first_difference={index}, expected_length={len(expected)}, actual_length={len(actual)}, "
+        f"expected[{before}:{after}]={expected[before:after]!r}, actual[{before}:{after}]={actual[before:after]!r}"
+    )
+
+
 def run(command, stdin: bytes = b"") -> str:
     completed = subprocess.run(command, input=stdin, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if completed.returncode != 0:
@@ -244,6 +326,8 @@ def main() -> int:
 
     if args.model != "minicpm5" and args.minicpm5_checkpoint != "1b":
         parser.error("--minicpm5-checkpoint=2b requires --model minicpm5")
+    if args.config and not args.probe:
+        parser.error("--config requires --probe")
     pins = MINICPM5_2B if args.model == "minicpm5" and args.minicpm5_checkpoint == "2b" else MODELS[args.model]
     template = args.model_dir / pins.get("template_file", "chat_template.jinja")
     render_source = args.model_dir if pins.get("template_file") == "tokenizer_config.json" else template
@@ -252,34 +336,45 @@ def main() -> int:
         raise RuntimeError(f"unexpected {args.model} template identity; expected revision {pins['revision']}")
     if sha256(tokenizer_json) != pins["tokenizer_sha256"]:
         raise RuntimeError(f"unexpected {args.model} tokenizer identity; expected revision {pins['revision']}")
+    config_hash = pins.get("tokenizer_config_sha256")
+    if config_hash and sha256(args.model_dir / "tokenizer_config.json") != config_hash:
+        raise RuntimeError(f"unexpected {args.model} tokenizer config identity; expected revision {pins['revision']}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_dir, local_files_only=True)
     failures = []
+    print("oracle packages: " + ", ".join(f"{name}={version(name)}" for name in ("transformers", "jinja2", "tokenizers")))
 
     print(f"== stage A: renderer bytes and token ids ({args.model})")
     for case in renderer_cases(args.model):
         kwargs = dict(case.get("extra_context", {}))
         if "tools" in case:
             kwargs["tools"] = case["tools"]
-        reference = tokenizer.apply_chat_template(
-            case["messages"], tokenize=False, add_generation_prompt=case["add_generation_prompt"], **kwargs
-        )
+        kwargs["add_generation_prompt"] = case["add_generation_prompt"]
+        reference = tokenizer.apply_chat_template(case["messages"], tokenize=False, **kwargs)
         candidate = render_cpp(args.renderer, render_source, case)
-        reference_ids = tokenizer.encode(reference, add_special_tokens=False)
+        reference_ids = apply_chat_template_ids(tokenizer, case["messages"], **kwargs)
         candidate_ids = tokenizer.encode(candidate, add_special_tokens=False)
-        byte_exact = candidate == reference
+        reference_bytes = reference.encode("utf-8")
+        candidate_bytes = candidate.encode("utf-8")
+        byte_exact = candidate_bytes == reference_bytes
         token_exact = candidate_ids == reference_ids
         mllm_token_exact = None
         if args.probe:
             mllm_ids = run_json(
                 [str(args.probe), "--model", args.model, "--tokenizer", str(tokenizer_json), "--tokenize"],
-                candidate.encode("utf-8"),
+                candidate_bytes,
             )["token_ids"]
             mllm_token_exact = mllm_ids == reference_ids
         print(
             f"{case['name']}: byte_exact={byte_exact} token_exact={token_exact} "
-            f"mllm_token_exact={mllm_token_exact} bytes={len(candidate.encode('utf-8'))} tokens={len(candidate_ids)}"
+            f"mllm_token_exact={mllm_token_exact} bytes={len(candidate_bytes)} tokens={len(reference_ids)}"
         )
+        if not byte_exact:
+            report_difference("rendered UTF-8", reference_bytes, candidate_bytes)
+        if not token_exact:
+            report_difference("Transformers encode of mllm render", reference_ids, candidate_ids)
+        if mllm_token_exact is False:
+            report_difference("mllm tokenizer", reference_ids, mllm_ids)
         if not byte_exact or not token_exact or mllm_token_exact is False:
             failures.append("A/" + case["name"])
 
@@ -302,12 +397,9 @@ def main() -> int:
                 thinking_kwargs["enable_thinking"] = False
             elif product_thinking == "per-case":
                 thinking_kwargs["enable_thinking"] = bool(case.get("enable_thinking", False))
-            reference_ids = tokenizer.apply_chat_template(
-                product_messages(case), tokenize=True, add_generation_prompt=True, **thinking_kwargs
+            reference_ids = apply_chat_template_ids(
+                tokenizer, product_messages(case), add_generation_prompt=True, **thinking_kwargs
             )
-            if hasattr(reference_ids, "input_ids"):
-                reference_ids = reference_ids["input_ids"]
-            reference_ids = list(reference_ids)
             legacy_vs_jinja = legacy["token_ids"] == jinja["token_ids"]
             jinja_vs_ref = jinja["token_ids"] == reference_ids
             legacy_vs_ref = legacy["token_ids"] == reference_ids
@@ -316,13 +408,19 @@ def main() -> int:
                 f"legacy==transformers={legacy_vs_ref} tokens={len(reference_ids)} "
                 f"backend={legacy['backend']}/{jinja['backend']}"
             )
-            if not (legacy_vs_jinja and jinja_vs_ref and legacy_vs_ref):
+            if not jinja_vs_ref:
+                report_difference("jinja_required", reference_ids, jinja["token_ids"])
+            if not legacy_vs_ref:
+                report_difference("legacy", reference_ids, legacy["token_ids"])
+            backends_match = (legacy["backend"], jinja["backend"]) == ("legacy", "jinja_required")
+            if not (legacy_vs_jinja and jinja_vs_ref and legacy_vs_ref and backends_match):
                 failures.append("B/" + case["name"])
 
     if failures:
         print("FAILED: " + ", ".join(failures))
         return 1
-    print(f"PASS: {args.model} against Transformers at revision {pins['revision']}")
+    scope = "renderer + tokenizer + product" if args.config else "renderer + tokenizer" if args.probe else "renderer only"
+    print(f"PASS: {args.model} against Transformers at revision {pins['revision']} ({scope})")
     return 0
 
 

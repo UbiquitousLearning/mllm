@@ -128,10 +128,19 @@ python3 tests/preprocessor/compare_transformers_chat_template.py \
 ```
 
 For the 2B checkpoint, pass `--minicpm5-checkpoint 2b`, use its model directory,
-and supply `config_2B_w4a32_kai.json` as the config. The harness checks the
-checkpoint-specific template and tokenizer hashes before running the cases.
+and supply `config_2B_w4a32_kai.json` as the config. For Qwen3.5-0.8B, pass
+`--model qwen3_5`, its model directory, and
+`examples/qwen3_5/config_0.8B_w4a32_kai.json`. The harness checks the pinned
+template and tokenizer inputs and logs the oracle package versions.
 
-Stage A compares rendered bytes, Transformers token IDs, and mllm tokenizer
-IDs for pinned cases. Stage B runs the product path (`convertMessage`) with
-both backends and compares the final token IDs with each other and with
-Transformers.
+Stage A compares rendered UTF-8 bytes and mllm tokenizer IDs with
+Transformers `apply_chat_template`. The MiniCPM5 and Qwen3.5 cases cover
+multi-turn text with plain, inline `<think>`, and separate `reasoning_content`
+history, thinking on/off/omitted, requests with and without a generation
+prompt, and transcripts ending in an assistant answer. Stage B runs the
+existing single-turn product path (`convertMessage`) with both backends and
+compares the final token IDs with each other and with Transformers.
+
+Multi-turn coverage exercises Jinja rendering and model tokenization. It
+does not add multi-turn or thinking controls to the runners, compare sampled
+model output, or change the default backend.
