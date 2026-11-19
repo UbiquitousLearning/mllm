@@ -21,6 +21,18 @@ Use the matching checkpoint, runtime config and quantization config together; mi
 The 2B tokenizer vocabulary is unchanged. Its updated history template does not change the supported
 single-user branch; multi-turn history and tool calling remain unsupported.
 
+### Chat template backend
+
+`config.json` selects how the runner renders the prompt through
+`chat_template_backend`: `builtin` (default) keeps the byte-stable formatter
+above; `jinja_required` renders the checkpoint's own `chat_template.jinja`,
+discovered next to `tokenizer.json`, with the vendored `jinja.cpp` engine and
+requires a build with `-DMLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON`. A
+`jinja_required` model fails at load time instead of falling back when Jinja
+support or the template is missing. See
+`mllm/preprocessor/chat_template/README.md` for the pipeline and the
+Transformers parity gate.
+
 ## Convert
 
 Keep embeddings and norms in FP32; the supplied configuration packs transformer Linear weights and the independent

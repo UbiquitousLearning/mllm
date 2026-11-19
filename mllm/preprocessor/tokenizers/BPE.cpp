@@ -41,9 +41,11 @@ bool BPE::initFromSentencePieceJson(const std::string& file_path) {
     });
   }
 
+  control_tokens_.clear();
   for (const auto& add_token : json_data["added_tokens"].items()) {
     auto id = add_token.value()["id"];
     auto content = add_token.value()["content"];
+    if (add_token.value().value("special", false)) { control_tokens_.push_back(content); }
     auto str = utf8string2WideString(content);
     vocab_.insert({
         str,

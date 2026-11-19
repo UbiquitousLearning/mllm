@@ -38,9 +38,11 @@ bool BPEUTF8::initFromSentencePieceJson(const std::string& file_path) {
     });
   }
 
+  control_tokens_.clear();
   for (const auto& add_token : json_data["added_tokens"].items()) {
     int64_t id = add_token.value()["id"];
     std::string content = add_token.value()["content"];
+    if (add_token.value().value("special", false)) { control_tokens_.push_back(content); }
     vocab_.insert({
         utf8String2Cpts(content),
         id,

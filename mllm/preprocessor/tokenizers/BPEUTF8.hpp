@@ -7,6 +7,7 @@
 // This Byte-Level BPE(BBPE) works as an fully correct byte-level BPE tokenizer.
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -72,6 +73,9 @@ class BPEUTF8 {
 
   std::string _lookup_inverse_vocab(int64_t idx);
 
+  // See BPE::controlTokens().
+  const std::vector<std::string>& controlTokens() const { return control_tokens_; }
+
  private:
   inline std::vector<uint32_t> utf8String2Cpts(const std::string& str) {
     std::vector<uint32_t> word32;
@@ -88,6 +92,7 @@ class BPEUTF8 {
   std::unordered_set<std::pair<cpt_string_t, cpt_string_t>, BPEUTF8PairHash> _get_pairs(const std::vector<cpt_string_t>& word);
   std::unordered_map<cpt_string_t, int64_t, details::VectorUint32Hash> vocab_;
   std::unordered_map<int64_t, cpt_string_t> vocab_inverse_;
+  std::vector<std::string> control_tokens_;
   std::unordered_map<std::pair<cpt_string_t, cpt_string_t>, int64_t, BPEUTF8PairHash> bpe_ranks_;
 };
 

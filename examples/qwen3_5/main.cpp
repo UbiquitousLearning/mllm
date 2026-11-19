@@ -209,9 +209,10 @@ MLLM_MAIN({
     auto param = mllm::load(model_path.get(), file_version);
     mllm::models::qwen3_5::validateModelConfigMatch(cfg, param);
 
-    auto tokenizer = mllm::models::qwen3_5::Qwen3_5Tokenizer(tokenizer_path.get(), cfg.image_min_pixels, cfg.image_max_pixels,
-                                                             cfg.vision_patch_size, cfg.vision_temporal_patch_size,
-                                                             cfg.vision_spatial_merge_size);
+    // The chat-template backend comes from config.json (chat_template_backend);
+    // a Jinja template is discovered next to tokenizer.json.
+    auto tokenizer = mllm::models::qwen3_5::Qwen3_5Tokenizer(tokenizer_path.get(), cfg);
+    fmt::print("chat template backend: {}\n", mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend()));
     auto model = mllm::models::qwen3_5::Qwen3_5ForCausalLM(cfg);
     fmt::print("{}: {} layers ({} full attention + {} GDN)\n", mllm::models::qwen3_5::modelNameForConfig(cfg),
                cfg.num_hidden_layers, cfg.numFullAttentionLayers(), cfg.numGDNLayers());

@@ -43,7 +43,7 @@ MLLM_MAIN({
 
   {
     auto minicpm4_cfg = mllm::models::minicpm4::MiniCPM4Config(config_path.get());
-    auto minicpm4_tokenizer = mllm::models::minicpm4::MiniCPM4Tokenizer(tokenizer_path.get());
+    auto minicpm4_tokenizer = mllm::models::minicpm4::MiniCPM4Tokenizer(tokenizer_path.get(), minicpm4_cfg);
     auto minicpm4 = mllm::models::minicpm4::MiniCPM4ForCausalLM(minicpm4_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);

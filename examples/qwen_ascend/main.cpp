@@ -215,7 +215,7 @@ MLLM_MAIN({
       fmt::print("Prompt: {}\n", prompt_text);
       fmt::print("Max new tokens: {}\n", gen_max_new_tokens);
 
-      auto tokenizer = mllm::models::qwen_ascend::QwenAscendTokenizer(tokenizer_path.get());
+      auto tokenizer = mllm::models::qwen_ascend::QwenAscendTokenizer(tokenizer_path.get(), cfg);
       mllm::models::qwen_ascend::QwenAscendMessage msg;
       msg.prompt = prompt_text;
       auto inputs = tokenizer.convertMessage(msg);

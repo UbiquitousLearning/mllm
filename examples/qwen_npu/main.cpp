@@ -39,11 +39,12 @@ int main(int argc, char** argv) {
   const std::string npu_model_path = "/data/local/tmp/zhanghao/models/qwen1.5-1.8b-chat-rot-qnn.mllm";
   const std::string cpu_decode_model_path = "/data/local/tmp/zhanghao/models/qwen1.5-1.8b-chat-rot_q4_0.mllm";
 
-  auto qwen_tokenizer = mllm::models::qwen_npu::QwenTokenizer("tokenizer.json", "qwen_merges.txt");
-
   mllm::ModelFileVersion file_version = mllm::ModelFileVersion::kV1;
 
   auto cpu_cfg = mllm::models::qwen_npu::QwenNPUConfig(config_path);
+  // The chat-template backend comes from the config (chat_template_backend); a
+  // Jinja template is discovered next to tokenizer.json.
+  auto qwen_tokenizer = mllm::models::qwen_npu::QwenTokenizer("tokenizer.json", "qwen_merges.txt", cpu_cfg);
 
   std::unique_ptr<mllm::nn::StaticCache> shared_kv_cache = nullptr;
   std::unique_ptr<mllm::models::qwen_npu::QwenForCausalLM> npu_model;

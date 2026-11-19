@@ -40,3 +40,7 @@
 [submodule "third_party/flatbuffers"]
 	path = third_party/flatbuffers
 	url = https://github.com/google/flatbuffers
+[submodule "third_party/jinja.cpp"]
+	path = third_party/jinja.cpp
+	url = https://github.com/Aharrypotter/jinja.cpp.git
+	branch = main

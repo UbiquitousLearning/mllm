@@ -13,6 +13,7 @@ option(MLLM_ENABLE_TEST "Enable MLLM test" ON)
 option(MLLM_ENABLE_BENCHMARK "Enable MLLM benchmark" ON)
 option(MLLM_ENABLE_EXAMPLE "Enable MLLM example" ON)
 option(MLLM_ENABLE_TOOLS "Enable MLLM tools" ON)
+option(MLLM_ENABLE_JINJA_CHAT_TEMPLATE "Enable the experimental Jinja chat-template renderer" OFF)
 option(MLLM_ENABLE_PY_MLLM "Enable MLLM python binding" OFF)
 option(MLLM_ENABLE_JIT "Enable MLLM jit" OFF)
 option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
@@ -267,6 +268,26 @@ set(MLLM_INCLUDE_DIR
 set(MLLM_JSON_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/json>
     $<INSTALL_INTERFACE:include/third_party/>)
+
+if(MLLM_ENABLE_JINJA_CHAT_TEMPLATE)
+  # jinja.cpp is a submodule of the mllm fork, which carries the
+  # Transformers-compatibility commits. Keep it behind the mllm chat-template
+  # wrapper so downstream users do not inherit its public namespace or JSON
+  # bridge. mllm's own nlohmann/json is listed first and therefore wins over the
+  # copy the submodule vendors.
+  if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/jinja.cpp/jinja.hpp)
+    message(
+      FATAL_ERROR
+        "MLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON requires the third_party/jinja.cpp submodule. "
+        "Run: git submodule update --init third_party/jinja.cpp")
+  endif()
+  add_library(mllm_jinja_cpp INTERFACE)
+  target_include_directories(mllm_jinja_cpp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json)
+  target_include_directories(
+    mllm_jinja_cpp SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/jinja.cpp
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/jinja.cpp/third_party)
+  target_compile_definitions(mllm_jinja_cpp INTERFACE UJSON_USE_ORDERED_JSON=1 JINJA_PRESERVE_JSON_OBJECT_ORDER=1)
+endif()
 
 add_subdirectory(third_party/fmt)
 add_subdirectory(third_party/xxHash)
