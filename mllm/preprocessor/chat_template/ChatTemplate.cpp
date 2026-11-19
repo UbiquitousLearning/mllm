@@ -1,5 +1,6 @@
 #include "mllm/preprocessor/chat_template/ChatTemplate.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -353,6 +354,10 @@ class ChatPreprocessor::Impl {
   std::unique_ptr<JinjaChatTemplate> jinja_template_;
   std::unique_ptr<JinjaChatTemplate> tool_jinja_template_;
 };
+
+ChatPreprocessorConfig tokenizerChatConfig(ChatTemplateBackend backend, const std::string& tokenizer_file) {
+  return {.backend = backend, .template_options = {.model_directory = std::filesystem::path(tokenizer_file).parent_path()}};
+}
 
 ChatPreprocessor::ChatPreprocessor(ChatPreprocessorConfig config, BuiltinChatTemplateRenderer builtin_renderer)
     : impl_(std::make_unique<Impl>(std::move(config), std::move(builtin_renderer))) {}

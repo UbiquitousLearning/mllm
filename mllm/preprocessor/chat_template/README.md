@@ -37,6 +37,9 @@ Migrated entry points:
 | MiniCPM5 | `MiniCPM5Tokenizer::convertMessage` | `MiniCPM5Config` | next to `tokenizer.json` |
 | Qwen3 runner, Qwen3-MoE, Qwen Ascend, MiniCPM4, Qwen NPU | `<Model>Tokenizer::convertMessage` via `ChatMlSingleTurn.hpp` | model config | next to `tokenizer.json` |
 
+Override template discovery through `ChatPreprocessorConfig::template_options`,
+not through a separate tokenizer constructor parameter.
+
 Changing the renderer does not change what a runner accepts. Qwen3.5 accepts
 one user turn; MiniCPM5 and the ChatML runners accept an optional system message
 followed by one user turn. The Qwen3 service has its own history-aware formatter.

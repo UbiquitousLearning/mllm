@@ -12,6 +12,7 @@
 #include <iterator>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -125,7 +126,21 @@ void runModel(const Options& options, nlohmann::json& output, const Message& mes
 
   Config cfg(options.config);
   if (options.backend) { cfg.chat_template_backend = mllm::preprocessor::parseChatTemplateBackend(*options.backend); }
-  Tokenizer tokenizer(options.tokenizer, extra_files..., cfg, options.model_dir);
+  auto tokenizer = [&]() -> Tokenizer {
+    if (options.model_dir.empty()) { return Tokenizer(options.tokenizer, extra_files..., cfg); }
+
+    mllm::preprocessor::ChatPreprocessorConfig chat_template{
+        .backend = cfg.chat_template_backend, .template_options = {.model_directory = options.model_dir}};
+    if constexpr (requires { Tokenizer(options.tokenizer, extra_files..., std::move(chat_template)); }) {
+      return Tokenizer(options.tokenizer, extra_files..., std::move(chat_template));
+    } else if constexpr (requires { Tokenizer(options.tokenizer, extra_files..., cfg, std::move(chat_template)); }) {
+      // Geometry must still come from the checkpoint config (Qwen3.5).
+      return Tokenizer(options.tokenizer, extra_files..., cfg, std::move(chat_template));
+    } else {
+      // Qwen NPU keeps its special-token split flag before the template config.
+      return Tokenizer(options.tokenizer, extra_files..., false, std::move(chat_template));
+    }
+  }();
   output["backend"] = mllm::preprocessor::chatTemplateBackendName(tokenizer.chatTemplateBackend());
   output["prompt_text"] = tokenizer.renderChatTemplate(message);
   output["token_ids"] = toVector(tokenizer.convertMessage(message).at("sequence"));

@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cwctype>
-#include <filesystem>
 #include <stdexcept>
 #include <string_view>
 #include <tuple>
@@ -225,14 +224,14 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     special_tokens_trie_.add(L"</tool_response>");
   }
 
-  // Product constructor: geometry and chat-template backend come from the
-  // model configuration; the template is discovered next to tokenizer.json
-  // unless another model directory is given.
-  Qwen3_5Tokenizer(const std::string& file_path, const Qwen3_5Config& config, std::filesystem::path model_directory = {})
+  // Use the model geometry and discover the template next to tokenizer.json.
+  Qwen3_5Tokenizer(const std::string& file_path, const Qwen3_5Config& config)
+      : Qwen3_5Tokenizer(file_path, config, preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path)) {}
+
+  Qwen3_5Tokenizer(const std::string& file_path, const Qwen3_5Config& config, preprocessor::ChatPreprocessorConfig chat_template)
       : Qwen3_5Tokenizer(file_path, config.image_min_pixels, config.image_max_pixels, config.vision_patch_size,
                          config.vision_temporal_patch_size, config.vision_spatial_merge_size, 4 * 32 * 32,
-                         24 * 32 * 32 * 1024,
-                         preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
+                         24 * 32 * 32 * 1024, std::move(chat_template)) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

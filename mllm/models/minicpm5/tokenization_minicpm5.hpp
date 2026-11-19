@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cwctype>
-#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string_view>
@@ -192,12 +191,9 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
     });
   }
 
-  // Product constructor: the chat-template backend comes from the model
-  // configuration; the template is discovered next to tokenizer.json unless
-  // another model directory is given.
-  MiniCPM5Tokenizer(const std::string& file_path, const MiniCPM5Config& config, std::filesystem::path model_directory = {})
-      : MiniCPM5Tokenizer(file_path,
-                          preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
+  // Use the configured backend and discover the template next to tokenizer.json.
+  MiniCPM5Tokenizer(const std::string& file_path, const MiniCPM5Config& config)
+      : MiniCPM5Tokenizer(file_path, preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path)) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <filesystem>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -291,9 +290,9 @@ class QwenTokenizer final : public mllm::preprocessor::AutoTokenizer {
   }
 
   QwenTokenizer(const std::string& vocab_file, const std::string& merge_file, const QwenNPUConfig& config,
-                std::filesystem::path model_directory = {}, bool split_special_tokens = false)
+                bool split_special_tokens = false)
       : QwenTokenizer(vocab_file, merge_file, split_special_tokens,
-                      preprocessor::tokenizerChatConfig(config.chat_template_backend, vocab_file, std::move(model_directory))) {}
+                      preprocessor::tokenizerChatConfig(config.chat_template_backend, vocab_file)) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

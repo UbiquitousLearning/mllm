@@ -115,12 +115,11 @@ TEST(ChatPreprocessorTest, RejectsMissingBuiltinRenderer) {
   EXPECT_THROW(ChatPreprocessor({.backend = ChatTemplateBackend::Builtin}), ChatTemplateError);
 }
 
-TEST(ChatPreprocessorTest, TokenizerConfigUsesSiblingTemplatesUnlessOverridden) {
-  const auto sibling = tokenizerChatConfig(ChatTemplateBackend::Builtin, "checkpoint/tokenizer.json");
+TEST(ChatPreprocessorTest, TokenizerConfigUsesSiblingTemplates) {
+  const auto sibling = tokenizerChatConfig(ChatTemplateBackend::JinjaRequired, "checkpoint/tokenizer.json");
   EXPECT_EQ(sibling.template_options.model_directory, "checkpoint");
-  const auto override_dir = tokenizerChatConfig(ChatTemplateBackend::JinjaRequired, "checkpoint/tokenizer.json", "templates");
-  EXPECT_EQ(override_dir.template_options.model_directory, "templates");
-  EXPECT_EQ(override_dir.backend, ChatTemplateBackend::JinjaRequired);
+  EXPECT_EQ(sibling.backend, ChatTemplateBackend::JinjaRequired);
+  EXPECT_TRUE(tokenizerChatConfig(ChatTemplateBackend::Builtin, "tokenizer.json").template_options.model_directory.empty());
 }
 
 TEST(ChatPreprocessorTest, UsesCanonicalBackendNames) {

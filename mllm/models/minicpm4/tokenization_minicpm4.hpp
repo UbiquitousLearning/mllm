@@ -1,7 +1,6 @@
 // tokenization_minicpm4.hpp
 #pragma once
 
-#include <filesystem>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -115,9 +114,8 @@ class MiniCPM4Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
     return decode_string(result);
   }
 
-  MiniCPM4Tokenizer(const std::string& file_path, const MiniCPM4Config& config, std::filesystem::path model_directory = {})
-      : MiniCPM4Tokenizer(file_path,
-                          preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
+  MiniCPM4Tokenizer(const std::string& file_path, const MiniCPM4Config& config)
+      : MiniCPM4Tokenizer(file_path, preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path)) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 

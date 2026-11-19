@@ -3,7 +3,6 @@
 #pragma once
 
 #include <unordered_map>
-#include <filesystem>
 #include <utility>
 #include <vector>
 
@@ -113,9 +112,8 @@ class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  QwenAscendTokenizer(const std::string& file_path, const QwenAscendConfig& config, std::filesystem::path model_directory = {})
-      : QwenAscendTokenizer(file_path,
-                            preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path, std::move(model_directory))) {}
+  QwenAscendTokenizer(const std::string& file_path, const QwenAscendConfig& config)
+      : QwenAscendTokenizer(file_path, preprocessor::tokenizerChatConfig(config.chat_template_backend, file_path)) {}
 
   preprocessor::ChatTemplateBackend chatTemplateBackend() const noexcept { return chat_preprocessor_.backend(); }
 
