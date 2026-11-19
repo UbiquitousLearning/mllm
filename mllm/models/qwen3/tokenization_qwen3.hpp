@@ -10,7 +10,7 @@
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/qwen3/configuration_qwen3.hpp"
-#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
+#include "mllm/preprocessor/chat_template/ChatMlSingleTurn.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -158,10 +158,10 @@ struct Qwen3Message {
 class Qwen3Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   // The chat-template backend is selected explicitly. The default keeps the
-  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // migration (builtin) renderer; a JinjaRequired configuration loads the
   // official template from its model directory and fails here when it cannot.
   explicit Qwen3Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
-      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderChatMlSingleTurn) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }

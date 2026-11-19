@@ -12,7 +12,7 @@
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/qwen_npu/configuration_qwen_npu.hpp"
-#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
+#include "mllm/preprocessor/chat_template/ChatMlSingleTurn.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -158,7 +158,7 @@ class QwenTokenizer final : public mllm::preprocessor::AutoTokenizer {
   explicit QwenTokenizer(const std::string& vocab_file, const std::string& merge_file, bool split_special_tokens = false,
                          preprocessor::ChatPreprocessorConfig chat_template = {})
       : split_special_tokens_(split_special_tokens),
-        chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
+        chat_preprocessor_(std::move(chat_template), preprocessor::renderChatMlSingleTurn) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }

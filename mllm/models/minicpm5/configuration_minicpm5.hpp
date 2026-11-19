@@ -52,7 +52,7 @@ struct MiniCPM5Config : protected ConfigFile {
       }
     }
 
-    chat_template_backend = preprocessor::parseChatTemplateBackend(config.value("chat_template_backend", "legacy"));
+    chat_template_backend = preprocessor::parseChatTemplateBackend(config.value("chat_template_backend", "builtin"));
 
     if (config.contains("linear_impl_type")) {
       const auto linear_impl_name = config["linear_impl_type"].get<std::string>();
@@ -96,7 +96,7 @@ struct MiniCPM5Config : protected ConfigFile {
   std::vector<int64_t> eos_token_ids = {1, 130073};
   int32_t max_cache_length = 2048;
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
-  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Builtin;
 };
 
 inline auto matchesOfficialMiniCPM5RuntimeContract(const MiniCPM5Config& config) -> bool {

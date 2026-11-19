@@ -177,7 +177,7 @@ struct Qwen3_5Message {
 class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   // The chat-template backend is selected explicitly. The default keeps the
-  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // migration (builtin) renderer; a JinjaRequired configuration loads the
   // official template from its model directory and fails here when it cannot.
   explicit Qwen3_5Tokenizer(const std::string& file_path, int32_t image_min_pixels = 256 * 256,
                             int32_t image_max_pixels = 512 * 512, int32_t vision_patch_size = 16,
@@ -190,7 +190,7 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
                             vision_spatial_merge_size),
         vision_temporal_patch_size_(vision_temporal_patch_size),
         vision_spatial_merge_size_(vision_spatial_merge_size),
-        chat_preprocessor_(std::move(chat_template), renderLegacyQwen3_5ChatTemplate) {
+        chat_preprocessor_(std::move(chat_template), renderBuiltinQwen3_5ChatTemplate) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }
@@ -328,7 +328,7 @@ class Qwen3_5Tokenizer final : public mllm::preprocessor::AutoTokenizer {
     if (!has_video && (!message.video_frame_indices.empty() || message.video_frames_per_second != 0.0)) {
       throw std::invalid_argument("Qwen3.5 video metadata requires video frames");
     }
-    // Stage 1: chat template (legacy or official Jinja) renders the prompt with
+    // Stage 1: chat template (builtin or official Jinja) renders the prompt with
     // one placeholder per media block. Stage 2 expands those placeholders the
     // way the official processor does, then the tokenizer stage expands per
     // patch tokens from the image/video geometry.

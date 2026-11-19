@@ -74,7 +74,7 @@ geometry. It is separate from the default model correctness tests.
 ### Chat template backend
 
 `config.json` selects how the runner renders the prompt through
-`chat_template_backend`: `legacy` (default) keeps the byte-stable single-turn
+`chat_template_backend`: `builtin` (default) keeps the byte-stable single-turn
 runner prompt; `jinja_required` renders the checkpoint's own official `chat_template.jinja`,
 discovered next to `tokenizer.json`, with the vendored `jinja.cpp` engine and
 requires a build with `-DMLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON`. A

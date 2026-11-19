@@ -5,7 +5,7 @@ Stage A (renderer): render pinned cases with Mllm-ChatTemplate-Render and
 compare rendered bytes, Transformers token ids, and mllm tokenizer ids.
 
 Stage B (product path): run Mllm-ChatTemplate-Probe, which goes through the
-model tokenizer's convertMessage with the legacy and the jinja_required
+model tokenizer's convertMessage with the builtin and the jinja_required
 backends, and compare both against Transformers apply_chat_template ids.
 """
 
@@ -379,7 +379,7 @@ def main() -> int:
             failures.append("A/" + case["name"])
 
     if args.probe and args.config:
-        print(f"== stage B: product path legacy vs jinja_required vs Transformers ({args.model})")
+        print(f"== stage B: product path builtin vs jinja_required vs Transformers ({args.model})")
         for case in product_cases(args.model):
             command = [str(args.probe), "--model", args.model, "--tokenizer", str(tokenizer_json),
                        "--config", str(args.config), "--model_dir", str(args.model_dir), "--prompt", case["prompt"]]
@@ -387,7 +387,7 @@ def main() -> int:
                 command += ["--system", case["system"]]
             if case.get("enable_thinking"):
                 command.append("--enable_thinking")
-            legacy = run_json(command + ["--backend", "legacy"])
+            builtin = run_json(command + ["--backend", "builtin"])
             jinja = run_json(command + ["--backend", "jinja_required"])
             # product_thinking: False -> the runner always sends enable_thinking=false;
             # None -> the runner leaves it undefined (official default); otherwise per case.
@@ -400,20 +400,20 @@ def main() -> int:
             reference_ids = apply_chat_template_ids(
                 tokenizer, product_messages(case), add_generation_prompt=True, **thinking_kwargs
             )
-            legacy_vs_jinja = legacy["token_ids"] == jinja["token_ids"]
+            builtin_vs_jinja = builtin["token_ids"] == jinja["token_ids"]
             jinja_vs_ref = jinja["token_ids"] == reference_ids
-            legacy_vs_ref = legacy["token_ids"] == reference_ids
+            builtin_vs_ref = builtin["token_ids"] == reference_ids
             print(
-                f"{case['name']}: legacy==jinja={legacy_vs_jinja} jinja==transformers={jinja_vs_ref} "
-                f"legacy==transformers={legacy_vs_ref} tokens={len(reference_ids)} "
-                f"backend={legacy['backend']}/{jinja['backend']}"
+                f"{case['name']}: builtin==jinja={builtin_vs_jinja} jinja==transformers={jinja_vs_ref} "
+                f"builtin==transformers={builtin_vs_ref} tokens={len(reference_ids)} "
+                f"backend={builtin['backend']}/{jinja['backend']}"
             )
             if not jinja_vs_ref:
                 report_difference("jinja_required", reference_ids, jinja["token_ids"])
-            if not legacy_vs_ref:
-                report_difference("legacy", reference_ids, legacy["token_ids"])
-            backends_match = (legacy["backend"], jinja["backend"]) == ("legacy", "jinja_required")
-            if not (legacy_vs_jinja and jinja_vs_ref and legacy_vs_ref and backends_match):
+            if not builtin_vs_ref:
+                report_difference("builtin", reference_ids, builtin["token_ids"])
+            backends_match = (builtin["backend"], jinja["backend"]) == ("builtin", "jinja_required")
+            if not (builtin_vs_jinja and jinja_vs_ref and builtin_vs_ref and backends_match):
                 failures.append("B/" + case["name"])
 
     if failures:

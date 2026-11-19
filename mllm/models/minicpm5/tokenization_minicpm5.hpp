@@ -147,10 +147,10 @@ struct MiniCPM5Message {
 class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
  public:
   // The chat-template backend is selected explicitly. The default keeps the
-  // migration (legacy) renderer; a JinjaRequired configuration loads the
+  // migration (builtin) renderer; a JinjaRequired configuration loads the
   // official template from its model directory and fails here when it cannot.
   explicit MiniCPM5Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
-      : chat_preprocessor_(std::move(chat_template), renderLegacyMiniCPM5ChatTemplate) {
+      : chat_preprocessor_(std::move(chat_template), renderBuiltinMiniCPM5ChatTemplate) {
     preprocessor::initLocal();
     preprocessor::makeBytes2UnicodeMap(bytes_to_unicode_);
     for (const auto& [byte, codepoint] : bytes_to_unicode_) { unicode_to_bytes_.insert({codepoint, byte}); }
@@ -205,10 +205,10 @@ class MiniCPM5Tokenizer final : public preprocessor::AutoTokenizer {
   const std::vector<std::string>& controlTokens() const { return bpe_.controlTokens(); }
 
   // Migration formatter: the exact pre-Jinja runner prompt. It stays available
-  // as the legacy backend's renderer and as a fixed reference for tests.
+  // as the builtin backend's renderer and as a fixed reference for tests.
   static std::string applyChatTemplate(const MiniCPM5Message& message) {
     if (message.prompt.empty()) { throw std::invalid_argument("MiniCPM5 prompt must not be empty"); }
-    return renderLegacyMiniCPM5ChatTemplate(
+    return renderBuiltinMiniCPM5ChatTemplate(
         makeMiniCPM5ChatTemplateRequest(message.prompt, message.system, message.enable_thinking));
   }
 

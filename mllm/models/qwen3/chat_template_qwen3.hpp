@@ -25,14 +25,14 @@ inline std::string trimChatTemplateText(const std::string& text) { return rtrimC
 }  // namespace detail
 
 // Migration renderer for the pre-Jinja Qwen3 service contract. Keep this
-// byte-for-byte stable while Qwen3 is configured for the Legacy backend.
-inline std::string renderLegacyQwen3ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
+// byte-for-byte stable while Qwen3 is configured for the Builtin backend.
+inline std::string renderBuiltinQwen3ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
   const auto& messages = request.messages;
   const bool enable_thinking = request.extra_context.value("enable_thinking", true);
   std::ostringstream output;
 
   // The pre-migration Qwen3 services always passed an empty tools list to the
-  // legacy formatter. Preserve that default-path behavior; JinjaRequired uses
+  // builtin formatter. Preserve that default-path behavior; JinjaRequired uses
   // request.tools through the common renderer contract.
   if (!messages.empty() && messages[0].value("role", "") == "system") {
     output << "<|im_start|>system\n" << messages[0].value("content", "") << "<|im_end|>\n";

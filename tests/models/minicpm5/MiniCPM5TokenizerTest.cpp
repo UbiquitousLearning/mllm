@@ -45,11 +45,11 @@ TEST(MiniCPM5TokenizerTest, RendersThroughTheConfiguredChatTemplateBackend) {
   if (tokenizer_path == nullptr) GTEST_SKIP() << "Set MLLM_MINICPM5_TOKENIZER_JSON for the official-tokenizer oracle";
   ensureContext();
 
-  // Legacy stays byte-identical to the migration formatter.
-  mllm::models::minicpm5::MiniCPM5Tokenizer legacy(tokenizer_path);
-  EXPECT_EQ(legacy.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::Legacy);
+  // Builtin stays byte-identical to the migration formatter.
+  mllm::models::minicpm5::MiniCPM5Tokenizer builtin(tokenizer_path);
+  EXPECT_EQ(builtin.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::Builtin);
   const mllm::models::minicpm5::MiniCPM5Message message{.prompt = "Hello", .system = "Be concise.", .enable_thinking = true};
-  EXPECT_EQ(legacy.renderChatTemplate(message), mllm::models::minicpm5::MiniCPM5Tokenizer::applyChatTemplate(message));
+  EXPECT_EQ(builtin.renderChatTemplate(message), mllm::models::minicpm5::MiniCPM5Tokenizer::applyChatTemplate(message));
 
   // jinja_required loads the official template next to tokenizer.json and must
   // reproduce the same runner prompt; without Jinja support it fails closed.
@@ -66,11 +66,11 @@ TEST(MiniCPM5TokenizerTest, RendersThroughTheConfiguredChatTemplateBackend) {
   mllm::models::minicpm5::MiniCPM5Tokenizer jinja(tokenizer_path, jinja_config);
   EXPECT_EQ(jinja.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::JinjaRequired);
   for (const auto& probe : {mllm::models::minicpm5::MiniCPM5Message{.prompt = "Hello"}, message}) {
-    EXPECT_EQ(jinja.renderChatTemplate(probe), legacy.renderChatTemplate(probe));
+    EXPECT_EQ(jinja.renderChatTemplate(probe), builtin.renderChatTemplate(probe));
     const auto jinja_ids = jinja.convertMessage(probe).at("sequence");
-    const auto legacy_ids = legacy.convertMessage(probe).at("sequence");
+    const auto builtin_ids = builtin.convertMessage(probe).at("sequence");
     EXPECT_EQ(std::vector<int64_t>(jinja_ids.ptr<int64_t>(), jinja_ids.ptr<int64_t>() + jinja_ids.numel()),
-              std::vector<int64_t>(legacy_ids.ptr<int64_t>(), legacy_ids.ptr<int64_t>() + legacy_ids.numel()));
+              std::vector<int64_t>(builtin_ids.ptr<int64_t>(), builtin_ids.ptr<int64_t>() + builtin_ids.numel()));
   }
 }
 

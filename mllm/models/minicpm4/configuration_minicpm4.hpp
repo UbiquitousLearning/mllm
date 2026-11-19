@@ -59,7 +59,7 @@ struct MiniCPM4Config : protected ConfigFile {
       }
     }
 
-    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "builtin"));
 
     linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
@@ -95,7 +95,7 @@ struct MiniCPM4Config : protected ConfigFile {
   std::vector<float> long_factor;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
-  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Builtin;
 };
 
 }  // namespace mllm::models::minicpm4

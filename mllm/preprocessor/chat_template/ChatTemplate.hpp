@@ -17,7 +17,7 @@
 namespace mllm::preprocessor {
 
 enum class ChatTemplateBackend {
-  Legacy,
+  Builtin,
   JinjaRequired,
 };
 
@@ -56,7 +56,7 @@ struct ChatTemplateLoadOptions {
 };
 
 struct ChatPreprocessorConfig {
-  ChatTemplateBackend backend = ChatTemplateBackend::Legacy;
+  ChatTemplateBackend backend = ChatTemplateBackend::Builtin;
   ChatTemplateLoadOptions template_options;
   // The checkpoint's control tokens, normally `BPE::controlTokens()`. Message
   // and tool content carrying one of these is rejected before rendering, so a
@@ -85,7 +85,7 @@ class ChatTemplateInjectionError : public ChatTemplateError {
   using ChatTemplateError::ChatTemplateError;
 };
 
-using LegacyChatTemplateRenderer = std::function<std::string(const ChatTemplateRequest&)>;
+using BuiltinChatTemplateRenderer = std::function<std::string(const ChatTemplateRequest&)>;
 
 // Compiles and renders one Jinja template. Construction fails when Jinja
 // support is not present in the current binary.
@@ -112,7 +112,7 @@ class JinjaChatTemplate final {
 // build option only controls whether JinjaRequired can be constructed.
 class ChatPreprocessor final {
  public:
-  explicit ChatPreprocessor(ChatPreprocessorConfig config, LegacyChatTemplateRenderer legacy_renderer = {});
+  explicit ChatPreprocessor(ChatPreprocessorConfig config, BuiltinChatTemplateRenderer builtin_renderer = {});
   ~ChatPreprocessor();
 
   ChatPreprocessor(ChatPreprocessor&&) noexcept;

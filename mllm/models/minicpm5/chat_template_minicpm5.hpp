@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
+#include "mllm/preprocessor/chat_template/ChatMlSingleTurn.hpp"
 
 namespace mllm::models::minicpm5 {
 
@@ -18,9 +18,9 @@ inline preprocessor::ChatTemplateRequest makeMiniCPM5ChatTemplateRequest(const s
 // optional-system plus single-user shape produced by
 // makeMiniCPM5ChatTemplateRequest and keeps those bytes stable; other shapes
 // fail closed instead of approximating the official template.
-inline std::string renderLegacyMiniCPM5ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
+inline std::string renderBuiltinMiniCPM5ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
   std::string output = "<s>";
-  preprocessor::appendLegacyChatMlMessages(output, request, "MiniCPM5");
+  preprocessor::appendChatMlSingleTurnMessages(output, request, "MiniCPM5");
   if (request.add_generation_prompt) {
     output += "<|im_start|>assistant\n";
     output += request.extra_context.value("enable_thinking", false) ? "<think>\n" : "<think>\n\n</think>\n\n";

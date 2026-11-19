@@ -515,7 +515,7 @@ class Qwen3Session final : public ::mllm::service::Session {
     chat_preprocessor_ = std::make_unique<preprocessor::ChatPreprocessor>(
         preprocessor::ChatPreprocessorConfig{.backend = cfg.chat_template_backend,
                                              .template_options = {.model_directory = root}},
-        renderLegacyQwen3ChatTemplate);
+        renderBuiltinQwen3ChatTemplate);
     model_ = std::make_shared<Qwen3ForCausalLM>(cfg);
     model_->load(load(model_file.string(), ModelFileVersion::kV2));
     tokenizer_ = std::make_shared<Qwen3Tokenizer>(tokenizer_file.string());

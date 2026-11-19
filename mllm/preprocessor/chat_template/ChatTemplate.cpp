@@ -290,11 +290,11 @@ const ChatTemplateSource& JinjaChatTemplate::source() const noexcept { return im
 
 class ChatPreprocessor::Impl {
  public:
-  Impl(ChatPreprocessorConfig config, LegacyChatTemplateRenderer legacy_renderer)
-      : backend_(config.backend), legacy_renderer_(std::move(legacy_renderer)), control_tokens_(config.control_tokens) {
+  Impl(ChatPreprocessorConfig config, BuiltinChatTemplateRenderer builtin_renderer)
+      : backend_(config.backend), builtin_renderer_(std::move(builtin_renderer)), control_tokens_(config.control_tokens) {
     switch (backend_) {
-      case ChatTemplateBackend::Legacy:
-        if (!legacy_renderer_) { throw ChatTemplateError("legacy chat-template backend requires an explicit renderer"); }
+      case ChatTemplateBackend::Builtin:
+        if (!builtin_renderer_) { throw ChatTemplateError("builtin chat-template backend requires an explicit renderer"); }
         return;
       case ChatTemplateBackend::JinjaRequired: {
         if (!jinjaChatTemplatesAvailable()) {
@@ -330,7 +330,7 @@ class ChatPreprocessor::Impl {
 
   std::string render(const ChatTemplateRequest& request) const {
     validateRequest(request);
-    // Enforced for both backends: a legacy renderer copies content through just
+    // Enforced for both backends: a builtin renderer copies content through just
     // as literally as an official template does.
     rejectControlTokensInContent(request, control_tokens_);
     if (backend_ == ChatTemplateBackend::JinjaRequired) {
@@ -339,23 +339,23 @@ class ChatPreprocessor::Impl {
     }
 
     try {
-      auto output = legacy_renderer_(request);
-      validateRenderedSize(output, request.max_rendered_bytes, "legacy renderer");
+      auto output = builtin_renderer_(request);
+      validateRenderedSize(output, request.max_rendered_bytes, "builtin renderer");
       return output;
     } catch (const ChatTemplateError&) { throw; } catch (const std::exception& error) {
-      throw ChatTemplateError(std::string("legacy chat-template renderer failed: ") + error.what());
+      throw ChatTemplateError(std::string("builtin chat-template renderer failed: ") + error.what());
     }
   }
 
   ChatTemplateBackend backend_;
-  LegacyChatTemplateRenderer legacy_renderer_;
+  BuiltinChatTemplateRenderer builtin_renderer_;
   std::vector<std::string> control_tokens_;
   std::unique_ptr<JinjaChatTemplate> jinja_template_;
   std::unique_ptr<JinjaChatTemplate> tool_jinja_template_;
 };
 
-ChatPreprocessor::ChatPreprocessor(ChatPreprocessorConfig config, LegacyChatTemplateRenderer legacy_renderer)
-    : impl_(std::make_unique<Impl>(std::move(config), std::move(legacy_renderer))) {}
+ChatPreprocessor::ChatPreprocessor(ChatPreprocessorConfig config, BuiltinChatTemplateRenderer builtin_renderer)
+    : impl_(std::make_unique<Impl>(std::move(config), std::move(builtin_renderer))) {}
 
 ChatPreprocessor::~ChatPreprocessor() = default;
 ChatPreprocessor::ChatPreprocessor(ChatPreprocessor&&) noexcept = default;
@@ -452,15 +452,16 @@ bool jinjaChatTemplatesAvailable() noexcept {
 }
 
 ChatTemplateBackend parseChatTemplateBackend(std::string_view name) {
-  if (name == "legacy") { return ChatTemplateBackend::Legacy; }
+  // Keep the original draft spelling as an input alias only.
+  if (name == "builtin" || name == "legacy") { return ChatTemplateBackend::Builtin; }
   if (name == "jinja_required") { return ChatTemplateBackend::JinjaRequired; }
   throw ChatTemplateError("unsupported chat-template backend '" + std::string(name)
-                          + "'; expected 'legacy' or 'jinja_required'");
+                          + "'; expected 'builtin' or 'jinja_required'");
 }
 
 const char* chatTemplateBackendName(ChatTemplateBackend backend) noexcept {
   switch (backend) {
-    case ChatTemplateBackend::Legacy: return "legacy";
+    case ChatTemplateBackend::Builtin: return "builtin";
     case ChatTemplateBackend::JinjaRequired: return "jinja_required";
   }
   return "unknown";

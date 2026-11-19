@@ -53,13 +53,13 @@ TEST(Qwen35TokenizerTest, RendersThroughTheConfiguredChatTemplateBackend) {
   using mllm::models::qwen3_5::Qwen3_5Message;
   using mllm::models::qwen3_5::Qwen3_5Tokenizer;
 
-  // Legacy keeps the pre-Jinja runner prompt bytes.
-  Qwen3_5Tokenizer legacy(tokenizer_path);
-  EXPECT_EQ(legacy.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::Legacy);
+  // Builtin keeps the pre-Jinja runner prompt bytes.
+  Qwen3_5Tokenizer builtin(tokenizer_path);
+  EXPECT_EQ(builtin.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::Builtin);
   const Qwen3_5Message message{.prompt = "你好，介绍一下 mllm。"};
-  EXPECT_EQ(legacy.renderChatTemplate(message),
+  EXPECT_EQ(builtin.renderChatTemplate(message),
             "<|im_start|>user\n你好，介绍一下 mllm。<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n");
-  EXPECT_EQ(legacy.renderChatTemplate({.prompt = "Describe.", .image_paths = {"a.png", "b.png"}}),
+  EXPECT_EQ(builtin.renderChatTemplate({.prompt = "Describe.", .image_paths = {"a.png", "b.png"}}),
             "<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|>"
             "Describe.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n");
 
@@ -79,10 +79,10 @@ TEST(Qwen35TokenizerTest, RendersThroughTheConfiguredChatTemplateBackend) {
   Qwen3_5Tokenizer jinja(tokenizer_path, 256 * 256, 512 * 512, 16, 2, 2, 4 * 32 * 32, 24 * 32 * 32 * 1024, jinja_config);
   EXPECT_EQ(jinja.chatTemplateBackend(), mllm::preprocessor::ChatTemplateBackend::JinjaRequired);
   for (const auto& probe : {message, Qwen3_5Message{.prompt = "Describe.", .image_paths = {"a.png", "b.png"}}}) {
-    EXPECT_EQ(jinja.renderChatTemplate(probe), legacy.renderChatTemplate(probe));
+    EXPECT_EQ(jinja.renderChatTemplate(probe), builtin.renderChatTemplate(probe));
   }
   const auto jinja_ids = jinja.convertMessage(message).at("sequence");
-  const auto legacy_ids = legacy.convertMessage(message).at("sequence");
+  const auto builtin_ids = builtin.convertMessage(message).at("sequence");
   EXPECT_EQ(std::vector<int64_t>(jinja_ids.ptr<int64_t>(), jinja_ids.ptr<int64_t>() + jinja_ids.numel()),
-            std::vector<int64_t>(legacy_ids.ptr<int64_t>(), legacy_ids.ptr<int64_t>() + legacy_ids.numel()));
+            std::vector<int64_t>(builtin_ids.ptr<int64_t>(), builtin_ids.ptr<int64_t>() + builtin_ids.numel()));
 }

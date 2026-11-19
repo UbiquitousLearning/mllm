@@ -8,7 +8,7 @@
 #include "mllm/preprocessor/tokenizers/BPEUTF8.hpp"  //BPEUTF8, MiniCPM4 use LlamaTokenizer!
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/minicpm4/configuration_minicpm4.hpp"
-#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
+#include "mllm/preprocessor/chat_template/ChatMlSingleTurn.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 
@@ -22,7 +22,7 @@ class MiniCPM4Tokenizer final : public mllm::preprocessor::AutoTokenizerUTF8 {
  public:
   // The chat-template backend is selected explicitly; see Qwen3Tokenizer.
   explicit MiniCPM4Tokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
-      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderChatMlSingleTurn) {
     bpe_.initFromSentencePieceJson(file_path);
     chat_preprocessor_.setControlTokens(bpe_.controlTokens());
 

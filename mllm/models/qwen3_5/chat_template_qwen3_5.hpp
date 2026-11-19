@@ -35,17 +35,17 @@ inline preprocessor::ChatTemplateRequest makeQwen3_5ChatTemplateRequest(const st
 // the single user turn produced by makeQwen3_5ChatTemplateRequest and keeps
 // those bytes stable; every other shape fails closed so a missing Jinja
 // template is never papered over with an approximation.
-inline std::string renderLegacyQwen3_5ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
+inline std::string renderBuiltinQwen3_5ChatTemplate(const preprocessor::ChatTemplateRequest& request) {
   using preprocessor::ChatTemplateError;
   if (request.messages.size() != 1 || request.messages[0].value("role", "") != "user") {
-    throw ChatTemplateError("legacy Qwen3.5 chat template supports exactly one user message; "
-                            "select the jinja_required backend for multi-turn requests");
+    throw ChatTemplateError("Qwen3.5 runner accepts exactly one user message; "
+                            "this entry point does not support multi-turn history");
   }
   if (request.tools.has_value()) {
-    throw ChatTemplateError("legacy Qwen3.5 chat template does not support tools; select the jinja_required backend");
+    throw ChatTemplateError("Qwen3.5 runner does not accept tools");
   }
   const auto& message = request.messages[0];
-  if (!message.contains("content")) { throw ChatTemplateError("legacy Qwen3.5 chat template requires message content"); }
+  if (!message.contains("content")) { throw ChatTemplateError("builtin Qwen3.5 chat template requires message content"); }
   const auto& content = message.at("content");
 
   std::string body;
@@ -61,11 +61,11 @@ inline std::string renderLegacyQwen3_5ChatTemplate(const preprocessor::ChatTempl
       } else if (type == "text") {
         body += item.value("text", "");
       } else {
-        throw ChatTemplateError("legacy Qwen3.5 chat template received an unsupported content block type '" + type + "'");
+        throw ChatTemplateError("builtin Qwen3.5 chat template received an unsupported content block type '" + type + "'");
       }
     }
   } else {
-    throw ChatTemplateError("legacy Qwen3.5 chat template requires string or content-block message content");
+    throw ChatTemplateError("builtin Qwen3.5 chat template requires string or content-block message content");
   }
 
   std::string output = "<|im_start|>user\n" + body + "<|im_end|>\n";

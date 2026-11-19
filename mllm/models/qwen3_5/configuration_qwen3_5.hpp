@@ -87,7 +87,7 @@ struct Qwen3_5Config : protected ConfigFile {
       }
     }
 
-    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "builtin"));
 
     vision_enabled = data().contains("vision_config");
     if (vision_enabled) {
@@ -242,7 +242,7 @@ struct Qwen3_5Config : protected ConfigFile {
   int32_t max_cache_length = 2048;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
-  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Builtin;
 
   // Helpers
   [[nodiscard]] bool isFullAttentionLayer(int layer_idx) const {

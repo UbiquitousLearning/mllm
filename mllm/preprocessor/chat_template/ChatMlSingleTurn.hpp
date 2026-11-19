@@ -1,7 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
-#ifndef MLLM_PREPROCESSOR_CHAT_TEMPLATE_LEGACY_CHAT_ML_HPP
-#define MLLM_PREPROCESSOR_CHAT_TEMPLATE_LEGACY_CHAT_ML_HPP
+#ifndef MLLM_PREPROCESSOR_CHAT_TEMPLATE_CHAT_ML_SINGLE_TURN_HPP
+#define MLLM_PREPROCESSOR_CHAT_TEMPLATE_CHAT_ML_SINGLE_TURN_HPP
 
 #include <optional>
 #include <string>
@@ -26,8 +26,8 @@ inline ChatTemplateRequest makeSingleTurnChatTemplateRequest(const std::string& 
 }
 
 // Only the message bytes are shared: the caller owns BOS and the assistant prefix.
-inline void appendLegacyChatMlMessages(std::string& output, const ChatTemplateRequest& request, const char* model) {
-  auto error = [model](const char* reason) { return ChatTemplateError(std::string("legacy ") + model + " chat template " + reason); };
+inline void appendChatMlSingleTurnMessages(std::string& output, const ChatTemplateRequest& request, const char* model) {
+  auto error = [model](const char* reason) { return ChatTemplateError(std::string("builtin ") + model + " chat template " + reason); };
   if (request.tools.has_value()) {
     throw error("does not support tools; select the jinja_required backend");
   }
@@ -48,9 +48,9 @@ inline void appendLegacyChatMlMessages(std::string& output, const ChatTemplateRe
   output += "<|im_start|>user\n" + content.get<std::string>() + "<|im_end|>\n";
 }
 
-inline std::string renderLegacyChatMlSingleTurn(const ChatTemplateRequest& request) {
+inline std::string renderChatMlSingleTurn(const ChatTemplateRequest& request) {
   std::string output;
-  appendLegacyChatMlMessages(output, request, "ChatML");
+  appendChatMlSingleTurnMessages(output, request, "ChatML");
   if (request.add_generation_prompt) {
     output += "<|im_start|>assistant\n";
     const auto thinking = request.extra_context.find("enable_thinking");
@@ -63,4 +63,4 @@ inline std::string renderLegacyChatMlSingleTurn(const ChatTemplateRequest& reque
 
 }  // namespace mllm::preprocessor
 
-#endif  // MLLM_PREPROCESSOR_CHAT_TEMPLATE_LEGACY_CHAT_ML_HPP
+#endif  // MLLM_PREPROCESSOR_CHAT_TEMPLATE_CHAT_ML_SINGLE_TURN_HPP

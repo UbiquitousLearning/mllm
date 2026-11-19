@@ -5,23 +5,24 @@ converts its request into a `ChatTemplateRequest` (messages, tools, extra
 template variables) and asks a `ChatPreprocessor` for the prompt text. The
 model configuration selects the backend explicitly:
 
-- `"chat_template_backend": "legacy"` (default while the rollout continues)
-  keeps the model's migration renderer, a byte-stable copy of the prompt the
-  model produced before this layer existed;
+- `"chat_template_backend": "builtin"` (default) uses the model's built-in
+  C++ formatter and preserves its existing prompt format;
 - `"chat_template_backend": "jinja_required"` renders the official template
   found in the model directory with the vendored `jinja.cpp` engine.
 
 The build option `-DMLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON` only controls whether
 Jinja support is present in the binary. A `jinja_required` model fails during
 loading when that support or its template is missing; it never silently falls
-back to `legacy`.
+back to `builtin`.
+
+The draft spelling `legacy` is accepted as an input alias for `builtin`.
 
 ## Pipeline
 
 ```text
 runner / service request
    -> model request builder      (messages, content blocks, enable_thinking, tools)
-   -> ChatPreprocessor.render    (legacy renderer | official Jinja template)
+   -> ChatPreprocessor.render    (builtin renderer | official Jinja template)
    -> model prompt adapter       (Qwen3.5: video placeholder -> timestamped frame markers)
    -> model tokenizer            (special tokens, BPE, image/video token expansion)
    -> token ids + media tensors
@@ -34,14 +35,13 @@ Migrated entry points:
 | Qwen3 service / probing | `Qwen3Session` | `config.json` | model directory |
 | Qwen3.5 (text, image, video) | `Qwen3_5Tokenizer::convertMessage` | `Qwen3_5Config` | next to `tokenizer.json` |
 | MiniCPM5 | `MiniCPM5Tokenizer::convertMessage` | `MiniCPM5Config` | next to `tokenizer.json` |
-| Qwen3 runner, Qwen3-MoE, Qwen Ascend, MiniCPM4, Qwen NPU | `<Model>Tokenizer::convertMessage` via `LegacyChatMl.hpp` | model config | next to `tokenizer.json` |
+| Qwen3 runner, Qwen3-MoE, Qwen Ascend, MiniCPM4, Qwen NPU | `<Model>Tokenizer::convertMessage` via `ChatMlSingleTurn.hpp` | model config | next to `tokenizer.json` |
 
-The `legacy` renderers accept only the request shapes their runners have ever
-produced (Qwen3.5: one user turn; MiniCPM5 and the ChatML runners: optional
-system plus one user turn). Anything else fails closed so a missing template is never approximated.
-The one intentional difference between `legacy` and the official templates is
-that the official Qwen3.5 template trims message content; the parity gate uses
-prompts without leading or trailing whitespace.
+Changing the renderer does not change what a runner accepts. Qwen3.5 accepts
+one user turn; MiniCPM5 and the ChatML runners accept an optional system message
+followed by one user turn. The Qwen3 service has its own history-aware formatter.
+The official Qwen3.5 template trims message content while the built-in formatter
+does not; the single-turn parity gate uses prompts without surrounding whitespace.
 
 ## Control tokens in content
 
@@ -90,7 +90,7 @@ Template discovery uses this order:
 1. an explicit template path;
 2. `<model directory>/chat_template.jinja` plus named templates in
    `<model directory>/additional_chat_templates/*.jinja`;
-3. the legacy `chat_template` field in `tokenizer_config.json`, including the
+3. the embedded `chat_template` field in `tokenizer_config.json`, including the
    named-template array format.
 
 When multiple templates exist, an explicitly selected name wins. Otherwise a

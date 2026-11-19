@@ -24,7 +24,7 @@ single-user branch; multi-turn history and tool calling remain unsupported.
 ### Chat template backend
 
 `config.json` selects how the runner renders the prompt through
-`chat_template_backend`: `legacy` (default) keeps the byte-stable formatter
+`chat_template_backend`: `builtin` (default) keeps the byte-stable formatter
 above; `jinja_required` renders the checkpoint's own `chat_template.jinja`,
 discovered next to `tokenizer.json`, with the vendored `jinja.cpp` engine and
 requires a build with `-DMLLM_ENABLE_JINJA_CHAT_TEMPLATE=ON`. A

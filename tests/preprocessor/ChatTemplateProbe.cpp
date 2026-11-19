@@ -51,7 +51,7 @@ struct Options {
 [[noreturn]] void usage(const std::string& error = "") {
   if (!error.empty()) { std::cerr << error << "\n"; }
   std::cerr << "usage: Mllm-ChatTemplate-Probe --model MODEL --tokenizer tokenizer.json [--merges merges.txt] [--config config.json]\n"
-               "       [--model_dir DIR] [--backend legacy|jinja_required] [--prompt TEXT] [--system TEXT]\n"
+               "       [--model_dir DIR] [--backend builtin|jinja_required] [--prompt TEXT] [--system TEXT]\n"
                "       [--enable_thinking] [--tokenize]\n";
   std::exit(2);
 }

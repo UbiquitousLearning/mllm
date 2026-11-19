@@ -9,7 +9,7 @@
 
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/qwen_ascend/configuration_qwen_ascend.hpp"
-#include "mllm/preprocessor/chat_template/LegacyChatMl.hpp"
+#include "mllm/preprocessor/chat_template/ChatMlSingleTurn.hpp"
 #include "mllm/models/qwen3/tokenization_qwen3.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
@@ -24,7 +24,7 @@ struct QwenAscendMessage {
 class QwenAscendTokenizer final : public mllm::preprocessor::AutoTokenizer {
  public:
   explicit QwenAscendTokenizer(const std::string& file_path, preprocessor::ChatPreprocessorConfig chat_template = {})
-      : chat_preprocessor_(std::move(chat_template), preprocessor::renderLegacyChatMlSingleTurn) {
+      : chat_preprocessor_(std::move(chat_template), preprocessor::renderChatMlSingleTurn) {
     preprocessor::initLocal("C.UTF-8");
     preprocessor::makeBytes2UnicodeMap(bytes_2_unicode_dict_);
     for (auto& kv : bytes_2_unicode_dict_) { bytes_2_unicode_dict_inverse_.insert({kv.second, kv.first}); }

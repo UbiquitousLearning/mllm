@@ -42,7 +42,7 @@ struct Qwen3MoeConfig : protected ConfigFile {
     mlp_only_layers = data()["mlp_only_layers"].get<std::vector<int>>();
 
     // Linear implementation type
-    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "legacy"));
+    chat_template_backend = preprocessor::parseChatTemplateBackend(data().value("chat_template_backend", "builtin"));
 
     linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
@@ -74,7 +74,7 @@ struct Qwen3MoeConfig : protected ConfigFile {
   std::vector<int> mlp_only_layers;
 
   aops::LinearImplTypes linear_impl_type = aops::LinearImplTypes::kDefault;
-  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Legacy;
+  preprocessor::ChatTemplateBackend chat_template_backend = preprocessor::ChatTemplateBackend::Builtin;
 };
 
 }  // namespace mllm::models::qwen3_moe
