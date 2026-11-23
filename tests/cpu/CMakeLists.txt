@@ -15,5 +15,5 @@ add_test(
   NAME CPUKernelFocused
   COMMAND
     Mllm-Test-CPUKernel
-    --gtest_filter=CausalDepthwiseConvKernelTest.*:CausalDepthwiseConvCurrentFirstKernelTest.*:GatedDeltaRuleKernelTest.*:GqaDecodeKernelTest.*)
+    --gtest_filter=CausalDepthwiseConvKernelTest.*:CausalDepthwiseConvCurrentFirstKernelTest.*:GatedDeltaRuleKernelTest.*:GqaDecodeKernelTest.*:FlashAttn2KernelTest.IdentityRescaleMatchesLegacyBitwise:Fa2TiledKernelTest.*)
 set_tests_properties(CPUKernelFocused PROPERTIES LABELS cpu-kernel)
