@@ -186,13 +186,13 @@ void CPUPatternSparseAttentionOp::forward(const std::vector<Tensor>& inputs, std
   size_t external_head_stride = 0;
   size_t external_row_offsets_head_stride = 0;
   const auto execute_sparse_range = [&](size_t matrix_begin, size_t matrix_count, int32_t query_row_begin,
-                                        int32_t query_row_count) {
+                                        int32_t query_row_count, shadownpu::HmxTopKBitmapView bitmap = {}) {
     if (options_.hmx_selector && inputs[1].dtype() == kFloat16 && inputs[2].dtype() == kFloat16) {
       reportHmxF16SparseOnce();
       return shadownpu::patternSparseAttentionHmxF16Range(
           params, inputs[0].ptr<float>(), inputs[1].ptr<mllm_fp16_t>(), inputs[2].ptr<mllm_fp16_t>(), outputs[0].ptr<float>(),
           matrix_begin, matrix_count, query_row_begin, query_row_count, external_indices, external_head_stride,
-          external_row_offsets, external_row_offsets_head_stride);
+          external_row_offsets, external_row_offsets_head_stride, bitmap);
     }
     if (inputs[1].dtype() == kFloat32 && inputs[2].dtype() == kFloat32) {
       return shadownpu::patternSparseAttentionRangeTyped(
@@ -284,6 +284,17 @@ void CPUPatternSparseAttentionOp::forward(const std::vector<Tensor>& inputs, std
           pipeline_succeeded.store(false, std::memory_order_relaxed);
         }
       };
+      static const bool direct_bitmap_enabled = [] {
+        const char* value = std::getenv("MLLM_HMX_INT8_DIRECT_BITMAP_CONSUMER");
+        return value != nullptr && std::strcmp(value, "1") == 0;
+      }();
+      if (direct_bitmap_enabled && params.causal_mask && inputs[1].dtype() == kFloat16 && inputs[2].dtype() == kFloat16) {
+        request.topk_bitmap_rows_ready = [&](size_t matrix, int row_begin, int row_count, shadownpu::HmxTopKBitmapView bitmap) {
+          if (!execute_sparse_range(matrix, 1, row_begin, row_count, bitmap)) {
+            pipeline_succeeded.store(false, std::memory_order_relaxed);
+          }
+        };
+      }
     }
     std::string error;
     shadownpu::ScopedAttentionProfile hmx_select_profile(shadownpu::AttentionProfileStage::HMX_SELECT,

@@ -5,15 +5,19 @@
 #include "AttentionPipelineExecutor.hpp"
 #include "HMXPipelineScheduler.hpp"
 #include "HMXPipelineLatencyRecorder.hpp"
+#include "HmxTopKBitmap.hpp"
 #include "INT8TopK.hpp"
 #include "PipelineTaskExecutor.hpp"
+#include "mllm/backends/cpu/kernels/arm/SparsePVSme.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -25,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -145,6 +150,8 @@ public:
         std::function<void(std::size_t, std::size_t)> topk_group_ready;
         std::function<void(std::size_t, std::size_t, int, int)>
             topk_group_rows_ready;
+        std::function<void(std::size_t, int, int, HmxTopKBitmapView)>
+            topk_bitmap_rows_ready;
     };
 
     explicit HMXInt8Selector(std::size_t reserve_hint_tokens = 0)
@@ -421,17 +428,22 @@ private:
         std::size_t count = 0;
     };
 
-    // View of one in-flight all-head long RPC.  The DSP publishes each
-    // ready word only after flushing the corresponding score matrix, so a
-    // CPU consumer can select Top-k directly from rpcmem after an acquire
-    // load without copying through scores_.  The view is valid only for the
-    // duration of the callback.
+    using DecodeTopKBitmapRowsFn = int (*)(
+        const void *, std::size_t, std::int32_t, std::int32_t,
+        std::int32_t, std::int32_t, const std::int32_t *, std::int32_t *, std::size_t);
+
+    // View of one in-flight all-head long RPC. The DSP publishes each ready
+    // word after flushing the score matrix or native selection payload. The
+    // CPU reads rpcmem after an acquire load and only during the callback.
     struct DirectScoreStream {
         volatile std::int32_t *ready = nullptr;
         std::size_t ready_stride = 0;
         const std::int8_t *scores = nullptr;
         std::size_t score_head_stride = 0;
         std::size_t score_row_stride = 0;
+        const std::uint16_t *indices = nullptr;
+        std::size_t index_head_stride = 0;
+        DecodeTopKBitmapRowsFn decode_bitmap = nullptr;
         const std::size_t *matrices = nullptr;
         std::size_t count = 0;
     };
@@ -545,6 +557,7 @@ private:
         int padded_n = 0;
         const float *q_scales = nullptr;
         const float *k_scales = nullptr;
+        std::optional<std::uint64_t> key_sources;
         std::int8_t *direct_query = nullptr;
         std::int8_t *direct_key = nullptr;
         std::int32_t *direct_sums = nullptr;
@@ -657,6 +670,11 @@ private:
     using CpuPackReadyDataFn = volatile std::int32_t *(*)(void *);
     using ExecuteCpuPackedPerHeadHnFn = int (*)(
         void *, std::int32_t, std::int32_t, const float *);
+    using ExecuteCpuPackedSharedKeyHnFn = int (*)(
+        void *, std::int32_t, std::int32_t, const float *, std::uint64_t);
+    using ExecuteCpuPackedSharedKeyTopKHnFn = int (*)(
+        void *, std::int32_t, std::int32_t, const float *, std::uint64_t,
+        const std::int32_t *const *, std::int32_t);
     using PrepareRawKeyFn = int (*)(void *, std::int32_t, std::int32_t,
                                     std::int32_t);
     using PrepareRawKeyScaledFn = int (*)(void *, std::int32_t,
@@ -723,6 +741,10 @@ private:
         ExecuteHnFn execute_hn = nullptr;
         CpuPackReadyDataFn cpu_pack_ready_data = nullptr;
         ExecuteCpuPackedPerHeadHnFn execute_cpu_packed_per_head_hn = nullptr;
+        ExecuteCpuPackedSharedKeyHnFn execute_cpu_packed_shared_key_hn = nullptr;
+        ExecuteCpuPackedSharedKeyTopKHnFn execute_cpu_packed_shared_key_topk_hn = nullptr;
+        ExecuteCpuPackedSharedKeyTopKHnFn execute_cpu_packed_shared_key_bitmap_hn = nullptr;
+        DecodeTopKBitmapRowsFn decode_topk_bitmap_rows = nullptr;
         PrepareRawKeyFn prepare_raw_key = nullptr;
         PrepareRawKeyScaledFn prepare_raw_key_scaled = nullptr;
         ExecuteRawHnFn execute_raw_hn = nullptr;
@@ -1585,7 +1607,7 @@ private:
                             cpu_job->direct_key, cpu_job->direct_sums,
                             cpu_job->ready, cpu_job->ready_stride,
                             cpu_job->padded_m, cpu_job->k,
-                            cpu_job->profile_enabled);
+                            cpu_job->profile_enabled, cpu_job->key_sources);
                         cpu_job->phase.store(
                             CpuScalePackJob::DONE, std::memory_order_release);
                     } catch (...) {
@@ -3011,6 +3033,54 @@ private:
                             std::atomic<bool> pack_ok{false};
                             const int cpu_key_begin = query_begin == 0
                                 ? key_begin : actual_n;
+                            // Partial K and multi-slice Q can keep arena data
+                            // from a previous call with a different head map.
+                            const auto key_sources =
+                                bucket.execute_cpu_packed_shared_key_hn != nullptr
+                                && !use_layer_key_cache && cpu_key_begin == 0
+                                && request.query_len <= bucket.info.m
+                                ? packedKeySources(request, group, count,
+                                                   per_head_k_scales.data())
+                                : std::nullopt;
+                            static const bool native_topk_enabled = [] {
+                                const char *value = std::getenv("MLLM_HMX_INT8_NATIVE_TOPK");
+                                return value != nullptr && std::strcmp(value, "1") == 0;
+                            }();
+                            static const bool native_bitmap_enabled = [] {
+                                const char *value = std::getenv("MLLM_HMX_INT8_NATIVE_BITMAP");
+                                return value != nullptr && std::strcmp(value, "1") == 0;
+                            }();
+                            const bool native_bitmap = native_bitmap_enabled
+                                && bucket.execute_cpu_packed_shared_key_bitmap_hn != nullptr
+                                && bucket.decode_topk_bitmap_rows != nullptr;
+                            const auto execute_native = native_bitmap
+                                ? bucket.execute_cpu_packed_shared_key_bitmap_hn
+                                : bucket.execute_cpu_packed_shared_key_topk_hn;
+                            const std::size_t index_head_stride =
+                                static_cast<std::size_t>(bucket.info.n) * bucket.info.k;
+                            std::array<const std::int32_t *, 16> native_row_offsets{};
+                            const std::uint16_t *native_indices = nullptr;
+                            if (native_topk_enabled && key_sources && long_rpc_pipeline
+                                && on_direct_stream && ready_stride == kLongRpcReadyStride
+                                && execute_native != nullptr
+                                && bucket.raw_key_data != nullptr && bucket.info.m == 512
+                                && bucket.info.n % 32 == 0 && bucket.info.k % 32 == 0
+                                && query_begin == 0 && request.query_len == bucket.info.m
+                                && request.key_len - request.query_len
+                                    == validated.causal_prefix_tokens
+                                && topKOversample() == 1.0F) {
+                                const std::size_t offset_bytes =
+                                    (static_cast<std::size_t>(bucket.info.m + 1)
+                                        * sizeof(std::int32_t) + 127) & ~std::size_t{127};
+                                bool fits = index_head_stride > offset_bytes / sizeof(std::uint16_t);
+                                for (std::size_t local = 0; local < count && fits; ++local) {
+                                    const auto *offsets = rowOffsetsForMatrix(request, group[local]);
+                                    native_row_offsets[local] = offsets;
+                                    fits = native_bitmap || static_cast<std::size_t>(offsets[request.query_len])
+                                        <= index_head_stride - offset_bytes / sizeof(std::uint16_t);
+                                }
+                                if (fits) native_indices = bucket.raw_key_data(context);
+                            }
                             const bool combined_cpu_stage =
                                 scale_staging.cpu_job != nullptr;
                             std::future<void> pack_future;
@@ -3035,6 +3105,7 @@ private:
                                 job->padded_n = actual_n;
                                 job->q_scales = per_head_q_scales.data();
                                 job->k_scales = per_head_k_scales.data();
+                                job->key_sources = key_sources;
                                 job->direct_query = direct_query;
                                 job->direct_key = direct_key;
                                 job->direct_sums = direct_key_sums;
@@ -3048,7 +3119,7 @@ private:
                                     std::memory_order_release);
                             } else {
                                 pack_future = cpuPackTaskExecutor().submit(
-                                    [&, cpu_key_begin]() noexcept {
+                                    [&, cpu_key_begin, key_sources]() noexcept {
                                         pack_ok.store(
                                             cpuPackPerHeadGroup(
                                                 request, count, group,
@@ -3060,7 +3131,7 @@ private:
                                                 direct_key_sums, ready,
                                                 ready_stride,
                                                 bucket.info.m, bucket.info.k,
-                                                profile_enabled),
+                                                profile_enabled, key_sources),
                                             std::memory_order_release);
                                     });
                             }
@@ -3095,18 +3166,29 @@ private:
                             }
                             int cpu_status = 0;
                             std::string long_rpc_error;
+                            const auto execute_cpu_packed = [&]() {
+                                const auto heads = static_cast<std::int32_t>(count);
+                                if (native_indices != nullptr) {
+                                    return execute_native(
+                                        context, heads, actual_n, per_head_requant_scales.data(),
+                                        *key_sources, native_row_offsets.data(), request.key_len);
+                                }
+                                if (key_sources) {
+                                    return bucket.execute_cpu_packed_shared_key_hn(
+                                        context, heads, actual_n,
+                                        per_head_requant_scales.data(), *key_sources);
+                                }
+                                return bucket.execute_cpu_packed_per_head_hn(
+                                    context, heads, actual_n,
+                                    per_head_requant_scales.data());
+                            };
                             {
                                 ScopedAttentionProfile fused_profile(
                                     AttentionProfileStage::
                                         HMX_FUSED_PREPARE_EXECUTE,
                                     profile_enabled && !on_direct_stream);
                                 if (!long_rpc_pipeline) {
-                                    cpu_status =
-                                        bucket.execute_cpu_packed_per_head_hn(
-                                            context,
-                                            static_cast<std::int32_t>(count),
-                                            actual_n,
-                                            per_head_requant_scales.data());
+                                    cpu_status = execute_cpu_packed();
                                 } else {
                                     std::atomic<std::uint64_t>
                                         direct_rpc_elapsed_ns{0};
@@ -3119,14 +3201,7 @@ private:
                                                 && on_direct_stream
                                                 ? CPUAttentionProfiler::nowNs()
                                                 : 0;
-                                            cpu_status = bucket
-                                                .execute_cpu_packed_per_head_hn(
-                                                    context,
-                                                    static_cast<std::int32_t>(
-                                                    count),
-                                                    actual_n,
-                                                    per_head_requant_scales
-                                                        .data());
+                                            cpu_status = execute_cpu_packed();
                                             if (rpc_begin_ns != 0) {
                                                 direct_rpc_elapsed_ns.store(
                                                     CPUAttentionProfiler::
@@ -3151,6 +3226,25 @@ private:
                                             stream.score_row_stride =
                                                 static_cast<std::size_t>(
                                                     actual_n);
+                                            stream.indices = native_indices;
+                                            stream.index_head_stride = index_head_stride;
+                                            stream.decode_bitmap = native_bitmap && native_indices != nullptr
+                                                ? bucket.decode_topk_bitmap_rows : nullptr;
+                                            if (native_indices != nullptr && profile_enabled) {
+                                                std::fprintf(stderr,
+                                                    "[HMX_INT8_NATIVE_TOPK] layer=%d key_len=%d heads=%zu\n",
+                                                    request.layer_id, request.key_len, count);
+                                                if (stream.decode_bitmap != nullptr) {
+                                                    std::fprintf(stderr,
+                                                        "[HMX_INT8_NATIVE_BITMAP] layer=%d key_len=%d heads=%zu\n",
+                                                        request.layer_id, request.key_len, count);
+                                                    if (request.topk_bitmap_rows_ready) {
+                                                        std::fprintf(stderr,
+                                                            "[HMX_INT8_DIRECT_BITMAP] layer=%d key_len=%d heads=%zu\n",
+                                                            request.layer_id, request.key_len, count);
+                                                    }
+                                                }
+                                            }
                                             stream.matrices = group;
                                             stream.count = count;
                                             stream_ok = on_direct_stream(
@@ -4282,15 +4376,6 @@ private:
         }
     }
 
-    static void cpuPackKeyHead(
-        const Request &request, std::size_t matrix, int key_begin,
-        int padded_n, float k_scale, std::int8_t *destination,
-        std::int32_t *sums, int k) noexcept {
-        cpuPackKeyTokenRange(
-            request, matrix, (key_begin / 32) * 32, padded_n, k_scale,
-            destination, sums, k);
-    }
-
     static void publishCpuPackProgress(
         volatile std::int32_t *ready, int query_tiles,
         int key_tiles) noexcept {
@@ -4305,6 +4390,45 @@ private:
         __atomic_store_n(ready, value, __ATOMIC_RELEASE);
     }
 
+    static std::size_t packedKeyRepresentative(
+        const Request &request, const std::size_t *indices,
+        const float *scales, std::size_t local, bool &seen_source) noexcept {
+        for (std::size_t peer = 0; peer < local; ++peer) {
+            if (request.key_heads[indices[local]]
+                != request.key_heads[indices[peer]]) {
+                continue;
+            }
+            seen_source = true;
+            if (std::memcmp(&scales[local], &scales[peer], sizeof(float)) == 0) {
+                return peer;
+            }
+        }
+        return local;
+    }
+
+    static std::optional<std::uint64_t> packedKeySources(
+        const Request &request, const std::size_t *indices,
+        std::size_t count, const float *scales) noexcept {
+        static const bool enabled = [] {
+            const char *value = std::getenv("MLLM_HMX_INT8_ALIAS_PACKED_K");
+            return value != nullptr && std::strcmp(value, "1") == 0;
+        }();
+        if (!enabled || count > 16 || indices == nullptr || scales == nullptr) {
+            return std::nullopt;
+        }
+        std::uint64_t sources = 0;
+        bool aliases = false;
+        for (std::size_t local = 0; local < count; ++local) {
+            bool seen_source = false;
+            const auto source = packedKeyRepresentative(
+                request, indices, scales, local, seen_source);
+            sources |= static_cast<std::uint64_t>(source) << (local * 4);
+            aliases |= source != local;
+        }
+        if (aliases) return sources;
+        return std::nullopt;
+    }
+
     static bool cpuPackPerHeadGroup(
         const Request &request, std::size_t count,
         const std::size_t *matrix_indices, int query_begin, int query_count,
@@ -4313,11 +4437,13 @@ private:
         std::int8_t *direct_key, std::int32_t *direct_sums,
         volatile std::int32_t *ready, std::size_t ready_stride,
         int padded_m, int k,
-        bool profile_enabled) noexcept {
+        bool profile_enabled,
+        std::optional<std::uint64_t> key_sources = std::nullopt) noexcept {
         if (matrix_indices == nullptr || q_scales == nullptr
             || k_scales == nullptr || direct_query == nullptr
             || direct_key == nullptr || direct_sums == nullptr
-            || ready == nullptr || ready_stride == 0) {
+            || ready == nullptr || ready_stride == 0
+            || (key_sources && count > 16)) {
             return false;
         }
         const std::size_t query_stride =
@@ -4325,20 +4451,68 @@ private:
         const std::size_t key_stride =
             static_cast<std::size_t>(padded_n) * k;
         const bool intra_head = cpuPackIntraHeadEnabled();
+        static const bool share_packed_key = [] {
+            const char *value = std::getenv("MLLM_HMX_INT8_SHARE_PACKED_K");
+            return value != nullptr && std::strcmp(value, "1") == 0;
+        }();
+        static const bool trace_key_groups = [] {
+            const char *value = std::getenv("MLLM_HMX_INT8_PACKED_K_REUSE_TRACE");
+            return value != nullptr && std::strcmp(value, "1") == 0;
+        }();
+        const int first_key_token = (key_begin / 32) * 32;
+        std::size_t distinct_sources = 0;
+        std::size_t distinct_packs = 0;
+        std::size_t copied_heads = 0;
+        std::size_t aliased_heads = 0;
         for (std::size_t local = 0; local < count; ++local) {
+            const std::size_t matrix = matrix_indices[local];
+            std::size_t representative = local;
+            if (share_packed_key || trace_key_groups) {
+                bool seen_source = false;
+                representative = packedKeyRepresentative(
+                    request, matrix_indices, k_scales, local, seen_source);
+                distinct_sources += !seen_source;
+                distinct_packs += representative == local;
+            }
+
+            auto *key_destination = direct_key + local * key_stride;
+            const std::size_t sum_stride = static_cast<std::size_t>(padded_n);
+            auto *sum_destination = direct_sums + local * sum_stride;
+            const bool alias_key = key_sources
+                && ((*key_sources >> (local * 4)) & 15u) != local;
+            const bool copy_key = !key_sources && share_packed_key
+                && representative != local;
+            aliased_heads += alias_key;
+            if (copy_key && first_key_token < padded_n) ++copied_heads;
+            const auto write_key_range = [&](int begin, int end) noexcept {
+                if (alias_key) return;
+                if (!copy_key) {
+                    cpuPackKeyTokenRange(
+                        request, matrix, begin, end, k_scales[local],
+                        key_destination, sum_destination, k);
+                    return;
+                }
+                // A full 32-token tile and its sums occupy contiguous spans.
+                // The preceding head finished writing its slot before this head.
+                const std::size_t first_byte = static_cast<std::size_t>(begin) * k;
+                const std::size_t bytes = static_cast<std::size_t>(end - begin) * k;
+                std::memcpy(key_destination + first_byte,
+                            direct_key + representative * key_stride + first_byte, bytes);
+                std::memcpy(sum_destination + begin,
+                            direct_sums + representative * sum_stride + begin,
+                            static_cast<std::size_t>(end - begin) * sizeof(std::int32_t));
+            };
             if (intra_head) {
                 const int query_tiles = padded_m / 64;
                 const int key_tiles = padded_n / 32;
                 int ready_query_tiles = 0;
-                int ready_key_tiles = (key_begin / 32);
+                // The ARM producer completed the earlier slot before
+                // starting this head. Publish K readiness with the first Q tile.
+                int ready_key_tiles = alias_key ? key_tiles : key_begin / 32;
                 std::uint64_t query_ns = 0;
                 std::uint64_t key_ns = 0;
                 std::int8_t *query_destination =
                     direct_query + local * query_stride;
-                std::int8_t *key_destination =
-                    direct_key + local * key_stride;
-                std::int32_t *sum_destination = direct_sums
-                    + local * static_cast<std::size_t>(padded_n);
 
                 if (query_tiles > 0) {
                     const std::uint64_t begin = profile_enabled
@@ -4361,10 +4535,7 @@ private:
                 if (ready_key_tiles < first_chunk_end) {
                     const std::uint64_t begin = profile_enabled
                         ? CPUAttentionProfiler::nowNs() : 0;
-                    cpuPackKeyTokenRange(
-                        request, matrix_indices[local],
-                        ready_key_tiles * 32, first_chunk_end * 32,
-                        k_scales[local], key_destination, sum_destination, k);
+                    write_key_range(ready_key_tiles * 32, first_chunk_end * 32);
                     if (profile_enabled) {
                         key_ns += CPUAttentionProfiler::nowNs() - begin;
                     }
@@ -4395,10 +4566,7 @@ private:
                         key_tiles, ready_key_tiles + 8);
                     const std::uint64_t begin = profile_enabled
                         ? CPUAttentionProfiler::nowNs() : 0;
-                    cpuPackKeyTokenRange(
-                        request, matrix_indices[local],
-                        ready_key_tiles * 32, chunk_end * 32,
-                        k_scales[local], key_destination, sum_destination, k);
+                    write_key_range(ready_key_tiles * 32, chunk_end * 32);
                     if (profile_enabled) {
                         key_ns += CPUAttentionProfiler::nowNs() - begin;
                     }
@@ -4417,10 +4585,7 @@ private:
             }
             const std::uint64_t key_start = profile_enabled
                 ? CPUAttentionProfiler::nowNs() : 0;
-            cpuPackKeyHead(
-                request, matrix_indices[local], key_begin, padded_n,
-                k_scales[local], direct_key + local * key_stride,
-                direct_sums + local * static_cast<std::size_t>(padded_n), k);
+            write_key_range(first_key_token, padded_n);
             if (profile_enabled) {
                 CPUAttentionProfiler::add(
                     AttentionProfileStage::HMX_K_LAYOUT,
@@ -4440,6 +4605,16 @@ private:
             std::atomic_thread_fence(std::memory_order_release);
             __atomic_store_n(
                 ready + local * ready_stride, 1, __ATOMIC_RELEASE);
+        }
+        if (trace_key_groups) {
+            std::fprintf(stderr,
+                         "[HMX_INT8_PACKED_K_GROUP] layer=%d key_len=%d heads=%zu "
+                         "distinct_sources=%zu distinct_packs=%zu copied_heads=%zu "
+                         "first_key_token=%d padded_n=%d head_dim=%d enabled=%d "
+                         "aliased_heads=%zu\n",
+                         request.layer_id, request.key_len, count, distinct_sources,
+                         distinct_packs, copied_heads, first_key_token, padded_n, k,
+                         static_cast<int>(share_packed_key), aliased_heads);
         }
         return true;
     }
@@ -4694,9 +4869,12 @@ private:
         const Request &request, const ValidatedRequest &validated,
         std::size_t matrix, const std::int8_t *source,
         std::size_t source_row_stride, std::size_t worker,
-        std::size_t worker_count) noexcept {
+        std::size_t worker_count, const std::uint16_t *indices = nullptr,
+        DecodeTopKBitmapRowsFn decode_bitmap = nullptr,
+        std::size_t index_head_stride = 0) noexcept {
         if (matrix >= validated.matrix_count || source == nullptr
-            || source_row_stride < static_cast<std::size_t>(request.key_len)
+            || (indices == nullptr
+                && source_row_stride < static_cast<std::size_t>(request.key_len))
             || worker_count == 0 || worker >= worker_count
             || topKOversample() != 1.0F
             || topk_preselected_[matrix] != 0) {
@@ -4718,6 +4896,18 @@ private:
         const std::int32_t *offsets = rowOffsetsForMatrix(request, matrix);
         std::int32_t *destination = request.topk_indices
             + matrix * validated.topk_head_stride;
+        if (indices != nullptr) {
+            if (decode_bitmap != nullptr) {
+                return decode_bitmap(indices, index_head_stride * sizeof(*indices),
+                    request.query_len, request.key_len,
+                    static_cast<std::int32_t>(row_begin), static_cast<std::int32_t>(row_end),
+                    offsets, destination, validated.topk_head_stride) == 0;
+            }
+            const std::size_t first = offsets[row_begin];
+            const std::size_t last = offsets[row_end];
+            std::copy(indices + first, indices + last, destination + first);
+            return true;
+        }
         return INT8TopK::selectCausalRowRange(
             source, total_rows, row_begin, row_end - row_begin,
             source_row_stride,
@@ -5254,6 +5444,15 @@ private:
             return fail("MLLM_HMX_PIPELINE_DIRECT_SPARSE_ASSIST_PERCENT "
                         "must be in [0, 90]", error);
         }
+        const int sparse_target_cpu = directSparseCallerCpu();
+        if (sparse_target_cpu < -1) {
+            return fail("invalid MLLM_HMX_PIPELINE_DIRECT_SPARSE_CALLER_CPU", error);
+        }
+#if !defined(__linux__)
+        if (sparse_target_cpu >= 0) {
+            return fail("direct sparse caller placement requires Linux/Android", error);
+        }
+#endif
         const bool sparse_assist = sparse_assist_percent > 0;
         if (sparse_assist && !request.topk_group_rows_ready) {
             return fail("direct sparse assistance requires the row-range "
@@ -5299,14 +5498,36 @@ private:
 #else
         const int sparse_caller_cpu = -1;
 #endif
+        int sparse_consumer_cpu_begin = -1;
+        int sparse_consumer_cpu_end = -1;
         std::uint64_t topk_busy_ns = 0;
         std::uint64_t sparse_busy_ns = 0;
         std::uint64_t sparse_assist_busy_ns = 0;
+        std::uint64_t sparse_caller_last_tile_ns = 0;
+        std::uint64_t sparse_inline_last_tile_ns = 0;
         std::atomic<bool> topk_failed{false};
         std::string topk_error;
         std::string sparse_error;
         std::string sparse_assist_error;
 
+#if defined(MLLM_ANDROID_SME_SPARSE_PV)
+        const bool native_bitmap = sparsePvOption("MLLM_HMX_INT8_NATIVE_BITMAP");
+        const bool compatible_panel = native_bitmap
+            ? sparsePvOption("MLLM_HMX_INT8_DIRECT_BITMAP_CONSUMER")
+                && useSparsePvBitmapPanel() && useSparsePvBitmapSharedValues()
+            : !useSparsePvRetiringPanel();
+        const bool use_shared_chunks = useSparsePvSharedValues()
+            && compatible_panel
+            && request.query_len >= 2 * kSparsePvSharedRows
+            && request.query_len % kSparsePvSharedRows == 0
+            && request.key_len > 0
+            && static_cast<uint32_t>(request.key_len - 1) <= kSparsePvSharedKeyMask;
+        const int assist_tile_rows = use_shared_chunks ? kSparsePvSharedRows : kSparsePvRows;
+        const bool aligned_assist = sparse_assist && useSparsePvAlignedAssist()
+            && useSparsePvOrderedKeys() && request.head_dim == kSparsePvChannels
+            && request.query_len >= 2 * kSparsePvRows
+            && request.query_len % kSparsePvRows == 0 && useSparsePvSme();
+#endif
         std::vector<int> sparse_assist_row_begin(
             validated.matrix_count, request.query_len);
         if (sparse_assist) {
@@ -5337,6 +5558,28 @@ private:
                     tail_cost += static_cast<std::uint64_t>(
                         request.head_dim + 64);
                 }
+#if defined(MLLM_ANDROID_SME_SPARSE_PV)
+                if (aligned_assist && row_begin % assist_tile_rows != 0) {
+                    // Round to the interior tile boundary with the closest
+                    // estimated suffix cost. Both workers then receive complete
+                    // query tiles and keep their current order within each row.
+                    const int below = row_begin / assist_tile_rows * assist_tile_rows;
+                    const int above = below + assist_tile_rows;
+                    if (below == 0 || above == request.query_len) {
+                        row_begin = below == 0 ? above : below;
+                    } else {
+                        const auto cost_error = [&](int split) {
+                            const auto keep = static_cast<std::uint64_t>(
+                                offsets[request.query_len] - offsets[split]);
+                            const auto rows = static_cast<std::uint64_t>(request.query_len - split);
+                            const auto cost = keep * static_cast<std::uint64_t>(2 * request.head_dim + 8)
+                                + rows * static_cast<std::uint64_t>(request.head_dim + 64);
+                            return target >= cost ? target - cost : cost - target;
+                        };
+                        row_begin = cost_error(below) <= cost_error(above) ? below : above;
+                    }
+                }
+#endif
                 sparse_assist_row_begin[matrix] = row_begin;
             }
         }
@@ -5374,6 +5617,22 @@ private:
             }
             cancelled.store(true, std::memory_order_release);
             pipelineStreamingNotify();
+        };
+
+        const auto direct_bitmap = [&](const DirectScoreStream &stream) {
+            return stream.decode_bitmap != nullptr && static_cast<bool>(request.topk_bitmap_rows_ready);
+        };
+        const auto consume_rows = [&](const DirectScoreStream &stream,
+                                      std::size_t local, int row_begin, int row_count) {
+            const std::size_t matrix = stream.matrices[local];
+            if (direct_bitmap(stream)) {
+                const auto stride = stream.index_head_stride;
+                request.topk_bitmap_rows_ready(matrix, row_begin, row_count,
+                                               {stream.indices + local * stride,
+                                                stride * sizeof(*stream.indices)});
+            } else {
+                request.topk_group_rows_ready(matrix, 1U, row_begin, row_count);
+            }
         };
 
         // Submit before the RPC so CPU4/CPU6 are resident and waiting when
@@ -5441,11 +5700,14 @@ private:
                     }
                 }
                 const std::size_t matrix = stream->matrices[local];
-                if (!selectTopKDirectMatrixPartition(
+                if (!direct_bitmap(*stream) && !selectTopKDirectMatrixPartition(
                         request, validated, matrix,
                         stream->scores
                             + local * stream->score_head_stride,
-                        stream->score_row_stride, worker, worker_count)) {
+                        stream->score_row_stride, worker, worker_count,
+                        stream->indices == nullptr ? nullptr
+                            : stream->indices + local * stream->index_head_stride,
+                        stream->decode_bitmap, stream->index_head_stride)) {
                     report_topk_error(
                         "direct cooperative rpcmem INT8 Top-k failed for "
                         "head " + std::to_string(matrix));
@@ -5488,9 +5750,10 @@ private:
                     const std::uint64_t assist_begin = timing_enabled
                         ? CPUAttentionProfiler::nowNs() : 0;
                     try {
-                        request.topk_group_rows_ready(
-                            matrix, 1U, row_begin,
-                            request.query_len - row_begin);
+                        consume_rows(*stream, local, row_begin, request.query_len - row_begin);
+                        if (timeline_enabled && local + 1U == stream->count) {
+                            sparse_inline_last_tile_ns = CPUAttentionProfiler::nowNs();
+                        }
                         if (profile_enabled) {
                             sparse_assist_busy_ns +=
                                 CPUAttentionProfiler::nowNs() - assist_begin;
@@ -5565,9 +5828,7 @@ private:
                                 sparse_assist_row_begin[matrix];
                             const std::uint64_t assist_begin = timing_enabled
                                 ? CPUAttentionProfiler::nowNs() : 0;
-                            request.topk_group_rows_ready(
-                                matrix, 1U, row_begin,
-                                request.query_len - row_begin);
+                            consume_rows(*stream, local, row_begin, request.query_len - row_begin);
                             if (profile_enabled) {
                                 sparse_assist_busy_ns +=
                                     CPUAttentionProfiler::nowNs()
@@ -5592,6 +5853,17 @@ private:
             });
         }
 
+        const auto join_sparse_assistant = [&] {
+            if (!sparse_assistant.valid()) return;
+            try {
+                sparse_assistant.get();
+            } catch (const std::exception &exception) {
+                if (sparse_assist_error.empty()) sparse_assist_error = exception.what();
+            } catch (...) {
+                if (sparse_assist_error.empty()) sparse_assist_error = "unknown exception in direct sparse assistant";
+            }
+        };
+
         const DirectScoreStreamCallback on_direct_stream =
             [&](const DirectScoreStream &stream,
                 std::string &stream_error) -> bool {
@@ -5603,6 +5875,16 @@ private:
                     pipelineStreamingNotify();
                     return false;
                 }
+#if defined(__linux__)
+                ScopedDirectSparseAffinity placement;
+                if (!placement.pin(sparse_target_cpu)) {
+                    stream_error = "direct sparse caller CPU is unavailable in its inherited affinity";
+                    cancelled.store(true, std::memory_order_release);
+                    pipelineStreamingNotify();
+                    return false;
+                }
+                if (timeline_enabled) sparse_consumer_cpu_begin = sched_getcpu();
+#endif
                 stable_stream = stream;
                 stream_seen.store(true, std::memory_order_release);
                 stream_view.store(&stable_stream, std::memory_order_release);
@@ -5624,9 +5906,10 @@ private:
                                 const int row_count =
                                     sparse_assist_row_begin[matrix];
                                 if (row_count > 0) {
-                                    request.topk_group_rows_ready(
-                                        matrix, 1U, 0, row_count);
+                                    consume_rows(stream, consumed, 0, row_count);
                                 }
+                            } else if (direct_bitmap(stream)) {
+                                consume_rows(stream, consumed, 0, request.query_len);
                             } else {
                                 request.topk_group_ready(matrix, 1U);
                             }
@@ -5649,12 +5932,22 @@ private:
                                     - sparse_begin;
                             }
                             ++consumed;
+                            if (timeline_enabled && consumed == stream.count) {
+                                sparse_caller_last_tile_ns = CPUAttentionProfiler::nowNs();
+                            }
                             continue;
                         }
-                        if (cancelled.load(std::memory_order_acquire)
-                            || (topk_done.load(std::memory_order_acquire)
-                                && consumed == available)) {
+                        if (cancelled.load(std::memory_order_acquire)) {
                             break;
+                        }
+                        if (topk_done.load(std::memory_order_acquire)) {
+                            // The producer can publish its final head between
+                            // our first progress load and the completion load.
+                            if (consumed == topk_published.value.load(
+                                                std::memory_order_acquire)) {
+                                break;
+                            }
+                            continue;
                         }
                         pipelineStreamingPause();
                     }
@@ -5669,11 +5962,21 @@ private:
                 while (!topk_done.load(std::memory_order_acquire)) {
                     pipelineStreamingPause();
                 }
+                // Bitmap rows still borrow the RPC slab while the assistant
+                // runs. Drain it before returning the slab to its producer.
+                if (direct_bitmap(stream)) join_sparse_assistant();
                 if (timing_enabled) {
                     sparse_caller_finish_ns.store(
                         CPUAttentionProfiler::nowNs(),
                         std::memory_order_release);
                 }
+#if defined(__linux__)
+                if (timeline_enabled) sparse_consumer_cpu_end = sched_getcpu();
+                if (!placement.restore()) {
+                    stream_error = "failed to restore the direct sparse caller affinity";
+                    cancelled.store(true, std::memory_order_release);
+                }
+#endif
                 pipelineStreamingNotify();
                 if (!topk_error.empty() && stream_error.empty()) {
                     stream_error = topk_error;
@@ -5702,20 +6005,7 @@ private:
                 topk_error = "unknown exception in direct Top-k consumer";
             }
         }
-        if (sparse_assistant.valid()) {
-            try {
-                sparse_assistant.get();
-            } catch (const std::exception &exception) {
-                if (sparse_assist_error.empty()) {
-                    sparse_assist_error = exception.what();
-                }
-            } catch (...) {
-                if (sparse_assist_error.empty()) {
-                    sparse_assist_error =
-                        "unknown exception in direct sparse assistant";
-                }
-            }
-        }
+        join_sparse_assistant();
         if (timing_enabled) {
             sparse_finish_ns.store(
                 std::max(
@@ -5725,8 +6015,9 @@ private:
         }
         topk_busy_ns = *std::max_element(
             topk_worker_busy_ns.begin(), topk_worker_busy_ns.end());
+        const std::uint64_t sparse_caller_busy_ns = sparse_busy_ns;
         sparse_busy_ns = std::max(
-            sparse_busy_ns, sparse_assist_busy_ns);
+            sparse_caller_busy_ns, sparse_assist_busy_ns);
         if (!sparse_assist_error.empty()) {
             return fail(sparse_assist_error, error);
         }
@@ -5760,18 +6051,28 @@ private:
                 std::memory_order_acquire);
             const std::uint64_t last_ready = last_ready_ns.load(
                 std::memory_order_acquire);
+            const auto relative_us = [begin_ns](std::uint64_t timestamp) {
+                return timestamp >= begin_ns && timestamp != 0 ? (timestamp - begin_ns) / 1000.0 : 0.0;
+            };
             std::cerr << "[HMX_DIRECT_THREE_STAGE] layer="
                       << request.layer_id << " key_len=" << request.key_len
                       << " heads=" << validated.matrix_count
                       << " topk_workers=" << topk_worker_count
                       << " sparse_assist_percent="
                       << sparse_assist_percent
+#if defined(MLLM_ANDROID_SME_SPARSE_PV)
+                      << " sparse_assist_tile_aligned=" << (aligned_assist ? 1 : 0)
+                      << " sparse_assist_tile_rows=" << (aligned_assist ? assist_tile_rows : 0)
+#endif
                       << " sparse_assist_lane="
                       << (dedicated_sparse_assist
                               ? "persistent-sparse-worker"
                               : (topk_inline_sparse_assist
                                      ? "topk-worker-0" : "none"))
                       << " sparse_caller_cpu=" << sparse_caller_cpu
+                      << " sparse_target_cpu=" << sparse_target_cpu
+                      << " sparse_consumer_cpu_begin=" << sparse_consumer_cpu_begin
+                      << " sparse_consumer_cpu_end=" << sparse_consumer_cpu_end
                       << " sparse_assist_cpu="
                       << sparse_assist_cpu.load(std::memory_order_relaxed)
                       << " first_ready_us="
@@ -5787,6 +6088,10 @@ private:
                       << " total_us=" << (finish_ns - begin_ns) / 1000.0
                       << " topk_busy_us=" << topk_busy_ns / 1000.0
                       << " sparse_busy_us=" << sparse_busy_ns / 1000.0
+                      << " sparse_caller_busy_us=" << sparse_caller_busy_ns / 1000.0
+                      << " sparse_assist_busy_us=" << sparse_assist_busy_ns / 1000.0
+                      << " sparse_caller_last_tile_us=" << relative_us(sparse_caller_last_tile_ns)
+                      << " sparse_inline_last_tile_us=" << relative_us(sparse_inline_last_tile_ns)
                       << std::endl;
         }
         return succeed(error);
@@ -5826,6 +6131,51 @@ private:
         }
         return static_cast<int>(parsed);
     }
+
+    static int directSparseCallerCpu() noexcept {
+        static const int cpu = [] {
+            const char *value = std::getenv("MLLM_HMX_PIPELINE_DIRECT_SPARSE_CALLER_CPU");
+            if (value == nullptr || value[0] == '\0') return -1;
+            char *end = nullptr;
+            const long parsed = std::strtol(value, &end, 10);
+            if (end == value || *end != '\0' || parsed < 0
+                || parsed > std::numeric_limits<int>::max()) return -2;
+            return static_cast<int>(parsed);
+        }();
+        return cpu;
+    }
+
+#if defined(__linux__)
+    class ScopedDirectSparseAffinity final {
+    public:
+        bool pin(int cpu) noexcept {
+            if (cpu < 0) return true;
+            if (cpu >= CPU_SETSIZE
+                || sched_getaffinity(0, sizeof(original_), &original_) != 0
+                || !CPU_ISSET(cpu, &original_)) return false;
+            cpu_set_t target;
+            CPU_ZERO(&target);
+            CPU_SET(cpu, &target);
+            if (CPU_EQUAL(&original_, &target)) return true;
+            pinned_ = sched_setaffinity(0, sizeof(target), &target) == 0;
+            return pinned_;
+        }
+
+        bool restore() noexcept {
+            if (pinned_ && sched_setaffinity(0, sizeof(original_), &original_) != 0) {
+                return false;
+            }
+            pinned_ = false;
+            return true;
+        }
+
+        ~ScopedDirectSparseAffinity() { restore(); }
+
+    private:
+        cpu_set_t original_{};
+        bool pinned_ = false;
+    };
+#endif
 
     static bool directSparseWorkerAssistEnabled() noexcept {
         const char *value = std::getenv(
@@ -6188,6 +6538,22 @@ private:
                     bucket.library,
                     "hmx_qk_i8_operator_execute_cpu_packed_per_head_hn",
                     bucket.execute_cpu_packed_per_head_hn);
+                (void)loadOptionalSymbolFrom(
+                    bucket.library,
+                    "hmx_qk_i8_operator_execute_cpu_packed_shared_key_hn",
+                    bucket.execute_cpu_packed_shared_key_hn);
+                (void)loadOptionalSymbolFrom(
+                    bucket.library,
+                    "hmx_qk_i8_operator_execute_cpu_packed_shared_key_topk_hn",
+                    bucket.execute_cpu_packed_shared_key_topk_hn);
+                (void)loadOptionalSymbolFrom(
+                    bucket.library,
+                    "hmx_qk_i8_operator_execute_cpu_packed_shared_key_bitmap_hn",
+                    bucket.execute_cpu_packed_shared_key_bitmap_hn);
+                (void)loadOptionalSymbolFrom(
+                    bucket.library,
+                    "hmx_qk_i8_operator_decode_topk_bitmap_rows",
+                    bucket.decode_topk_bitmap_rows);
                 (void)loadOptionalSymbolFrom(
                     bucket.library,
                     "hmx_qk_i8_operator_prepare_raw_key_scaled_hn",
