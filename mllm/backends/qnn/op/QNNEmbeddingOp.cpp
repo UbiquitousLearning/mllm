@@ -29,7 +29,7 @@ void QNNEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
           // padding token id case
           if (*ins.coffsettedPtr<mllm_int64_t>({b, (int)s}) < 0) {
             std::memset(ous.coffsettedPtr<float>({b, (int)s, 0}), 0, options_.hidden_size * sizeof(float));
-            continue;
+            break;
           }
           std::memcpy(ous.coffsettedPtr<char>({b, (int)s, 0}),
                       weight_.ptr<mllm_fp32_t>() + options_.hidden_size * (*ins.coffsettedPtr<mllm_int64_t>({b, (int)s})),
@@ -38,7 +38,7 @@ void QNNEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
         case kFloat16:
           if (*ins.coffsettedPtr<mllm_int64_t>({b, (int)s}) < 0) {
             std::memset(ous.coffsettedPtr<mllm_fp16_t>({b, (int)s, 0}), 0, options_.hidden_size * sizeof(mllm_fp16_t));
-            continue;
+            break;
           }
           std::memcpy(ous.coffsettedPtr<char>({b, (int)s, 0}),
                       weight_.ptr<mllm_fp16_t>() + options_.hidden_size * (*ins.coffsettedPtr<mllm_int64_t>({b, (int)s})),
