@@ -70,6 +70,9 @@ LINALG_AOPS_DECL(OpTypes::kCausalDepthwiseConv1D, CausalDepthwiseConv1DOp);
 LINALG_AOPS_DECL(OpTypes::kGroupedQueryAttention, GroupedQueryAttentionOp);
 LINALG_AOPS_DECL(OpTypes::kParallelLinear, ParallelLinearOp);
 LINALG_AOPS_DECL(OpTypes::kGatedDeltaRule, GatedDeltaRuleOp);
+LINALG_AOPS_DECL(OpTypes::kLinearShadowCorrection, LinearShadowCorrectionOp);
+LINALG_AOPS_DECL(OpTypes::kPatternSparseAttention, PatternSparseAttentionOp);
+LINALG_AOPS_DECL(OpTypes::kSparseSoftmaxValue, SparseSoftmaxValueOp);
 LINALG_AOPS_DECL(OpTypes::kRepeat, RepeatOp);
 LINALG_AOPS_DECL(OpTypes::kPermute, PermuteOp);
 

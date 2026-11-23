@@ -107,6 +107,15 @@ enum class OpTypes : int32_t {
   kParallelLinear = 79,
   kGatedDeltaRule = 80,
 
+  // Deterministic structured, random, or HMX-selected sparse attention.
+  kPatternSparseAttention = 81,
+
+  // Exact Top-k softmax and value aggregation over precomputed QK logits.
+  kSparseSoftmaxValue = 82,
+
+  // Restore unclipped W8A16 linear tails from the original input and QNN output.
+  kLinearShadowCorrection = 83,
+
   // Dynamic Op Start for user to register there own ops.
   kDynamicOp_Start = 4096,
 
@@ -195,6 +204,9 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kGroupedQueryAttention: return "GroupedQueryAttention";
     case OpTypes::kParallelLinear: return "ParallelLinear";
     case OpTypes::kGatedDeltaRule: return "GatedDeltaRule";
+    case OpTypes::kPatternSparseAttention: return "PatternSparseAttention";
+    case OpTypes::kSparseSoftmaxValue: return "SparseSoftmaxValue";
+    case OpTypes::kLinearShadowCorrection: return "LinearShadowCorrection";
     case OpTypes::kDynamicOp_Start: return "DynamicOp_Start";
     case OpTypes::kOpType_End: return "OpType_End";
     default: return "Unknown";

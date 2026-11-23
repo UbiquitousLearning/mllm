@@ -27,6 +27,8 @@
 #include "mllm/backends/cpu/ops/GatherOp.hpp"
 #include "mllm/backends/cpu/ops/GatedDeltaRuleOp.hpp"
 #include "mllm/backends/cpu/ops/GroupedQueryAttentionOp.hpp"
+#include "mllm/backends/cpu/ops/PatternSparseAttentionOp.hpp"
+#include "mllm/backends/cpu/ops/SparseSoftmaxValueOp.hpp"
 #include "mllm/backends/cpu/ops/InterpolateOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNorm2DOp.hpp"
 #include "mllm/backends/cpu/ops/MaskedScatterOp.hpp"
@@ -42,6 +44,7 @@
 #include "mllm/backends/cpu/ops/KVCacheOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNormOp.hpp"
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
+#include "mllm/backends/cpu/ops/LinearShadowCorrectionOp.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
 #include "mllm/backends/cpu/ops/MultimodalRoPEOp.hpp"
 #include "mllm/backends/cpu/ops/PagedAttnOp.hpp"
@@ -88,7 +91,8 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUArgsortOpFactory, CPUCloneOpFactory, CPUAvgPool1dOpFactory, CPUFlashAttention2SwaSinkOpFactory,
                CPURadixAttnRelaxOpFactory, CPURadixAttnSwaSinkOpFactory, CPUEqualOpFactory, CPUWhereOpFactory,
                CPUGatherOpFactory, CPUCausalDepthwiseConv1DOpFactory, CPUGatedDeltaRuleOpFactory,
-               CPUGroupedQueryAttentionOpFactory, CPUParallelLinearOpFactory>();
+               CPUGroupedQueryAttentionOpFactory, CPUParallelLinearOpFactory, CPUPatternSparseAttentionOpFactory,
+               CPUSparseSoftmaxValueOpFactory, CPULinearShadowCorrectionOpFactory>();
 }
 
 CPUBackend::~CPUBackend() {

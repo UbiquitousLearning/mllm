@@ -26,6 +26,9 @@
 #include "mllm/core/aops/GroupedQueryAttentionOp.hpp"
 #include "mllm/core/aops/ParallelLinearOp.hpp"
 #include "mllm/core/aops/GatedDeltaRuleOp.hpp"
+#include "mllm/core/aops/LinearShadowCorrectionOp.hpp"
+#include "mllm/core/aops/PatternSparseAttentionOp.hpp"
+#include "mllm/core/aops/SparseSoftmaxValueOp.hpp"
 #include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/GELUOp.hpp"
@@ -117,6 +120,12 @@ BaseOp::ptr_t aopsFromJson(const nlohmann::json& json) {
       return __parallelLinearFromJson(json);
     } else if (op_type == "GatedDeltaRule") {
       return __gatedDeltaRuleFromJson(json);
+    } else if (op_type == "LinearShadowCorrection") {
+      return __linearShadowCorrectionFromJson(json);
+    } else if (op_type == "PatternSparseAttention") {
+      return __patternSparseAttentionFromJson(json);
+    } else if (op_type == "SparseSoftmaxValue") {
+      return __sparseSoftmaxValueFromJson(json);
     } else if (op_type == "Repeat") {
       return __repeatFromJson(json);
     } else if (op_type == "Permute") {
@@ -688,6 +697,58 @@ BaseOp::ptr_t __gatedDeltaRuleFromJson(const nlohmann::json& json) {
   DeviceTypes backend = DeviceTypes::kCPU;
   if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
   return Context::instance().getBackend(backend)->createOp(OpTypes::kGatedDeltaRule, options);
+}
+
+BaseOp::ptr_t __linearShadowCorrectionFromJson(const nlohmann::json& json) {
+  aops::LinearShadowCorrectionOpOptions options;
+  if (json.contains("op_options")) {
+    const auto& opts = json["op_options"];
+    if (opts.contains("in_channels")) options.in_channels = opts["in_channels"];
+    if (opts.contains("out_channels")) options.out_channels = opts["out_channels"];
+    if (opts.contains("activation_bits")) options.activation_bits = opts["activation_bits"];
+  }
+
+  DeviceTypes backend = DeviceTypes::kCPU;
+  if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
+  return Context::instance().getBackend(backend)->createOp(OpTypes::kLinearShadowCorrection, options);
+}
+
+BaseOp::ptr_t __patternSparseAttentionFromJson(const nlohmann::json& json) {
+  aops::PatternSparseAttentionOpOptions options;
+
+  if (json.contains("op_options")) {
+    const auto& opts = json["op_options"];
+    if (opts.contains("sparsity")) options.sparsity = opts["sparsity"];
+    if (opts.contains("causal_mask")) options.causal_mask = opts["causal_mask"];
+    if (opts.contains("local_ratio")) options.local_ratio = opts["local_ratio"];
+    if (opts.contains("prefix_tokens")) options.prefix_tokens = opts["prefix_tokens"];
+    if (opts.contains("dense_tokens")) options.dense_tokens = opts["dense_tokens"];
+    if (opts.contains("random_pattern")) options.random_pattern = opts["random_pattern"];
+    if (opts.contains("random_seed")) options.random_seed = opts["random_seed"];
+    if (opts.contains("pack_reserve_tokens")) options.pack_reserve_tokens = opts["pack_reserve_tokens"];
+    if (opts.contains("hmx_selector")) options.hmx_selector = opts["hmx_selector"];
+    if (opts.contains("head_retentions")) { options.head_retentions = opts["head_retentions"].get<std::vector<float>>(); }
+    if (opts.contains("layer_id")) options.layer_id = opts["layer_id"];
+  }
+
+  DeviceTypes backend = DeviceTypes::kCPU;
+  if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
+
+  return Context::instance().getBackend(backend)->createOp(OpTypes::kPatternSparseAttention, options);
+}
+
+BaseOp::ptr_t __sparseSoftmaxValueFromJson(const nlohmann::json& json) {
+  aops::SparseSoftmaxValueOpOptions options;
+  if (json.contains("op_options")) {
+    const auto& opts = json["op_options"];
+    if (opts.contains("sparsity")) options.sparsity = opts["sparsity"];
+    if (opts.contains("causal_mask")) options.causal_mask = opts["causal_mask"];
+    if (opts.contains("dense_tokens")) options.dense_tokens = opts["dense_tokens"];
+    if (opts.contains("head_retentions")) options.head_retentions = opts["head_retentions"].get<std::vector<float>>();
+  }
+  DeviceTypes backend = DeviceTypes::kCPU;
+  if (json.contains("backend")) { backend = str2DeviceType(json["backend"]); }
+  return Context::instance().getBackend(backend)->createOp(OpTypes::kSparseSoftmaxValue, options);
 }
 
 BaseOp::ptr_t __repeatFromJson(const nlohmann::json& json) {
