@@ -1,10 +1,18 @@
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <fstream>
+#include <limits>
 #include <memory>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "QnnLog.h"
 
@@ -25,6 +33,34 @@
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
+namespace {
+
+std::shared_ptr<void> mapContextBinary(const std::string& path, Qnn_ContextBinarySize_t& size) {
+  const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+  if (fd < 0) {
+    MLLM_ERROR("Could not open context binary file {}: {}", path, std::strerror(errno));
+    return {};
+  }
+  struct stat info {};
+  if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size <= 0
+      || static_cast<std::uintmax_t>(info.st_size) > std::numeric_limits<size_t>::max()) {
+    close(fd);
+    MLLM_ERROR("Context binary must be a non-empty regular file: {}", path);
+    return {};
+  }
+  const auto length = static_cast<size_t>(info.st_size);
+  void* address = mmap(nullptr, length, PROT_READ, MAP_PRIVATE, fd, 0);
+  const int mapError = errno;
+  close(fd);
+  if (address == MAP_FAILED) {
+    MLLM_ERROR("Could not map context binary file {}: {}", path, std::strerror(mapError));
+    return {};
+  }
+  size = length;
+  return {address, [length](void* mapping) { munmap(mapping, length); }};
+}
+
+}  // namespace
 
 QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
@@ -105,6 +141,7 @@ QNNBackend::~QNNBackend() {
   if (context_ != nullptr) { runtime_->qnnInterface.contextFree(context_, nullptr); }
   context_ = nullptr;
   runtime_.reset();
+  persistentBinary_.reset();
 
   // 5. Reset allocator - will dlclose libcdsprpc.so since shutdown() was already called
   allocator_.reset();
@@ -407,29 +444,42 @@ bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t
 
 bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
                                  std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig) {
-  // Read the binary from qnn_context.bin and get the size in byte
-  std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
-  if (!file.is_open() || !file.good()) {
-    MLLM_ERROR("Could not open context binary file: {}", contextBinaryPath);
-    return false;
+  return retrieveContext(contextBinaryPath, context, qnnModels, (const QnnContext_Config_t**)contextConfig, nullptr);
+}
+
+bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
+                                 std::vector<std::shared_ptr<QNNModel>>& qnnModels, const QnnContext_Config_t** contextConfig,
+                                 std::shared_ptr<void>* persistentBinary) {
+  Qnn_ContextBinarySize_t size = 0;
+  std::shared_ptr<void> mapping;
+  std::unique_ptr<uint8_t[]> buffer;
+  void* binary = nullptr;
+  if (persistentBinary != nullptr) {
+    mapping = mapContextBinary(contextBinaryPath, size);
+    if (!mapping) { return false; }
+    binary = mapping.get();
+    MLLM_INFO("Memory-mapped persistent QNN context binary: {} bytes", size);
   } else {
-    MLLM_INFO("Context binary file opened successfully: {}", contextBinaryPath);
-  }
-  std::streamsize size = file.tellg();
-  if (size <= 0) {
-    MLLM_ERROR("Context binary file is empty or unreadable: {}", contextBinaryPath);
-    return false;
+    std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
+    if (!file) {
+      MLLM_ERROR("Could not open context binary file: {}", contextBinaryPath);
+      return false;
+    }
+    const std::streamsize fileSize = file.tellg();
+    if (fileSize <= 0 || static_cast<std::uintmax_t>(fileSize) > std::numeric_limits<size_t>::max()) {
+      MLLM_ERROR("Context binary file is empty or unreadable: {}", contextBinaryPath);
+      return false;
+    }
+    size = static_cast<size_t>(fileSize);
+    file.seekg(0, std::ios::beg);
+    buffer = std::make_unique<uint8_t[]>(size);
+    if (!file.read(reinterpret_cast<char*>(buffer.get()), fileSize)) {
+      MLLM_ERROR("Failed to read context binary file: {}", contextBinaryPath);
+      return false;
+    }
+    binary = buffer.get();
   }
   MLLM_INFO("Context binary file size: {} MB", size / 1024 / 1024);
-  file.seekg(0, std::ios::beg);
-
-  auto binaryBuffer = std::make_unique<uint8_t[]>(size);
-
-  if (!file.read(reinterpret_cast<char*>(binaryBuffer.get()), size)) {
-    MLLM_ERROR("Failed to read context binary file: {}", contextBinaryPath);
-    return false;
-  }
-  file.close();
 
   // inspect binary info
   QnnSystemContext_Handle_t sysCtxHandle{nullptr};
@@ -451,7 +501,7 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
   Qnn_ContextBinarySize_t binaryInfoSize{0};
 
   if (QNN_SUCCESS
-      != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void*>(binaryBuffer.get()), size, &binaryInfo,
+      != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, binary, size, &binaryInfo,
                                                        &binaryInfoSize)) {
     MLLM_ERROR("Failed to get context binary info");
     return false;
@@ -492,8 +542,8 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
   // Create context from binary
   Qnn_ContextHandle_t loadedContext = nullptr;
   if (QNN_CONTEXT_NO_ERROR
-      != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
-                                              binaryBuffer.get(), size, &loadedContext, profileHandle)) {
+      != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, contextConfig, binary, size, &loadedContext,
+                                              profileHandle)) {
     MLLM_ERROR("Could not create context from binary. Mostly due to binary's qnn version mismatch with backend's qnn version.");
     return false;
   } else {
@@ -534,11 +584,13 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
 
   qnnModels = std::move(loadedModels);
   context = pendingContext.release();
+  if (persistentBinary != nullptr) { *persistentBinary = std::move(mapping); }
   MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels(QnnGraphs)", graphNum);
   return true;
 }
 
 bool QNNBackend::createContext() {
+  if (context_ != nullptr) { return false; }
   if (!runtime_->createContext(context_, nullptr)) { return false; }
   // init QNN Allocator
   static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
@@ -546,7 +598,21 @@ bool QNNBackend::createContext() {
 }
 
 bool QNNBackend::loadContext(const std::string& contextPath) {
-  if (!runtime_->retrieveContext(contextPath, context_, qnnModels_, nullptr)) { return false; }
+  if (context_ != nullptr) { return false; }
+  const char* setting = std::getenv("MLLM_QNN_CONTEXT_PERSISTENT_BINARY");
+  if (setting != nullptr && *setting != '\0' && std::strcmp(setting, "0") != 0) {
+    if (std::strcmp(setting, "1") != 0) {
+      MLLM_ERROR("MLLM_QNN_CONTEXT_PERSISTENT_BINARY expects 0 or 1, got {}", setting);
+      return false;
+    }
+    QnnContext_Config_t config = QNN_CONTEXT_CONFIG_INIT;
+    config.option = QNN_CONTEXT_CONFIG_PERSISTENT_BINARY;
+    config.isPersistentBinary = 1;
+    const QnnContext_Config_t* configs[] = {&config, nullptr};
+    if (!runtime_->retrieveContext(contextPath, context_, qnnModels_, configs, &persistentBinary_)) { return false; }
+  } else if (!runtime_->retrieveContext(contextPath, context_, qnnModels_)) {
+    return false;
+  }
   // fill qnnModelIndexMap_ info according to qnnModels_
   for (size_t i = 0; i < qnnModels_.size(); i++) {
     auto graphName = qnnModels_[i]->getQnnGraphName();

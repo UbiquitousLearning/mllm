@@ -59,6 +59,10 @@ class QNNRuntime {
                        std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig = nullptr);
 
  private:
+  bool retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
+                       std::vector<std::shared_ptr<QNNModel>>& qnnModels, const QnnContext_Config_t** contextConfig,
+                       std::shared_ptr<void>* persistentBinary);
+
   QNN_INTERFACE_VER_TYPE qnnInterface;
   QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface;
 
@@ -131,6 +135,7 @@ class QNNBackend final : public Backend {
   bool debug_;
   ProfilingLevel profilingLevel_;
   Qnn_ContextHandle_t context_ = nullptr;
+  std::shared_ptr<void> persistentBinary_;
   std::unique_ptr<QNNRuntime> runtime_;
   std::unique_ptr<QNNPerf> perf_;
 
