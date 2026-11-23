@@ -15,6 +15,9 @@
 #include "mllm/core/aops/GroupedQueryAttentionOp.hpp"
 #include "mllm/core/aops/ParallelLinearOp.hpp"
 #include "mllm/core/aops/GatedDeltaRuleOp.hpp"
+#include "mllm/core/aops/LinearShadowCorrectionOp.hpp"
+#include "mllm/core/aops/PatternSparseAttentionOp.hpp"
+#include "mllm/core/aops/SparseSoftmaxValueOp.hpp"
 #include "mllm/core/aops/KVCacheOp.hpp"
 #include "mllm/core/aops/MultimodalRoPEOp.hpp"
 #include "mllm/core/aops/VisionRoPEOp.hpp"
@@ -77,6 +80,9 @@ nlohmann::json dumpLinalgIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
     CASE(GroupedQueryAttention)
     CASE(ParallelLinear)
     CASE(GatedDeltaRule)
+    CASE(LinearShadowCorrection)
+    CASE(PatternSparseAttention)
+    CASE(SparseSoftmaxValue)
     CASE(Repeat)
     CASE(Permute)
     CASE(Conv1D)
@@ -254,6 +260,31 @@ nlohmann::json dumpFlashAttention2OpIROptions(const ir::linalg::LinalgIROp::ptr_
           {"D", options.D}, {"hp_exp", options.hp_exp}, {"causal_mask", options.causal_mask}};
 }
 
+
+nlohmann::json dumpLinearShadowCorrectionOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  const auto options = static_cast<aops::LinearShadowCorrectionOp*>(op->getAOp())->options();
+  return {{"in_channels", options.in_channels},
+          {"out_channels", options.out_channels},
+          {"activation_bits", options.activation_bits}};
+}
+
+nlohmann::json dumpPatternSparseAttentionOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  const auto options = static_cast<aops::PatternSparseAttentionOp*>(op->getAOp())->options();
+  return {{"sparsity", options.sparsity},         {"causal_mask", options.causal_mask},
+          {"local_ratio", options.local_ratio},   {"prefix_tokens", options.prefix_tokens},
+          {"dense_tokens", options.dense_tokens}, {"random_pattern", options.random_pattern},
+          {"random_seed", options.random_seed},   {"pack_reserve_tokens", options.pack_reserve_tokens},
+          {"hmx_selector", options.hmx_selector}, {"head_retentions", options.head_retentions},
+          {"layer_id", options.layer_id}};
+}
+
+nlohmann::json dumpSparseSoftmaxValueOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
+  const auto options = static_cast<aops::SparseSoftmaxValueOp*>(op->getAOp())->options();
+  return {{"sparsity", options.sparsity},
+          {"causal_mask", options.causal_mask},
+          {"dense_tokens", options.dense_tokens},
+          {"head_retentions", options.head_retentions}};
+}
 
 nlohmann::json dumpRepeatOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::RepeatOp*)op->getAOp())->options();

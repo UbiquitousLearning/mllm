@@ -1,6 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include "mllm/backends/cpu/ops/RoPEOp.hpp"
 
@@ -13,6 +16,59 @@
 #endif
 
 namespace mllm::cpu {
+
+namespace {
+
+struct RoPENonFiniteSummary {
+  size_t count = 0;
+  int32_t first_b = -1;
+  int32_t first_h = -1;
+  int32_t first_s = -1;
+  int32_t first_d = -1;
+  uint32_t first_bits = 0;
+};
+
+bool ropeNonFiniteDiagnosticEnabled() {
+  const char* value = std::getenv("MLLM_ROPE_NONFINITE_DIAGNOSTIC");
+  return value != nullptr && value[0] == '1' && value[1] == '\0';
+}
+
+RoPENonFiniteSummary scanRoPEF32(Tensor tensor, aops::RoPEOpOptionsInputType input_type) {
+  RoPENonFiniteSummary summary;
+  if (tensor.dtype() != kFloat32 || tensor.rank() != 4) { return summary; }
+
+  const auto& shape = tensor.shape();
+  const int32_t B = shape[0];
+  const int32_t H = input_type == aops::RoPEOpOptionsInputType::kBHSD ? shape[1] : shape[2];
+  const int32_t S = input_type == aops::RoPEOpOptionsInputType::kBHSD ? shape[2] : shape[1];
+  const int32_t D = shape[3];
+  for (int32_t b = 0; b < B; ++b) {
+    for (int32_t h = 0; h < H; ++h) {
+      for (int32_t s = 0; s < S; ++s) {
+        const auto coordinates = input_type == aops::RoPEOpOptionsInputType::kBHSD
+                                     ? std::vector<int>{b, h, s, 0}
+                                     : std::vector<int>{b, s, h, 0};
+        const auto* row = tensor.offsettedPtr<mllm_fp32_t>(coordinates);
+        for (int32_t d = 0; d < D; ++d) {
+          uint32_t bits = 0;
+          std::memcpy(&bits, row + d, sizeof(bits));
+          if ((bits & 0x7fffffffU) < 0x7f800000U) { continue; }
+          if (summary.count == 0) {
+            summary.first_b = b;
+            summary.first_h = h;
+            summary.first_s = s;
+            summary.first_d = d;
+            summary.first_bits = bits;
+          }
+          ++summary.count;
+        }
+      }
+    }
+  }
+  return summary;
+}
+
+}  // namespace
 
 void RoPEOpImpl::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs, Tensor& sin, Tensor& cos,
                          int32_t partial_dim, aops::RoPEOpOptionsInputType input_layout_type) {
@@ -508,8 +564,23 @@ void CPURoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   MLLM_RT_ASSERT_EQ(activation.shape().size(), 4);
   auto out = outputs[0];
 
+  RoPENonFiniteSummary input_summary;
+  const bool diagnose_nonfinite = ropeNonFiniteDiagnosticEnabled() && activation.dtype() == kFloat32;
+  if (diagnose_nonfinite) { input_summary = scanRoPEF32(activation, options_.input_type); }
+
   auto impl = RoPEOpImpl();
   impl.forward(inputs, outputs, sin, cos, options_.partial_dim, options_.input_type);
+
+  if (diagnose_nonfinite) {
+    const auto output_summary = scanRoPEF32(out, options_.input_type);
+    std::fprintf(stderr,
+                 "MLLM_ROPE_NONFINITE name=%s input=%zu output=%zu "
+                 "first_input=[%d,%d,%d,%d] input_bits=%u "
+                 "first_output=[%d,%d,%d,%d] output_bits=%u\n",
+                 getName().c_str(), input_summary.count, output_summary.count, input_summary.first_b, input_summary.first_h,
+                 input_summary.first_s, input_summary.first_d, input_summary.first_bits, output_summary.first_b,
+                 output_summary.first_h, output_summary.first_s, output_summary.first_d, output_summary.first_bits);
+  }
 }
 
 }  // namespace mllm::cpu

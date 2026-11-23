@@ -53,7 +53,8 @@ class QNNModel {
 
   // Add static tensor using mllm::Tensor
   ModelError_t addStaticTensor(const std::string& tensorName, const Tensor& tensor,
-                               Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+                               Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS,
+                               Qnn_DataType_t dataTypeOverride = QNN_DATATYPE_UNDEFINED);
 
   // Get tensor wrapper by name
   std::shared_ptr<QNNTensorWrapper> getTensorWrapper(const std::string& tensorName);

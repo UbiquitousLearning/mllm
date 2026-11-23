@@ -36,15 +36,19 @@ DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMALinear)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMADequantize)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMASuperSiLU)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAQuantize)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAMulQuantize16)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_ShadowCorrectionPacket)
 
 END_PKG_OPS_OPTS_LIST()
 
 // op package info
 static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
 
-static std::array<const char*, 17> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "LLaMAReLU",
+static std::array<const char*, 22> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "LLaMAReLU",
                                                "CausalMask", "SiLU", "QLayerNorm", "RoPE", "RoPESimple", "WNop", "LLaMAAdd",
-                                               "IRoPE", "LLaMALinear", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize"}};
+                                               "IRoPE", "LLaMALinear", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize",
+                                               "LLaMAMulQuantize16", "ShadowCorrectionPacket", "ShadowCorrectionPacketGuarded",
+                                               "ShadowCorrectionPacketMasked", "ShadowMulActivationMask"}};
 
 static Qnn_ApiVersion_t sg_sdkApiVersion = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
@@ -281,6 +285,26 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig(Qnn_OpConfig_t opConfig) {
     }
   } else if (std::string(opConfig.v1.typeName) == "LLaMASuperSiLU") {
     if (opConfig.v1.numOfParams != 3 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+      return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    }
+  } else if (std::string(opConfig.v1.typeName) == "LLaMAMulQuantize16") {
+    if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+      return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    }
+  } else if (std::string(opConfig.v1.typeName) == "ShadowCorrectionPacket") {
+    if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1) {
+      return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    }
+  } else if (std::string(opConfig.v1.typeName) == "ShadowCorrectionPacketGuarded") {
+    if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1) {
+      return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    }
+  } else if (std::string(opConfig.v1.typeName) == "ShadowCorrectionPacketMasked") {
+    if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1) {
+      return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+    }
+  } else if (std::string(opConfig.v1.typeName) == "ShadowMulActivationMask") {
+    if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2) {
       return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
     }
   } else if (std::string(opConfig.v1.typeName) == "LLaMAQuantize") {

@@ -1,14 +1,30 @@
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <fstream>
+#include <limits>
 #include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <vector>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "QnnLog.h"
+#include "HTP/QnnHtpContext.h"
 
 #include "mllm/backends/qnn/QNNBackend.hpp"
+#include "mllm/backends/qnn/QNNTypeMacros.hpp"
+#include "mllm/backends/qnn/ShadowCorrectionGraph.hpp"
+#include "mllm/backends/qnn/custom-op-package/LLaMAPackage/src/ops/ShadowCorrectionPacketLayout.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
 #include "mllm/backends/qnn/QNNAllocator.hpp"
 #include "mllm/backends/qnn/op/QNNCastTypeOp.hpp"
@@ -25,6 +41,43 @@
 #include "mllm/utils/Log.hpp"
 
 namespace mllm::qnn {
+namespace {
+
+bool sequenceTileBufferPoolEnabled() {
+  static const bool enabled = [] {
+    const auto* value = std::getenv("MLLM_QNN_SEQUENCE_TILE_BUFFER_POOL");
+    return value && value[0] == '1' && value[1] == '\0';
+  }();
+  return enabled;
+}
+
+
+std::shared_ptr<void> mapContextBinary(const std::string& path, Qnn_ContextBinarySize_t& size) {
+  const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+  if (fd < 0) {
+    MLLM_ERROR("Could not open context binary file {}: {}", path, std::strerror(errno));
+    return {};
+  }
+  struct stat info {};
+  if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_size <= 0
+      || static_cast<std::uintmax_t>(info.st_size) > std::numeric_limits<size_t>::max()) {
+    close(fd);
+    MLLM_ERROR("Context binary must be a non-empty regular file: {}", path);
+    return {};
+  }
+  const auto length = static_cast<size_t>(info.st_size);
+  void* address = mmap(nullptr, length, PROT_READ, MAP_PRIVATE, fd, 0);
+  const int mapError = errno;
+  close(fd);
+  if (address == MAP_FAILED) {
+    MLLM_ERROR("Could not map context binary file {}: {}", path, std::strerror(mapError));
+    return {};
+  }
+  size = length;
+  return {address, [length](void* mapping) { munmap(mapping, length); }};
+}
+
+}  // namespace
 
 QNNBackend::QNNBackend() : Backend(kQNN, createQNNAllocator()) {
   // register ops
@@ -94,6 +147,7 @@ QNNBackend::~QNNBackend() {
   }
 
   // 2. Clear models - tensor destructors will call free() but they're now no-ops
+  sequenceTileGraphs_.clear();
   qnnModels_.clear();
   qnnModelIndexMap_.clear();
 
@@ -101,10 +155,11 @@ QNNBackend::~QNNBackend() {
   if (perf_) { perf_->shutdown(); }
   perf_.reset();
 
-  // 4. Cleanup runtime - frees QNN backend/device handles
-  runtime_->qnnInterface.contextFree(context_, nullptr);
+  // 4. Free the context before releasing the QNN backend/device handles.
+  if (context_ != nullptr) { runtime_->qnnInterface.contextFree(context_, nullptr); }
   context_ = nullptr;
   runtime_.reset();
+  persistentBinary_.reset();
 
   // 5. Reset allocator - will dlclose libcdsprpc.so since shutdown() was already called
   allocator_.reset();
@@ -330,30 +385,29 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
     }
   }
 
-  // Register Custom OpPackages
-  {
-    struct OpPackageInfo {
-      std::string path;
-      std::string interfaceProvider;
-      std::string target;
-    };
-
-    std::vector<OpPackageInfo> opPackages = {};
-
-    for (const auto& pkg : opPackages) {
-      if (!qnnInterface.backendRegisterOpPackage) {
-        MLLM_ERROR("backendRegisterOpPackageFnHandle is nullptr.");
-        return nullptr;
-      }
-      if (QNN_BACKEND_NO_ERROR
-          != qnnInterface.backendRegisterOpPackage(backendHandle, pkg.path.c_str(), pkg.interfaceProvider.c_str(),
-                                                   pkg.target.c_str())) {
-        MLLM_ERROR("Could not register Op Package: {} and interface provider: {}", pkg.path.c_str(),
-                   pkg.interfaceProvider.c_str());
-        return nullptr;
-      }
-      MLLM_INFO("Registered Op Package: {} and interface provider: {}", pkg.path.c_str(), pkg.interfaceProvider.c_str());
+  // Register any custom packages needed by the graphs before loading a context.
+  struct OpPackageSetting {
+    const char* variable;
+    const char* target;
+  };
+  const OpPackageSetting opPackages[] = {
+      {"MLLM_QNN_CPU_OP_PACKAGE", "CPU"},
+      {"MLLM_QNN_HTP_OP_PACKAGE", "HTP"},
+  };
+  for (const auto& pkg : opPackages) {
+    const char* path = std::getenv(pkg.variable);
+    if (path == nullptr || *path == '\0') { continue; }
+    if (!qnnInterface.backendRegisterOpPackage) {
+      MLLM_ERROR("QNN backend does not expose op package registration for {}", pkg.variable);
+      return nullptr;
     }
+    const auto status =
+        qnnInterface.backendRegisterOpPackage(backendHandle, path, "LLaMAPackageInterfaceProvider", pkg.target);
+    if (status != QNN_BACKEND_NO_ERROR) {
+      MLLM_ERROR("Could not register QNN {} op package {}: {}", pkg.target, path, status);
+      return nullptr;
+    }
+    MLLM_INFO("Registered QNN {} op package {}", pkg.target, path);
   }
 
   // Create QNN System Interface
@@ -396,9 +450,8 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
   return new QNNRuntime(qnnInterface, qnnSystemInterface, logHandle, backendHandle, deviceHandle, profileHandle);
 }
 
-bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t** contextConfig) {
-  if (QNN_CONTEXT_NO_ERROR
-      != qnnInterface.contextCreate(backendHandle, deviceHandle, (const QnnContext_Config_t**)&contextConfig, &context)) {
+bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, const QnnContext_Config_t** contextConfig) {
+  if (QNN_CONTEXT_NO_ERROR != qnnInterface.contextCreate(backendHandle, deviceHandle, contextConfig, &context)) {
     MLLM_ERROR("Could not create context");
     return false;
   }
@@ -407,27 +460,48 @@ bool QNNRuntime::createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t
 
 bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
                                  std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig) {
-  // Read the binary from qnn_context.bin and get the size in byte
-  std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
-  if (!file.is_open() || !file.good()) {
-    MLLM_ERROR("Could not open context binary file: {}", contextBinaryPath);
-    return false;
+  return retrieveContext(contextBinaryPath, context, qnnModels, (const QnnContext_Config_t**)contextConfig, nullptr);
+}
+
+bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
+                                 std::vector<std::shared_ptr<QNNModel>>& qnnModels, const QnnContext_Config_t** contextConfig,
+                                 std::shared_ptr<void>* persistentBinary) {
+  Qnn_ContextBinarySize_t size = 0;
+  std::shared_ptr<void> mapping;
+  std::unique_ptr<uint8_t[]> buffer;
+  void* binary = nullptr;
+  if (persistentBinary != nullptr) {
+    mapping = mapContextBinary(contextBinaryPath, size);
+    if (!mapping) { return false; }
+    binary = mapping.get();
+    MLLM_INFO("Memory-mapped persistent QNN context binary: {} bytes", size);
   } else {
-    MLLM_INFO("Context binary file opened successfully: {}", contextBinaryPath);
+    std::ifstream file(contextBinaryPath, std::ios::binary | std::ios::ate);
+    if (!file) {
+      MLLM_ERROR("Could not open context binary file: {}", contextBinaryPath);
+      return false;
+    }
+    const std::streamsize fileSize = file.tellg();
+    if (fileSize <= 0 || static_cast<std::uintmax_t>(fileSize) > std::numeric_limits<size_t>::max()) {
+      MLLM_ERROR("Context binary file is empty or unreadable: {}", contextBinaryPath);
+      return false;
+    }
+    size = static_cast<size_t>(fileSize);
+    file.seekg(0, std::ios::beg);
+    buffer = std::make_unique<uint8_t[]>(size);
+    if (!file.read(reinterpret_cast<char*>(buffer.get()), fileSize)) {
+      MLLM_ERROR("Failed to read context binary file: {}", contextBinaryPath);
+      return false;
+    }
+    binary = buffer.get();
   }
-  std::streamsize size = file.tellg();
   MLLM_INFO("Context binary file size: {} MB", size / 1024 / 1024);
-  file.seekg(0, std::ios::beg);
-
-  auto binaryBuffer = std::make_unique<uint8_t[]>(size);
-
-  file.read(reinterpret_cast<char*>(binaryBuffer.get()), size);
-  file.close();
 
   // inspect binary info
   QnnSystemContext_Handle_t sysCtxHandle{nullptr};
-  if (!qnnSystemInterface.systemContextCreate) {
-    MLLM_ERROR("systemContextCreate is nullptr.");
+  if (!qnnSystemInterface.systemContextCreate || !qnnSystemInterface.systemContextGetBinaryInfo
+      || !qnnSystemInterface.systemContextFree) {
+    MLLM_ERROR("QNN system context interface is incomplete.");
     return false;
   }
   if (QNN_SUCCESS != qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
@@ -436,12 +510,14 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
   } else {
     MLLM_INFO("System context created successfully");
   }
+  std::unique_ptr<void, decltype(qnnSystemInterface.systemContextFree)> systemContext(sysCtxHandle,
+                                                                                    qnnSystemInterface.systemContextFree);
 
   const QnnSystemContext_BinaryInfo_t* binaryInfo{nullptr};
   Qnn_ContextBinarySize_t binaryInfoSize{0};
 
   if (QNN_SUCCESS
-      != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void*>(binaryBuffer.get()), size, &binaryInfo,
+      != qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, binary, size, &binaryInfo,
                                                        &binaryInfoSize)) {
     MLLM_ERROR("Failed to get context binary info");
     return false;
@@ -451,41 +527,57 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
 
   // Extract graph metadata to create QNNModels instead of GraphInfo_t
   GraphInfo_t** tmpGraphsInfo = nullptr;
-  uint32_t graphNum;
+  uint32_t graphNum = 0;
   // fill GraphInfo_t based on binary info - temporarily needed for tensor extraction
   if (!copyMetadataToGraphsInfo(binaryInfo, tmpGraphsInfo, graphNum)) {
     MLLM_ERROR("Failed to copy metadata.");
     return false;
   }
-  if (QNN_SUCCESS != qnnSystemInterface.systemContextFree(sysCtxHandle)) {
+  auto freeGraphMetadata = [graphNum](GraphInfo_t** graphs) {
+    for (uint32_t i = 0; i < graphNum; ++i) {
+      if (graphs[i] == nullptr) continue;
+      free(graphs[i]->graphName);
+      freeQnnTensors(graphs[i]->inputTensors, graphs[i]->numInputTensors);
+      freeQnnTensors(graphs[i]->outputTensors, graphs[i]->numOutputTensors);
+    }
+    if (graphNum > 0) { free(graphs[0]); }
+    free(graphs);
+  };
+  std::unique_ptr<GraphInfo_t*, decltype(freeGraphMetadata)> graphMetadata(tmpGraphsInfo, freeGraphMetadata);
+  if (graphNum > 0 && !graphMetadata) {
+    MLLM_ERROR("Context binary graph metadata is missing.");
+    return false;
+  }
+  if (QNN_SUCCESS != qnnSystemInterface.systemContextFree(systemContext.release())) {
     MLLM_ERROR("Could not free system context.");
     return false;
   } else {
     MLLM_INFO("System context freed successfully");
   }
-  sysCtxHandle = nullptr;
 
   // Create context from binary
-  Qnn_ContextBinarySize_t writtenSize = 0;
+  Qnn_ContextHandle_t loadedContext = nullptr;
   if (QNN_CONTEXT_NO_ERROR
-      != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
-                                              binaryBuffer.get(), size, &context, profileHandle)) {
+      != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, contextConfig, binary, size, &loadedContext,
+                                              profileHandle)) {
     MLLM_ERROR("Could not create context from binary. Mostly due to binary's qnn version mismatch with backend's qnn version.");
     return false;
   } else {
     MLLM_INFO("Context created from binary successfully");
   }
+  auto freeContext = [this](Qnn_ContextHandle_t handle) { qnnInterface.contextFree(handle, nullptr); };
+  std::unique_ptr<void, decltype(freeContext)> pendingContext(loadedContext, freeContext);
 
   // Create QNNModels for each graph and initialize from context
-  qnnModels.clear();
-  qnnModels.reserve(graphNum);
+  std::vector<std::shared_ptr<QNNModel>> loadedModels;
+  loadedModels.reserve(graphNum);
 
   for (uint32_t i = 0; i < graphNum; ++i) {
     GraphInfo_t* graphInfo = tmpGraphsInfo[i];
 
     // Retrieve the graph handle
     Qnn_GraphHandle_t graph = nullptr;
-    if (QNN_SUCCESS != qnnInterface.graphRetrieve(context, graphInfo->graphName, &graph)) {
+    if (QNN_SUCCESS != qnnInterface.graphRetrieve(loadedContext, graphInfo->graphName, &graph)) {
       MLLM_ERROR("Unable to retrieve graph handle for graph: {}", graphInfo->graphName);
       return false;
     }
@@ -493,7 +585,7 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
     // Create QNNModel and initialize from context
     auto qnnModel = std::make_shared<QNNModel>(qnnInterface, backendHandle);
     ModelError_t err =
-        qnnModel->initializeFromContext(context, graphInfo->graphName, graph, graphInfo->inputTensors,
+        qnnModel->initializeFromContext(loadedContext, graphInfo->graphName, graph, graphInfo->inputTensors,
                                         graphInfo->numInputTensors, graphInfo->outputTensors, graphInfo->numOutputTensors);
 
     if (err != MODEL_NO_ERROR) {
@@ -502,34 +594,54 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
       return false;
     }
 
-    qnnModels.push_back(qnnModel);
+    loadedModels.push_back(std::move(qnnModel));
     MLLM_INFO("Successfully created QNNModel for graph: {}", graphInfo->graphName);
   }
 
-  // Clean up temporary GraphInfo_t structures
-  for (uint32_t i = 0; i < graphNum; ++i) {
-    if (tmpGraphsInfo[i]) {
-      if (tmpGraphsInfo[i]->graphName) { free(tmpGraphsInfo[i]->graphName); }
-      freeQnnTensors(tmpGraphsInfo[i]->inputTensors, tmpGraphsInfo[i]->numInputTensors);
-      freeQnnTensors(tmpGraphsInfo[i]->outputTensors, tmpGraphsInfo[i]->numOutputTensors);
-    }
-  }
-  if (graphNum > 0 && tmpGraphsInfo[0]) { free(tmpGraphsInfo[0]); }
-  if (tmpGraphsInfo) { free(tmpGraphsInfo); }
-
+  qnnModels = std::move(loadedModels);
+  context = pendingContext.release();
+  if (persistentBinary != nullptr) { *persistentBinary = std::move(mapping); }
   MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels(QnnGraphs)", graphNum);
   return true;
 }
 
-bool QNNBackend::createContext() {
-  if (!runtime_->createContext(context_, nullptr)) { return false; }
+bool QNNBackend::createContext(bool prepareOnly) {
+  if (context_ != nullptr) { return false; }
+  if (prepareOnly) {
+    QnnHtpContext_CustomConfig_t htpConfig = QNN_HTP_CONTEXT_CUSTOM_CONFIG_INIT;
+    htpConfig.option = QNN_HTP_CONTEXT_CONFIG_OPTION_PREPARE_ONLY;
+    htpConfig.isPrepareOnly = true;
+
+    QnnContext_Config_t contextConfig = QNN_CONTEXT_CONFIG_INIT;
+    contextConfig.option = QNN_CONTEXT_CONFIG_OPTION_CUSTOM;
+    contextConfig.customConfig = &htpConfig;
+    const QnnContext_Config_t* contextConfigs[] = {&contextConfig, nullptr};
+    if (!runtime_->createContext(context_, contextConfigs)) { return false; }
+    MLLM_INFO("QNN context prepare-only mode enabled");
+  } else if (!runtime_->createContext(context_, nullptr)) {
+    return false;
+  }
   // init QNN Allocator
   static_pointer_cast<QNNAllocator>(allocator_)->setQNNPointer(runtime_->qnnInterface, context_);
   return true;
 }
 
 bool QNNBackend::loadContext(const std::string& contextPath) {
-  if (!runtime_->retrieveContext(contextPath, context_, qnnModels_, nullptr)) { return false; }
+  if (context_ != nullptr) { return false; }
+  const char* setting = std::getenv("MLLM_QNN_CONTEXT_PERSISTENT_BINARY");
+  if (setting != nullptr && *setting != '\0' && std::strcmp(setting, "0") != 0) {
+    if (std::strcmp(setting, "1") != 0) {
+      MLLM_ERROR("MLLM_QNN_CONTEXT_PERSISTENT_BINARY expects 0 or 1, got {}", setting);
+      return false;
+    }
+    QnnContext_Config_t config = QNN_CONTEXT_CONFIG_INIT;
+    config.option = QNN_CONTEXT_CONFIG_PERSISTENT_BINARY;
+    config.isPersistentBinary = 1;
+    const QnnContext_Config_t* configs[] = {&config, nullptr};
+    if (!runtime_->retrieveContext(contextPath, context_, qnnModels_, configs, &persistentBinary_)) { return false; }
+  } else if (!runtime_->retrieveContext(contextPath, context_, qnnModels_)) {
+    return false;
+  }
   // fill qnnModelIndexMap_ info according to qnnModels_
   for (size_t i = 0; i < qnnModels_.size(); i++) {
     auto graphName = qnnModels_[i]->getQnnGraphName();
@@ -540,23 +652,42 @@ bool QNNBackend::loadContext(const std::string& contextPath) {
   return true;
 }
 
-void QNNBackend::saveContext(const std::string& contextPath) {
-  uint64_t binarySize, writtenSize;
+bool QNNBackend::saveContext(const std::string& contextPath) {
+  uint64_t binarySize = 0;
+  uint64_t writtenSize = 0;
 
-  runtime_->qnnInterface.contextGetBinarySize(context_, &binarySize);
+  const auto sizeStatus = runtime_->qnnInterface.contextGetBinarySize(context_, &binarySize);
+  if (sizeStatus != QNN_CONTEXT_NO_ERROR || binarySize == 0) {
+    MLLM_ERROR("Failed to query QNN context binary size: status {}, size {}", sizeStatus, binarySize);
+    return false;
+  }
 
   std::unique_ptr<uint8_t[]> binaryBuffer(new uint8_t[binarySize]);
 
-  runtime_->qnnInterface.contextGetBinary(context_, reinterpret_cast<void*>(binaryBuffer.get()), binarySize, &writtenSize);
-
-  if (binarySize < writtenSize) {
-    MLLM_ERROR("QNN context binary size mismatch. Written {}  bytes, expected {} bytes.", writtenSize, binarySize);
+  const auto binaryStatus =
+      runtime_->qnnInterface.contextGetBinary(context_, reinterpret_cast<void*>(binaryBuffer.get()), binarySize, &writtenSize);
+  if (binaryStatus != QNN_CONTEXT_NO_ERROR || writtenSize == 0 || writtenSize > binarySize) {
+    MLLM_ERROR("Failed to serialize QNN context: status {}, capacity {}, written {}", binaryStatus, binarySize, writtenSize);
+    return false;
   }
   std::ofstream file(contextPath, std::ios::binary);
+  if (!file.is_open()) {
+    MLLM_ERROR("Failed to open QNN context output: {}", contextPath);
+    return false;
+  }
   file.write(reinterpret_cast<char*>(binaryBuffer.get()), writtenSize);
+  if (!file.good()) {
+    MLLM_ERROR("Failed to write QNN context output: {}", contextPath);
+    return false;
+  }
   file.close();
+  if (!file) {
+    MLLM_ERROR("Failed to close QNN context output: {}", contextPath);
+    return false;
+  }
 
   MLLM_INFO("QNN context saved to {} written {} bytes.", contextPath, writtenSize);
+  return true;
 }
 
 std::shared_ptr<QNNModel> QNNBackend::createQnnGraph(const std::string& graphName) {
@@ -643,6 +774,14 @@ bool QNNBackend::graphFinalize(const std::string& graphName) {
   return true;
 }
 
+void QNNBackend::setSequenceTile(int32_t sequence_tile) {
+  if (sequence_tile < 0) { throw std::invalid_argument("QNN sequence tile cannot be negative"); }
+  if (!sequenceTileGraphs_.empty() && sequence_tile != sequenceTile_) {
+    throw std::logic_error("QNN sequence tile cannot change after graph execution starts");
+  }
+  sequenceTile_ = sequence_tile;
+}
+
 void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto it = qnnModelIndexMap_.find(graphName);
   if (it == qnnModelIndexMap_.end()) {
@@ -658,12 +797,185 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
     return;
   }
 
+  const auto graph_outputs = model->getGraphOutputTensorWrappers().size();
+  if (graph_outputs == 3 && outputs.size() == 4) {
+    const std::string replay_name = graphName + std::string(shadow_raw_graph_suffix);
+    if (qnnModelIndexMap_.contains(replay_name)) {
+      namespace packet = ::shadow_correction_packet;
+      const auto enabled = [](const char* name) {
+        const auto* value = std::getenv(name);
+        return value && value[0] == '1' && value[1] == '\0';
+      };
+      if (enabled("MLLM_QNN_SHADOW_PACKET_FORCE_FALLBACK")) {
+        graphExecute(replay_name, inputs, outputs);
+        return;
+      }
+
+      // Copies of the three tensors share the caller's logical output storage.
+      std::vector<Tensor> compact(outputs.begin() + 1, outputs.end());
+      graphExecute(graphName, inputs, compact);
+      const auto& encoded = compact.back();
+      const auto* words = encoded.ptr<int32_t>();
+      MLLM_RT_ASSERT(encoded.dtype() == kInt32 && words && encoded.numel() % packet::packet_words == 0);
+      for (size_t offset = 0; offset < static_cast<size_t>(encoded.numel()); offset += packet::packet_words) {
+        if (words[offset] != packet::complete) {
+          MLLM_INFO("QNN_SHADOW_COMPACT_REPLAY graph={} status={}", graphName, words[offset]);
+          graphExecute(replay_name, inputs, outputs);
+          return;
+        }
+      }
+
+      if (enabled("MLLM_QNN_SHADOW_PACKET_VERIFY")) {
+        // Keep the raw output for CPU correction checking, and compare the
+        // compact graph's code, residual and packet with independent buffers.
+        std::vector<Tensor> replay{outputs.front()};
+        for (const auto& tensor : compact) { replay.push_back(Tensor::empty(tensor.shape(), tensor.dtype(), kQNN)); }
+        graphExecute(replay_name, inputs, replay);
+        for (size_t index = 0; index < compact.size(); ++index) {
+          if (std::memcmp(compact[index].ptr<void>(), replay[index + 1].ptr<void>(), compact[index].bytes()) != 0) {
+            MLLM_WARN("QNN_SHADOW_COMPACT_MISMATCH graph={} port={}", graphName, index);
+            break;
+          }
+        }
+      }
+      return;
+    }
+  }
+
+  if (outputs.size() != graph_outputs) {
+    MLLM_ERROR("Output size mismatch: expected {}, got {} for graph '{}'", model->getGraphOutputTensorWrappers().size(),
+               outputs.size(), graphName);
+    return;
+  }
+
+  if (sequenceTile_ > 0) {
+    // A shared tile remains exclusive through both input staging and output copy.
+    static std::mutex sequence_tile_pool_mutex;
+    const bool use_buffer_pool = sequenceTileBufferPoolEnabled();
+    std::unique_lock pool_lock(sequence_tile_pool_mutex, std::defer_lock);
+    if (use_buffer_pool) { pool_lock.lock(); }
+    const auto input_wrappers = model->getGraphInputTensorWrappers();
+    const auto output_wrappers = model->getGraphOutputTensorWrappers();
+    auto state_it = sequenceTileGraphs_.find(graphName);
+    if (state_it == sequenceTileGraphs_.end()) {
+      SequenceTileGraphState state;
+      auto prepare_boundary = [&](Tensor& logical, const std::shared_ptr<QNNTensorWrapper>& wrapper,
+                                  std::vector<QNNSequenceTilePlan>& plans, std::vector<Tensor>& tiles, bool is_input,
+                                  size_t index) {
+        if (logical.isNil() || logical.device() != kQNN || !logical.isContiguous()
+            || logical.impl()->storage()->ptr_ == nullptr) {
+          throw std::invalid_argument("QNN sequence tiling requires allocated contiguous QNN graph boundaries");
+        }
+        if (QNN_TENSOR_GET_DATA_TYPE(wrapper->getNativeTensor()) != mllmDataTypeToQnnDataType(logical.dtype())) {
+          throw std::invalid_argument("QNN sequence-tile boundary dtype differs from the compiled graph");
+        }
+        Tensor::shape_t compiled_shape;
+        compiled_shape.reserve(wrapper->getDimension()->size());
+        for (const uint32_t dimension : *wrapper->getDimension()) { compiled_shape.push_back(static_cast<int32_t>(dimension)); }
+        auto plan = planQnnSequenceTiling(logical.shape(), compiled_shape, sequenceTile_);
+        if (state.tile_count == 0) {
+          state.tile_count = plan.tile_count;
+        } else if (state.tile_count != plan.tile_count) {
+          throw std::invalid_argument("QNN graph boundaries have inconsistent sequence-tile counts");
+        }
+
+        Tensor tile;
+        if (use_buffer_pool) {
+          for (const auto& [_, peer] : sequenceTileGraphs_) {
+            const auto& peer_tiles = is_input ? peer.tile_inputs : peer.tile_outputs;
+            if (index >= peer_tiles.size()) { continue; }
+            const auto& peer_tile = peer_tiles[index];
+            if (peer_tile.dtype() == logical.dtype() && peer_tile.shape() == plan.compiled_shape) {
+              tile = peer_tile;
+              break;
+            }
+          }
+        }
+        if (tile.isNil()) {
+          tile = Tensor::empty(plan.compiled_shape, logical.dtype(), kQNN).alloc();
+          tile.setName("qnn_sequence_tile_" + graphName + (is_input ? "_input" : "_output") + std::to_string(index));
+          sequenceTileProfile_.scratch_bytes += tile.bytes();
+        }
+        wrapper->__rebindDataContainerForExecution(tile);
+        wrapper->alloc();
+        plans.push_back(std::move(plan));
+        tiles.push_back(std::move(tile));
+      };
+
+      for (size_t index = 0; index < inputs.size(); ++index) {
+        prepare_boundary(inputs[index], input_wrappers[index], state.input_plans, state.tile_inputs, true, index);
+      }
+      for (size_t index = 0; index < outputs.size(); ++index) {
+        if (outputs[index].isNil()) {
+          throw std::invalid_argument("QNN sequence tiling received a nil logical output boundary");
+        }
+        if (outputs[index].impl()->storage()->ptr_ == nullptr) { outputs[index].alloc(); }
+        prepare_boundary(outputs[index], output_wrappers[index], state.output_plans, state.tile_outputs, false, index);
+      }
+      MLLM_INFO("QNN_SEQUENCE_TILE_SETUP graph={} tile_sequence={} tiles={} scratch_bytes={}", graphName, sequenceTile_,
+                state.tile_count, sequenceTileProfile_.scratch_bytes);
+      state_it = sequenceTileGraphs_.emplace(graphName, std::move(state)).first;
+    }
+
+    auto& state = state_it->second;
+    auto validate_boundary = [&](const Tensor& logical, const QNNSequenceTilePlan& expected) {
+      if (logical.isNil() || logical.device() != kQNN || !logical.isContiguous()
+          || logical.impl()->storage()->ptr_ == nullptr) {
+        throw std::invalid_argument("QNN sequence-tile graph boundary is not allocated contiguous QNN memory");
+      }
+      const auto actual = planQnnSequenceTiling(logical.shape(), expected.compiled_shape, sequenceTile_);
+      if (actual.axis != expected.axis || actual.tile_count != expected.tile_count) {
+        throw std::invalid_argument("QNN sequence-tile graph boundary changed after setup");
+      }
+    };
+    for (size_t index = 0; index < inputs.size(); ++index) { validate_boundary(inputs[index], state.input_plans[index]); }
+    for (size_t index = 0; index < outputs.size(); ++index) {
+      if (outputs[index].impl()->storage()->ptr_ == nullptr) { outputs[index].alloc(); }
+      validate_boundary(outputs[index], state.output_plans[index]);
+    }
+
+    std::vector<Qnn_Tensor_t> qnn_inputs;
+    std::vector<Qnn_Tensor_t> qnn_outputs;
+    qnn_inputs.reserve(input_wrappers.size());
+    qnn_outputs.reserve(output_wrappers.size());
+    for (const auto& wrapper : input_wrappers) { qnn_inputs.push_back(*wrapper->getNativeTensor()); }
+    for (const auto& wrapper : output_wrappers) { qnn_outputs.push_back(*wrapper->getNativeTensor()); }
+
+    using clock = std::chrono::steady_clock;
+    const auto elapsed_us = [](clock::time_point start, clock::time_point end) {
+      return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+    };
+    ++sequenceTileProfile_.graph_calls;
+    for (int32_t tile_index = 0; tile_index < state.tile_count; ++tile_index) {
+      auto stage_start = clock::now();
+      for (size_t index = 0; index < inputs.size(); ++index) {
+        const auto& plan = state.input_plans[index];
+        copyQnnSequenceTile(state.tile_inputs[index], 0, inputs[index], tile_index * sequenceTile_, sequenceTile_, plan.axis);
+      }
+      sequenceTileProfile_.input_copy_us += elapsed_us(stage_start, clock::now());
+
+      stage_start = clock::now();
+      CALL_QNN(runtime_->qnnInterface.graphExecute(model->getQnnGraph(), qnn_inputs.data(), qnn_inputs.size(),
+                                                   qnn_outputs.data(), qnn_outputs.size(), runtime_->profileHandle, nullptr));
+      sequenceTileProfile_.execute_us += elapsed_us(stage_start, clock::now());
+
+      stage_start = clock::now();
+      for (size_t index = 0; index < outputs.size(); ++index) {
+        const auto& plan = state.output_plans[index];
+        copyQnnSequenceTile(outputs[index], tile_index * sequenceTile_, state.tile_outputs[index], 0, sequenceTile_, plan.axis);
+      }
+      sequenceTileProfile_.output_copy_us += elapsed_us(stage_start, clock::now());
+      ++sequenceTileProfile_.tile_calls;
+    }
+    if (ProfilingLevel::OFF != profilingLevel_) { extractBackendProfilingInfo(runtime_->profileHandle); }
+    return;
+  }
+
   std::vector<Qnn_Tensor_t> qnn_inputs;
   std::vector<Qnn_Tensor_t> qnn_outputs;
   // Prepare QNN inputs
   for (int i = 0; i < model->getGraphInputTensorWrappers().size(); i++) {
     auto wrapper = model->getGraphInputTensorWrappers()[i];
-    auto& wrapper_tensor = wrapper->getDataContainer();
     const auto& runtime_input = inputs[i];
 
     // Validate input tensors
@@ -672,9 +984,9 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
-    // Case of executing retrieved graph created by AOT
-    // input wrapper is empty, set wrapper's dataContainer(mllm::Tensor)
-    if (!wrapper->isAlloc()) { wrapper->__setDataContainer(runtime_input); }
+    // Module calls can produce fresh Tensor objects. Bind this graph boundary
+    // to the current call rather than retaining the tensor seen while tracing.
+    wrapper->__rebindDataContainerForExecution(runtime_input);
 
     // Allocate and register the wrapper tensor with QNN allocator
     // QNNAllocator will handle registered memory descriptor when needed
@@ -684,7 +996,6 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
   // Prepare QNN outputs
   for (int j = 0; j < model->getGraphOutputTensorWrappers().size(); j++) {
     auto wrapper = model->getGraphOutputTensorWrappers()[j];
-    auto& wrapper_tensor = wrapper->getDataContainer();
     const auto& runtime_output = outputs[j];
 
     // Validate output tensors
@@ -693,8 +1004,7 @@ void QNNBackend::graphExecute(const std::string& graphName, std::vector<Tensor>&
       return;
     }
 
-    // output wrapper is empty, set wrapper's dataContainer(mllm::Tensor)
-    if (!wrapper->isAlloc()) { wrapper->__setDataContainer(runtime_output); }
+    wrapper->__rebindDataContainerForExecution(runtime_output);
 
     // alloc and register qnn tensor
     wrapper->alloc();  // QNNAllocator will handle registered memory descriptor
@@ -733,7 +1043,7 @@ bool QNNBackend::addTensor(const std::string& graphName, const std::string& tens
 }
 
 bool QNNBackend::addStaticTensor(const std::string& graphName, const std::string& tensorName, const Tensor& tensor,
-                                 Qnn_QuantizeParams_t quantize) {
+                                 Qnn_QuantizeParams_t quantize, Qnn_DataType_t dataTypeOverride) {
   auto it = qnnModelIndexMap_.find(graphName);
   if (it == qnnModelIndexMap_.end()) {
     MLLM_ERROR("Graph {} not found for adding static tensor", graphName);
@@ -748,7 +1058,7 @@ bool QNNBackend::addStaticTensor(const std::string& graphName, const std::string
     return false;
   }
 
-  ModelError_t err = qnnModel->addStaticTensor(tensorName, tensor, quantize);
+  ModelError_t err = qnnModel->addStaticTensor(tensorName, tensor, quantize, dataTypeOverride);
   if (err != MODEL_NO_ERROR) {
     MLLM_ERROR("Failed to add static tensor {} to graph {}: error code {}", tensorName, graphName, static_cast<int>(err));
     return false;

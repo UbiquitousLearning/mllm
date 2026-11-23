@@ -19,4 +19,15 @@ class QNNDequantizeAddPattern : public QNNBasePattern {
                const std::vector<ir::tensor::TensorValue::ptr_t>& outputs) override;
 };
 
+class QNNShadowCorrectionPacketPattern : public QNNBasePattern {
+ public:
+  bool isMatch(const ir::op_ptr_t& op) override { return op->isa_<ir::linalg::CustomizedOp>(); }
+
+  bool addNode(const std::string& graphName, const ir::op_ptr_t& op, const std::vector<ir::tensor::TensorValue::ptr_t>& inputs,
+               const std::vector<ir::tensor::TensorValue::ptr_t>& outputs) override;
+  static bool addNodeWithMask(const std::string& graph_name, const ir::op_ptr_t& op,
+                              const std::vector<ir::tensor::TensorValue::ptr_t>& inputs,
+                              const std::vector<ir::tensor::TensorValue::ptr_t>& outputs, const std::string& mask_name);
+};
+
 }  // namespace mllm::qnn

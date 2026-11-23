@@ -197,7 +197,7 @@ extern void initAscendBackend();
 
 bool isQnnAvailable();
 
-extern void initQnnBackend(const std::string& context_path = "qnn_context.bin");
+extern void initQnnBackend(const std::string& context_path = "qnn_context.bin", bool prepare_only = false);
 
 void cleanThisThread();
 

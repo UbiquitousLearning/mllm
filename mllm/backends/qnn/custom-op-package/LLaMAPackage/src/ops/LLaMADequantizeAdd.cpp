@@ -388,7 +388,6 @@ int32_t qhmath_hvx_dequantize_add_ui16_af(int8_t* restrict input, float_t* restr
 
   HVX_Vector sline1p, sline1c, sline1;
   HVX_Vector scale_vec;
-  HVX_Vector one_vec;
 
   int32_t block, l2fetch_block;
   int32_t leftover = size & 63;
@@ -401,7 +400,6 @@ int32_t qhmath_hvx_dequantize_add_ui16_af(int8_t* restrict input, float_t* restr
   HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
 
   scale_vec = Q6_V_vsplat_R(float_to_bits(scale));
-  one_vec = Q6_V_vsplat_R(float_to_fp16s(1.0));
   scale_vec = Q6_Vqf32_vadd_VsfVsf(scale_vec, Q6_V_vzero());
 
   for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE) {
@@ -417,13 +415,17 @@ int32_t qhmath_hvx_dequantize_add_ui16_af(int8_t* restrict input, float_t* restr
       HVX_Vector bvec1 = *bptr++;  // load 32 float elements
       HVX_Vector bvec2 = *bptr++;
 
-      HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
-      HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
-      result = Q6_W_vshuff_VVR(Q6_V_hi_W(result), Q6_V_lo_W(result), -4);
+      // Preserve qf32 extended bits by avoiding a generic vector shuffle on a
+      // qf32 pair. Widen the centered int16 values in their sequential order,
+      // convert each word vector to IEEE fp32, then enter qf32 arithmetic.
+      HVX_Vector centered = Q6_Vh_vsub_VhVh(sline1, convert_vector);
+      HVX_VectorPair centered_words = Q6_Ww_vunpack_Vh(centered);
+      HVX_Vector result_lo = Q6_Vqf32_equals_Vsf(Q6_Vsf_equals_Vw(Q6_V_lo_W(centered_words)));
+      HVX_Vector result_hi = Q6_Vqf32_equals_Vsf(Q6_Vsf_equals_Vw(Q6_V_hi_W(centered_words)));
       *optr++ = Q6_Vsf_equals_Vqf32(
-          Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
+          Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(result_lo, scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
       *optr++ = Q6_Vsf_equals_Vqf32(
-          Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
+          Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(result_hi, scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
 
       sline1p = sline1c;
     }
@@ -436,17 +438,46 @@ int32_t qhmath_hvx_dequantize_add_ui16_af(int8_t* restrict input, float_t* restr
     HVX_Vector bvec1 = *bptr++;  // load 32 float elements
     HVX_Vector bvec2 = *bptr++;
 
-    HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
-    HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
-    result = Q6_W_vshuff_VVR(Q6_V_hi_W(result), Q6_V_lo_W(result), -4);
+    HVX_Vector centered = Q6_Vh_vsub_VhVh(sline1, convert_vector);
+    HVX_VectorPair centered_words = Q6_Ww_vunpack_Vh(centered);
+    HVX_Vector result_lo = Q6_Vqf32_equals_Vsf(Q6_Vsf_equals_Vw(Q6_V_lo_W(centered_words)));
+    HVX_Vector result_hi = Q6_Vqf32_equals_Vsf(Q6_Vsf_equals_Vw(Q6_V_hi_W(centered_words)));
     *optr++ = Q6_Vsf_equals_Vqf32(
-        Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
+        Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(result_lo, scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
     *optr++ = Q6_Vsf_equals_Vqf32(
-        Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
+        Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(result_hi, scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
   }
 
   return 0;
 }
+
+#if defined(MLLM_QNN_DEQUANTIZE_ADD_UI16_SCALAR_DIAGNOSTIC)
+int32_t mllm_scalar_dequantize_add_ui16_af(int8_t* restrict input, float_t* restrict bias,
+                                           int8_t* restrict output, uint32_t size, float scale) {
+  if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) { return -1; }
+
+  const auto* input_u16 = reinterpret_cast<const uint16_t*>(input);
+  auto* output_f32 = reinterpret_cast<float_t*>(output);
+  for (uint32_t index = 0; index < size; ++index) {
+    const int32_t centered = static_cast<int32_t>(input_u16[index]) - 32768;
+    output_f32[index] = static_cast<float_t>(centered) * scale + bias[index];
+  }
+  return 0;
+}
+
+int32_t mllm_scalar_dequantize_add_ui16_ahf(int8_t* restrict input, float_t* restrict bias,
+                                            int8_t* restrict output, uint32_t size, float scale) {
+  if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) { return -1; }
+
+  const auto* input_u16 = reinterpret_cast<const uint16_t*>(input);
+  auto* output_f16 = reinterpret_cast<__fp16*>(output);
+  for (uint32_t index = 0; index < size; ++index) {
+    const int32_t centered = static_cast<int32_t>(input_u16[index]) - 32768;
+    output_f16[index] = static_cast<__fp16>(static_cast<float_t>(centered) * scale + bias[index]);
+  }
+  return 0;
+}
+#endif
 
 template<typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
 GraphStatus llamadequantizeaddImpl(TensorType1& out_0, const TensorType1& in_0, const TensorType& in_1,
@@ -493,7 +524,11 @@ GraphStatus llamadequantizeaddImpl(TensorType1& out_0, const TensorType1& in_0, 
       for (Idx h = 0; h < h_in; h++) {
         auto in_ptr = (int8_t*)((int16_t*)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in));
         auto out_ptr = (int8_t*)((int16_t*)out_0.raw_data() + (((b * h_in) + h) * w_in * d_in));
+#if defined(MLLM_QNN_DEQUANTIZE_ADD_UI16_SCALAR_DIAGNOSTIC)
+        mllm_scalar_dequantize_add_ui16_ahf(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+#else
         qhmath_hvx_dequantize_add_ui16_ahf(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+#endif
       }
     }
   } else if (in_0.get_dtype() == DType::QUInt16 && out_0.get_dtype() == DType::Float32) {
@@ -502,7 +537,11 @@ GraphStatus llamadequantizeaddImpl(TensorType1& out_0, const TensorType1& in_0, 
       for (Idx h = 0; h < h_in; h++) {
         auto in_ptr = (int8_t*)((int16_t*)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in));
         auto out_ptr = (int8_t*)((float_t*)out_0.raw_data() + (((b * h_in) + h) * w_in * d_in));
+#if defined(MLLM_QNN_DEQUANTIZE_ADD_UI16_SCALAR_DIAGNOSTIC)
+        mllm_scalar_dequantize_add_ui16_af(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+#else
         qhmath_hvx_dequantize_add_ui16_af(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+#endif
       }
     }
   } else if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float32) {

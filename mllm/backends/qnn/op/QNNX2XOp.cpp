@@ -21,6 +21,8 @@ void QNNX2XOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   // Get input data pointer
   const void* src_data = input.ptr<void>();
   void* dst_data = output.ptr<void>();
+  MLLM_RT_ASSERT(src_data != nullptr);
+  MLLM_RT_ASSERT(dst_data != nullptr);
 
   // Calculate data size in bytes
   size_t data_size = input.bytes();

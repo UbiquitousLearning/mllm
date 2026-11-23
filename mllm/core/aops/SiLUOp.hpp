@@ -8,7 +8,11 @@
 
 namespace mllm::aops {
 
-struct SiLUOpOptions : public BaseOpOptions<SiLUOpOptions> {};
+struct SiLUOpOptions : public BaseOpOptions<SiLUOpOptions> {
+  // QNN's custom HVX SiLU is an approximation.  Models calibrated against
+  // sigmoid(x) * x can request the standard-QNN sigmoid decomposition.
+  bool high_precision = false;
+};
 
 class SiLUOp : public BaseOp {
  public:

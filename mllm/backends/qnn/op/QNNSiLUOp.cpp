@@ -1,6 +1,10 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/backends/qnn/ShadowCorrectionGraph.hpp"
+#include <cstdlib>
+#include <string_view>
+
 #include "mllm/backends/qnn/op/QNNSiLUOp.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
@@ -59,9 +63,39 @@ bool QNNSiLUPattern::addNode(const std::string& graphName, const ir::op_ptr_t& o
     return false;
   }
 
-  // Add SiLU node to the graph using custom QNN operator from LLaMAPackage
-  qnnBackend->graphAddNode(graphName, qnnSiLUOp->getName(), "SiLU", inputTensorNames, {outputs[0]->name()}, {}, {},
-                           "LLaMAPackage");
+  const auto& node_name = qnnSiLUOp->getName();
+  const auto graph = shadowMainGraphName(graphName);
+  constexpr std::string_view layer_prefix = "model.layers.";
+  const char* request = std::getenv("MLLM_QNN_QWEN_FP32_HVX_SILU");
+  bool use_hvx = false;
+  if (qnnSiLUOp->options().high_precision && request && std::string_view(request) == "1"
+      && graph.starts_with(layer_prefix) && (graph.ends_with("_1") || graph.ends_with("_2"))
+      && inputs.size() == 1 && outputs.size() == 1) {
+    // Only change the FP32 gate activation of Qwen 1.5B at the compiled M256 shape.
+    const auto layer_name = graph.substr(0, graph.size() - 2);
+    const auto layer = layer_name.substr(layer_prefix.size());
+    const auto& shape = inputs[0]->tensor_.shape();
+    const bool supported_tile = shape == Tensor::shape_t{1, 256, 1, 8960} || shape == Tensor::shape_t{1, 16, 16, 8960};
+    use_hvx = supported_tile && !layer.empty() && layer.find_first_not_of("0123456789") == std::string_view::npos
+              && node_name == std::string(layer_name) + ".mlp.act" && inputs[0]->tensor_.dtype() == kFloat32
+              && outputs[0]->tensor_.dtype() == kFloat32 && outputs[0]->tensor_.shape() == shape;
+  }
+  if (qnnSiLUOp->options().high_precision && !use_hvx) {
+    const auto sigmoidTensorName = qnnSiLUOp->getName() + ".sigmoid";
+    if (!qnnBackend->addTensor(graphName, sigmoidTensorName, QNN_TENSOR_TYPE_NATIVE, outputs[0]->tensor_)) {
+      MLLM_ERROR("Failed to add high-precision SiLU intermediate tensor {} to graph {}", sigmoidTensorName, graphName);
+      return false;
+    }
+    qnnBackend->graphAddNode(graphName, qnnSiLUOp->getName() + ".sigmoid", "Sigmoid", inputTensorNames, {sigmoidTensorName}, {},
+                             {});
+    qnnBackend->graphAddNode(graphName, qnnSiLUOp->getName(), "LLaMAMul", {sigmoidTensorName, inputs[0]->name()},
+                             {outputs[0]->name()}, {}, {}, "LLaMAPackage");
+  } else {
+    // This custom operator evaluates SiLU with the package's polynomial approximation.
+    qnnBackend->graphAddNode(graphName, node_name, "SiLU", inputTensorNames, {outputs[0]->name()}, {}, {},
+                            "LLaMAPackage");
+    if (use_hvx) { MLLM_INFO("QNN_MLP_FP32_HVX_SILU_LOWERING graph={} node={}", graphName, node_name); }
+  }
 
   return true;
 }

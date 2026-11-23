@@ -186,11 +186,13 @@ class QNNTensorWrapper {
 
   // create a QNN empty tensor from mllm::Tensor (used for Op input/output tensor)
   static std::shared_ptr<QNNTensorWrapper> create(const std::string& name, Qnn_TensorType_t type, const Tensor& tensor,
-                                                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+                                                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS,
+                                                  Qnn_DataType_t dataTypeOverride = QNN_DATATYPE_UNDEFINED);
 
   // create a static QNN tensor from mllm::Tensor
   static std::shared_ptr<QNNTensorWrapper> createStaticTensor(const std::string& name, const Tensor& tensor,
-                                                              Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+                                                              Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS,
+                                                              Qnn_DataType_t dataTypeOverride = QNN_DATATYPE_UNDEFINED);
 
   // shadow copy from existing QNN tensor
   // the src qnnTensor can be released after this
@@ -208,10 +210,13 @@ class QNNTensorWrapper {
   const std::vector<uint32_t>* getDimension() { return &dimensions_; }
 
   bool isAlloc() { return isAlloc_; }
-  void __setDataContainer(const Tensor& tensor) {
-    MLLM_RT_ASSERT(dataContainer_.isNil())
+  // Bind this graph boundary to the tensor used by the current execution.
+  // Sequence-tiled execution uses the same operation to bind persistent
+  // fixed-shape scratch tensors instead of the larger logical tensors.
+  void __rebindDataContainerForExecution(const Tensor& tensor) {
+    MLLM_RT_ASSERT(!tensor.isNil());
     dataContainer_ = tensor;
-    if (!tensor.isNil()) { isAlloc_ = true; }
+    isAlloc_ = tensor.impl()->storage()->ptr_ != nullptr;
   }
 
   // Helper to set complex quantization params and manage memory

@@ -308,7 +308,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kInt16: {
-      MLLM_ERROR_EXIT(ExitCode::kCoreError, "Int16 is not supported by QNN.");
+      ret = QNN_DATATYPE_SFIXED_POINT_16;
       break;
     }
     case kInt32: {
@@ -324,7 +324,7 @@ Qnn_DataType_t mllmDataTypeToQnnDataType(DataTypes dtype) {
       break;
     }
     case kUInt16: {
-      MLLM_ERROR_EXIT(ExitCode::kCoreError, "UInt16 is not supported by QNN.");
+      ret = QNN_DATATYPE_UFIXED_POINT_16;
       break;
     }
     case kUInt32: {
@@ -450,7 +450,8 @@ QNNTensorWrapper::QNNTensorWrapper(const std::string& name, Qnn_TensorType_t typ
 }
 
 std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& name, Qnn_TensorType_t type, const Tensor& tensor,
-                                                           Qnn_QuantizeParams_t quantize) {
+                                                           Qnn_QuantizeParams_t quantize,
+                                                           Qnn_DataType_t dataTypeOverride) {
   // in this case, the tensor may be a placeholder(input/output except for graph IO)
   // it will be allocated to QNN shared buffer via QNNTensorWrapper::alloc() later
   MLLM_RT_ASSERT(!name.empty());
@@ -459,26 +460,30 @@ std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::create(const std::string& na
   if (type != QNN_TENSOR_TYPE_STATIC) { MLLM_RT_ASSERT(tensor.device() == kQNN); }
 #endif
 
-  Qnn_DataType_t dataType = mllmDataTypeToQnnDataType(tensor.dtype());
+  Qnn_DataType_t dataType = dataTypeOverride == QNN_DATATYPE_UNDEFINED ? mllmDataTypeToQnnDataType(tensor.dtype())
+                                                                       : dataTypeOverride;
 
   std::vector<uint32_t> dimensions(tensor.rank());
   for (int i = 0; i < tensor.rank(); i++) { dimensions[i] = tensor.shape()[i]; }
 
   auto tensorWrapper = std::make_shared<QNNTensorWrapper>(name, type, dataType, dimensions, quantize);
 
-  tensorWrapper->dataContainer_ = tensor;
-
-  // when passed allocated tensor, mark isAlloc_ = true
-  if (!tensor.isNil()) tensorWrapper->isAlloc_ = true;
+  // Graph input/output tensors are traced with placeholder Tensor objects.
+  // Do not retain those placeholders: each execution must bind the wrapper to
+  // the corresponding runtime boundary tensor. Static tensors are the only
+  // wrappers whose data container is source-owned for the wrapper lifetime.
+  if (type == QNN_TENSOR_TYPE_STATIC) { tensorWrapper->dataContainer_ = tensor; }
 
   return tensorWrapper;
 }
 
 std::shared_ptr<QNNTensorWrapper> QNNTensorWrapper::createStaticTensor(const std::string& name, const Tensor& tensor,
-                                                                       Qnn_QuantizeParams_t quantize) {
+                                                                       Qnn_QuantizeParams_t quantize,
+                                                                       Qnn_DataType_t dataTypeOverride) {
   MLLM_RT_ASSERT(!name.empty() && tensor.rank() > 0 && !tensor.isNil());
 
-  std::shared_ptr<QNNTensorWrapper> tensorWrapper = QNNTensorWrapper::create(name, QNN_TENSOR_TYPE_STATIC, tensor, quantize);
+  std::shared_ptr<QNNTensorWrapper> tensorWrapper =
+      QNNTensorWrapper::create(name, QNN_TENSOR_TYPE_STATIC, tensor, quantize, dataTypeOverride);
 
   tensorWrapper->isAlloc_ = true;
   tensorWrapper->registeredPtr_ = tensor.ptr<void>();

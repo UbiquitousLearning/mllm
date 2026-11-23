@@ -25,8 +25,8 @@ inline auto makeRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   return inv_freq;
 }
 
-inline auto makeRotaryPosEmbedding(const Tensor& position_ids, const Tensor& inv_freq,
-                                   float attention_scaling = 1.0f) -> std::pair<Tensor, Tensor> {
+inline auto makeRotaryPosEmbedding(const Tensor& position_ids, const Tensor& inv_freq, float attention_scaling = 1.0f)
+    -> std::pair<Tensor, Tensor> {
   auto batch_size = position_ids.shape()[0];
   auto seq_len = position_ids.shape()[1];
   auto inv_freq_len = inv_freq.shape()[0];
@@ -165,7 +165,8 @@ class QwenAttentionCPU final : public nn::Module {
     value_states = kv_outputs[1];
 
     // Attention weights: [B,H,S,S] where S for query is current input length, S for key is cached length
-    auto attn_weights = nn::functional::matmul(query_states, key_states, /*trans_a=*/false, /*trans_b=*/true)
+    auto attn_weights = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), /*trans_a=*/false,
+                                               /*trans_b=*/true)
                         * (1.f / std::sqrt(static_cast<float>(head_dim_)));
 
     attn_weights = mask_(attn_weights);
@@ -174,7 +175,7 @@ class QwenAttentionCPU final : public nn::Module {
     attn_weights = softmax_(attn_weights.to(kFloat32)).to(attn_weights_dtype);
 
     // Attention output: [B,H,S,S] @ [B,H,S,D] -> [B,H,S,D]
-    auto attn_output = nn::functional::matmul(attn_weights, value_states);
+    auto attn_output = nn::functional::matmul(attn_weights, value_states.to(attn_weights.dtype()));
     // -> [B,S,H,D] -> [B,S,H*D]
     attn_output = attn_output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
 
@@ -191,7 +192,6 @@ class QwenAttentionCPU final : public nn::Module {
   int num_attention_heads_ = 0;
   int num_key_value_heads_ = 0;
   int head_dim_ = 0;
-
   nn::Linear q_proj_;
   nn::Linear k_proj_;
   nn::Linear v_proj_;
@@ -268,19 +268,29 @@ class QwenTextCPU final : public nn::Module {
     auto x = inputs[0];
     auto llm_embedding_sin = inputs[1];
     auto llm_embedding_cos = inputs[2];
-    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos)[0]; }
+    captured_layer_outputs_.clear();
+    if (capture_layer_outputs_) { captured_layer_outputs_.push_back(x); }
+    for (auto& block : blocks) {
+      x = block(x, llm_embedding_sin, llm_embedding_cos)[0];
+      if (capture_layer_outputs_) { captured_layer_outputs_.push_back(x); }
+    }
 
     x = norm_(x);
+    if (capture_layer_outputs_) { captured_layer_outputs_.push_back(x); }
     return {x};
   }
 
   nn::Embedding& embedding() { return embedding_; }
   nn::ModuleList<QwenDecoderCPU>& decode_blocks() { return decode_blocks_; }
+  void setCaptureLayerOutputs(bool capture) { capture_layer_outputs_ = capture; }
+  const std::vector<Tensor>& capturedLayerOutputs() const { return captured_layer_outputs_; }
 
  private:
   nn::ModuleList<QwenDecoderCPU> decode_blocks_;
   nn::RMSNorm norm_;
   nn::Embedding embedding_;
+  bool capture_layer_outputs_ = false;
+  std::vector<Tensor> captured_layer_outputs_;
 };
 
 class QwenForCausalLMCPU : public nn::Module, public ARGeneration {
@@ -321,6 +331,8 @@ class QwenForCausalLMCPU : public nn::Module, public ARGeneration {
     const auto& inv_freq = text_model_.getBuffer("inv_freq");
     auto [llm_embedding_sin, llm_embedding_cos] = utils::makeRotaryPosEmbedding(position_ids, inv_freq, 1.0f);
 
+    const bool capture_layer_outputs = args.count("debug_layer_outputs") && args.at("debug_layer_outputs").get<bool>();
+    text_model_.setCaptureLayerOutputs(capture_layer_outputs);
     auto input_embeddings = text_model_.embedding()(sequence);
 
     auto hidden_states = text_model_(input_embeddings, llm_embedding_sin, llm_embedding_cos)[0];
@@ -330,13 +342,18 @@ class QwenForCausalLMCPU : public nn::Module, public ARGeneration {
 
     auto logits = lm_head_(hidden_states);
 
-    return {
+    ARGenerationOutputPast output{
         {"sequence", logits},
         {"position_ids", position_ids},
     };
+    if (args.count("return_hidden_states") && args.at("return_hidden_states").get<bool>()) {
+      output["hidden_states"] = hidden_states;
+    }
+    return output;
   }
 
   QwenTextCPU& text_model() { return text_model_; }
+  const std::vector<Tensor>& capturedLayerOutputs() const { return text_model_.capturedLayerOutputs(); }
 
  private:
   QwenNPUConfig cfg_;

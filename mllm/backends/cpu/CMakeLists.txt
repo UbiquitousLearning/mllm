@@ -8,6 +8,11 @@ set(
 
 if(MLLM_BUILD_ARM_BACKEND)
   file(GLOB_RECURSE MLLM_CPU_BACKEND_KERNELS_SRC ${CMAKE_CURRENT_LIST_DIR}/kernels/arm/*.cpp)
+  if(ANDROID AND ANDROID_ABI STREQUAL "arm64-v8a" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+      AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19")
+    set_property(SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/arm/SparsePVSme.cpp
+                 APPEND PROPERTY COMPILE_OPTIONS -march=armv9.2-a+sme)
+  endif()
 
   # We treat kleidiai as a external lib.
   set(KLEIDIAI_BUILD_TESTS OFF)

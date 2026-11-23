@@ -107,6 +107,15 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_GATEDDELTARULEOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_GatedDeltaRuleOp && (v)->getKind() <= RK_Op_LinalgIROp_GatedDeltaRuleOp
 
+#define RTTI_RK_OP_LINALGIROP_LINEARSHADOWCORRECTIONOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_LinearShadowCorrectionOp && (v)->getKind() <= RK_Op_LinalgIROp_LinearShadowCorrectionOp
+
+#define RTTI_RK_OP_LINALGIROP_PATTERNSPARSEATTENTIONOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_PatternSparseAttentionOp && (v)->getKind() <= RK_Op_LinalgIROp_PatternSparseAttentionOp
+
+#define RTTI_RK_OP_LINALGIROP_SPARSESOFTMAXVALUEOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_SparseSoftmaxValueOp && (v)->getKind() <= RK_Op_LinalgIROp_SparseSoftmaxValueOp
+
 #define RTTI_RK_OP_LINALGIROP_REPEATOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_RepeatOp && (v)->getKind() <= RK_Op_LinalgIROp_RepeatOp
 

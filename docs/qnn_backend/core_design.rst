@@ -130,6 +130,22 @@ Manages low-level QNN SDK initialization and resource lifecycle:
     Qnn_ContextHandle_t context;
     runtime->createContext(context);
 
+Persistent Context Binaries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Applications using ``QNNBackend::loadContext()`` can set
+``MLLM_QNN_CONTEXT_PERSISTENT_BINARY=1`` before loading a serialized context.
+This maps the file read-only and retains the mapping until the QNN context is
+freed. Keep the underlying file contents intact while the context is active.
+When the variable is unset or set to ``0``, the loader reads the binary into a
+temporary buffer and releases it after loading. The option requires a QNN
+backend that supports persistent context binaries.
+
+For contexts built with the mllm LLaMA op package, set
+``MLLM_QNN_CPU_OP_PACKAGE`` and ``MLLM_QNN_HTP_OP_PACKAGE`` to the matching
+host-side and Hexagon shared libraries before initializing the QNN backend.
+Set the DSP library search path for the target as part of the runtime setup.
+
 QNNModel: Graph Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

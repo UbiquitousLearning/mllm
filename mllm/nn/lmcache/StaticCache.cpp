@@ -91,6 +91,10 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
     MLLM_RT_ASSERT_EQ(v.shape()[1], kv_heads_);
 
     auto inputs_seq_len = k.shape()[2];
+    if (current_seq_cnt_[layer_idx] < 0 || current_seq_cnt_[layer_idx] > max_cache_length_
+        || inputs_seq_len > max_cache_length_ - current_seq_cnt_[layer_idx]) {
+      throw std::out_of_range("StaticCache: sequence length exceeds cache capacity");
+    }
 
     auto repeat_times = q_heads_ / kv_heads_;
 
