@@ -101,8 +101,8 @@ QNNBackend::~QNNBackend() {
   if (perf_) { perf_->shutdown(); }
   perf_.reset();
 
-  // 4. Cleanup runtime - frees QNN backend/device handles
-  runtime_->qnnInterface.contextFree(context_, nullptr);
+  // 4. Free the context before releasing the QNN backend/device handles.
+  if (context_ != nullptr) { runtime_->qnnInterface.contextFree(context_, nullptr); }
   context_ = nullptr;
   runtime_.reset();
 
@@ -416,18 +416,26 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
     MLLM_INFO("Context binary file opened successfully: {}", contextBinaryPath);
   }
   std::streamsize size = file.tellg();
+  if (size <= 0) {
+    MLLM_ERROR("Context binary file is empty or unreadable: {}", contextBinaryPath);
+    return false;
+  }
   MLLM_INFO("Context binary file size: {} MB", size / 1024 / 1024);
   file.seekg(0, std::ios::beg);
 
   auto binaryBuffer = std::make_unique<uint8_t[]>(size);
 
-  file.read(reinterpret_cast<char*>(binaryBuffer.get()), size);
+  if (!file.read(reinterpret_cast<char*>(binaryBuffer.get()), size)) {
+    MLLM_ERROR("Failed to read context binary file: {}", contextBinaryPath);
+    return false;
+  }
   file.close();
 
   // inspect binary info
   QnnSystemContext_Handle_t sysCtxHandle{nullptr};
-  if (!qnnSystemInterface.systemContextCreate) {
-    MLLM_ERROR("systemContextCreate is nullptr.");
+  if (!qnnSystemInterface.systemContextCreate || !qnnSystemInterface.systemContextGetBinaryInfo
+      || !qnnSystemInterface.systemContextFree) {
+    MLLM_ERROR("QNN system context interface is incomplete.");
     return false;
   }
   if (QNN_SUCCESS != qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
@@ -436,6 +444,8 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
   } else {
     MLLM_INFO("System context created successfully");
   }
+  std::unique_ptr<void, decltype(qnnSystemInterface.systemContextFree)> systemContext(sysCtxHandle,
+                                                                                    qnnSystemInterface.systemContextFree);
 
   const QnnSystemContext_BinaryInfo_t* binaryInfo{nullptr};
   Qnn_ContextBinarySize_t binaryInfoSize{0};
@@ -451,41 +461,57 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
 
   // Extract graph metadata to create QNNModels instead of GraphInfo_t
   GraphInfo_t** tmpGraphsInfo = nullptr;
-  uint32_t graphNum;
+  uint32_t graphNum = 0;
   // fill GraphInfo_t based on binary info - temporarily needed for tensor extraction
   if (!copyMetadataToGraphsInfo(binaryInfo, tmpGraphsInfo, graphNum)) {
     MLLM_ERROR("Failed to copy metadata.");
     return false;
   }
-  if (QNN_SUCCESS != qnnSystemInterface.systemContextFree(sysCtxHandle)) {
+  auto freeGraphMetadata = [graphNum](GraphInfo_t** graphs) {
+    for (uint32_t i = 0; i < graphNum; ++i) {
+      if (graphs[i] == nullptr) continue;
+      free(graphs[i]->graphName);
+      freeQnnTensors(graphs[i]->inputTensors, graphs[i]->numInputTensors);
+      freeQnnTensors(graphs[i]->outputTensors, graphs[i]->numOutputTensors);
+    }
+    if (graphNum > 0) { free(graphs[0]); }
+    free(graphs);
+  };
+  std::unique_ptr<GraphInfo_t*, decltype(freeGraphMetadata)> graphMetadata(tmpGraphsInfo, freeGraphMetadata);
+  if (graphNum > 0 && !graphMetadata) {
+    MLLM_ERROR("Context binary graph metadata is missing.");
+    return false;
+  }
+  if (QNN_SUCCESS != qnnSystemInterface.systemContextFree(systemContext.release())) {
     MLLM_ERROR("Could not free system context.");
     return false;
   } else {
     MLLM_INFO("System context freed successfully");
   }
-  sysCtxHandle = nullptr;
 
   // Create context from binary
-  Qnn_ContextBinarySize_t writtenSize = 0;
+  Qnn_ContextHandle_t loadedContext = nullptr;
   if (QNN_CONTEXT_NO_ERROR
       != qnnInterface.contextCreateFromBinary(backendHandle, deviceHandle, (const QnnContext_Config_t**)contextConfig,
-                                              binaryBuffer.get(), size, &context, profileHandle)) {
+                                              binaryBuffer.get(), size, &loadedContext, profileHandle)) {
     MLLM_ERROR("Could not create context from binary. Mostly due to binary's qnn version mismatch with backend's qnn version.");
     return false;
   } else {
     MLLM_INFO("Context created from binary successfully");
   }
+  auto freeContext = [this](Qnn_ContextHandle_t handle) { qnnInterface.contextFree(handle, nullptr); };
+  std::unique_ptr<void, decltype(freeContext)> pendingContext(loadedContext, freeContext);
 
   // Create QNNModels for each graph and initialize from context
-  qnnModels.clear();
-  qnnModels.reserve(graphNum);
+  std::vector<std::shared_ptr<QNNModel>> loadedModels;
+  loadedModels.reserve(graphNum);
 
   for (uint32_t i = 0; i < graphNum; ++i) {
     GraphInfo_t* graphInfo = tmpGraphsInfo[i];
 
     // Retrieve the graph handle
     Qnn_GraphHandle_t graph = nullptr;
-    if (QNN_SUCCESS != qnnInterface.graphRetrieve(context, graphInfo->graphName, &graph)) {
+    if (QNN_SUCCESS != qnnInterface.graphRetrieve(loadedContext, graphInfo->graphName, &graph)) {
       MLLM_ERROR("Unable to retrieve graph handle for graph: {}", graphInfo->graphName);
       return false;
     }
@@ -493,7 +519,7 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
     // Create QNNModel and initialize from context
     auto qnnModel = std::make_shared<QNNModel>(qnnInterface, backendHandle);
     ModelError_t err =
-        qnnModel->initializeFromContext(context, graphInfo->graphName, graph, graphInfo->inputTensors,
+        qnnModel->initializeFromContext(loadedContext, graphInfo->graphName, graph, graphInfo->inputTensors,
                                         graphInfo->numInputTensors, graphInfo->outputTensors, graphInfo->numOutputTensors);
 
     if (err != MODEL_NO_ERROR) {
@@ -502,21 +528,12 @@ bool QNNRuntime::retrieveContext(const std::string& contextBinaryPath, Qnn_Conte
       return false;
     }
 
-    qnnModels.push_back(qnnModel);
+    loadedModels.push_back(std::move(qnnModel));
     MLLM_INFO("Successfully created QNNModel for graph: {}", graphInfo->graphName);
   }
 
-  // Clean up temporary GraphInfo_t structures
-  for (uint32_t i = 0; i < graphNum; ++i) {
-    if (tmpGraphsInfo[i]) {
-      if (tmpGraphsInfo[i]->graphName) { free(tmpGraphsInfo[i]->graphName); }
-      freeQnnTensors(tmpGraphsInfo[i]->inputTensors, tmpGraphsInfo[i]->numInputTensors);
-      freeQnnTensors(tmpGraphsInfo[i]->outputTensors, tmpGraphsInfo[i]->numOutputTensors);
-    }
-  }
-  if (graphNum > 0 && tmpGraphsInfo[0]) { free(tmpGraphsInfo[0]); }
-  if (tmpGraphsInfo) { free(tmpGraphsInfo); }
-
+  qnnModels = std::move(loadedModels);
+  context = pendingContext.release();
   MLLM_INFO("QNN context retrieved from qnn_context.bin with {} QNNModels(QnnGraphs)", graphNum);
   return true;
 }
