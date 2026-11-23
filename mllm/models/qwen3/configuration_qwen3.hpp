@@ -12,6 +12,7 @@ struct Qwen3Config : protected ConfigFile {
 
   explicit Qwen3Config(const std::string& file_path) : ConfigFile(file_path) {
     // Init all
+    use_tiled_fa2_prefill = data().value("use_tiled_fa2_prefill", false);
     attention_bias = data()["attention_bias"];
     hidden_size = data()["hidden_size"];
     intermediate_size = data()["intermediate_size"];
@@ -34,6 +35,7 @@ struct Qwen3Config : protected ConfigFile {
   }
 
   bool attention_bias = false;
+  bool use_tiled_fa2_prefill = false;
   int32_t hidden_size = 1024;
   int32_t head_dim = 128;
   int32_t intermediate_size = 3072;

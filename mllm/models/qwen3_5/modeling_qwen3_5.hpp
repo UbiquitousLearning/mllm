@@ -130,11 +130,13 @@ class Qwen3_5FullAttention final : public nn::Module {
   int num_attention_heads_;
   int num_key_value_heads_;
   bool attn_output_gate_;
+  bool use_tiled_fa2_prefill_ = false;
 
  public:
   Qwen3_5FullAttention() = default;
 
   Qwen3_5FullAttention(const std::string& name, const Qwen3_5Config& cfg) : nn::Module(name) {
+    use_tiled_fa2_prefill_ = cfg.use_tiled_fa2_prefill;
     hidden_size_ = cfg.hidden_size;
     num_attention_heads_ = cfg.num_attention_heads;
     num_key_value_heads_ = cfg.num_key_value_heads;
@@ -220,22 +222,30 @@ class Qwen3_5FullAttention final : public nn::Module {
     value_states = value_states_new;
 
     // Attention
-    Tensor attn;
-    if (key_states.dtype() == kFloat32) {
-      attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-    } else if (key_states.dtype() == kFloat16) {
-      attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
-      attn = mask_(attn);
-      attn = softmax_(attn);
-      attn = attn.to(kFloat16);
+    constexpr auto layout = aops::FlashAttention2Layout::kBHSD;
+    Tensor output;
+    if (use_tiled_fa2_prefill_
+        && nn::functional::supportsCpuFlashAttention2Prefill(query_states, key_states, value_states, layout)) {
+      output = nn::functional::flashAttention2(query_states, key_states, value_states, layout);
     } else {
-      throw std::invalid_argument("Qwen3.5 full attention only supports float32 and float16 activations");
+      Tensor attn;
+      if (key_states.dtype() == kFloat32) {
+        attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
+        attn = mask_(attn);
+        attn = softmax_(attn);
+      } else if (key_states.dtype() == kFloat16) {
+        attn =
+            nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
+        attn = mask_(attn);
+        attn = softmax_(attn);
+        attn = attn.to(kFloat16);
+      } else {
+        throw std::invalid_argument("Qwen3.5 full attention only supports float32 and float16 activations");
+      }
+      output = nn::functional::matmul(attn, value_states);
     }
 
     // [B, H, S, D] -> [B, S, H*D]
-    auto output = nn::functional::matmul(attn, value_states);
     output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
 
     // Output gate: output = output * sigmoid(gate)

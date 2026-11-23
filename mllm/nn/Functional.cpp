@@ -82,6 +82,15 @@ Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V, aops::
       {Q, K, V})[0];
 }
 
+bool supportsCpuFlashAttention2Prefill(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout) {
+  if (layout != aops::FlashAttention2Layout::kBSHD && layout != aops::FlashAttention2Layout::kBHSD) return false;
+  for (const auto* input : {&Q, &K, &V}) {
+    if (input->isNil() || input->device() != kCPU || input->dtype() != kFloat32 || input->shape().size() != 4) return false;
+  }
+  const int s = layout == aops::FlashAttention2Layout::kBSHD ? 1 : 2;
+  return Q.shape()[s] > 1 && Q.shape()[s] <= K.shape()[s];
+}
+
 Tensor groupedQueryAttentionDecode(const Tensor& query, const Tensor& key, const Tensor& value) {
   return groupedQueryAttention(query, key, value, aops::GroupedQueryAttentionImplementation::kDecodeNativeKV);
 }

@@ -19,6 +19,7 @@ struct Lfm2Config : protected ConfigFile {
 
   explicit Lfm2Config(const std::string& file_path) : ConfigFile(file_path) {
     const auto& cfg = data();
+    use_tiled_fa2_prefill = cfg.value("use_tiled_fa2_prefill", false);
     hidden_size = cfg.at("hidden_size");
     intermediate_size = cfg.at("intermediate_size");
     num_hidden_layers = cfg.at("num_hidden_layers");
@@ -54,6 +55,7 @@ struct Lfm2Config : protected ConfigFile {
     validate();
   }
 
+  bool use_tiled_fa2_prefill = false;
   int32_t hidden_size = 2048;
   int32_t intermediate_size = 10752;
   int32_t num_hidden_layers = 30;

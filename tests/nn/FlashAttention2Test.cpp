@@ -96,6 +96,19 @@ TEST_F(FlashAttention2Test, ValidatesLayoutAndGeometry) {
   EXPECT_EQ(flashAttention2(q, short_k, short_k, FlashAttention2Layout::kBSHD, false).shape(), q.shape());
 }
 
+TEST_F(FlashAttention2Test, ModelRoutingKeepsSingleQueryAndNonFp32OnIncumbent) {
+  using mllm::nn::functional::supportsCpuFlashAttention2Prefill;
+  const auto layout = FlashAttention2Layout::kBHSD;
+  const auto q = Tensor::empty({1, 8, 3, 16}, mllm::kFloat32, mllm::kCPU);
+  const auto decode_q = Tensor::empty({1, 8, 1, 16}, mllm::kFloat32, mllm::kCPU);
+  const auto k = Tensor::empty({1, 2, 11, 16}, mllm::kFloat32, mllm::kCPU);
+  const auto v16 = Tensor::empty({1, 2, 11, 16}, mllm::kFloat16, mllm::kCPU);
+  EXPECT_TRUE(supportsCpuFlashAttention2Prefill(q, k, k, layout));
+  EXPECT_FALSE(supportsCpuFlashAttention2Prefill(decode_q, k, k, layout));
+  EXPECT_FALSE(supportsCpuFlashAttention2Prefill(q, k, v16, layout));
+  EXPECT_FALSE(supportsCpuFlashAttention2Prefill(q, k, Tensor::nil(), layout));
+}
+
 TEST_F(FlashAttention2Test, TracePreservesLayoutAndCausalWindow) {
   FlashAttention2TraceModule module;
   auto ir_ctx = mllm::ir::trace(module, Tensor::empty({1, 4, 2, 5}, mllm::kFloat32, mllm::kCPU),

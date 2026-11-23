@@ -20,6 +20,7 @@ struct Qwen3_5Config : protected ConfigFile {
   explicit Qwen3_5Config(const std::string& file_path) : ConfigFile(file_path) {
     // The Qwen3.5 config nests text params under "text_config"
     auto& tc = data().contains("text_config") ? data()["text_config"] : data();
+    use_tiled_fa2_prefill = tc.value("use_tiled_fa2_prefill", false);
 
     attention_bias = tc["attention_bias"];
     hidden_size = tc["hidden_size"];
@@ -171,6 +172,7 @@ struct Qwen3_5Config : protected ConfigFile {
 
   // Standard transformer params
   bool attention_bias = false;
+  bool use_tiled_fa2_prefill = false;
   int32_t hidden_size = 1024;
   int32_t head_dim = 256;
   int32_t intermediate_size = 3584;

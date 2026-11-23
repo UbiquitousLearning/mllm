@@ -108,11 +108,13 @@ class Qwen3Attention final : public nn::Module {
   int num_attention_heads_;
   int num_key_value_heads_;
   int num_key_value_groups_;
+  bool use_tiled_fa2_prefill_ = false;
 
  public:
   Qwen3Attention() = default;
 
   Qwen3Attention(const std::string& name, const Qwen3Config& cfg) : nn::Module(name) {
+    use_tiled_fa2_prefill_ = cfg.use_tiled_fa2_prefill;
     hidden_size_ = cfg.hidden_size;
     num_attention_heads_ = cfg.num_attention_heads;
     num_key_value_heads_ = cfg.num_key_value_heads;
@@ -169,7 +171,11 @@ class Qwen3Attention final : public nn::Module {
     auto [K, V] = past_kv_cache->getKVCache(layer_idx_);
 
     // [B, S, H, D] FA2
-    auto output = o_proj_(nn::functional::flashAttention2(query_states, K, V).view({B, S, num_attention_heads_ * head_dim_}));
+    constexpr auto layout = aops::FlashAttention2Layout::kBSHD;
+    auto attention = use_tiled_fa2_prefill_ && nn::functional::supportsCpuFlashAttention2Prefill(query_states, K, V, layout)
+                         ? nn::functional::flashAttention2(query_states, K, V, layout)
+                         : nn::functional::flashAttention2(query_states, K, V);
+    auto output = o_proj_(attention.view({B, S, num_attention_heads_ * head_dim_}));
 
     return {output};
   }

@@ -53,6 +53,7 @@ class MiniCPM5Attention final : public nn::Module {
  public:
   MiniCPM5Attention() = default;
   MiniCPM5Attention(const std::string& name, const MiniCPM5Config& config) : nn::Module(name) {
+    use_tiled_fa2_prefill_ = config.use_tiled_fa2_prefill;
     hidden_size_ = config.hidden_size;
     head_dim_ = config.head_dim;
     query_heads_ = config.num_attention_heads;
@@ -79,9 +80,16 @@ class MiniCPM5Attention final : public nn::Module {
     key = k_rope_(key, inputs[1], inputs[2]);
 
     auto [cached_key, cached_value] = cache->updateKVCache(logical_cache_slot_, key, value);
-    auto output = sequence == 1 && query.dtype() == kFloat32
-                      ? gqa_decode_(query, cached_key, cached_value)
-                      : nn::llm_components::groupedQueryAttention(query, cached_key, cached_value);
+    constexpr auto layout = aops::FlashAttention2Layout::kBHSD;
+    Tensor output;
+    if (sequence == 1 && query.dtype() == kFloat32) {
+      output = gqa_decode_(query, cached_key, cached_value);
+    } else if (use_tiled_fa2_prefill_
+               && nn::functional::supportsCpuFlashAttention2Prefill(query, cached_key, cached_value, layout)) {
+      output = nn::functional::flashAttention2(query, cached_key, cached_value, layout);
+    } else {
+      output = nn::llm_components::groupedQueryAttention(query, cached_key, cached_value);
+    }
     output = output.transpose(1, 2).view({batch, sequence, query_heads_ * head_dim_});
     return {o_proj_(output)};
   }
@@ -89,6 +97,7 @@ class MiniCPM5Attention final : public nn::Module {
   int32_t logical_cache_slot_ = 0;
 
  private:
+  bool use_tiled_fa2_prefill_ = false;
   nn::Linear q_proj_;
   nn::Linear k_proj_;
   nn::Linear v_proj_;

@@ -20,6 +20,7 @@ struct MiniCPM5Config : protected ConfigFile {
 
   explicit MiniCPM5Config(const std::string& file_path) : ConfigFile(file_path) {
     const auto& config = data();
+    use_tiled_fa2_prefill = config.value("use_tiled_fa2_prefill", false);
     if (!config.contains("head_dim") || !config.contains("eos_token_id")) {
       throw std::invalid_argument("MiniCPM5 config must explicitly define head_dim and eos_token_id");
     }
@@ -75,6 +76,7 @@ struct MiniCPM5Config : protected ConfigFile {
     }
   }
 
+  bool use_tiled_fa2_prefill = false;
   int32_t vocab_size = 130560;
   int32_t hidden_size = 1536;
   int32_t intermediate_size = 4608;

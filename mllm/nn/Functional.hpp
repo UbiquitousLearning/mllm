@@ -116,6 +116,9 @@ Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
 // and V's feature width. Causal queries align to the end of the KV history.
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout,
                        bool causal_mask = true, int32_t sliding_window = 0);
+// Conservative model-routing guard. Single-query decode stays on the caller's
+// existing path; detailed attention geometry is validated by the op itself.
+bool supportsCpuFlashAttention2Prefill(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout);
 
 Tensor groupedQueryAttentionDecode(const Tensor& query, const Tensor& key, const Tensor& value);
 
