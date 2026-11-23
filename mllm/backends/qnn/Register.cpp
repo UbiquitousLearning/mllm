@@ -14,13 +14,16 @@
 namespace mllm {
 
 // export initQnnBackend function to initialize QNN backend
-void initQnnBackend(const std::string& context_path) {
+void initQnnBackend(const std::string& context_path, bool prepare_only) {
   MLLM_RT_ASSERT(isQnnAvailable());
   auto& ctx = Context::instance();
 
   // 1. Register backend
   auto backend = std::make_shared<qnn::QNNBackend>();
-  if (std::filesystem::exists(context_path)) {
+  if (!context_path.empty() && std::filesystem::exists(context_path)) {
+    if (prepare_only) {
+      MLLM_ERROR_EXIT(1, "Refusing to overwrite existing QNN context in prepare-only mode: {}", context_path);
+    }
     MLLM_INFO("QNN context path exists: {}", context_path);
     if (!backend->loadContext(context_path)) {
       MLLM_ERROR_EXIT(1, "Failed to load QNN context from {}", context_path);
@@ -28,7 +31,7 @@ void initQnnBackend(const std::string& context_path) {
       MLLM_INFO("QNN context loaded successfully from {}", context_path);
     }
   } else {
-    if (!backend->createContext()) {
+    if (!backend->createContext(prepare_only)) {
       MLLM_ERROR_EXIT(1, "Failed to create QNN context");
     } else {
       MLLM_INFO("QNN context created successfully");
@@ -51,5 +54,6 @@ void initQnnBackend(const std::string& context_path) {
   // register QNN custom ops
   Context::instance().registerCustomizedOp(kQNN, "DequantizeAdd",
                                            std::shared_ptr<BaseOpFactory>((BaseOpFactory*)(new qnn::DequantizeAddFactory())));
+  ctx.registerCustomizedOp(kQNN, "ShadowCorrectionPacket", std::make_shared<qnn::ShadowCorrectionPacketFactory>());
 }
 }  // namespace mllm

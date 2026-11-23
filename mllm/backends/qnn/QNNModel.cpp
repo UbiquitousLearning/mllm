@@ -191,8 +191,9 @@ ModelError_t QNNModel::addTensor(const std::string& tensorName, Qnn_TensorType_t
   return addTensorWrapper(tensorWrapper);
 }
 
-ModelError_t QNNModel::addStaticTensor(const std::string& tensorName, const Tensor& tensor, Qnn_QuantizeParams_t quantize) {
-  auto tensorWrapper = QNNTensorWrapper::createStaticTensor(tensorName, tensor, quantize);
+ModelError_t QNNModel::addStaticTensor(const std::string& tensorName, const Tensor& tensor, Qnn_QuantizeParams_t quantize,
+                                      Qnn_DataType_t dataTypeOverride) {
+  auto tensorWrapper = QNNTensorWrapper::createStaticTensor(tensorName, tensor, quantize, dataTypeOverride);
   return addTensorWrapper(tensorWrapper);
 }
 

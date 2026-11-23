@@ -9,6 +9,7 @@
 #include "System/QnnSystemInterface.h"
 #include "mllm/backends/base/Backend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
+#include "mllm/backends/qnn/QNNSequenceTiling.hpp"
 #include "mllm/backends/qnn/QNNModel.hpp"
 #include "mllm/mllm.hpp"
 #include "mllm/utils/Log.hpp"
@@ -54,7 +55,7 @@ class QNNRuntime {
     return std::unique_ptr<QNNRuntime>(initRuntime(profilingLevel, qnnLogLevel));
   }
 
-  bool createContext(Qnn_ContextHandle_t& context, QnnContext_Config_t** contextConfig = nullptr);
+  bool createContext(Qnn_ContextHandle_t& context, const QnnContext_Config_t** contextConfig = nullptr);
   bool retrieveContext(const std::string& contextBinaryPath, Qnn_ContextHandle_t& context,
                        std::vector<std::shared_ptr<QNNModel>>& qnnModels, QnnContext_Config_t** contextConfig = nullptr);
 
@@ -94,12 +95,21 @@ class QNNRuntime {
 
 class QNNBackend final : public Backend {
  public:
+  struct SequenceTileProfile {
+    uint64_t input_copy_us = 0;
+    uint64_t execute_us = 0;
+    uint64_t output_copy_us = 0;
+    uint64_t graph_calls = 0;
+    uint64_t tile_calls = 0;
+    size_t scratch_bytes = 0;
+  };
+
   QNNBackend();
   ~QNNBackend();
 
   bool loadContext(const std::string& contextPath);
-  bool createContext();
-  void saveContext(const std::string& contextPath = "qnn_context.bin");
+  bool createContext(bool prepareOnly = false);
+  bool saveContext(const std::string& contextPath = "qnn_context.bin");
 
   bool isWeightOnDevice() override { return false; }
 
@@ -116,12 +126,20 @@ class QNNBackend final : public Backend {
 
   void graphExecute(const std::string& graphName, std::vector<Tensor>& inputs, std::vector<Tensor>& outputs);
 
+  // Execute a graph compiled for M=sequence_tile over a larger logical token
+  // boundary by copying exact, contiguous tiles through persistent QNN shared
+  // buffers. Configure this before the first graph execution.
+  void setSequenceTile(int32_t sequence_tile);
+  [[nodiscard]] int32_t sequenceTile() const { return sequenceTile_; }
+  [[nodiscard]] SequenceTileProfile sequenceTileProfile() const { return sequenceTileProfile_; }
+
   // Tensor management interfaces
   bool addTensor(const std::string& graphName, const std::string& tensorName, Qnn_TensorType_t type, const Tensor& tensor,
                  Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
 
   bool addStaticTensor(const std::string& graphName, const std::string& tensorName, const Tensor& tensor,
-                       Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS);
+                       Qnn_QuantizeParams_t quantize = DEFAULT_QUANTIZE_PARAMS,
+                       Qnn_DataType_t dataTypeOverride = QNN_DATATYPE_UNDEFINED);
 
   // Get tensor wrapper by name from specific graph
   std::shared_ptr<QNNTensorWrapper> getTensorWrapper(const std::string& graphName, const std::string& tensorName);
@@ -148,6 +166,17 @@ class QNNBackend final : public Backend {
   std::map<std::string, int> qnnModelIndexMap_;
   std::vector<std::shared_ptr<QNNModel>> qnnModels_;
   int currentQnnModelIndex_ = -1;
+
+  struct SequenceTileGraphState {
+    int32_t tile_count = 0;
+    std::vector<QNNSequenceTilePlan> input_plans;
+    std::vector<QNNSequenceTilePlan> output_plans;
+    std::vector<Tensor> tile_inputs;
+    std::vector<Tensor> tile_outputs;
+  };
+  int32_t sequenceTile_ = 0;
+  std::map<std::string, SequenceTileGraphState> sequenceTileGraphs_;
+  SequenceTileProfile sequenceTileProfile_;
 
   // Helper methods
   void extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle);

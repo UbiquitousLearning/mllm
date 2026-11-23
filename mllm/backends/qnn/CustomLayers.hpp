@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "mllm/backends/base/PluginInterface.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/nn/Layer.hpp"
@@ -28,6 +30,15 @@ class DequantizeAdd : public Layer {
   DequantizeAdd();
 
   explicit DequantizeAdd(DataTypes dtype, int32_t out_channels);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
+};
+
+struct ShadowCorrectionPacketOptions : public BaseOpOptions<ShadowCorrectionPacketOptions> {};
+
+class ShadowCorrectionPacket : public Layer {
+ public:
+  ShadowCorrectionPacket();
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
@@ -66,6 +77,33 @@ class DequantizeAddFactory final : public mllm::plugin::interface::CustomizedOpF
     auto p = std::make_shared<DequantizeAddOp>(cargo);
     p->setOpType(opType());
     return p;
+  }
+};
+
+class ShadowCorrectionPacketOp final : public plugin::interface::CustomizedOp {
+ public:
+  explicit ShadowCorrectionPacketOp(const nn::qnn::ShadowCorrectionPacketOptions&)
+      : CustomizedOp("ShadowCorrectionPacket") {}
+
+  void load(const ParameterFile::ptr_t& file) override;
+  void trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+  void forward(const std::vector<Tensor>&, std::vector<Tensor>&) override;
+  void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+  void setup(const std::vector<Tensor>&, std::vector<Tensor>&) override {}
+
+  const std::array<uint32_t, 3>& controls() const { return controls_; }
+
+ private:
+  std::array<uint32_t, 3> controls_{};
+};
+
+class ShadowCorrectionPacketFactory final
+    : public TypedOpFactory<OpTypes::kDynamicOp_Start, nn::qnn::ShadowCorrectionPacketOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const nn::qnn::ShadowCorrectionPacketOptions& options) override {
+    auto op = std::make_shared<ShadowCorrectionPacketOp>(options);
+    op->setOpType(opType());
+    return op;
   }
 };
 

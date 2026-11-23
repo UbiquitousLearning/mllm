@@ -33,7 +33,7 @@ class QNNGraphBuildPass final : public ir::Pass {
     (_reg_one_pattern<Args>(), ...);
   }
 
-  void buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_graph_op);
+  bool buildQnnGraph(const ir::graph::SubGraphOp::ptr_t& sub_graph_op, const std::string& graph_name);
 
   std::unordered_map<OpTypes, std::shared_ptr<QNNBasePattern>> patterns_;
 };

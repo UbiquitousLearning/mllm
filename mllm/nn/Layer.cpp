@@ -23,11 +23,13 @@ void LayerImpl::to(DeviceTypes device_type) {
       }
     }
 
-    instanced_op_ = nullptr;
     instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
     instanced_op_->setName(getAbsoluteName());
-
     instanced_op_->load(temp_params_loader);
+  } else if (device_type != device_type_ && (device_type == kQNN || device_type_ == kQNN)) {
+    // QNN uses backend-specific operators with host-backed weights.
+    instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
+    instanced_op_->setName(getAbsoluteName());
   }
 
   device_type_ = device_type;

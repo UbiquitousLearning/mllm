@@ -15,6 +15,7 @@ namespace mllm::qnn {
 
 class QNNLinearOp final : public aops::LinearOp {
   Tensor weightScale_, biasScale_, outputScale_;
+  bool floatBiasNeedsRuntimeQuantization_ = false;
 
  public:
   explicit QNNLinearOp(const aops::LinearOpOptions& options);
@@ -27,6 +28,7 @@ class QNNLinearOp final : public aops::LinearOp {
   const Tensor& weightScale() const { return weightScale_; }
   const Tensor& biasScale() const { return biasScale_; }
   const Tensor& outputScale() const { return outputScale_; }
+  bool floatBiasNeedsRuntimeQuantization() const { return floatBiasNeedsRuntimeQuantization_; }
 };
 
 class QNNLinearOpFactory : public TypedOpFactory<OpTypes::kLinear, aops::LinearOpOptions> {

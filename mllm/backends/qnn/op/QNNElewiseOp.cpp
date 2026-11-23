@@ -1,6 +1,10 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/backends/qnn/ShadowCorrectionGraph.hpp"
+#include <cstdlib>
+#include <string_view>
+
 #include "mllm/backends/qnn/op/QNNElewiseOp.hpp"
 #include "mllm/backends/qnn/QNNBackend.hpp"
 #include "mllm/backends/qnn/QNNUtils.hpp"
@@ -151,9 +155,31 @@ bool QNNMulPattern::addNode(const std::string& graphName, const ir::op_ptr_t& op
     return false;
   }
 
-  // Add ElementWiseMultiply node to the graph using standard QNN operator
-  qnnBackend->graphAddNode(graphName, qnnMulOp->getName(), "ElementWiseMultiply", inputTensorNames, {outputs[0]->name()}, {},
-                           {});
+  const auto& node_name = qnnMulOp->getName();
+  const char* request = std::getenv("MLLM_QNN_MLP_HVX_MUL");
+  const auto graph = shadowMainGraphName(graphName);
+  constexpr std::string_view layer_prefix = "model.layers.";
+  bool use_hvx = false;
+  if (request != nullptr && std::string_view(request) == "1" && graph.starts_with(layer_prefix)
+      && (graph.ends_with("_1") || graph.ends_with("_2")) && node_name == std::string(graph) + ".Mul.0"
+      && inputs.size() == 2 && outputs.size() == 1) {
+    // The output graph is _1 after the QKV graph receives its own name, and _2 in the fused-bias trace.
+    const auto layer = graph.substr(layer_prefix.size(), graph.size() - layer_prefix.size() - 2);
+    const auto& shape = inputs[0]->tensor_.shape();
+    const bool supported_tile = shape == Tensor::shape_t{1, 256, 1, 8960} || shape == Tensor::shape_t{1, 16, 16, 8960};
+    const auto matches_tile = [&shape](const auto& value) {
+      return value->tensor_.dtype() == kFloat32 && value->tensor_.shape() == shape;
+    };
+    use_hvx = supported_tile && !layer.empty() && layer.find_first_not_of("0123456789") == std::string_view::npos
+              && matches_tile(inputs[0]) && matches_tile(inputs[1]) && matches_tile(outputs[0]);
+  }
+  if (use_hvx) {
+    qnnBackend->graphAddNode(graphName, node_name + ".llama_hvx_f32", "LLaMAMul", inputTensorNames, {outputs[0]->name()}, {},
+                             {}, "LLaMAPackage");
+    MLLM_INFO("QNN_MLP_HVX_MUL_LOWERING graph={} node={}", graphName, node_name);
+  } else {
+    qnnBackend->graphAddNode(graphName, node_name, "ElementWiseMultiply", inputTensorNames, {outputs[0]->name()}, {}, {});
+  }
 
   return true;
 }
