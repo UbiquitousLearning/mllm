@@ -141,6 +141,11 @@ When the variable is unset or set to ``0``, the loader reads the binary into a
 temporary buffer and releases it after loading. The option requires a QNN
 backend that supports persistent context binaries.
 
+For contexts built with the mllm LLaMA op package, set
+``MLLM_QNN_CPU_OP_PACKAGE`` and ``MLLM_QNN_HTP_OP_PACKAGE`` to the matching
+host-side and Hexagon shared libraries before initializing the QNN backend.
+Set the DSP library search path for the target as part of the runtime setup.
+
 QNNModel: Graph Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

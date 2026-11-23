@@ -367,30 +367,29 @@ QNNRuntime* QNNRuntime::initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_
     }
   }
 
-  // Register Custom OpPackages
-  {
-    struct OpPackageInfo {
-      std::string path;
-      std::string interfaceProvider;
-      std::string target;
-    };
-
-    std::vector<OpPackageInfo> opPackages = {};
-
-    for (const auto& pkg : opPackages) {
-      if (!qnnInterface.backendRegisterOpPackage) {
-        MLLM_ERROR("backendRegisterOpPackageFnHandle is nullptr.");
-        return nullptr;
-      }
-      if (QNN_BACKEND_NO_ERROR
-          != qnnInterface.backendRegisterOpPackage(backendHandle, pkg.path.c_str(), pkg.interfaceProvider.c_str(),
-                                                   pkg.target.c_str())) {
-        MLLM_ERROR("Could not register Op Package: {} and interface provider: {}", pkg.path.c_str(),
-                   pkg.interfaceProvider.c_str());
-        return nullptr;
-      }
-      MLLM_INFO("Registered Op Package: {} and interface provider: {}", pkg.path.c_str(), pkg.interfaceProvider.c_str());
+  // Register any custom packages needed by the graphs before loading a context.
+  struct OpPackageSetting {
+    const char* variable;
+    const char* target;
+  };
+  const OpPackageSetting opPackages[] = {
+      {"MLLM_QNN_CPU_OP_PACKAGE", "CPU"},
+      {"MLLM_QNN_HTP_OP_PACKAGE", "HTP"},
+  };
+  for (const auto& pkg : opPackages) {
+    const char* path = std::getenv(pkg.variable);
+    if (path == nullptr || *path == '\0') { continue; }
+    if (!qnnInterface.backendRegisterOpPackage) {
+      MLLM_ERROR("QNN backend does not expose op package registration for {}", pkg.variable);
+      return nullptr;
     }
+    const auto status =
+        qnnInterface.backendRegisterOpPackage(backendHandle, path, "LLaMAPackageInterfaceProvider", pkg.target);
+    if (status != QNN_BACKEND_NO_ERROR) {
+      MLLM_ERROR("Could not register QNN {} op package {}: {}", pkg.target, path, status);
+      return nullptr;
+    }
+    MLLM_INFO("Registered QNN {} op package {}", pkg.target, path);
   }
 
   // Create QNN System Interface
