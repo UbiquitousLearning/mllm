@@ -70,23 +70,25 @@ Tensor stack(const std::vector<Tensor>& ins, int32_t dim) {
 }
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V) {
-  // Inputs is all BSHD format.
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kFlashAttention2, aops::FlashAttention2OpOptions{}, {Q, K, V})[0];
+}
 
-  auto q_heads = Q.shape()[2];
-  auto k_heads = K.shape()[2];
-  auto B = Q.shape()[0];
-  auto D = Q.shape()[3];
+Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout, bool causal_mask,
+                       int32_t sliding_window) {
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kFlashAttention2,
+      aops::FlashAttention2OpOptions{
+          .causal_mask = causal_mask, .layout = layout, .sliding_window = sliding_window, .use_tiled = true},
+      {Q, K, V})[0];
+}
 
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kFlashAttention2,
-                                                  aops::FlashAttention2OpOptions{
-                                                      .B = B,
-                                                      .q_head = q_heads,
-                                                      .kv_head = k_heads,
-                                                      .D = D,
-                                                      .hp_exp = false,
-                                                      .causal_mask = true,
-                                                  },
-                                                  {Q, K, V})[0];
+bool supportsCpuFlashAttention2Prefill(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout) {
+  if (layout != aops::FlashAttention2Layout::kBSHD && layout != aops::FlashAttention2Layout::kBHSD) return false;
+  for (const auto* input : {&Q, &K, &V}) {
+    if (input->isNil() || input->device() != kCPU || input->dtype() != kFloat32 || input->shape().size() != 4) return false;
+  }
+  const int s = layout == aops::FlashAttention2Layout::kBSHD ? 1 : 2;
+  return Q.shape()[s] > 1 && Q.shape()[s] <= K.shape()[s];
 }
 
 Tensor groupedQueryAttentionDecode(const Tensor& query, const Tensor& key, const Tensor& value) {

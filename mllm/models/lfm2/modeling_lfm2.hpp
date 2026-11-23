@@ -64,6 +64,7 @@ class Lfm2Attention final : public nn::Module {
  public:
   Lfm2Attention() = default;
   Lfm2Attention(const std::string& name, const Lfm2Config& cfg) : nn::Module(name) {
+    use_tiled_fa2_prefill_ = cfg.use_tiled_fa2_prefill;
     hidden_size_ = cfg.hidden_size;
     head_dim_ = cfg.head_dim;
     query_heads_ = cfg.num_attention_heads;
@@ -97,11 +98,12 @@ class Lfm2Attention final : public nn::Module {
 
     auto* cache = args.at(0).get<nn::KVHeadStaticCache*>();
     auto updated = cache->updateKVCache(logical_cache_slot_, key, value);
-    // LFM2 keeps the established direct accumulation order for both prefill
-    // and decode. MiniCPM5's dedicated decode kernel is faster, but the
-    // OnePlus exact-token gate showed that its different reduction order
-    // changes LFM2 generation beginning at token 12.
-    auto output = gqa_(query, updated[0], updated[1]);
+    // Keep the established direct order by default and for single-token decode.
+    constexpr auto layout = aops::FlashAttention2Layout::kBHSD;
+    auto output =
+        use_tiled_fa2_prefill_ && nn::functional::supportsCpuFlashAttention2Prefill(query, updated[0], updated[1], layout)
+            ? nn::functional::flashAttention2(query, updated[0], updated[1], layout)
+            : gqa_(query, updated[0], updated[1]);
     output = output.transpose(1, 2).contiguous().view({batch, sequence, query_heads_ * head_dim_});
     return {out_proj_(output)};
   }
@@ -109,6 +111,7 @@ class Lfm2Attention final : public nn::Module {
   int32_t logical_cache_slot_ = 0;
 
  private:
+  bool use_tiled_fa2_prefill_ = false;
   int32_t hidden_size_ = 0;
   int32_t head_dim_ = 0;
   int32_t query_heads_ = 0;

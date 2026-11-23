@@ -8,6 +8,7 @@
 
 #include "mllm/core/OpTypes.hpp"
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/core/aops/PadOp.hpp"
@@ -111,6 +112,13 @@ Tensor concat(const std::vector<Tensor>& ins, int32_t dim);
 Tensor stack(const std::vector<Tensor>& ins, int32_t dim);
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
+// Stride-aware, tiled CPU attention. The output uses the specified layout
+// and V's feature width. Causal queries align to the end of the KV history.
+Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout,
+                       bool causal_mask = true, int32_t sliding_window = 0);
+// Conservative model-routing guard. Single-query decode stays on the caller's
+// existing path; detailed attention geometry is validated by the op itself.
+bool supportsCpuFlashAttention2Prefill(const Tensor& Q, const Tensor& K, const Tensor& V, aops::FlashAttention2Layout layout);
 
 Tensor groupedQueryAttentionDecode(const Tensor& query, const Tensor& key, const Tensor& value);
 

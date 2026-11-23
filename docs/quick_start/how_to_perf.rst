@@ -97,6 +97,24 @@ MLLM's performance tracing is organized into several categories:
 
 These categories help you filter and analyze specific aspects of your model's performance.
 
+CPU tiled FlashAttention2
+-------------------------
+
+The Qwen3 CPU FA2 runner, Qwen3.5 full-attention layers, LFM2.5 attention
+layers, and MiniCPM5 can opt into the same tiled FP32 implementation by
+setting ``"use_tiled_fa2_prefill": true`` in the model configuration. For
+Qwen3.5 place the option inside ``text_config`` if that object is present.
+The default is off. Multi-query causal attention on CPU can use the tiled
+variant; single-query decode, other dtypes, and unsupported backends keep
+their existing routes. The tiled and incumbent implementations may differ
+in floating-point rounding because they reduce in a different order.
+Gated DeltaNet, convolution, the KV cache, and quantized linear projections
+are not changed by this option.
+
+To benchmark it, compare the same model and prompt with the option off and
+on. Report prefill and single-token decode separately; the option changes
+the multi-query route, not the single-token kernel.
+
 Best Practices
 --------------
 

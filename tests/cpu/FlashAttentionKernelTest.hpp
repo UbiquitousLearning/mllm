@@ -1,16 +1,51 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <bit>
+#include <cmath>
+#include <cstdint>
 #include <limits>
 #include <unordered_map>
+#include <vector>
 
 #include "mllm/mllm.hpp"
+#include "mllm/backends/cpu/kernels/common/fa2_1/fwd_bshd.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
 
 #include "KernelTestHelper.hpp"
 
 using namespace mllm;  // NOLINT
+
+namespace fa2_kernel_test {
+
+inline void testIdentityRescale(int batch, int q_heads, int kv_heads, int q_len, int kv_len, int dim) {
+  using mllm::cpu::flash_attn2::fwd_bshd;
+  using mllm::cpu::flash_attn2::details::__ArmArchTag;
+  const auto q_size = static_cast<size_t>(batch) * q_len * q_heads * dim;
+  const auto kv_size = static_cast<size_t>(batch) * kv_len * kv_heads * dim;
+  std::vector<float> q(q_size), k(kv_size), v(kv_size), legacy(q_size), optimized(q_size);
+  for (size_t i = 0; i < q_size; ++i) q[i] = static_cast<float>(static_cast<int>((i * 11) % 23) - 11) / 16.f;
+  for (size_t i = 0; i < kv_size; ++i) {
+    // Consecutive equal keys exercise the identity transition; changing
+    // their magnitude and direction also exercises the rescale path.
+    const size_t row_size = static_cast<size_t>(kv_heads) * dim;
+    const size_t pair = (i / row_size) / 2;
+    const int key = static_cast<int>(((i % row_size) * 7 + pair * 3) % 31) - 15;
+    k[i] = static_cast<float>(key) / 8.f;
+    v[i] = static_cast<float>(static_cast<int>((i * 17) % 29) - 14) / 32.f;
+  }
+  fwd_bshd<__ArmArchTag, float, float, float, float, float, true, false>(batch, q_heads, kv_heads, q_len, kv_len, dim, q.data(),
+                                                                         k.data(), v.data(), legacy.data(), 1);
+  fwd_bshd<__ArmArchTag, float, float, float, float, float, true, true>(batch, q_heads, kv_heads, q_len, kv_len, dim, q.data(),
+                                                                        k.data(), v.data(), optimized.data(), 1);
+  for (size_t i = 0; i < q_size; ++i) {
+    ASSERT_TRUE(std::isfinite(legacy[i]));
+    ASSERT_EQ(std::bit_cast<uint32_t>(legacy[i]), std::bit_cast<uint32_t>(optimized[i])) << "element " << i;
+  }
+}
+
+}  // namespace fa2_kernel_test
 
 class FlashAttn2Module : public nn::Module {
  public:

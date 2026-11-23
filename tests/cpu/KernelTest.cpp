@@ -973,10 +973,35 @@ TEST_F(RadixAttnKernelTest, fwd_bshd) {
 #endif
 
 //===----------------------------------------------------------------------===//
-// Radix Attn
+// Flash Attention
 //===----------------------------------------------------------------------===//
+#include "Fa2TiledKernelTest.hpp"
+TEST_F(Fa2TiledKernelTest, MatchesReferenceAcrossLayoutsMasksAndTails) {
+  using fa2_tiled_kernel_test::testAgainstDoubleReference;
+  testAgainstDoubleReference({1, 16, 4, 65, 65, 128, 128, true, 0}, true, 1, 1, 1.f);
+  testAgainstDoubleReference({2, 6, 2, 19, 103, 19, 35, true, 37}, false, 1, 2, 1.f);
+  testAgainstDoubleReference({1, 4, 4, 1, 97, 256, 64, true, 0}, false, 1, 1, 4.f);
+  testAgainstDoubleReference({2, 4, 1, 5, 67, 7, 3, false, 0}, true, 2, 1, 1.f);
+  testAgainstDoubleReference({1, 2, 2, 1, 1, 17, 19, true, 1}, false, 1, 1, 32.f);
+}
+
+TEST_F(Fa2TiledKernelTest, MatchesReferenceAcrossNativeGqaGeometries) {
+  using fa2_tiled_kernel_test::testAgainstDoubleReference;
+  testAgainstDoubleReference({1, 16, 8, 17, 37, 128, 128, true, 0}, true, 1, 2, 1.f);
+  testAgainstDoubleReference({1, 8, 2, 17, 37, 256, 256, true, 0}, false, 1, 2, 1.f);
+  testAgainstDoubleReference({1, 16, 4, 17, 37, 256, 256, true, 0}, false, 1, 2, 1.f);
+  testAgainstDoubleReference({1, 32, 8, 17, 37, 64, 64, true, 0}, false, 1, 2, 1.f);
+  testAgainstDoubleReference({1, 16, 2, 17, 37, 128, 128, true, 0}, false, 1, 2, 1.f);
+}
+
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "FlashAttentionKernelTest.hpp"
+TEST_F(FlashAttn2KernelTest, IdentityRescaleMatchesLegacyBitwise) {
+  fa2_kernel_test::testIdentityRescale(1, 16, 4, 65, 65, 128);
+  fa2_kernel_test::testIdentityRescale(2, 6, 2, 7, 33, 19);
+  fa2_kernel_test::testIdentityRescale(1, 4, 4, 1, 37, 64);
+  fa2_kernel_test::testIdentityRescale(1, 8, 1, 1, 1, 256);
+}
 TEST_F(FlashAttn2KernelTest, fwd_bshd) {
   EXPECT_EQ(testRadixAttn({{
                                {"H_Q", 28},

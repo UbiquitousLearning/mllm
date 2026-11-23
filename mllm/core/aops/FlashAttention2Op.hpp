@@ -8,13 +8,20 @@
 
 namespace mllm::aops {
 
+enum class FlashAttention2Layout : int32_t { kBSHD = 0, kBHSD = 1 };
+
 struct FlashAttention2OpOptions : public BaseOpOptions<FlashAttention2OpOptions> {
-  int32_t B;
-  int32_t q_head;
-  int32_t kv_head;
-  int32_t D;
+  int32_t B = 0;
+  int32_t q_head = 0;
+  int32_t kv_head = 0;
+  int32_t D = 0;
   bool hp_exp = false;
   bool causal_mask = true;
+  FlashAttention2Layout layout = FlashAttention2Layout::kBSHD;
+  int32_t sliding_window = 0;
+  // The tiled variant is algebraically equivalent but has a different
+  // floating-point reduction order from the original per-key implementation.
+  bool use_tiled = false;
 };
 
 class FlashAttention2Op : public BaseOp {
