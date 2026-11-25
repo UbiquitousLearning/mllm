@@ -605,6 +605,9 @@ BaseOp::ptr_t __flashAttention2FromJson(const nlohmann::json& json) {
     if (opts.contains("D")) options.D = opts["D"];
     if (opts.contains("hp_exp")) options.hp_exp = opts["hp_exp"];
     if (opts.contains("causal_mask")) options.causal_mask = opts["causal_mask"];
+    if (opts.contains("layout")) options.layout = static_cast<aops::FlashAttention2Layout>(opts.at("layout").get<int32_t>());
+    if (opts.contains("sliding_window")) options.sliding_window = opts["sliding_window"];
+    if (opts.contains("use_tiled")) options.use_tiled = opts["use_tiled"];
   }
 
   DeviceTypes backend = DeviceTypes::kCPU;

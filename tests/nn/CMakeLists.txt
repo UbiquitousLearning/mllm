@@ -27,6 +27,11 @@ target_link_libraries(Mllm-Test-Nn-GatedDeltaRule PRIVATE gtest_main MllmRT Mllm
 target_include_directories(Mllm-Test-Nn-GatedDeltaRule PRIVATE ${MLLM_INCLUDE_DIR})
 
 include(GoogleTest)
+add_executable(Mllm-Test-Nn-FlashAttention2 FlashAttention2Test.cpp)
+target_link_libraries(Mllm-Test-Nn-FlashAttention2 PRIVATE gtest_main MllmRT MllmCPUBackend)
+target_include_directories(Mllm-Test-Nn-FlashAttention2 PRIVATE ${MLLM_INCLUDE_DIR})
+add_test(NAME FlashAttention2Focused COMMAND Mllm-Test-Nn-FlashAttention2)
+set_tests_properties(FlashAttention2Focused PROPERTIES LABELS nn-op)
 add_test(NAME GatedDeltaRuleFocused COMMAND Mllm-Test-Nn-GatedDeltaRule)
 add_test(NAME GroupedQueryAttentionFocused COMMAND Mllm-Test-Nn-GroupedQueryAttention)
 add_test(NAME KVHeadStaticCacheFocused COMMAND Mllm-Test-Nn-KVHeadStaticCache)

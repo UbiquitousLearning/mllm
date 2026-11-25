@@ -250,8 +250,15 @@ nlohmann::json dumpSTFTOpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
 
 nlohmann::json dumpFlashAttention2OpIROptions(const ir::linalg::LinalgIROp::ptr_t& op) {
   auto options = ((aops::FlashAttention2Op*)op->getAOp())->options();
-  return {{"B", options.B}, {"q_head", options.q_head}, {"kv_head", options.kv_head},
-          {"D", options.D}, {"hp_exp", options.hp_exp}, {"causal_mask", options.causal_mask}};
+  return {{"B", options.B},
+          {"q_head", options.q_head},
+          {"kv_head", options.kv_head},
+          {"D", options.D},
+          {"hp_exp", options.hp_exp},
+          {"causal_mask", options.causal_mask},
+          {"layout", static_cast<int32_t>(options.layout)},
+          {"sliding_window", options.sliding_window},
+          {"use_tiled", options.use_tiled}};
 }
 
 

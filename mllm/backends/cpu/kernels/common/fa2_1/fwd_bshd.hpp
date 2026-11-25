@@ -23,7 +23,7 @@ namespace mllm::cpu::flash_attn2 {
 // QKV is BSHD
 // H_KV should <= H_Q
 template<typename __ArchTag, typename __QDType, typename __KDType, typename __VDType, typename __ODType, typename __AccDType,
-         bool high_precession_exp = true>
+         bool high_precession_exp = true, bool skip_identity_rescale = false>
 void fwd_bshd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, int32_t D, const __QDType* __restrict__ __q,
               __KDType* __k, __VDType* __v, __ODType* __restrict__ __out, int32_t thread_count) {
   int32_t head_repeat_times = H_Q / H_KV;
@@ -69,13 +69,18 @@ void fwd_bshd(int32_t B, int32_t H_Q, int32_t H_KV, int32_t S_Q, int32_t S_KV, i
           // 2. Do softmax stuff.
           scores_max_prev = scores_max;
           scores_max = std::max(scores_max_prev, acc_s);
-          scores_scale = std::exp2(scores_max_prev * scale - scores_max * scale);
+          const __AccDType scale_delta = scores_max_prev * scale - scores_max * scale;
+          // A zero delta gives exp2(0) == 1. Skip both that call and a
+          // full read/write pass over the output accumulator. Testing the
+          // computed delta preserves the old path for non-finite values.
+          const bool keep_accumulator = skip_identity_rescale && scale_delta == 0;
+          scores_scale = keep_accumulator ? __AccDType{1} : std::exp2(scale_delta);
           acc_s = std::exp2(acc_s * scale - scores_max * scale);
           scores_sum = acc_s;
           logsum = logsum * scores_scale + scores_sum;
 
           // 3. Scale
-          details::MulFromConst<__ArchTag, __AccDType, __AccDType>::run(acc_o, scores_scale, D);
+          if (!keep_accumulator) { details::MulFromConst<__ArchTag, __AccDType, __AccDType>::run(acc_o, scores_scale, D); }
 
           // 4. MMA1.
           details::FMAConstArray<__ArchTag, __AccDType, __AccDType, __AccDType>::run(acc_o, acc_s, v_token, D);
